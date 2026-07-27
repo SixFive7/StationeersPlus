@@ -3960,6 +3960,28 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#dedicated-server-behavior" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dedicated server behavior
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#not-caller-scoped" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Not caller-scoped
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#availabledlcmessage" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -8512,6 +8534,28 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#dedicated-server-behavior" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dedicated server behavior
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#not-caller-scoped" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Not caller-scoped
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#availabledlcmessage" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -8705,13 +8749,13 @@
         <p class="research-meta-verified">
           <strong>Verified</strong>
            in game version <code>0.2.6403.27689</code>
-           on 2026-07-25.
+           on 2026-07-27.
         </p>
       
       
       
         <details class="research-meta-sources">
-          <summary><strong>Sources</strong> (7)</summary>
+          <summary><strong>Sources</strong> (9)</summary>
           <ul>
             
               <li><code>{'$(StationeersPath)\\rocketstation_Data\\Managed\\Assembly-CSharp.dll :': 'DLC.DLCManager'}</code></li>
@@ -8727,6 +8771,10 @@
               <li><code>$(StationeersPath)\rocketstation_Data\StreamingAssets\Data\paints.xml</code></li>
             
               <li><code>$(StationeersPath)\rocketstation_Data\StreamingAssets\Language\english.xml</code></li>
+            
+              <li><code>{'$(StationeersPath)\\rocketstation_Data\\Managed\\Assembly-CSharp.dll :': 'Assets.Scripts.GameManager (IsBatchMode, RunSimulation, SetMatchMode, ClearGameAll)'}</code></li>
+            
+              <li><code>{'$(StationeersPath)\\rocketstation_Data\\Managed\\Assembly-CSharp.dll :': 'Assets.Scripts.Networking.MessageBase (DeserializeReceivedData)'}</code></li>
             
           </ul>
         </details>
@@ -8903,7 +8951,7 @@
 <p><code>DLCManager.Initialize()</code> is called from a manager's <code>private async void Start()</code>, in a startup sequence alongside <code>ControllerAxisItem.InitializeJoysticks()</code>, <code>InputMouse.Initialize()</code>, <code>Settings.Initialize()</code>, and <code>Stationpedia.Initialize()</code>. Until it runs, <code>_ownedDLC</code> is <code>0</code> and every <code>CheckAccess</code> call for a non-<code>None</code> <code>DLCType</code> returns false.</p>
 <p>This matters for BepInEx mods: plugin <code>Awake()</code> runs during the BepInEx chainloader, before Unity <code>Start()</code> on scene objects, so <strong>entitlement is not yet known at plugin <code>Awake</code> time</strong>. Any mod that wants to branch on DLC ownership must defer the read, for example to <code>Prefab.OnPrefabsLoaded</code> or to first use, rather than sampling it while binding config. A concrete consequence: StationeersLaunchPad's settings panel supports a <code>Disabled</code> tag for rendering a config entry read-only (see <code>../Patterns/StationeersLaunchPadSettingsGrouping.md</code>), but the tag has to be supplied inside the <code>ConfigDescription</code> at <code>Config.Bind</code> time, which is too early to test ownership. Computing it there would grey the entry out for players who do own the DLC.</p>
 <h2 id="shareddlcmanager-session-wide-entitlement-pool">SharedDLCManager: session-wide entitlement pool<a class="headerlink" href="#shareddlcmanager-session-wide-entitlement-pool" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6403.27689 @ 2026-07-25 -->
+<!-- verified: 0.2.6403.27689 @ 2026-07-27 -->
 
 <p>Stationeers shares DLC across a multiplayer session: if any connected player owns a DLC, every player in that session can use its content. <code>SharedDLCManager</code> holds the union.</p>
 <div class="language-text highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>private static ushort _sharedDLC;
@@ -8957,51 +9005,108 @@
 <p>Lifecycle:</p>
 <ul>
 <li><code>SharedDLCManager.ClearAll()</code> runs on world teardown, resetting the pool to 0.</li>
-<li><code>HostFinishedLoad()</code> seeds the pool from the host's own entitlements. The <code>!GameManager.IsBatchMode &amp;&amp; GameManager.RunSimulation</code> guard means a dedicated server in batch mode does NOT seed the pool from the server process; the pool starts empty and fills only from connecting clients.</li>
+<li><code>HostFinishedLoad()</code> seeds the pool from the host's own entitlements. Its sole call site is decompile line 268799, at the end of the world-load path, immediately after <code>World.OnLoadingFinished</code>. Of the two guard terms only <code>!IsBatchMode</code> can fail on a server: <code>GameManager.RunSimulation</code> is <code>=&gt; !NetworkManager.IsClient</code> (203945), which is always true on a server. So a dedicated server does NOT seed the pool from the server process; the pool starts empty and fills only from connecting clients. See "Dedicated server behavior" below for what <code>IsBatchMode</code> actually keys off, which is broader than the <code>-batchmode</code> flag.</li>
 <li><code>ClientFinishedLoad()</code> makes each client send <code>AvailableDLCMessage</code> to the server with its own <code>DLCType</code> bitmask.</li>
 <li><code>AvailableDLCMessage.Process</code> calls <code>SharedDLCManager.AddSharedDLC(DLCType)</code>, ORing the client's entitlements into the pool.</li>
 <li>The pool syncs back to clients as delta state under network update bit 256.</li>
 </ul>
 <p>Important consequence: the pool only grows during a session. A player who owns the DLC joining and then leaving leaves the pool with the bit still set until <code>ClearAll()</code> runs.</p>
+<p>Exhaustive write-site list for the pool, from a whole-file search of the decompile:</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>192430:  private static ushort _sharedDLC;          (declaration)
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>192442:  _sharedDLC = value;                        (setter body)
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>192452:  SharedDLC |= clientOwnedDLC;               (AddSharedDLC)
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>192459:  SharedDLC = (ushort)DLCManager.GetOwnedDLC();  (HostFinishedLoad)
+</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>192493:  SharedDLC = reader.ReadUInt16();           (DeserializeDeltaState, client side)
+</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>192499:  SharedDLC = 0;                             (ClearAll)
+</span></code></pre></div>
+<p>There is no disconnect, leave, or player-removal path that clears or recomputes the pool, and no per-player subtraction is even possible because no per-player entitlement record exists anywhere (see "Not caller-scoped" below).</p>
+<h3 id="dedicated-server-behavior">Dedicated server behavior<a class="headerlink" href="#dedicated-server-behavior" title="Permanent link">&para;</a></h3>
+<!-- verified: 0.2.6403.27689 @ 2026-07-27 -->
+
+<p><code>IsBatchMode</code> keys off more than the <code>-batchmode</code> command-line flag. <code>GameManager.SetMatchMode()</code> (204290-204304) runs at <code>AfterAssembliesLoaded</code>, so it is settled long before any world load:</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>[RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterAssembliesLoaded)]
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>private static void SetMatchMode()
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>{
+</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>    int isBatchMode;
+</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>    if (!Application.isBatchMode)
+</span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>    {
+</span><span id="__span-5-7"><a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a>        RuntimePlatform platform = Application.platform;
+</span><span id="__span-5-8"><a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>        isBatchMode = ((platform == RuntimePlatform.LinuxServer || platform == RuntimePlatform.WindowsServer) ? 1 : 0);
+</span><span id="__span-5-9"><a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a>    }
+</span><span id="__span-5-10"><a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a>    else
+</span><span id="__span-5-11"><a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a>    {
+</span><span id="__span-5-12"><a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a>        isBatchMode = 1;
+</span><span id="__span-5-13"><a id="__codelineno-5-13" name="__codelineno-5-13" href="#__codelineno-5-13"></a>    }
+</span><span id="__span-5-14"><a id="__codelineno-5-14" name="__codelineno-5-14" href="#__codelineno-5-14"></a>    IsBatchMode = (byte)isBatchMode != 0;
+</span><span id="__span-5-15"><a id="__codelineno-5-15" name="__codelineno-5-15" href="#__codelineno-5-15"></a>}
+</span></code></pre></div>
+<p>A dedicated-server build therefore has <code>IsBatchMode == true</code> from its platform alone, with or without <code>-batchmode</code> on the command line.</p>
+<p>Trace for a dedicated server that owns nothing, with one connected client that owns a DLC:</p>
+<ol>
+<li>Server process starts. <code>_sharedDLC</code> is 0 (static default).</li>
+<li>World load completes and calls <code>SharedDLCManager.HostFinishedLoad()</code> (268799). <code>IsBatchMode</code> is true, so the guard fails and the pool is not seeded. It stays 0.</li>
+<li>Each connecting client, at the very end of its own join, calls <code>ClientFinishedLoad()</code> and sends its <code>AvailableDLCMessage</code>. Non-owning clients contribute 0.</li>
+<li>The owning client's message lands. The server runs <code>AvailableDLCMessage.Process</code>, which calls <code>AddSharedDLC</code>, which ORs the bit in.</li>
+<li><code>CheckSharedAccess</code> on the server now returns true for that DLC.</li>
+</ol>
+<p>Two windows follow from this, both worth knowing:</p>
+<ul>
+<li><strong>Before the owning client is fully joined, the answer is false.</strong> <code>ClientFinishedLoad()</code> is the last step before the client is announced ready: decompile 213241 sits immediately before <code>UpdateHandshakeState(HandshakeType.ClientReady)</code> at 213243. So during the entire join (world stream, thing processing, character request) the owning client is connected but has not yet contributed its bit. Any code sampling the pool on client-connect rather than client-ready reads false.</li>
+<li><strong>After the owning client disconnects, the answer stays true.</strong> Per the write-site list above, nothing removes a bit. The entitlement persists for the remaining lifetime of the loaded world, until <code>ClearAll()</code> runs from <code>GameManager.ClearGameAll()</code> (204810) on teardown.</li>
+</ul>
+<p>Consequence for server operators and mod authors: while at least one owning client is fully joined, <strong>every</strong> connected player can fabricate and spawn that DLC's content, not just the owner. The pool is broadcast back to all clients under delta bit 256, so each client's local gate passes too. That is the designed shared-DLC behavior and it holds on a dedicated server that owns nothing itself.</p>
+<p>One coupling to note: the dirty flag that triggers the broadcast is only raised when <code>NetworkManager.IsServer &amp;&amp; NetworkServer.HasClients()</code> (192443). In practice <code>HasClients()</code> is true when a client's own message arrives over its own connection, but the pool can change without being marked dirty if that ever fails, in which case the server would allow the DLC while no client's local gate had been updated.</p>
+<p><code>AddSharedDLC</code> uses <code>|=</code>, which invokes the property setter even when the value does not change. Every later client's join message therefore re-dirties the pool and re-broadcasts it, which is how a client joining after the owner receives an already-populated pool. There is no <code>SharedDLC</code> field in the join package itself.</p>
+<h3 id="not-caller-scoped">Not caller-scoped<a class="headerlink" href="#not-caller-scoped" title="Permanent link">&para;</a></h3>
+<!-- verified: 0.2.6403.27689 @ 2026-07-27 -->
+
+<p>There is no way to ask "does THIS player own it". Only "does anyone in the session own it, or has since world load".</p>
+<ul>
+<li><code>CheckSharedAccess(DLCType)</code> (192472) takes no player or caller argument.</li>
+<li><code>AvailableDLCMessage.Process(long hostId)</code> (277481) receives the sender id and discards it, calling <code>AddSharedDLC(DLCType)</code> and nothing else.</li>
+<li>The per-connection <code>Client</code> type carries no DLC field, and <code>Thing._dlcType</code> describes the object, not the owner.</li>
+</ul>
+<p><code>AvailableDLCMessage</code> is a server-processed message. <code>MessageBase.DeserializeReceivedData</code> (39287-39308) carries a whitelist of message types allowed to process off the server, and <code>AvailableDLCMessage</code> is not on it. Note that the whitelist only controls an error print: <code>messageProcessable.Process(hostId)</code> at 39306 sits outside the <code>if</code>, so processing runs regardless.</p>
+<p>For a mod that needs per-player entitlement on a dedicated server, the only point where the sender id and the bitmask coexist is inside <code>AvailableDLCMessage.Process</code>, so a Harmony prefix or postfix there is the single interception point. The mod would have to build and maintain its own player-to-<code>DLCType</code> map.</p>
 <h3 id="availabledlcmessage">AvailableDLCMessage<a class="headerlink" href="#availabledlcmessage" title="Permanent link">&para;</a></h3>
 <!-- verified: 0.2.6403.27689 @ 2026-07-25 -->
 
-<div class="language-text highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>public class AvailableDLCMessage : ProcessedMessage&lt;AvailableDLCMessage&gt;
-</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>{
-</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>    public ushort DLCType;
-</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>
-</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>    public override void Process(long hostId)
-</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>    {
-</span><span id="__span-4-7"><a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a>        SharedDLCManager.AddSharedDLC(DLCType);
-</span><span id="__span-4-8"><a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a>    }
-</span><span id="__span-4-9"><a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a>
-</span><span id="__span-4-10"><a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a>    public override void Deserialize(RocketBinaryReader reader) =&gt; DLCType = reader.ReadUInt16();
-</span><span id="__span-4-11"><a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a>
-</span><span id="__span-4-12"><a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a>    public override void Serialize(RocketBinaryWriter writer) =&gt; writer.WriteUInt16(DLCType);
-</span><span id="__span-4-13"><a id="__codelineno-4-13" name="__codelineno-4-13" href="#__codelineno-4-13"></a>}
+<div class="language-text highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>public class AvailableDLCMessage : ProcessedMessage&lt;AvailableDLCMessage&gt;
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>{
+</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>    public ushort DLCType;
+</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>
+</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>    public override void Process(long hostId)
+</span><span id="__span-6-6"><a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>    {
+</span><span id="__span-6-7"><a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a>        SharedDLCManager.AddSharedDLC(DLCType);
+</span><span id="__span-6-8"><a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a>    }
+</span><span id="__span-6-9"><a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a>
+</span><span id="__span-6-10"><a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a>    public override void Deserialize(RocketBinaryReader reader) =&gt; DLCType = reader.ReadUInt16();
+</span><span id="__span-6-11"><a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a>
+</span><span id="__span-6-12"><a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a>    public override void Serialize(RocketBinaryWriter writer) =&gt; writer.WriteUInt16(DLCType);
+</span><span id="__span-6-13"><a id="__codelineno-6-13" name="__codelineno-6-13" href="#__codelineno-6-13"></a>}
 </span></code></pre></div>
 <p>The server accepts the client's claimed bitmask without verification. Entitlement is client-asserted, not server-validated.</p>
 <h3 id="delta-state-serialization">Delta-state serialization<a class="headerlink" href="#delta-state-serialization" title="Permanent link">&para;</a></h3>
 <!-- verified: 0.2.6403.27689 @ 2026-07-25 -->
 
-<div class="language-text highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>public static void SerializeDeltaState(RocketBinaryWriter writer)
-</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>{
-</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>    writer.WriteUInt16(NetworkUpdateFlags);
-</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>    if (IsNetworkUpdateRequired(256, NetworkUpdateFlags))
-</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>    {
-</span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>        writer.WriteUInt16(SharedDLC);
-</span><span id="__span-5-7"><a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a>    }
-</span><span id="__span-5-8"><a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>    NetworkUpdateFlags = 0;
-</span><span id="__span-5-9"><a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a>}
-</span><span id="__span-5-10"><a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a>
-</span><span id="__span-5-11"><a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a>public static void DeserializeDeltaState(RocketBinaryReader reader)
-</span><span id="__span-5-12"><a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a>{
-</span><span id="__span-5-13"><a id="__codelineno-5-13" name="__codelineno-5-13" href="#__codelineno-5-13"></a>    ushort networkUpdateType = reader.ReadUInt16();
-</span><span id="__span-5-14"><a id="__codelineno-5-14" name="__codelineno-5-14" href="#__codelineno-5-14"></a>    if (IsNetworkUpdateRequired(256, networkUpdateType))
-</span><span id="__span-5-15"><a id="__codelineno-5-15" name="__codelineno-5-15" href="#__codelineno-5-15"></a>    {
-</span><span id="__span-5-16"><a id="__codelineno-5-16" name="__codelineno-5-16" href="#__codelineno-5-16"></a>        SharedDLC = reader.ReadUInt16();
-</span><span id="__span-5-17"><a id="__codelineno-5-17" name="__codelineno-5-17" href="#__codelineno-5-17"></a>    }
-</span><span id="__span-5-18"><a id="__codelineno-5-18" name="__codelineno-5-18" href="#__codelineno-5-18"></a>}
+<div class="language-text highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>public static void SerializeDeltaState(RocketBinaryWriter writer)
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>{
+</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>    writer.WriteUInt16(NetworkUpdateFlags);
+</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>    if (IsNetworkUpdateRequired(256, NetworkUpdateFlags))
+</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>    {
+</span><span id="__span-7-6"><a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a>        writer.WriteUInt16(SharedDLC);
+</span><span id="__span-7-7"><a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a>    }
+</span><span id="__span-7-8"><a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a>    NetworkUpdateFlags = 0;
+</span><span id="__span-7-9"><a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a>}
+</span><span id="__span-7-10"><a id="__codelineno-7-10" name="__codelineno-7-10" href="#__codelineno-7-10"></a>
+</span><span id="__span-7-11"><a id="__codelineno-7-11" name="__codelineno-7-11" href="#__codelineno-7-11"></a>public static void DeserializeDeltaState(RocketBinaryReader reader)
+</span><span id="__span-7-12"><a id="__codelineno-7-12" name="__codelineno-7-12" href="#__codelineno-7-12"></a>{
+</span><span id="__span-7-13"><a id="__codelineno-7-13" name="__codelineno-7-13" href="#__codelineno-7-13"></a>    ushort networkUpdateType = reader.ReadUInt16();
+</span><span id="__span-7-14"><a id="__codelineno-7-14" name="__codelineno-7-14" href="#__codelineno-7-14"></a>    if (IsNetworkUpdateRequired(256, networkUpdateType))
+</span><span id="__span-7-15"><a id="__codelineno-7-15" name="__codelineno-7-15" href="#__codelineno-7-15"></a>    {
+</span><span id="__span-7-16"><a id="__codelineno-7-16" name="__codelineno-7-16" href="#__codelineno-7-16"></a>        SharedDLC = reader.ReadUInt16();
+</span><span id="__span-7-17"><a id="__codelineno-7-17" name="__codelineno-7-17" href="#__codelineno-7-17"></a>    }
+</span><span id="__span-7-18"><a id="__codelineno-7-18" name="__codelineno-7-18" href="#__codelineno-7-18"></a>}
 </span></code></pre></div>
 <h3 id="dlc-console-command">dlc console command<a class="headerlink" href="#dlc-console-command" title="Permanent link">&para;</a></h3>
 <!-- verified: 0.2.6403.27689 @ 2026-07-25 -->
@@ -9017,10 +9122,10 @@
 <!-- verified: 0.2.6403.27689 @ 2026-07-25 -->
 
 <p>Every <code>Thing</code> carries its DLC requirement as a serialized field set on the prefab:</p>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>[SerializeField]
-</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>private DLCType _dlcType;
-</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>
-</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>public DLCType DLCType =&gt; _dlcType;
+<div class="language-text highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>[SerializeField]
+</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>private DLCType _dlcType;
+</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>
+</span><span id="__span-8-4"><a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>public DLCType DLCType =&gt; _dlcType;
 </span></code></pre></div>
 <p>Read-only at runtime (no public setter). <code>DLCType.None</code> on all non-DLC content. This is the single per-object source of truth the gates below consult.</p>
 <h2 id="where-the-game-checks">Where the game checks<a class="headerlink" href="#where-the-game-checks" title="Permanent link">&para;</a></h2>
@@ -9030,34 +9135,34 @@
 <ol>
 <li><strong>Console / creative spawn.</strong> <code>SpawnDynamicThingMaxStack(long parentId, string prefabName)</code>:</li>
 </ol>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>else if (!SharedDLCManager.CheckSharedAccess(dynamicThing.DLCType))
-</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>{
-</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>    ConsoleWindow.PrintError(&quot;error DLC not owned for &quot; + prefabName, suppressStacktrace: true);
-</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>}
+<div class="language-text highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>else if (!SharedDLCManager.CheckSharedAccess(dynamicThing.DLCType))
+</span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>{
+</span><span id="__span-9-3"><a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>    ConsoleWindow.PrintError(&quot;error DLC not owned for &quot; + prefabName, suppressStacktrace: true);
+</span><span id="__span-9-4"><a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a>}
 </span></code></pre></div>
 <p>This is the source of the in-game red console line <code>error DLC not owned for ItemSprayCanMetallicObsidian</code>.</p>
 <ol>
 <li><strong>Fabrication.</strong> The manufactory / fabricator interaction path checks the recipe's product before allowing <code>Activate</code>:</li>
 </ol>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>DynamicThing product = GetProduct(CurrentIndex);
-</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>if ((object)product != null &amp;&amp; !SharedDLCManager.CheckSharedAccess(product.DLCType))
-</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>{
-</span><span id="__span-8-4"><a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>    return delayedActionInstance.Fail(GameStrings.RequireDlcToFabricate);
-</span><span id="__span-8-5"><a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a>}
+<div class="language-text highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>DynamicThing product = GetProduct(CurrentIndex);
+</span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>if ((object)product != null &amp;&amp; !SharedDLCManager.CheckSharedAccess(product.DLCType))
+</span><span id="__span-10-3"><a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a>{
+</span><span id="__span-10-4"><a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a>    return delayedActionInstance.Fail(GameStrings.RequireDlcToFabricate);
+</span><span id="__span-10-5"><a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a>}
 </span></code></pre></div>
 <p>A recipe may therefore exist in the data files for every player while remaining unfabricatable without the entitlement.</p>
 <ol>
 <li><strong>Character customisation.</strong> <code>HasDLC(KitItem kitItem)</code> uses the LOCAL check, not the shared pool:</li>
 </ol>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>private bool HasDLC(KitItem kitItem)
-</span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>{
-</span><span id="__span-9-3"><a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>    bool num = DLCManager.CheckAccess(kitItem);
-</span><span id="__span-9-4"><a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a>    if (!num)
-</span><span id="__span-9-5"><a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a>    {
-</span><span id="__span-9-6"><a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a>        _currentDlcLink = DLCManager.GetStorePageLink(kitItem.DlcType);
-</span><span id="__span-9-7"><a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a>    }
-</span><span id="__span-9-8"><a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a>    return num;
-</span><span id="__span-9-9"><a id="__codelineno-9-9" name="__codelineno-9-9" href="#__codelineno-9-9"></a>}
+<div class="language-text highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>private bool HasDLC(KitItem kitItem)
+</span><span id="__span-11-2"><a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>{
+</span><span id="__span-11-3"><a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a>    bool num = DLCManager.CheckAccess(kitItem);
+</span><span id="__span-11-4"><a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a>    if (!num)
+</span><span id="__span-11-5"><a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a>    {
+</span><span id="__span-11-6"><a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a>        _currentDlcLink = DLCManager.GetStorePageLink(kitItem.DlcType);
+</span><span id="__span-11-7"><a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a>    }
+</span><span id="__span-11-8"><a id="__codelineno-11-8" name="__codelineno-11-8" href="#__codelineno-11-8"></a>    return num;
+</span><span id="__span-11-9"><a id="__codelineno-11-9" name="__codelineno-11-9" href="#__codelineno-11-9"></a>}
 </span></code></pre></div>
 <p>Cosmetic character content is gated on personal ownership (<code>DLCManager.CheckAccess</code>); in-world content is gated on the session pool (<code>SharedDLCManager.CheckSharedAccess</code>). The two are deliberately different and a mod should copy whichever matches the content it is handling.</p>
 <h2 id="where-the-game-does-not-check">Where the game does NOT check<a class="headerlink" href="#where-the-game-does-not-check" title="Permanent link">&para;</a></h2>
@@ -9074,13 +9179,13 @@
 <p>The design is coherent for vanilla: the only way to reach a DLC paint color is to hold the matching spray can, and both routes to that can (console spawn, fabrication) are gated. Ownership of the color is expressed entirely through ownership of the item.</p>
 <p>The gap this leaves for mods: <code>GameManager.CustomColors</code> is an ungated list, and any code that applies a color by index reaches DLC colors with no check. A mod that lets the player pick a color by index rather than by holding a can (a color cycler, a color picker UI, an eyedropper, a logic-driven paint writable) bypasses entitlement without touching any gated code path. Vanilla has no backstop to catch it.</p>
 <p>Mod authors handling colors by index should reproduce the vanilla gate themselves. The check that matches vanilla in-world behavior is <code>SharedDLCManager.CheckSharedAccess(dlcType)</code>. Resolving a color index to a <code>DLCType</code> requires going through the spray can prefab that carries that color, because the swatch itself does not record one:</p>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>foreach (Thing thing in Prefab.AllPrefabs)
-</span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>{
-</span><span id="__span-10-3"><a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a>    if (thing is SprayCan prefabCan &amp;&amp; prefabCan.PaintMaterial != null)
-</span><span id="__span-10-4"><a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a>    {
-</span><span id="__span-10-5"><a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a>        // prefabCan.PaintMaterial identifies the swatch; prefabCan.DLCType is the gate
-</span><span id="__span-10-6"><a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a>    }
-</span><span id="__span-10-7"><a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a>}
+<div class="language-text highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>foreach (Thing thing in Prefab.AllPrefabs)
+</span><span id="__span-12-2"><a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>{
+</span><span id="__span-12-3"><a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a>    if (thing is SprayCan prefabCan &amp;&amp; prefabCan.PaintMaterial != null)
+</span><span id="__span-12-4"><a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a>    {
+</span><span id="__span-12-5"><a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a>        // prefabCan.PaintMaterial identifies the swatch; prefabCan.DLCType is the gate
+</span><span id="__span-12-6"><a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a>    }
+</span><span id="__span-12-7"><a id="__codelineno-12-7" name="__codelineno-12-7" href="#__codelineno-12-7"></a>}
 </span></code></pre></div>
 <p><code>GameManager.GetColorSwatch(Material)</code> is the game's own material-to-swatch lookup, used by <code>ISprayer.DoSpray</code>, so a per-swatch <code>Normal</code> material is a valid key for this mapping. Confirmed at runtime on 2026-07-25 in game version 0.2.6403.27689: all 16 swatch <code>Normal</code> materials are distinct assets and all 16 <code>SprayCan</code> prefabs resolve one-to-one onto them, yielding a complete and unambiguous color-index-to-<code>DLCType</code> map (indices 0-11 <code>None</code>, indices 12-15 <code>MetallicPaints</code>). Method, caveats, and the full table are on <code>../GameClasses/ColorSwatch.md</code> under "Metallic swatch addition".</p>
 <p>Both the swatches and the can prefabs are present regardless of entitlement, so the mapping can be built on any install, including one that does not own the DLC.</p>
@@ -9099,9 +9204,10 @@
 <p>The corresponding color swatches carry <code>ColorSwatch.PaintOnly = true</code>, which drives the metallic shader response (<code>_MaskMetallic</code> and <code>_MaskSmoothness</code> set to 0.85) and excludes them from logic color dropdowns. <code>PaintOnly</code> is a rendering and logic-selectability flag, not an entitlement flag: it happens to coincide with the DLC set today but carries no <code>DLCType</code>. See <code>../GameClasses/ColorSwatch.md</code>.</p>
 <p>The four swatches sit at <code>CustomColors</code> indices 12-15 in the order <code>ColorObsidian</code>, <code>ColorSilver</code>, <code>ColorBronze</code>, <code>ColorGold</code>, confirmed at runtime. Note the swatch names drop the <code>Metallic</code> prefix the prefab names carry, and the swatch order matches neither alphabetical order nor the <code>paints.xml</code> recipe order, so neither identifier nor index can be derived from the other.</p>
 <h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6403.27689 @ 2026-07-25 -->
+<!-- verified: 0.2.6403.27689 @ 2026-07-27 -->
 
 <ul>
+<li>2026-07-27: added "Dedicated server behavior" and "Not caller-scoped" subsections, and widened the <code>HostFinishedLoad</code> lifecycle bullet. Findings: <code>GameManager.RunSimulation</code> is <code>!NetworkManager.IsClient</code> (203945) and so always passes on a server, leaving <code>!IsBatchMode</code> as the only term that blocks self-seeding; <code>IsBatchMode</code> is set by <code>SetMatchMode()</code> (204290-204304) from <code>Application.isBatchMode</code> OR <code>RuntimePlatform.LinuxServer</code>/<code>WindowsServer</code>, so a dedicated-server build sets it without the <code>-batchmode</code> flag; <code>HostFinishedLoad</code>'s sole call site is 268799; the client sends its bitmask at 213241, immediately before <code>UpdateHandshakeState(HandshakeType.ClientReady)</code> at 213243, so the pool is empty for the whole of an owning client's join; <code>AvailableDLCMessage</code> is absent from the <code>MessageBase.DeserializeReceivedData</code> whitelist (39302) though <code>Process</code> at 39306 runs regardless of that check; <code>Process</code> discards <code>hostId</code> and no per-player entitlement record exists, so the check cannot be made caller-scoped without a mod-maintained map; <code>ClearAll</code>'s sole caller is <code>GameManager.ClearGameAll</code> (204756, call at 204810). Also resolved the second open question: it hypothesised that a dedicated server "grants DLC content only while an owning client is connected", which the exhaustive write-site list disproves, and which already contradicted the verified line in this section stating the pool only grows. Replaced with a narrower open question about live confirmation. All quotes re-read first-hand against the 0.2.6403.27689 decompile rather than taken from a sub-agent summary.</li>
 <li>2026-07-25: independent re-verification of the "Where the game does NOT check" claim against the 0.2.6403.27689 decompile. <code>CheckSharedAccess</code> resolves to exactly three occurrences (console spawn gate at 40154, definition at 192472, fabricator gate at 420505). <code>CheckAccess</code> resolves to the definitions and internal calls at 192370 / 192396 / 192400 / 192405 / 192411 / 192475 / 192507 plus exactly one external caller at 194337 (<code>DLCManager.CheckAccess(kitItem)</code> inside <code>HasDLC</code>). No additional enforcement site exists, confirming that no DLC check runs on any paint-application path.</li>
 <li>2026-07-25: corrected the namespace on all three types. The page was created citing <code>Assets.Scripts.DLCManager</code> / <code>SharedDLCManager</code> / <code>DLCType</code>; they are actually in the bare <code>DLC</code> namespace (decompile line 192302 opens <code>namespace DLC</code>). Found while writing a mod against the page, which is exactly the sort of error that costs a later reader a build failure. Also added the "Initialization timing" subsection: <code>DLCManager.Initialize()</code> runs from a manager's <code>async void Start()</code>, so entitlement is still zero during BepInEx plugin <code>Awake</code>, which rules out testing ownership at <code>Config.Bind</code> time.</li>
 <li>2026-07-25: added runtime confirmation of the color-index-to-<code>DLCType</code> map, gathered by the <code>spp-color-swatch-probe</code> ScenarioRunner scenario on the headless dedicated server (fresh Mars2 world, game version 0.2.6403.27689). All 16 swatch <code>Normal</code> materials are distinct assets and all 16 <code>SprayCan</code> prefabs resolve one-to-one onto them, so the prefab-derived gate described in "Where the game does NOT check" is implementable as written. Metallic swatches confirmed at indices 12-15 in the order Obsidian, Silver, Bronze, Gold. Swatches and prefabs confirmed present regardless of entitlement. Two open questions resolved and removed. Full table and method on <code>../GameClasses/ColorSwatch.md</code>.</li>
@@ -9110,7 +9216,7 @@
 <h2 id="open-questions">Open questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>
 <ul>
 <li><code>DLCManager.GrantFullOwnership()</code> has no observed call site. Whether it is dead code, called via reflection, or reached from a build-conditional path has not been traced.</li>
-<li>Behavior of the shared pool on a dedicated server has not been tested in-game. <code>HostFinishedLoad()</code> skips seeding under <code>IsBatchMode</code>, so the expectation is that a dedicated server grants DLC content only while an owning client is connected, but this has not been confirmed.</li>
+<li>The dedicated-server pool behavior in "Dedicated server behavior" is derived from code, not yet observed in a live session. The <code>dlc shared</code> console command is the intended runtime probe: its scope is <code>CommandScope.InGame | CommandScope.HostOrSinglePlayer</code> (97480), so it runs on the dedicated-server console, though reaching it from a connected admin client needs <code>serverrun</code>.</li>
 </ul>
 
 
