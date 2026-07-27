@@ -2,8 +2,8 @@
 title: StationeersLaunchPadSettingsGrouping
 type: Patterns
 created_in: 0.2.6228.27061
-verified_in: 0.2.6228.27061
-verified_at: 2026-06-03
+verified_in: 0.2.6403.27689
+verified_at: 2026-07-27
 sources:
   - BepInEx/plugins/StationeersLaunchPad/StationeersLaunchPad.dll :: SortedConfigFile
   - BepInEx/plugins/StationeersLaunchPad/StationeersLaunchPad.dll :: SortedConfigCategory
@@ -13,6 +13,8 @@ sources:
   - BepInEx/plugins/StationeersLaunchPad/StationeersLaunchPad.dll :: ConfigEntryWrapper
   - BepInEx/plugins/StationeersLaunchPad/StationeersLaunchPad.dll :: EssentialPatches.DrawInGameWindows, ConfigPanel.DrawSettingsWindow, ManualLoadWindow.DrawModConfigTab, LaunchPadPlugin.Run/StartGame Stage transitions, ConfigPanel.DrawBoolEntry / DrawConfigEntry<T>
   - rocketstation_Data/Managed/Assembly-CSharp.dll :: Assets.Scripts.UI.MainMenu.Awake/Start, InventoryManager.ButtonSettings, WorkshopMenu
+  - BepInEx/plugins/StationeersLaunchPad/StationeersLaunchPad.dll :: ConfigPanel static ctor (drawFuncs registration), ConfigPanel.DrawFuncs&lt;T&gt;.EnsureFn, ConfigPanel.DrawEnumEntry, ConfigPanel.DrawDefault, ConfigPanel.DrawScalarEntry, ConfigPanel.DrawBoolEntry
+  - BepInEx/plugins/StationeersLaunchPad/StationeersLaunchPad.dll :: EnumInfo&lt;T&gt;.ValueInfo (DisplayAttribute label resolution)
 related:
   - ../Patterns/ConflictDetection.md
 tags: [launchpad, ui]
@@ -96,6 +98,131 @@ public static bool DrawConfigFile(SortedConfigFile configFile, Func<string, bool
 
 Each section renders as an ImGui `CollapsingHeader`. The header label is the section string verbatim.
 
+## Type-to-widget dispatch
+
+<!-- verified: 0.2.6403.27689 @ 2026-07-27 -->
+
+Dispatch is three-way: an explicit type table, then an `is Enum` test, then a read-only fallback. A `CustomDrawer` tag short-circuits all of it.
+
+`ConfigPanel.DrawConfigEntry(wrapper, fill)` (7919) keys off `wrapper.Entry.SettingType` into `Dictionary<Type, DrawConfigEntryFunc> drawFuncs` (declared 7793). That dictionary is a memoisation cache for the generic-method reflection and is populated lazily for every type, registered or not. The actual widget registry is the separate `DrawFuncs<T>.Fn` static.
+
+The 18 registered types, from the static constructor (8004-8027):
+
+```csharp
+static ConfigPanel()
+{
+    requireRestartOriginalValues = new Dictionary<ConfigEntryBase, object>();
+    drawFuncs = new Dictionary<Type, DrawConfigEntryFunc>();
+    charStrings = new Dictionary<char, string>();
+    AddDrawFunc<Color>(DrawColorEntry);
+    AddDrawFunc<Vector2>(DrawVector2Entry);
+    AddDrawFunc<Vector3>(DrawVector3Entry);
+    AddDrawFunc<Vector4>(DrawVector4Entry);
+    AddDrawFunc<string>(DrawStringEntry);
+    AddDrawFunc<char>(DrawCharEntry);
+    AddDrawFunc<bool>(DrawBoolEntry);
+    AddDrawFunc<float>(DrawFloatEntry);
+    AddDrawFunc<double>(DrawDoubleEntry);
+    AddDrawFunc<decimal>(DrawDecimalEntry);
+    AddDrawFunc<byte>(DrawByteEntry);
+    AddDrawFunc<sbyte>(DrawSByteEntry);
+    AddDrawFunc<short>(DrawShortEntry);
+    AddDrawFunc<ushort>(DrawUShortEntry);
+    AddDrawFunc<int>(DrawIntEntry);
+    AddDrawFunc<uint>(DrawUIntEntry);
+    AddDrawFunc<long>(DrawLongEntry);
+    AddDrawFunc<ulong>(DrawULongEntry);
+}
+```
+
+Anything not in that list reaches `DrawFuncs<T>.EnsureFn()` (7767), which is the entire enum-support mechanism:
+
+```csharp
+private static void EnsureFn()
+{
+    if (Fn != null)
+    {
+        return;
+    }
+    if (typeof(Enum).IsAssignableFrom(typeof(T)))
+    {
+        SetFn((ConfigEntry<DummyEnum> e, ConfigEntryWrapper w, bool f) => DrawEnumEntry<DummyEnum>(e, w, f));
+    }
+    else
+    {
+        SetFn((ConfigEntry<T> e, ConfigEntryWrapper w, bool f) => DrawDefault<T>(e, w, f));
+    }
+}
+```
+
+The `private enum DummyEnum` (7754) exists only to satisfy the `where T : unmanaged, Enum` constraint on `DrawEnumEntry<T>` at compile time; `SetFn` (7783-7786) re-generics it to the real `T`.
+
+Everything else lands on `DrawDefault<T>` (8289):
+
+```csharp
+public static bool DrawDefault<T>(ConfigEntry<T> entry, ConfigEntryWrapper wrapper, bool fill)
+{
+    T value = entry.Value;
+    if (value != null)
+    {
+        ImGuiHelper.TextDisabled($"{value}");
+    }
+    else
+    {
+        ImGuiHelper.TextDisabled("is null");
+    }
+    return false;
+}
+```
+
+No ImGui input widget is created at all, only greyed static text. The unconditional `return false` also means such an entry can never trip the `RequireRestart` tracking described below.
+
+Widget per type:
+
+| Type | Widget | Line |
+|---|---|---|
+| `bool` | `ImGui.Checkbox` | 8150 |
+| enum | `ImGui.BeginCombo` plus one `ImGui.Selectable` per member (a dropdown) | 8073, 8098 |
+| `[Flags]` enum | same combo, one `ImGui.Checkbox` per bit with OR / AND-NOT bit math | 8085-8087 |
+| `string` | `ImGui.InputText` | 8115 |
+| `char` | `InputText` length 1 | - |
+| integer and floating-point scalars | `ImGui.SliderScalar` when an `AcceptableValueRange` is present, else `ImGui.InputScalar` | 8263, 8269 |
+| `Vector2` / `Vector3` / `Vector4` | `ImGui.DragScalarN` | - |
+| `Color` | colour picker | - |
+| anything else | `DrawDefault<T>`, greyed and not editable | 8289 |
+
+Enum member labels come from `EnumInfo<T>.ValueInfo` (693-700), which reads `field.GetCustomAttribute<DisplayAttribute>()?.GetName() ?? field.Name`. Without `[Display(Name = "...")]` on each member, the panel shows the raw C# identifier. `IsFlags` comes from a `[Flags]` lookup in the static constructor (715).
+
+`AcceptableValueRange<T>` is what selects slider versus type-in box (8242, then 8259-8273). The pattern match is exact-generic, so an `AcceptableValueRange<int>` attached to a `float` entry does not match and silently degrades to `InputScalar`.
+
+**`AcceptableValueList` is not supported.** A whole-file search of the assembly returns zero occurrences. A string entry carrying an `AcceptableValueList` still renders as a free-text `InputText` with no picker and no validation UI. BepInEx core still validates on set, but the player gets no affordance. **An enum-typed `ConfigEntry<T>` is the only way to get a dropdown**, short of a `CustomDrawer` tag.
+
+`bool` is the only type whose drawer emits its own label, because `DrawConfigEntry<T>` skips the label for bools (a runtime `value is bool` test at 7937) and lets the checkbox carry it:
+
+```csharp
+public static bool DrawBoolEntry(ConfigEntry<bool> entry, ConfigEntryWrapper wrapper, bool fill)
+{
+    bool result = false;
+    bool v = entry.Value;
+    bool value = Configs.CompactConfigPanel.Value;
+    if (value)
+    {
+        ImGuiHelper.Text(wrapper.DisplayName);
+        ImGui.SameLine();
+    }
+    if (ImGui.Checkbox(value ? "##boolvalue" : wrapper.DisplayName, ref v))
+    {
+        entry.Value = v;
+        result = true;
+    }
+    return result;
+}
+```
+
+Note the two locals: `v` is the checkbox ref target, and `value` is `Configs.CompactConfigPanel.Value`, an unrelated meaning. In compact mode the label is drawn separately and the checkbox gets the hidden `##boolvalue` id; otherwise the label is the checkbox's own trailing label.
+
+The `CustomDrawer` tag short-circuits the whole `DrawFuncs<T>` chain (7954) but not the label draw, and is wrapped in a try/catch that logs and degrades to "no widget" rather than killing the panel frame. It is the only escape hatch for an unsupported type.
+
 ## Supported per-entry tags
 
 <!-- verified: 0.2.6228.27061 @ 2026-04-21 -->
@@ -124,6 +251,7 @@ None of these tags affect grouping. There is no tag that moves an entry into a d
 - No multi-group entries. One `Config.Bind` call contributes to exactly one section.
 - No author-controlled ordering of groups. Sort is alphabetical on the section string.
 - No nesting. A section cannot contain a sub-section.
+- No `AcceptableValueList` rendering. The type is never referenced in the assembly, so a list-constrained entry renders as an unconstrained free-text box. An enum-typed entry is the only route to a dropdown. See "Type-to-widget dispatch" above.
 
 ## Example: existing mods in this repo
 
@@ -334,21 +462,7 @@ No `GameManager.GameState`, `World.Loaded`, or simulation-running check guards `
 
 For LaunchPad's own entries mid-session AND any per-mod entry edited at startup, the chain is identical:
 
-1. ImGui widget detects user interaction. Example for `bool` (`StationeersLaunchPad.dll` L8178-8194):
-
-   ```csharp
-   public static bool DrawBoolEntry(ConfigEntry<bool> entry, ConfigEntryWrapper wrapper, bool fill)
-   {
-       bool value = entry.Value;
-       ...
-       if (ImGui.Checkbox(..., ref value))
-       {
-           entry.Value = value;
-           return true;
-       }
-       return false;
-   }
-   ```
+1. ImGui widget detects user interaction. `DrawBoolEntry` is quoted verbatim under "Type-to-widget dispatch" above (8140-8156 in 0.2.6403.27689). The earlier version of this step carried an elided copy whose `...` hid the compact-mode branch and the label ternary, and which collapsed two differently-meaning locals into one; the full quote replaces it.
 
 2. `ConfigEntry<T>.Value` setter (BepInEx core) calls `SetSerializedValue` then `OwnerMetadata.ConfigFile.OnSettingChanged(this)`, which (a) fires both `ConfigFile.SettingChanged` and `ConfigEntryBase.SettingChanged` events, and (b) writes the whole `ConfigFile` to disk synchronously when `ConfigFile.SaveOnConfigSet` is true (the BepInEx default).
 
@@ -378,8 +492,9 @@ Correct patterns for host-authoritative settings:
 
 - 2026-04-21: page created. Verified against `StationeersLaunchPad.dll` in game version 0.2.6228.27061 by decompilation of `SortedConfigFile`, `SortedConfigCategory`, and `ConfigPanel.DrawConfigFile`.
 - 2026-04-23: added "RequireRestart rendering behavior" section. Verified against `StationeersLaunchPad.dll` in game version 0.2.6228.27061 by decompilation of `ConfigEntryWrapper`, `ConfigPanel.DrawConfigEntry`, and `ConfigPanel.DrawConfigEditor`. `sources:` frontmatter extended with the three new decompile targets.
+- 2026-07-27: added the "Type-to-widget dispatch" section, covering how StationeersLaunchPad chooses a widget per `ConfigEntry` value type. Nothing previously on the page was contradicted; the gap was pure omission, since the page documented grouping and mid-session mutability but never per-entry widget selection. Findings verified first-hand against the 0.2.6403.27689 decompile: dispatch is explicit type table (18 types registered at 8004-8027), then `typeof(Enum).IsAssignableFrom` (7773), then the read-only `DrawDefault<T>` fallback (8289); enums render as a real `BeginCombo` dropdown with `[Display(Name)]` labels from `EnumInfo<T>.ValueInfo` (693-700), and `[Flags]` enums as checkboxes inside that combo; `AcceptableValueRange` selects `SliderScalar` over `InputScalar` (8242, 8259-8273); `AcceptableValueList` has zero occurrences in the whole assembly and is therefore unsupported, making an enum-typed entry the only route to a dropdown. Also replaced the elided `DrawBoolEntry` excerpt in "Call chain on a value change" with a verbatim quote in the new section: the old `...` hid the compact-mode branch and the label ternary and collapsed two differently-meaning locals into one, which breached the lossless principle. Note that sections not touched by this pass keep their 0.2.6228.27061 stamps and their line citations have moved; see Open questions.
 - 2026-06-03: added "Mid-session mutability" section after spawning a fresh-validator sub-agent to verify whether StationeersLaunchPad exposes per-mod ConfigEntry values to the host while a save is loaded. Verdict: the in-game pause-menu Settings overlay only renders LaunchPad's own `Configs.Sorted` entries; per-mod entries are only reachable from the main-menu `WorkshopMenu` and the pre-load `ManualLoadWindow`. The PowerGridPlus `PassthroughSettingsSync.HookHostBroadcast` pattern (subscribing to per-mod `SettingChanged` for live host broadcast) was the trigger for this verification -- it cannot fire from a UI source in practice. Frontmatter `sources:` extended with `EssentialPatches`, `ConfigPanel.DrawSettingsWindow`, `ManualLoadWindow.DrawModConfigTab`, `LaunchPadPlugin.Run/StartGame`, `ConfigPanel.DrawBoolEntry`, plus `MainMenu`, `InventoryManager.ButtonSettings`, and `WorkshopMenu` from Assembly-CSharp.
 
 ## Open questions
 
-None.
+- Sections stamped `0.2.6228.27061` (everything except "Type-to-widget dispatch") carry line citations taken from that older decompile, and the assembly has shifted since. Spot checks during the 2026-07-27 pass found the quoted code text still byte-identical where re-read, so the behavioral claims look intact, but the line numbers no longer resolve and the sections have not been formally re-verified. Known movements: `DrawConfigFile` 7925-7950 is now 7894-7917; `DrawConfigEntry<T>` is now 7930-7997; `requireRestartOriginalValues` is now 7791; `DrawConfigEditor` is now 7859-7892; `DrawBoolEntry` 8178-8194 is now 8140-8156; `ManualLoadWindow.DrawModConfigTab` is now 9947. A full re-verification pass would resolve this.
