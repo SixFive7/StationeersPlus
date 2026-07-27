@@ -180,7 +180,42 @@ public static void Display(string text)
 
 Namespace trap for the recipe above: `ChatMessage` lives in `Assets.Scripts.Networking`, but `NetworkServer` (213543) and its `SendToClients` overloads live in the bare `Assets.Scripts` namespace (the last `namespace` declaration before 213543 is `Assets.Scripts` at 195722), so the send call needs `using Assets.Scripts;` in addition to `using Assets.Scripts.Networking;`. `SendToClients<T>` (213921) defaults both trailing parameters (`channel = NetworkChannel.GeneralTraffic`, `excludeConnectionId = -1L`).
 
+## Reaching one client: SendToClient (singular)
+<!-- verified: 0.2.6403.27689 @ 2026-07-27 -->
+
+The recipe above broadcasts. To put a line on exactly one client, `NetworkServer` has a unicast form. `SendToClient<T>` (213907), verbatim:
+
+```csharp
+public static void SendToClient<T>(MessageBase<T> message, NetworkChannel channel, long clientConnectionId) where T : MessageBase<T>, new()
+{
+	Client client = Client.Find(clientConnectionId);
+	if (client != null)
+	{
+		Assets.Scripts.Networking.NetworkManager.SendNetworkMessageToClient(client, channel, message);
+	}
+}
+```
+
+Note the differences from the plural form, all of them easy to get wrong:
+
+- **Neither trailing parameter is optional.** `SendToClients<T>` defaults `channel` and `excludeConnectionId`; `SendToClient<T>` defaults nothing, so the channel must be passed explicitly.
+- **It silently no-ops** when `clientConnectionId` does not resolve to a `Client`. There is no return value and no log line, so a wrong or stale connection id looks exactly like a delivered message.
+- **The last parameter means the opposite of the plural form's.** `SendToClients(..., excludeConnectionId)` takes an id to EXCLUDE (`-1L` = send to everyone); `SendToClient(..., clientConnectionId)` takes the id to send TO. Passing `-1L` here sends to nobody.
+
+Related overloads on `NetworkServer`:
+
+| Line | Signature |
+|---|---|
+| 213902 | `SendToClientReliable<T>(MessageBase<T>, NetworkChannel, Client)`, returns `UniTask` |
+| 213907 | `SendToClient<T>(MessageBase<T>, NetworkChannel, long clientConnectionId)` |
+| 213916 | `SendToClient<T>(MessageBase<T>, NetworkChannel, Client)` (overload taking an already-resolved `Client`) |
+| 213921 | `SendToClients<T>(MessageBase<T>, NetworkChannel = GeneralTraffic, long excludeConnectionId = -1L)` |
+| 213926 / 213931 / 213945 | `SendToClientsDirect(...)` raw-byte broadcast overloads |
+
+This is the mechanism a mod needs when a message concerns one player rather than the server population, because the in-game console is process-local: a `ConsoleWindow.Print` on the server is invisible to every client (see [ConsoleWindow](../GameClasses/ConsoleWindow.md)). The pattern is to send a custom message and print locally in the receiving side's `Process()`, exactly as `ChatMessage.Process` does above.
+
 ## Verification history
+- 2026-07-27: additive, during a repo-wide console-output audit. Added the "Reaching one client: SendToClient (singular)" section: the page documented only the broadcast form, and the unicast form is what a mod needs when a message concerns one player. Verified verbatim against 0.2.6403.27689: `SendToClient<T>` at 213907 with `where T : MessageBase<T>, new()`, three non-optional parameters, silent no-op when the connection id does not resolve, plus the sibling overload table at 213902 / 213916 / 213921 / 213926 / 213931 / 213945. Called out the parameter-semantics reversal between `SendToClients(..., excludeConnectionId)` and `SendToClient(..., clientConnectionId)`, where `-1L` means "everyone" in the first and "nobody" in the second. No existing claim was contradicted, so no fresh validator was required.
 - 2026-07-14 (second pass, same day): added the namespace note (NetworkServer and SendToClients in bare Assets.Scripts at 213543/213921 vs ChatMessage in Assets.Scripts.Networking) after a mod build failed to resolve NetworkServer with only the Networking using. Additive.
 <!-- verified: 0.2.6403.27689 @ 2026-07-14 -->
 
