@@ -12,13 +12,13 @@
         <meta name="author" content="SixFive7">
       
       
-        <link rel="canonical" href="https://stationeers.huisman.io/research/GameClasses/MotionSensor/">
+        <link rel="canonical" href="https://stationeers.huisman.io/research/Workflows/DrivingTheGameClientProgrammatically/">
       
       
-        <link rel="prev" href="../Motherboard/">
+        <link rel="prev" href="../CameraEffectsRuntime/">
       
       
-        <link rel="next" href="../MultiConstructor/">
+        <link rel="next" href="../HealAllDamagedThings/">
       
       
         
@@ -29,7 +29,7 @@
     
     
       
-        <title>MotionSensor - StationeersPlus</title>
+        <title>Driving the game client programmatically - StationeersPlus</title>
       
     
     
@@ -82,7 +82,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#motionsensor" class="md-skip">
+        <a href="#plugin-lifecycle-the-bepinex-component-is-destroyed-during-boot" class="md-skip">
           Skip to content
         </a>
       
@@ -118,7 +118,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              MotionSensor
+              Driving the game client programmatically
             
           </span>
         </div>
@@ -585,10 +585,8 @@
                 
   
   
-    
   
   
-  
     
     
       
@@ -789,11 +787,11 @@
       
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_2" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_2" >
         
           
           <label class="md-nav__link" for="__nav_3_2" id="__nav_3_2_label" tabindex="0">
@@ -814,7 +812,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_2_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_2_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_3_2">
             <span class="md-nav__icon md-icon"></span>
             
@@ -832,7 +830,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../AdvancedTablet/" class="md-nav__link">
+      <a href="../../GameClasses/AdvancedTablet/" class="md-nav__link">
         
   
   
@@ -860,7 +858,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../AllowedRotations/" class="md-nav__link">
+      <a href="../../GameClasses/AllowedRotations/" class="md-nav__link">
         
   
   
@@ -888,7 +886,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../AreaPowerControl/" class="md-nav__link">
+      <a href="../../GameClasses/AreaPowerControl/" class="md-nav__link">
         
   
   
@@ -916,7 +914,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../Atmosphere/" class="md-nav__link">
+      <a href="../../GameClasses/Atmosphere/" class="md-nav__link">
         
   
   
@@ -944,7 +942,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../Battery/" class="md-nav__link">
+      <a href="../../GameClasses/Battery/" class="md-nav__link">
         
   
   
@@ -972,7 +970,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../Cable/" class="md-nav__link">
+      <a href="../../GameClasses/Cable/" class="md-nav__link">
         
   
   
@@ -1000,7 +998,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../CableNetwork/" class="md-nav__link">
+      <a href="../../GameClasses/CableNetwork/" class="md-nav__link">
         
   
   
@@ -1028,7 +1026,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../CameraController/" class="md-nav__link">
+      <a href="../../GameClasses/CameraController/" class="md-nav__link">
         
   
   
@@ -1056,7 +1054,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../Cartridge/" class="md-nav__link">
+      <a href="../../GameClasses/Cartridge/" class="md-nav__link">
         
   
   
@@ -1084,7 +1082,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../Cell/" class="md-nav__link">
+      <a href="../../GameClasses/Cell/" class="md-nav__link">
         
   
   
@@ -1112,7 +1110,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../ChatCanvas/" class="md-nav__link">
+      <a href="../../GameClasses/ChatCanvas/" class="md-nav__link">
         
   
   
@@ -1140,7 +1138,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../ChatMessage/" class="md-nav__link">
+      <a href="../../GameClasses/ChatMessage/" class="md-nav__link">
         
   
   
@@ -1168,7 +1166,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../ChatStatusMessage/" class="md-nav__link">
+      <a href="../../GameClasses/ChatStatusMessage/" class="md-nav__link">
         
   
   
@@ -1196,7 +1194,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../Cladding/" class="md-nav__link">
+      <a href="../../GameClasses/Cladding/" class="md-nav__link">
         
   
   
@@ -1224,7 +1222,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../ColorSwatch/" class="md-nav__link">
+      <a href="../../GameClasses/ColorSwatch/" class="md-nav__link">
         
   
   
@@ -1252,7 +1250,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../CombustionDeepMiner/" class="md-nav__link">
+      <a href="../../GameClasses/CombustionDeepMiner/" class="md-nav__link">
         
   
   
@@ -1280,7 +1278,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../ConfigCartridge/" class="md-nav__link">
+      <a href="../../GameClasses/ConfigCartridge/" class="md-nav__link">
         
   
   
@@ -1308,7 +1306,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../Connection/" class="md-nav__link">
+      <a href="../../GameClasses/Connection/" class="md-nav__link">
         
   
   
@@ -1336,7 +1334,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../ConnectionRole/" class="md-nav__link">
+      <a href="../../GameClasses/ConnectionRole/" class="md-nav__link">
         
   
   
@@ -1364,7 +1362,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../ConsoleWindow/" class="md-nav__link">
+      <a href="../../GameClasses/ConsoleWindow/" class="md-nav__link">
         
   
   
@@ -1392,7 +1390,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../Constructor/" class="md-nav__link">
+      <a href="../../GameClasses/Constructor/" class="md-nav__link">
         
   
   
@@ -1420,7 +1418,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../CreateStructureInstance/" class="md-nav__link">
+      <a href="../../GameClasses/CreateStructureInstance/" class="md-nav__link">
         
   
   
@@ -1448,7 +1446,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../CursorManager/" class="md-nav__link">
+      <a href="../../GameClasses/CursorManager/" class="md-nav__link">
         
   
   
@@ -1476,7 +1474,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../CustomScrollPanel/" class="md-nav__link">
+      <a href="../../GameClasses/CustomScrollPanel/" class="md-nav__link">
         
   
   
@@ -1504,7 +1502,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../Device/" class="md-nav__link">
+      <a href="../../GameClasses/Device/" class="md-nav__link">
         
   
   
@@ -1532,7 +1530,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../DoorAirPass/" class="md-nav__link">
+      <a href="../../GameClasses/DoorAirPass/" class="md-nav__link">
         
   
   
@@ -1560,7 +1558,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../ElectricalInputOutput/" class="md-nav__link">
+      <a href="../../GameClasses/ElectricalInputOutput/" class="md-nav__link">
         
   
   
@@ -1588,7 +1586,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../ElectricityManager/" class="md-nav__link">
+      <a href="../../GameClasses/ElectricityManager/" class="md-nav__link">
         
   
   
@@ -1616,7 +1614,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../Elevator/" class="md-nav__link">
+      <a href="../../GameClasses/Elevator/" class="md-nav__link">
         
   
   
@@ -1644,7 +1642,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../Entity/" class="md-nav__link">
+      <a href="../../GameClasses/Entity/" class="md-nav__link">
         
   
   
@@ -1672,7 +1670,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../GameManager/" class="md-nav__link">
+      <a href="../../GameClasses/GameManager/" class="md-nav__link">
         
   
   
@@ -1700,7 +1698,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../Grid3/" class="md-nav__link">
+      <a href="../../GameClasses/Grid3/" class="md-nav__link">
         
   
   
@@ -1728,7 +1726,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../GridController/" class="md-nav__link">
+      <a href="../../GameClasses/GridController/" class="md-nav__link">
         
   
   
@@ -1756,7 +1754,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../Gyroscope/" class="md-nav__link">
+      <a href="../../GameClasses/Gyroscope/" class="md-nav__link">
         
   
   
@@ -1784,7 +1782,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../HelmetBattery/" class="md-nav__link">
+      <a href="../../GameClasses/HelmetBattery/" class="md-nav__link">
         
   
   
@@ -1812,7 +1810,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../HelpLinkHandler/" class="md-nav__link">
+      <a href="../../GameClasses/HelpLinkHandler/" class="md-nav__link">
         
   
   
@@ -1840,7 +1838,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../Human/" class="md-nav__link">
+      <a href="../../GameClasses/Human/" class="md-nav__link">
         
   
   
@@ -1868,7 +1866,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../ILifeSuspender/" class="md-nav__link">
+      <a href="../../GameClasses/ILifeSuspender/" class="md-nav__link">
         
   
   
@@ -1896,7 +1894,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../ISprayer/" class="md-nav__link">
+      <a href="../../GameClasses/ISprayer/" class="md-nav__link">
         
   
   
@@ -1924,7 +1922,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../Interactable/" class="md-nav__link">
+      <a href="../../GameClasses/Interactable/" class="md-nav__link">
         
   
   
@@ -1952,7 +1950,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../InventoryManager/" class="md-nav__link">
+      <a href="../../GameClasses/InventoryManager/" class="md-nav__link">
         
   
   
@@ -1980,7 +1978,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../InventoryWindow/" class="md-nav__link">
+      <a href="../../GameClasses/InventoryWindow/" class="md-nav__link">
         
   
   
@@ -2008,7 +2006,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../ItemKitLinearRail/" class="md-nav__link">
+      <a href="../../GameClasses/ItemKitLinearRail/" class="md-nav__link">
         
   
   
@@ -2036,7 +2034,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../LanderCapsule/" class="md-nav__link">
+      <a href="../../GameClasses/LanderCapsule/" class="md-nav__link">
         
   
   
@@ -2064,7 +2062,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../Layers/" class="md-nav__link">
+      <a href="../../GameClasses/Layers/" class="md-nav__link">
         
   
   
@@ -2092,7 +2090,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../LogicMirror/" class="md-nav__link">
+      <a href="../../GameClasses/LogicMirror/" class="md-nav__link">
         
   
   
@@ -2120,7 +2118,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../LogicOnOffButton/" class="md-nav__link">
+      <a href="../../GameClasses/LogicOnOffButton/" class="md-nav__link">
         
   
   
@@ -2148,7 +2146,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../LogicTransmitter/" class="md-nav__link">
+      <a href="../../GameClasses/LogicTransmitter/" class="md-nav__link">
         
   
   
@@ -2176,7 +2174,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../LogicUnitBase/" class="md-nav__link">
+      <a href="../../GameClasses/LogicUnitBase/" class="md-nav__link">
         
   
   
@@ -2204,7 +2202,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../Motherboard/" class="md-nav__link">
+      <a href="../../GameClasses/Motherboard/" class="md-nav__link">
         
   
   
@@ -2229,37 +2227,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    MotionSensor
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../../GameClasses/MotionSensor/" class="md-nav__link">
         
   
   
@@ -2275,125 +2246,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#class-shape" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Class shape
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#grid-watch-registration" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Grid watch registration
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#detection-gridevent-driven" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Detection: GridEvent driven
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#logictype-surface" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        LogicType surface
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#motherboard-hookup" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Motherboard hookup
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#behavioural-consequences" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Behavioural consequences
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#contrast-with-proximitysensor" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Contrast with ProximitySensor
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#verification-history" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Verification history
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#open-questions" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Open questions
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -2406,7 +2258,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../MultiConstructor/" class="md-nav__link">
+      <a href="../../GameClasses/MultiConstructor/" class="md-nav__link">
         
   
   
@@ -2434,7 +2286,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../MultiMergeConstructor/" class="md-nav__link">
+      <a href="../../GameClasses/MultiMergeConstructor/" class="md-nav__link">
         
   
   
@@ -2462,7 +2314,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../NetworkChannel/" class="md-nav__link">
+      <a href="../../GameClasses/NetworkChannel/" class="md-nav__link">
         
   
   
@@ -2490,7 +2342,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../NetworkManager/" class="md-nav__link">
+      <a href="../../GameClasses/NetworkManager/" class="md-nav__link">
         
   
   
@@ -2518,7 +2370,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../NetworkType/" class="md-nav__link">
+      <a href="../../GameClasses/NetworkType/" class="md-nav__link">
         
   
   
@@ -2546,7 +2398,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../OnServer/" class="md-nav__link">
+      <a href="../../GameClasses/OnServer/" class="md-nav__link">
         
   
   
@@ -2574,7 +2426,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../OrbitalSimulation/" class="md-nav__link">
+      <a href="../../GameClasses/OrbitalSimulation/" class="md-nav__link">
         
   
   
@@ -2602,7 +2454,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../PipeIgniter/" class="md-nav__link">
+      <a href="../../GameClasses/PipeIgniter/" class="md-nav__link">
         
   
   
@@ -2630,7 +2482,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../PowerReceiver/" class="md-nav__link">
+      <a href="../../GameClasses/PowerReceiver/" class="md-nav__link">
         
   
   
@@ -2658,7 +2510,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../PowerTick/" class="md-nav__link">
+      <a href="../../GameClasses/PowerTick/" class="md-nav__link">
         
   
   
@@ -2686,7 +2538,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../PowerTransmitter/" class="md-nav__link">
+      <a href="../../GameClasses/PowerTransmitter/" class="md-nav__link">
         
   
   
@@ -2714,7 +2566,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../PowerTransmitterOmni/" class="md-nav__link">
+      <a href="../../GameClasses/PowerTransmitterOmni/" class="md-nav__link">
         
   
   
@@ -2742,7 +2594,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../PowerTransmitterVisualiser/" class="md-nav__link">
+      <a href="../../GameClasses/PowerTransmitterVisualiser/" class="md-nav__link">
         
   
   
@@ -2770,7 +2622,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../PoweredVent/" class="md-nav__link">
+      <a href="../../GameClasses/PoweredVent/" class="md-nav__link">
         
   
   
@@ -2798,7 +2650,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../ProximitySensor/" class="md-nav__link">
+      <a href="../../GameClasses/ProximitySensor/" class="md-nav__link">
         
   
   
@@ -2826,7 +2678,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../RoboticArmDock/" class="md-nav__link">
+      <a href="../../GameClasses/RoboticArmDock/" class="md-nav__link">
         
   
   
@@ -2854,7 +2706,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../RoboticArmRail/" class="md-nav__link">
+      <a href="../../GameClasses/RoboticArmRail/" class="md-nav__link">
         
   
   
@@ -2882,7 +2734,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../RocketPowerUmbilical/" class="md-nav__link">
+      <a href="../../GameClasses/RocketPowerUmbilical/" class="md-nav__link">
         
   
   
@@ -2910,7 +2762,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../Room/" class="md-nav__link">
+      <a href="../../GameClasses/Room/" class="md-nav__link">
         
   
   
@@ -2938,7 +2790,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../RoomController/" class="md-nav__link">
+      <a href="../../GameClasses/RoomController/" class="md-nav__link">
         
   
   
@@ -2966,7 +2818,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../RotatableBehaviour/" class="md-nav__link">
+      <a href="../../GameClasses/RotatableBehaviour/" class="md-nav__link">
         
   
   
@@ -2994,7 +2846,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../SayCommand/" class="md-nav__link">
+      <a href="../../GameClasses/SayCommand/" class="md-nav__link">
         
   
   
@@ -3022,7 +2874,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../Sensor/" class="md-nav__link">
+      <a href="../../GameClasses/Sensor/" class="md-nav__link">
         
   
   
@@ -3050,7 +2902,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../SensorLenses/" class="md-nav__link">
+      <a href="../../GameClasses/SensorLenses/" class="md-nav__link">
         
   
   
@@ -3078,7 +2930,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../Silo/" class="md-nav__link">
+      <a href="../../GameClasses/Silo/" class="md-nav__link">
         
   
   
@@ -3106,7 +2958,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../Sleeper/" class="md-nav__link">
+      <a href="../../GameClasses/Sleeper/" class="md-nav__link">
         
   
   
@@ -3134,7 +2986,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../SmallCell/" class="md-nav__link">
+      <a href="../../GameClasses/SmallCell/" class="md-nav__link">
         
   
   
@@ -3162,7 +3014,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../SolarPanel/" class="md-nav__link">
+      <a href="../../GameClasses/SolarPanel/" class="md-nav__link">
         
   
   
@@ -3190,7 +3042,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../SprayCan/" class="md-nav__link">
+      <a href="../../GameClasses/SprayCan/" class="md-nav__link">
         
   
   
@@ -3218,7 +3070,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../SprayGun/" class="md-nav__link">
+      <a href="../../GameClasses/SprayGun/" class="md-nav__link">
         
   
   
@@ -3246,7 +3098,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../Stackable/" class="md-nav__link">
+      <a href="../../GameClasses/Stackable/" class="md-nav__link">
         
   
   
@@ -3274,7 +3126,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../Stairs/" class="md-nav__link">
+      <a href="../../GameClasses/Stairs/" class="md-nav__link">
         
   
   
@@ -3302,7 +3154,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../Stationpedia/" class="md-nav__link">
+      <a href="../../GameClasses/Stationpedia/" class="md-nav__link">
         
   
   
@@ -3330,7 +3182,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../StationpediaPage/" class="md-nav__link">
+      <a href="../../GameClasses/StationpediaPage/" class="md-nav__link">
         
   
   
@@ -3358,7 +3210,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../Structure/" class="md-nav__link">
+      <a href="../../GameClasses/Structure/" class="md-nav__link">
         
   
   
@@ -3386,7 +3238,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../SwitchOnOff/" class="md-nav__link">
+      <a href="../../GameClasses/SwitchOnOff/" class="md-nav__link">
         
   
   
@@ -3414,7 +3266,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../Thing/" class="md-nav__link">
+      <a href="../../GameClasses/Thing/" class="md-nav__link">
         
   
   
@@ -3442,7 +3294,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../ThingRenderer/" class="md-nav__link">
+      <a href="../../GameClasses/ThingRenderer/" class="md-nav__link">
         
   
   
@@ -3470,7 +3322,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../Transformer/" class="md-nav__link">
+      <a href="../../GameClasses/Transformer/" class="md-nav__link">
         
   
   
@@ -3498,7 +3350,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../UniversalPage/" class="md-nav__link">
+      <a href="../../GameClasses/UniversalPage/" class="md-nav__link">
         
   
   
@@ -3526,7 +3378,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../Wall/" class="md-nav__link">
+      <a href="../../GameClasses/Wall/" class="md-nav__link">
         
   
   
@@ -3554,7 +3406,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../WeatherEvent/" class="md-nav__link">
+      <a href="../../GameClasses/WeatherEvent/" class="md-nav__link">
         
   
   
@@ -3582,7 +3434,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../WindTurbineGenerator/" class="md-nav__link">
+      <a href="../../GameClasses/WindTurbineGenerator/" class="md-nav__link">
         
   
   
@@ -3610,7 +3462,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../WirelessPower/" class="md-nav__link">
+      <a href="../../GameClasses/WirelessPower/" class="md-nav__link">
         
   
   
@@ -7873,8 +7725,10 @@
                 
   
   
+    
   
   
+  
     
     
       
@@ -7917,11 +7771,11 @@
       
     
     
-    <li class="md-nav__item md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_7" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_7" checked>
         
           
           <label class="md-nav__link" for="__nav_3_7" id="__nav_3_7_label" tabindex="0">
@@ -7942,7 +7796,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_7_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_7_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_3_7">
             <span class="md-nav__icon md-icon"></span>
             
@@ -7960,7 +7814,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Workflows/BCSIImplementationRoadmap/" class="md-nav__link">
+      <a href="../BCSIImplementationRoadmap/" class="md-nav__link">
         
   
   
@@ -7988,7 +7842,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Workflows/CameraEffectsRuntime/" class="md-nav__link">
+      <a href="../CameraEffectsRuntime/" class="md-nav__link">
         
   
   
@@ -8013,10 +7867,35 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../../Workflows/DrivingTheGameClientProgrammatically/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Driving the game client programmatically
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -8032,6 +7911,189 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#plugin-lifecycle-the-bepinex-component-is-destroyed-during-boot" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Plugin lifecycle: the BepInEx component is destroyed during boot
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#per-frame-main-thread-hooks-that-survive-everything" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Per-frame main-thread hooks that survive everything
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#console-capture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Console capture
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#input-injection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Input injection
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#direct-connect" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Direct Connect
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#state-accessors" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        State accessors
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#teleport-look-and-using-an-item" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Teleport, look, and using an item
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#spawning" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Spawning
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#screenshots" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Screenshots
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#mod-config-at-runtime" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Mod config at runtime
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-stationeerslaunchpad-settings-panel" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The StationeersLaunchPad settings panel
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#failure-modes-seen-on-a-live-client" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Failure modes seen on a live client
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#keeping-a-driven-session-out-of-the-developers-save-folder" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Keeping a driven session out of the developer's save folder
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#verification-history" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verification history
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#open-questions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Open questions
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -8044,7 +8106,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Workflows/HealAllDamagedThings/" class="md-nav__link">
+      <a href="../HealAllDamagedThings/" class="md-nav__link">
         
   
   
@@ -8072,7 +8134,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Workflows/InspectorPlusUsage/" class="md-nav__link">
+      <a href="../InspectorPlusUsage/" class="md-nav__link">
         
   
   
@@ -8100,7 +8162,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Workflows/KnockPlayerUnconscious/" class="md-nav__link">
+      <a href="../KnockPlayerUnconscious/" class="md-nav__link">
         
   
   
@@ -8128,7 +8190,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Workflows/LaunchPadNativeDllTrap/" class="md-nav__link">
+      <a href="../LaunchPadNativeDllTrap/" class="md-nav__link">
         
   
   
@@ -8156,7 +8218,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Workflows/ModProjectSetup/" class="md-nav__link">
+      <a href="../ModProjectSetup/" class="md-nav__link">
         
   
   
@@ -8184,7 +8246,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Workflows/ResetTerrainLive/" class="md-nav__link">
+      <a href="../ResetTerrainLive/" class="md-nav__link">
         
   
   
@@ -8212,7 +8274,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Workflows/ResetTerrainOffline/" class="md-nav__link">
+      <a href="../ResetTerrainOffline/" class="md-nav__link">
         
   
   
@@ -8240,7 +8302,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Workflows/SPADumpKeys/" class="md-nav__link">
+      <a href="../SPADumpKeys/" class="md-nav__link">
         
   
   
@@ -8268,7 +8330,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Workflows/StationeersLaunchPadDedicatedServer/" class="md-nav__link">
+      <a href="../StationeersLaunchPadDedicatedServer/" class="md-nav__link">
         
   
   
@@ -8296,7 +8358,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Workflows/StationeersLaunchPadModLoading/" class="md-nav__link">
+      <a href="../StationeersLaunchPadModLoading/" class="md-nav__link">
         
   
   
@@ -8324,7 +8386,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Workflows/TTSDeadEnd/" class="md-nav__link">
+      <a href="../TTSDeadEnd/" class="md-nav__link">
         
   
   
@@ -8352,7 +8414,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Workflows/TimeSkipWorldManipulation/" class="md-nav__link">
+      <a href="../TimeSkipWorldManipulation/" class="md-nav__link">
         
   
   
@@ -8380,7 +8442,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Workflows/TriggerLanderCapsule/" class="md-nav__link">
+      <a href="../TriggerLanderCapsule/" class="md-nav__link">
         
   
   
@@ -8433,8 +8495,6 @@
   
   
   
-    
-  
   
     <label class="md-nav__title" for="__toc">
       <span class="md-nav__icon md-icon"></span>
@@ -8443,10 +8503,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#class-shape" class="md-nav__link">
+  <a href="#plugin-lifecycle-the-bepinex-component-is-destroyed-during-boot" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Class shape
+        Plugin lifecycle: the BepInEx component is destroyed during boot
       
     </span>
   </a>
@@ -8454,10 +8514,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#grid-watch-registration" class="md-nav__link">
+  <a href="#per-frame-main-thread-hooks-that-survive-everything" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Grid watch registration
+        Per-frame main-thread hooks that survive everything
       
     </span>
   </a>
@@ -8465,10 +8525,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#detection-gridevent-driven" class="md-nav__link">
+  <a href="#console-capture" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Detection: GridEvent driven
+        Console capture
       
     </span>
   </a>
@@ -8476,10 +8536,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#logictype-surface" class="md-nav__link">
+  <a href="#input-injection" class="md-nav__link">
     <span class="md-ellipsis">
       
-        LogicType surface
+        Input injection
       
     </span>
   </a>
@@ -8487,10 +8547,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#motherboard-hookup" class="md-nav__link">
+  <a href="#direct-connect" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Motherboard hookup
+        Direct Connect
       
     </span>
   </a>
@@ -8498,10 +8558,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#behavioural-consequences" class="md-nav__link">
+  <a href="#state-accessors" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Behavioural consequences
+        State accessors
       
     </span>
   </a>
@@ -8509,10 +8569,76 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#contrast-with-proximitysensor" class="md-nav__link">
+  <a href="#teleport-look-and-using-an-item" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Contrast with ProximitySensor
+        Teleport, look, and using an item
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#spawning" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Spawning
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#screenshots" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Screenshots
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#mod-config-at-runtime" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Mod config at runtime
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-stationeerslaunchpad-settings-panel" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The StationeersLaunchPad settings panel
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#failure-modes-seen-on-a-live-client" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Failure modes seen on a live client
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#keeping-a-driven-session-out-of-the-developers-save-folder" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Keeping a driven session out of the developer's save folder
       
     </span>
   </a>
@@ -8602,10 +8728,10 @@
     
     
       <li class="md-path__item">
-        <a href="../AdvancedTablet/" class="md-path__link">
+        <a href="../BCSIImplementationRoadmap/" class="md-path__link">
           
   <span class="md-ellipsis">
-    GameClasses
+    Workflows
   </span>
 
         </a>
@@ -8624,37 +8750,41 @@
     <aside class="research-meta" markdown>
       
         <p class="research-meta-type">
-          <strong>Category:</strong> GameClasses
+          <strong>Category:</strong> Workflows
         </p>
       
       
         <p class="research-meta-verified">
           <strong>Verified</strong>
-           in game version <code>0.2.6228.27061</code>
-           on 2026-05-18.
+           in game version <code>0.2.6403.27689</code>
+           on 2026-07-27.
         </p>
       
       
       
         <details class="research-meta-sources">
-          <summary><strong>Sources</strong> (1)</summary>
+          <summary><strong>Sources</strong> (4)</summary>
           <ul>
             
-              <li><code>{'$(StationeersPath)\\rocketstation_Data\\Managed\\Assembly-CSharp.dll :': 'Assets.Scripts.Objects.MotionSensor'}</code></li>
+              <li><code>.work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs</code></li>
+            
+              <li><code>.work/decomp/0.2.6403.27689/Assembly-CSharp.Human.decompiled.cs</code></li>
+            
+              <li><code>.work/decomp/0.2.6403.27689/StationeersLaunchPad.decompiled.cs</code></li>
+            
+              <li><code>DedicatedServer/dev-plugins/ClientDriver/</code></li>
             
           </ul>
         </details>
       
       
         <details class="research-meta-related">
-          <summary><strong>Related pages</strong> (3)</summary>
+          <summary><strong>Related pages</strong> (2)</summary>
           <ul>
             
-              <li><code>./Sensor.md</code></li>
+              <li><code>../Workflows/InspectorPlusUsage.md</code></li>
             
-              <li><code>./ProximitySensor.md</code></li>
-            
-              <li><code>./Grid3.md</code></li>
+              <li><code>../GameClasses/ColorSwatch.md</code></li>
             
           </ul>
         </details>
@@ -8670,193 +8800,495 @@
       
       
       
-        <span class="md-tag">logic</span>
+        <span class="md-tag">automation</span>
       
     
       
       
       
       
-        <span class="md-tag">network</span>
+        <span class="md-tag">bepinex</span>
+      
+    
+      
+      
+      
+      
+        <span class="md-tag">client</span>
+      
+    
+      
+      
+      
+      
+        <span class="md-tag">harmony</span>
+      
+    
+      
+      
+      
+      
+        <span class="md-tag">input</span>
+      
+    
+      
+      
+      
+      
+        <span class="md-tag">launchpad</span>
+      
+    
+      
+      
+      
+      
+        <span class="md-tag">multiplayer</span>
+      
+    
+      
+      
+      
+      
+        <span class="md-tag">networking</span>
+      
+    
+      
+      
+      
+      
+        <span class="md-tag">screenshots</span>
       
     
   </nav>
 
 
 
-<h1 id="motionsensor">MotionSensor<a class="headerlink" href="#motionsensor" title="Permanent link">&para;</a></h1>
-<p>Sensor subclass that detects <code>DynamicThing</code> entries on a single <code>WorldGrid</code> cell (the sensor's own cell). Driven by grid-watch events, not a distance scan. Despite sharing the <code>Sensor</code> / <code>IDoorControl</code> base with <code>ProximitySensor</code>, the two have effectively opposite behaviour: MotionSensor watches one grid cell exactly, ProximitySensor watches a free-space sphere with no occlusion test.</p>
-<h2 id="class-shape">Class shape<a class="headerlink" href="#class-shape" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-05-18 -->
+  <h1>Driving the game client programmatically</h1>
 
-<div class="language-csharp highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="k">public</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nc">MotionSensor</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="n">Sensor</span><span class="p">,</span><span class="w"> </span><span class="n">IDoorControl</span>
+<p>Everything a BepInEx plugin needs in order to drive the Stationeers <strong>client</strong> with nobody at the
+keyboard: the seams for input, joining a server, spawning, screenshots and live mod config, plus
+the boot-order and lifecycle traps that make a naive implementation fail silently. All of it was
+exercised against a live client on 0.2.6403.27689; the implementation is
+<code>DedicatedServer/dev-plugins/ClientDriver/</code>.</p>
+<h2 id="plugin-lifecycle-the-bepinex-component-is-destroyed-during-boot">Plugin lifecycle: the BepInEx component is destroyed during boot<a class="headerlink" href="#plugin-lifecycle-the-bepinex-component-is-destroyed-during-boot" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-27 -->
+
+<p><code>OnDestroy</code> fires on a <code>BaseUnityPlugin</code> component roughly a minute into startup while the process
+keeps running. After that point <code>BepInEx.Bootstrap.Chainloader.PluginInfos[guid].Instance</code> is null
+for every plugin, including StationeersLaunchPad itself.</p>
+<p>Consequences:</p>
+<ul>
+<li>Anything torn down from <code>OnDestroy</code> dies a minute after launch. A <code>TcpListener</code> stopped there
+  leaves the process alive with nothing listening and no error anywhere.</li>
+<li><code>Application.quitting</code> is the only teardown signal that actually means the process is going away.</li>
+<li>Long-lived state belongs to a static, not to the component.</li>
+</ul>
+<p>A <code>DontDestroyOnLoad</code> GameObject created by the plugin is also destroyed and must be recreated;
+observed exactly twice per session in ClientDriver's counter.</p>
+<h2 id="per-frame-main-thread-hooks-that-survive-everything">Per-frame main-thread hooks that survive everything<a class="headerlink" href="#per-frame-main-thread-hooks-that-survive-everything" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-27 -->
+
+<p><code>Assets.Scripts.UI.ImGuiManager.LateUpdate()</code> (public, <code>Assembly-CSharp</code> line 238964) runs every
+frame from the splash screen onwards and belongs to the game, so a Harmony postfix on it is a
+main-thread pump that is immune to the lifecycle problem above. Its body:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="k">public</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">LateUpdate</span><span class="p">()</span>
 </span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="p">{</span>
-</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="n">List</span><span class="o">&lt;</span><span class="n">DynamicThing</span><span class="o">&gt;</span><span class="w"> </span><span class="n">TriggeredDynamicThings</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">List</span><span class="o">&lt;</span><span class="n">DynamicThing</span><span class="o">&gt;</span><span class="p">();</span>
-</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>
-</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">IsTriggered</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">TriggeredDynamicThings</span><span class="p">.</span><span class="n">Count</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
-</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="w">    </span><span class="p">...</span>
-</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="p">}</span>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">renderTexture</span><span class="p">.</span><span class="n">width</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">Screen</span><span class="p">.</span><span class="n">width</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="n">renderTexture</span><span class="p">.</span><span class="n">height</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">Screen</span><span class="p">.</span><span class="n">height</span><span class="p">)</span>
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="w">        </span><span class="n">CreateRenderTexture</span><span class="p">();</span>
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="w">    </span><span class="n">RenderOverlay</span><span class="p">();</span>
+</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="p">}</span>
 </span></code></pre></div>
-<p><code>TriggeredDynamicThings</code> holds the currently-detected dynamic things. <code>IsTriggered</code> is a non-empty check.</p>
-<h2 id="grid-watch-registration">Grid watch registration<a class="headerlink" href="#grid-watch-registration" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-05-18 -->
-
-<div class="language-csharp highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="k">public</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">OnRegistered</span><span class="p">(</span><span class="n">Cell</span><span class="w"> </span><span class="n">cell</span><span class="p">)</span>
+<p><code>RenderOverlay()</code> (line 238972) is where the in-game ImGui frame lives:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="k">private</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">RenderOverlay</span><span class="p">()</span>
 </span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="p">{</span>
-</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">    </span><span class="k">base</span><span class="p">.</span><span class="n">OnRegistered</span><span class="p">(</span><span class="n">cell</span><span class="p">);</span>
-</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">    </span><span class="k">base</span><span class="p">.</span><span class="n">GridController</span><span class="p">.</span><span class="n">SetWatchGrid</span><span class="p">(</span><span class="k">base</span><span class="p">.</span><span class="n">WorldGrid</span><span class="p">,</span><span class="w"> </span><span class="k">this</span><span class="p">);</span>
-</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="p">}</span>
-</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>
-</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="k">public</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">OnDeregistered</span><span class="p">()</span>
-</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="p">{</span>
-</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="w">    </span><span class="k">base</span><span class="p">.</span><span class="n">OnDeregistered</span><span class="p">();</span>
-</span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="w">    </span><span class="k">base</span><span class="p">.</span><span class="n">GridController</span><span class="p">.</span><span class="n">RemoveWatchGrid</span><span class="p">(</span><span class="k">base</span><span class="p">.</span><span class="n">WorldGrid</span><span class="p">,</span><span class="w"> </span><span class="k">this</span><span class="p">);</span>
-</span><span id="__span-1-11"><a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="p">}</span>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">    </span><span class="n">PrepareImGuiFrame</span><span class="p">();</span>
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">    </span><span class="n">ConsoleWindow</span><span class="p">.</span><span class="n">Draw</span><span class="p">();</span>
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">SplashBehaviour</span><span class="p">.</span><span class="n">IsActive</span><span class="p">)</span><span class="w">              </span><span class="p">{</span><span class="w"> </span><span class="n">SplashBehaviour</span><span class="p">.</span><span class="n">Draw</span><span class="p">();</span><span class="w"> </span><span class="p">}</span>
+</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="w">    </span><span class="k">else</span><span class="w"> </span><span class="nf">if</span><span class="w"> </span><span class="p">(</span><span class="n">ImGuiLoadingScreen</span><span class="p">.</span><span class="n">IsShowing</span><span class="p">)</span><span class="w">     </span><span class="p">{</span><span class="w"> </span><span class="n">ImGuiLoadingScreen</span><span class="p">.</span><span class="n">DrawStandardLoading</span><span class="p">();</span><span class="w"> </span><span class="p">}</span>
+</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="w">    </span><span class="k">else</span>
+</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="w">        </span><span class="n">OrbitalSimulation</span><span class="p">.</span><span class="n">Draw</span><span class="p">();</span>
+</span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="w">        </span><span class="n">CinematicCamera</span><span class="p">.</span><span class="n">DrawOverlay</span><span class="p">();</span>
+</span><span id="__span-1-11"><a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="w">        </span><span class="p">...</span>
+</span><span id="__span-1-12"><a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-1-13"><a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a><span class="p">}</span>
 </span></code></pre></div>
-<p>The sensor subscribes to grid events on <strong>its own <code>WorldGrid</code> cell</strong> at registration time and unsubscribes at deregistration. No radius parameter, no settable range. Detection scope is exactly one grid cell.</p>
-<h2 id="detection-gridevent-driven">Detection: GridEvent driven<a class="headerlink" href="#detection-gridevent-driven" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-05-18 -->
+<p>Two things follow. First, <code>ConsoleWindow.Draw()</code> is outside the branch, so the console renders at
+every phase. Second, <code>OrbitalSimulation.Draw()</code> is skipped entirely while the splash screen or the
+loading screen is up, and StationeersLaunchPad hangs all of its in-game ImGui windows off a prefix
+on that method. Any plugin drawing ImGui through the same seam is invisible until the real main
+menu is reached.</p>
+<p>Fallback pumps, in the order ClientDriver uses them: <code>ImGuiManager.LateUpdate</code> postfix (primary),
+<code>MonoBehaviour.Update</code> on an own GameObject (secondary), <code>ElectricityManager.ElectricityTick</code>
+postfix (tertiary, the one InspectorPlus and ScenarioRunner rely on headless).</p>
+<h2 id="console-capture">Console capture<a class="headerlink" href="#console-capture" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-27 -->
 
-<div class="language-csharp highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="k">public</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">OnGridEvent</span><span class="p">(</span><span class="n">GridEvent</span><span class="w"> </span><span class="n">gridEvent</span><span class="p">)</span>
-</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="p">{</span>
-</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">    </span><span class="k">base</span><span class="p">.</span><span class="n">OnGridEvent</span><span class="p">(</span><span class="n">gridEvent</span><span class="p">);</span>
-</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">GameManager</span><span class="p">.</span><span class="n">RunSimulation</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="p">;</span>
-</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="w">    </span><span class="k">switch</span><span class="w"> </span><span class="p">(</span><span class="n">gridEvent</span><span class="p">.</span><span class="n">Type</span><span class="p">)</span>
-</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="w">    </span><span class="p">{</span>
-</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="w">    </span><span class="k">case</span><span class="w"> </span><span class="n">GridEvent</span><span class="p">.</span><span class="n">GridEventType</span><span class="p">.</span><span class="n">Enter</span><span class="p">:</span>
-</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">TriggeredDynamicThings</span><span class="p">.</span><span class="n">Contains</span><span class="p">(</span><span class="n">gridEvent</span><span class="p">.</span><span class="n">DynamicThing</span><span class="p">))</span><span class="w"> </span><span class="k">return</span><span class="p">;</span>
-</span><span id="__span-2-9"><a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="w">        </span><span class="n">TriggeredDynamicThings</span><span class="p">.</span><span class="n">Add</span><span class="p">(</span><span class="n">gridEvent</span><span class="p">.</span><span class="n">DynamicThing</span><span class="p">);</span>
-</span><span id="__span-2-10"><a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="w">        </span><span class="k">break</span><span class="p">;</span>
-</span><span id="__span-2-11"><a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="w">    </span><span class="k">case</span><span class="w"> </span><span class="n">GridEvent</span><span class="p">.</span><span class="n">GridEventType</span><span class="p">.</span><span class="n">Leave</span><span class="p">:</span>
-</span><span id="__span-2-12"><a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a><span class="w">        </span><span class="n">TriggeredDynamicThings</span><span class="p">.</span><span class="n">Remove</span><span class="p">(</span><span class="n">gridEvent</span><span class="p">.</span><span class="n">DynamicThing</span><span class="p">);</span>
-</span><span id="__span-2-13"><a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a><span class="w">        </span><span class="k">break</span><span class="p">;</span>
-</span><span id="__span-2-14"><a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a><span class="w">    </span><span class="p">}</span>
-</span><span id="__span-2-15"><a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a><span class="w">    </span><span class="n">ActivateSensor</span><span class="p">();</span>
-</span><span id="__span-2-16"><a id="__codelineno-2-16" name="__codelineno-2-16" href="#__codelineno-2-16"></a><span class="p">}</span>
+<p>Every <code>Assets.Scripts.ConsoleWindow</code> print overload funnels into one method:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">Print</span><span class="p">(</span><span class="kt">string</span><span class="w"> </span><span class="n">output</span><span class="p">,</span><span class="w"> </span><span class="n">ConsoleColor</span><span class="w"> </span><span class="n">color</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ConsoleColor</span><span class="p">.</span><span class="n">White</span><span class="p">,</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">                         </span><span class="kt">bool</span><span class="w"> </span><span class="n">clearLine</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">false</span><span class="p">,</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">aged</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">true</span><span class="p">,</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">unformatted</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">false</span><span class="p">)</span>
 </span></code></pre></div>
-<p>Triggers strictly on <code>GridEvent.Enter</code> / <code>Leave</code> for the watched cell. No scan, no distance check. Whatever the GridController dispatches as entering or leaving this cell is what the sensor sees.</p>
-<div class="language-csharp highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="k">public</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">OnThreadUpdate</span><span class="p">()</span>
+<p><code>PrintError(string, bool)</code> calls it with <code>ConsoleColor.Red</code> then prints <code>Environment.StackTrace</code> in
+Gray. <code>PrintAction(string, bool)</code> calls it with <code>ConsoleColor.Yellow</code>. All seven <code>GameString</code>
+overloads format and delegate. A single Harmony postfix on the five-argument <code>Print</code> therefore
+captures the lot.</p>
+<p>Not captured by that postfix: <code>PrintBlock</code>, <code>PrintSegmentedBlock</code>, <code>PrintSegmentedBlockRaw</code> and
+<code>PrintTable</code>, which write straight into the ring. For those, and for anything printed before the
+plugin loaded, read the game's own ring directly: <code>ConsoleWindow.ConsoleBuffer</code> is a public
+<code>ConsoleLine[]</code> of <code>DEFAULT_CONSOLE_BUFFER_SIZE</code> = 1024 entries, index 0 newest.
+<code>ConsoleLine</code> exposes <code>Color</code> (uint), <code>Time</code>, <code>Text</code> and <code>Continuations</code> (the tail of a multi-line
+message, split on <code>\n</code>).</p>
+<p><code>ConsoleWindow.Submit(string)</code> is public static and is the console's own input path: it prints the
+echo then calls <code>CommandLine.Process</code>. Capturing from a sequence number taken before the call gets
+the echo plus all output. <code>Util.Commands.CommandLine.AddCommand(string, CommandBase)</code> is public,
+so a plugin can register its own console commands.</p>
+<p>Note the namespace trap: <code>ConsoleWindow</code> is in the bare <code>Assets.Scripts</code> namespace and clashes with
+<code>Assets.Scripts.Settings</code>. Use <code>using ConsoleWindow = Assets.Scripts.ConsoleWindow;</code>.</p>
+<p>BepInEx-side capture is a separate stream. Registering an <code>ILogListener</code> on
+<code>BepInEx.Logging.Logger.Listeners</code> catches every plugin's log and, because <code>UnityLogListening</code> is on
+in <code>BepInEx.cfg</code>, every <code>Debug.Log</code> in the process as well. During mod load that is thousands of
+lines in a couple of seconds, so it needs its own ring buffer or it evicts the console lines a test
+actually cares about.</p>
+<h2 id="input-injection">Input injection<a class="headerlink" href="#input-injection" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-27 -->
+
+<p>Patch <code>UnityEngine.Input</code>, not <code>KeyManager</code>. Every <code>KeyManager</code> query bottoms out in the Unity layer:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="nf">GetButton</span><span class="p">(</span><span class="n">KeyCode</span><span class="w"> </span><span class="n">key</span><span class="p">)</span>
 </span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="p">{</span>
-</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">    </span><span class="k">base</span><span class="p">.</span><span class="n">OnThreadUpdate</span><span class="p">();</span>
-</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">GameManager</span><span class="p">.</span><span class="n">RunSimulation</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="p">;</span>
-</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">Activate</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span>
-</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">    </span><span class="p">{</span>
-</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="w">        </span><span class="kt">int</span><span class="w"> </span><span class="n">count</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">TriggeredDynamicThings</span><span class="p">.</span><span class="n">Count</span><span class="p">;</span>
-</span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="w">        </span><span class="k">while</span><span class="w"> </span><span class="p">(</span><span class="n">count</span><span class="o">--</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span>
-</span><span id="__span-3-9"><a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="w">        </span><span class="p">{</span>
-</span><span id="__span-3-10"><a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="w">            </span><span class="n">DynamicThing</span><span class="w"> </span><span class="n">dynamicThing</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">TriggeredDynamicThings</span><span class="p">[</span><span class="n">count</span><span class="p">];</span>
-</span><span id="__span-3-11"><a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a><span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">dynamicThing</span><span class="p">)</span>
-</span><span id="__span-3-12"><a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a><span class="w">                </span><span class="n">TriggeredDynamicThings</span><span class="p">.</span><span class="n">RemoveAt</span><span class="p">(</span><span class="n">count</span><span class="p">);</span>
-</span><span id="__span-3-13"><a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a><span class="w">            </span><span class="k">else</span><span class="w"> </span><span class="nf">if</span><span class="w"> </span><span class="p">(</span><span class="n">dynamicThing</span><span class="p">.</span><span class="n">WorldGrid</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="k">base</span><span class="p">.</span><span class="n">WorldGrid</span><span class="p">)</span>
-</span><span id="__span-3-14"><a id="__codelineno-3-14" name="__codelineno-3-14" href="#__codelineno-3-14"></a><span class="w">                </span><span class="n">TriggeredDynamicThings</span><span class="p">.</span><span class="n">RemoveAt</span><span class="p">(</span><span class="n">count</span><span class="p">);</span>
-</span><span id="__span-3-15"><a id="__codelineno-3-15" name="__codelineno-3-15" href="#__codelineno-3-15"></a><span class="w">        </span><span class="p">}</span>
-</span><span id="__span-3-16"><a id="__codelineno-3-16" name="__codelineno-3-16" href="#__codelineno-3-16"></a><span class="w">    </span><span class="p">}</span>
-</span><span id="__span-3-17"><a id="__codelineno-3-17" name="__codelineno-3-17" href="#__codelineno-3-17"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">Activate</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">IsTriggered</span><span class="p">)</span>
-</span><span id="__span-3-18"><a id="__codelineno-3-18" name="__codelineno-3-18" href="#__codelineno-3-18"></a><span class="w">        </span><span class="n">OnServer</span><span class="p">.</span><span class="n">Interact</span><span class="p">(</span><span class="k">base</span><span class="p">.</span><span class="n">InteractActivate</span><span class="p">,</span><span class="w"> </span><span class="n">IsTriggered</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">);</span>
-</span><span id="__span-3-19"><a id="__codelineno-3-19" name="__codelineno-3-19" href="#__codelineno-3-19"></a><span class="p">}</span>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">key</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">KeyMap</span><span class="p">.</span><span class="n">ToggleConsole</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">ConsoleWindow</span><span class="p">.</span><span class="n">IsOpen</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="k">false</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">Input</span><span class="p">.</span><span class="n">GetKey</span><span class="p">(</span><span class="n">key</span><span class="p">);</span>
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="p">}</span>
+</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="nf">GetMouse</span><span class="p">(</span><span class="kt">string</span><span class="w"> </span><span class="n">key</span><span class="p">)</span>
+</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="p">{</span>
+</span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">key</span><span class="p">.</span><span class="n">Equals</span><span class="p">(</span><span class="s">&quot;Primary&quot;</span><span class="p">))</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="n">GetButton</span><span class="p">(</span><span class="n">KeyMap</span><span class="p">.</span><span class="n">PrimaryAction</span><span class="p">);</span><span class="w"> </span><span class="p">}</span>
+</span><span id="__span-3-9"><a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nf">GetButton</span><span class="p">(</span><span class="n">KeyMap</span><span class="p">.</span><span class="n">SecondaryAction</span><span class="p">);</span>
+</span><span id="__span-3-10"><a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="p">}</span>
 </span></code></pre></div>
-<p>Per-tick reconciliation when <code>Activate == 1</code>: scrubs destroyed things and anything whose <code>WorldGrid</code> no longer matches the sensor's cell. Acts as a defensive cleanup against missed <code>Leave</code> events. <code>Activate</code> is then toggled to match <code>IsTriggered</code>.</p>
-<p>Detected type is <code>DynamicThing</code> (not narrowed to <code>Human</code>). Any dynamic-thing entry triggers the sensor: players, livestock, rovers, suits, dropped items, etc., subject to whatever subset the GridController emits Enter / Leave events for.</p>
-<h2 id="logictype-surface">LogicType surface<a class="headerlink" href="#logictype-surface" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-05-18 -->
+<p>and a large amount of game code calls <code>Input.GetKey(KeyMap.X)</code> directly, bypassing <code>KeyManager</code>.
+Patching <code>Input.GetKey</code> / <code>GetKeyDown</code> / <code>GetKeyUp</code> / <code>GetMouseButton*</code> / <code>get_mouseScrollDelta</code> /
+<code>get_mousePosition</code> covers both. All of those are managed wrappers over externs on Unity
+2022.3.62, so Harmony patches them without complaint (confirmed applied at runtime).</p>
+<p><code>KeyMap</code> is a static class of mutable <code>public static KeyCode</code> fields, not an enum, and the values
+are rebindable at runtime from settings. Resolve an action name against the live field rather than
+hardcoding a default. <code>KeyMap.PrimaryAction</code> defaults to <code>KeyCode.Mouse0</code>, <code>SecondaryAction</code> to
+<code>Mouse1</code>, <code>ToggleConsole</code> to <code>F3</code>, <code>SwapHands</code> to <code>E</code>. <code>KeyMap.Teleport</code> is vestigial: it is bound
+to <code>ToggleNightVision</code> and saved under the settings key <code>"NightVision"</code>.</p>
+<p><strong>Express synthetic input as an absolute <code>Time.frameCount</code> window, never as a countdown ticked from
+<code>Update</code>.</strong> MonoBehaviour update order is undefined, so a countdown can expire before the frame's
+real consumer runs. Open the window on <code>Time.frameCount + 1</code> and it is visible for the whole of
+every frame in it regardless of ordering.</p>
+<p>Mouse wheel specifics. <code>InventoryManager.CheckDisplaySlotInput()</code> caches
+<code>newScrollData = Input.mouseScrollDelta.y / 10f</code> at the top of every frame, and that public field is
+what most consumers read, including SprayPaintPlus's <code>ColorCyclerPatch</code>. <code>PrecisionPlacementMode</code>
+zoom and a few UI paths read <code>Input.mouseScrollDelta</code> directly instead. Patching the Unity property
+covers everything; a postfix on <code>CheckDisplaySlotInput</code> that assigns <code>newScrollData</code> is a useful
+backstop.</p>
+<p><strong>One frame of wheel is one notch.</strong> Consumers act once per frame, so a two-frame injection scrolls
+a spray can two colours. Verified in world: <code>frames=1</code> steps the colour index by exactly 1 per call.</p>
+<h2 id="direct-connect">Direct Connect<a class="headerlink" href="#direct-connect" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-27 -->
 
-<div class="language-csharp highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="k">public</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="nf">CanLogicRead</span><span class="p">(</span><span class="n">LogicType</span><span class="w"> </span><span class="n">logicType</span><span class="p">)</span>
-</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="p">{</span>
-</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">logicType</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">LogicType</span><span class="p">.</span><span class="n">Quantity</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="k">true</span><span class="p">;</span>
-</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="k">base</span><span class="p">.</span><span class="n">CanLogicRead</span><span class="p">(</span><span class="n">logicType</span><span class="p">);</span>
-</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="p">}</span>
-</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>
-</span><span id="__span-4-7"><a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="k">public</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="kt">double</span><span class="w"> </span><span class="nf">GetLogicValue</span><span class="p">(</span><span class="n">LogicType</span><span class="w"> </span><span class="n">logicType</span><span class="p">)</span>
-</span><span id="__span-4-8"><a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="p">{</span>
-</span><span id="__span-4-9"><a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">logicType</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">LogicType</span><span class="p">.</span><span class="n">Quantity</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="n">TriggeredDynamicThings</span><span class="p">.</span><span class="n">Count</span><span class="p">;</span>
-</span><span id="__span-4-10"><a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="k">base</span><span class="p">.</span><span class="n">GetLogicValue</span><span class="p">(</span><span class="n">logicType</span><span class="p">);</span>
-</span><span id="__span-4-11"><a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a><span class="p">}</span>
+<p>One public instance method does the whole join:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="c1">// Assets.Scripts.NetworkClient</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="k">public</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">JoinClientFromMenu</span><span class="p">(</span><span class="kt">string</span><span class="w"> </span><span class="n">ipPort</span><span class="p">)</span>
 </span></code></pre></div>
-<ul>
-<li><code>Quantity</code> is readable, returns the count of detected things on the watched cell.</li>
-<li>No writable <code>LogicType</code> overridden here (no <code>Setting</code> knob; range is fixed).</li>
-<li>Boolean trigger surfaces on <code>Activate</code> (<code>On</code> / <code>Open</code> etc.) via the inherited <code>Device</code> / <code>Sensor</code> chain.</li>
-</ul>
-<h2 id="motherboard-hookup">Motherboard hookup<a class="headerlink" href="#motherboard-hookup" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-05-18 -->
-
-<div class="language-csharp highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="k">public</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">SetMotherboards</span><span class="p">(</span><span class="kt">bool</span><span class="w"> </span><span class="n">isTriggered</span><span class="p">)</span>
+<p>It runs <code>ClientPreJoin()</code> (sets <code>GameManager.GameState = GameState.Joining</code>), splits the address,
+and calls <code>NetworkManager.StartClient(address, port, localPort)</code>, then <code>OnJoinStart()</code>. Calling
+<code>StartClient</code> directly skips the menu teardown and the loading screen, so use the menu method.</p>
+<p>Getting the instance is the first trap: <code>FindObjectOfType&lt;NetworkClient&gt;()</code> only sees active,
+enabled components and returns null for roughly the first minute of a session. Fall back to
+<code>Resources.FindObjectsOfTypeAll&lt;NetworkClient&gt;()</code>, which includes inactive objects, and poll until
+it appears.</p>
+<p>The second trap is the join timer. <code>OnJoinStart</code> arms a 10 second <code>AutoReset</code> timer whose elapsed
+handler does nothing but give up:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="k">private</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">async</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">ConnectionTimerOnElapsed</span><span class="p">(</span><span class="kt">object</span><span class="w"> </span><span class="n">sender</span><span class="p">,</span><span class="w"> </span><span class="n">ElapsedEventArgs</span><span class="w"> </span><span class="n">e</span><span class="p">)</span>
 </span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="p">{</span>
-</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">    </span><span class="k">foreach</span><span class="w"> </span><span class="p">(</span><span class="n">Motherboard</span><span class="w"> </span><span class="n">linkedMotherboard</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">LinkedMotherboards</span><span class="p">)</span>
-</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="w">    </span><span class="p">{</span>
-</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">linkedMotherboard</span><span class="w"> </span><span class="k">is</span><span class="w"> </span><span class="n">Circuitboard</span><span class="w"> </span><span class="n">circuitboard</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">circuitboard</span><span class="p">.</span><span class="n">ParentComputer</span><span class="p">.</span><span class="n">AsDevice</span><span class="p">().</span><span class="n">Powered</span><span class="p">)</span>
-</span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="w">        </span><span class="p">{</span>
-</span><span id="__span-5-7"><a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="w">            </span><span class="n">circuitboard</span><span class="p">.</span><span class="n">RemoteToggle</span><span class="p">(</span><span class="n">isTriggered</span><span class="p">);</span>
-</span><span id="__span-5-8"><a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a><span class="w">        </span><span class="p">}</span>
-</span><span id="__span-5-9"><a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a><span class="w">    </span><span class="p">}</span>
-</span><span id="__span-5-10"><a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a><span class="p">}</span>
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">    </span><span class="n">ConsoleWindow</span><span class="p">.</span><span class="n">PrintError</span><span class="p">(</span><span class="s">&quot;Connection could not be established&quot;</span><span class="p">);</span>
+</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="w">    </span><span class="k">await</span><span class="w"> </span><span class="n">UniTask</span><span class="p">.</span><span class="n">SwitchToMainThread</span><span class="p">();</span>
+</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="w">    </span><span class="n">StopConnectionTimer</span><span class="p">();</span>
+</span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="w">    </span><span class="n">Singleton</span><span class="o">&lt;</span><span class="n">ConfirmationPanel</span><span class="o">&gt;</span><span class="p">.</span><span class="n">Instance</span><span class="p">.</span><span class="n">Show</span><span class="p">(</span><span class="n">MultiplayerCouldNotConnectKey</span><span class="p">,</span><span class="w"> </span><span class="n">MultiplayerCheckAddressKey</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;ButtonOk&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">Cancel</span><span class="p">);</span>
+</span><span id="__span-5-7"><a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="p">}</span>
 </span></code></pre></div>
-<p>Identical shape to <code>ProximitySensor.SetMotherboards</code>: powered-down computers are skipped.</p>
-<h2 id="behavioural-consequences">Behavioural consequences<a class="headerlink" href="#behavioural-consequences" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-05-18 -->
-
-<ul>
-<li>Effective detection range is one <code>WorldGrid</code> cell (approximately 1m on each side in vanilla, matching the construction grid). A human one cell away does not register.</li>
-<li>Walls and floors are not directly tested, but they constrain where dynamic things can be on the grid; a person inside a sealed adjacent room is on a different cell and is not seen.</li>
-<li>Walking past the cell triggers Enter and Leave events in sequence; the sensor flips on then off via <code>ActivateSensor()</code> and the inherited <code>WaitUntilNotTriggered</code> UniTask.</li>
-<li>Cleanup pass in <code>OnThreadUpdate</code> guards against stuck triggers if a <code>Leave</code> was missed (object destroyed in-place, despawned, etc.).</li>
-</ul>
-<h2 id="contrast-with-proximitysensor">Contrast with ProximitySensor<a class="headerlink" href="#contrast-with-proximitysensor" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-05-18 -->
+<p>Ten seconds is not enough for a heavily modded dedicated server. Observed: the server logs
+<code>A connection is incoming</code> and <code>VerifyPlayer - Serialising connection method: RocketNet</code>, then the
+client cancels itself twenty seconds later. <code>NetworkClient.StopConnectionTimer()</code> is public static;
+call it immediately after <code>JoinClientFromMenu</code> and impose your own timeout instead.</p>
+<p>Two dead ends worth knowing. <code>-join &lt;address:port&gt;</code> does exist as a launch command
+(<code>JoinCommand</code>, keys <code>join</code> and <code>joingame</code>), but unlike <code>LoadGameCommand</code> and <code>NewGameCommand</code> it
+does not override <code>RequiresGameManagerIsInitialized</code>, so it runs at
+<code>RuntimeInitializeOnLoadMethod</code> time and prints "network client not initialised yet" if the
+component is not up. And a password-protected server prompts through
+<code>PasswordWindow.PromptPassword</code>, with no client-side field to pre-fill.</p>
+<p>Leaving: <code>GameManager.LeaveGame()</code> (public static) tears the session down;
+<code>NetworkClient.Cancel()</code> aborts a pending join and calls <code>LeaveGame</code> itself. Both return before
+the menu is actually back, so poll <code>GameManager.GameState == GameState.None</code>.</p>
+<h2 id="state-accessors">State accessors<a class="headerlink" href="#state-accessors" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-27 -->
 
 <table>
 <thead>
 <tr>
-<th>Aspect</th>
-<th>MotionSensor</th>
-<th>ProximitySensor</th>
+<th>What</th>
+<th>Accessor</th>
+<th>Notes</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>Detection model</td>
-<td>GridController Enter / Leave events</td>
-<td>Per-tick <code>Vector3.SqrMagnitude</code> scan</td>
+<td>Session phase</td>
+<td><code>GameManager.GameState</code></td>
+<td><code>enum GameState : byte { None, Joining, Waiting, Running, Loading, Paused }</code>. Public static get AND set.</td>
 </tr>
 <tr>
-<td>Range</td>
-<td>One <code>WorldGrid</code> cell, fixed</td>
-<td>Sphere radius <code>Setting</code> metres, 0-250</td>
+<td>Client vs host</td>
+<td><code>NetworkManager.NetworkRole</code>, <code>.NetworkState</code>, <code>.IsClient</code>, <code>.IsServer</code></td>
+<td>public static fields/properties</td>
 </tr>
 <tr>
-<td>Target type</td>
-<td>Any <code>DynamicThing</code></td>
-<td><code>Human</code> only</td>
+<td>Simulation owner</td>
+<td><code>GameManager.RunSimulation</code></td>
+<td><code>=&gt; !NetworkManager.IsClient</code></td>
 </tr>
 <tr>
-<td>Authorisation filter</td>
-<td>None on the entry</td>
-<td><code>IsAuthorized(allHuman)</code> per match</td>
+<td>World</td>
+<td><code>WorldManager.CurrentWorldName</code>, <code>.CurrentWorldId</code>, <code>.IsGamePaused</code></td>
+<td><code>WorldManager</code> is in the global namespace</td>
 </tr>
 <tr>
-<td>Walls / floors</td>
-<td>Implicit via grid placement</td>
-<td><strong>Ignored</strong> (true 3D euclidean)</td>
+<td>Local player</td>
+<td><code>Human.LocalHuman</code></td>
+<td>one-line forwarder to <code>InventoryManager.ParentHuman</code>; null at the menu</td>
 </tr>
 <tr>
-<td><code>Quantity</code> reads</td>
-<td><code>TriggeredDynamicThings.Count</code></td>
-<td><code>Activate</code> (count of authorised humans in sphere)</td>
+<td>Position</td>
+<td><code>Thing.ThingTransformPosition</code></td>
+<td><code>Thing.Position</code> is a cached copy, up to one FixedUpdate stale</td>
 </tr>
 <tr>
-<td><code>Setting</code> writable via logic</td>
-<td>No</td>
-<td>Yes</td>
+<td>Look</td>
+<td><code>CameraController.Instance.RotationX</code> (pitch, positive is up) and <code>.RotationY</code> (yaw)</td>
+<td></td>
+</tr>
+<tr>
+<td>Hands</td>
+<td><code>InventoryManager.ActiveHandSlot</code>, <code>InventoryManager.Instance.ActiveHand/.InactiveHand</code></td>
+<td><code>Slot.Get()</code> returns the occupant; <code>Slot.Occupant</code> is <code>[Obsolete]</code></td>
+</tr>
+<tr>
+<td>Cursor target</td>
+<td><code>CursorManager.CursorThing</code></td>
+<td>rebuilt every frame by <code>CursorManager.SetCursorTarget()</code></td>
 </tr>
 </tbody>
 </table>
+<p><code>WorldManager.IsLoaded</code>, <code>NetworkManager.Instance.LocalClient</code> and <code>GameManager.Instance.Player</code> do
+not exist. There is no <code>CharacterController</code> anywhere in the assembly; movement is pure <code>Rigidbody</code>.</p>
+<h2 id="teleport-look-and-using-an-item">Teleport, look, and using an item<a class="headerlink" href="#teleport-look-and-using-an-item" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-27 -->
+
+<p><code>Human.ForceSetPosition(Vector3)</code> is gated on <code>GameManager.RunSimulation</code>, which is false on a
+multiplayer client, so it is a silent no-op there. The game's own <code>teleport</code> console command
+sidesteps it and writes <code>InventoryManager.Parent.Transform.position</code> raw. The reliable sequence,
+which is <code>ForceSetPosition</code> minus the gate:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="n">human</span><span class="p">.</span><span class="n">ThingTransformPosition</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">target</span><span class="p">;</span><span class="w">   </span><span class="c1">// writes the transform and the Position cache</span>
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="n">human</span><span class="p">.</span><span class="n">Transform</span><span class="p">.</span><span class="n">position</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">target</span><span class="p">;</span>
+</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="n">rb</span><span class="p">.</span><span class="n">MovePosition</span><span class="p">(</span><span class="n">target</span><span class="p">);</span>
+</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">rb</span><span class="p">.</span><span class="n">isKinematic</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">rb</span><span class="p">.</span><span class="n">velocity</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Vector3</span><span class="p">.</span><span class="n">zero</span><span class="p">;</span><span class="w"> </span><span class="n">rb</span><span class="p">.</span><span class="n">angularVelocity</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Vector3</span><span class="p">.</span><span class="n">zero</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="n">human</span><span class="p">.</span><span class="n">ResetInterpolation</span><span class="p">();</span><span class="w">              </span><span class="c1">// public, on DynamicThing</span>
+</span></code></pre></div>
+<p>Verified in single player: position moved exactly as requested and stuck.</p>
+<p>Look direction: <code>CameraController.UnitTest_SetRotation(float InRotationX, float InRotationY)</code> is
+public and sets pitch then yaw. <code>SetMouseLook()</code> adds mouse delta to both every <code>LateUpdate</code>, so a
+one-shot write holds only while the mouse is still, which is the normal case for a driven client.
+To aim at a world point:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="n">Vector3</span><span class="w"> </span><span class="n">dir</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">worldPoint</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">CameraController</span><span class="p">.</span><span class="n">CameraOrigin</span><span class="p">).</span><span class="n">normalized</span><span class="p">;</span>
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="kt">float</span><span class="w"> </span><span class="n">yaw</span><span class="w">   </span><span class="o">=</span><span class="w"> </span><span class="n">Mathf</span><span class="p">.</span><span class="n">Atan2</span><span class="p">(</span><span class="n">dir</span><span class="p">.</span><span class="n">x</span><span class="p">,</span><span class="w"> </span><span class="n">dir</span><span class="p">.</span><span class="n">z</span><span class="p">)</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">Mathf</span><span class="p">.</span><span class="n">Rad2Deg</span><span class="p">;</span>
+</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="kt">float</span><span class="w"> </span><span class="n">pitch</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Mathf</span><span class="p">.</span><span class="n">Asin</span><span class="p">(</span><span class="n">dir</span><span class="p">.</span><span class="n">y</span><span class="p">)</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">Mathf</span><span class="p">.</span><span class="n">Rad2Deg</span><span class="p">;</span><span class="w">   </span><span class="c1">// positive is up, matching RotationX</span>
+</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="n">CameraController</span><span class="p">.</span><span class="n">Instance</span><span class="p">.</span><span class="n">UnitTest_SetRotation</span><span class="p">(</span><span class="n">pitch</span><span class="p">,</span><span class="w"> </span><span class="n">yaw</span><span class="p">);</span>
+</span></code></pre></div>
+<p>Verified: a target 10 m along +Z gives yaw 0 pitch 0, 10 m along +X gives yaw 90, and 10 m forward
+and 10 m down gives pitch -45.</p>
+<p>Using the held item on a specific target, without aiming, goes through:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="c1">// global namespace</span>
+</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="n">OnServer</span><span class="p">.</span><span class="n">AttackWith</span><span class="p">(</span><span class="n">Thing</span><span class="w"> </span><span class="n">attackParent</span><span class="p">,</span><span class="w"> </span><span class="kt">byte</span><span class="w"> </span><span class="n">activeHandSlotId</span><span class="p">,</span><span class="w"> </span><span class="kt">byte</span><span class="w"> </span><span class="n">offHandSlotId</span><span class="p">,</span>
+</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="w">                                       </span><span class="kt">long</span><span class="w"> </span><span class="n">targetId</span><span class="p">,</span><span class="w"> </span><span class="n">Vector3</span><span class="w"> </span><span class="n">attackPosition</span><span class="p">,</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="n">completedRatio</span><span class="p">,</span>
+</span><span id="__span-8-4"><a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="w">                                       </span><span class="kt">bool</span><span class="w"> </span><span class="n">isDestroy</span><span class="p">,</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">isCopy</span><span class="p">)</span>
+</span></code></pre></div>
+<p>It predicts locally with <code>doAction: GameManager.RunSimulation</code> and sends an <code>AttackWithMessage</code> when
+<code>NetworkManager.IsClient</code>, so it is correct on both a host and a client. It constructs the <code>Attack</code>
+with <code>targetCollider: null</code>, so an override that dereferences <code>attack.TargetCollider</code> would throw;
+the spray-paint path does not. Verified end to end in single player: a spray can in the active hand
+plus <code>AttackWith(targetId: &lt;wall&gt;)</code> changed the wall's <code>CustomColor.Index</code> to the can's colour.</p>
+<h2 id="spawning">Spawning<a class="headerlink" href="#spawning" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-27 -->
+
+<p>Prefab lookup is by hash, with string overloads that wrap <code>Animator.StringToHash</code>:
+<code>Prefab.Find(string)</code>, <code>Prefab.Find&lt;T&gt;(string)</code>, <code>Prefab.TryFind(...)</code>, and the full list in
+<code>Prefab.AllPrefabs</code>. <code>Prefab.Find</code> returns null on a miss; <code>TryFind&lt;T&gt;</code> throws internally and
+<code>Find&lt;T&gt;</code> swallows it and returns default, so prefer <code>Find(name)</code> plus a null check.</p>
+<table>
+<thead>
+<tr>
+<th>Goal</th>
+<th>Call</th>
+<th>Authority</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Item straight into a slot</td>
+<td><code>OnServer.Create&lt;T&gt;(Thing prefab, Slot slot)</code></td>
+<td>needs <code>RunSimulation</code>, so host or single player</td>
+</tr>
+<tr>
+<td>Item on the ground near a player</td>
+<td><code>OnServer.SpawnDynamicThingMaxStack(long parentId, string prefabName)</code></td>
+<td>client-safe, forwards to the server</td>
+</tr>
+<tr>
+<td>Item at an arbitrary position</td>
+<td><code>OnServer.Create&lt;T&gt;(Thing prefab, Vector3 pos, Quaternion rot)</code></td>
+<td>server side</td>
+</tr>
+<tr>
+<td>Built structure on the grid</td>
+<td><code>Constructor.SpawnConstruct(CreateStructureInstance)</code></td>
+<td>client-safe, sends <code>ConstructionCreationMessage</code></td>
+</tr>
+</tbody>
+</table>
+<p><code>CreateStructureInstance(Structure prefab, Grid3 localGrid, Quaternion worldRotation, ulong ownerClientId, int colorIndex = -1)</code>;
+get the grid coordinate with <code>GridController.World.WorldToLocal(worldPosition)</code>. Verified: a
+<code>StructureCompositeWall</code> placed 3 m in front of the player landed on the grid, fully built and
+paintable, and reported a sensible <code>CustomColor.Index</code>.</p>
+<p>Spray can prefabs are <code>ItemSprayCan&lt;Color&gt;</code> for the 12 base colours and
+<code>ItemSprayCanMetallic&lt;Colour&gt;</code> for the four DLC ones; 16 in total, all present in <code>Prefab.AllPrefabs</code>.
+The colour lives on the can as a <code>Material</code> (<code>SprayCan.PaintMaterial</code>), not an index;
+<code>GameManager.GetColorIndex(Material)</code> maps it back to a swatch index.</p>
+<h2 id="screenshots">Screenshots<a class="headerlink" href="#screenshots" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-27 -->
+
+<p>Only <code>ScreenCapture.CaptureScreenshotAsTexture()</code> after <code>yield return new WaitForEndOfFrame()</code>
+includes overlay UI. The game's own <code>GameManager.CreateScreenShot(int, int, Camera)</code> and
+<code>GameManager.SaveScreenShot(...)</code> render a Camera into a RenderTexture, which is right for a world
+thumbnail but silently omits every uGUI canvas and every ImGui panel. Anything that needs to prove
+a panel rendered readable text must go through the backbuffer.</p>
+<p>Cost at 3840x2160: about 6 MB of PNG per shot, roughly 500 ms end to end. A <code>Graphics.Blit</code> through
+a smaller <code>RenderTexture</code> before <code>EncodeToPNG</code> cuts that by an order of magnitude and stays sharp
+enough to read UI text.</p>
+<h2 id="mod-config-at-runtime">Mod config at runtime<a class="headerlink" href="#mod-config-at-runtime" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-27, StationeersLaunchPad 0.5.0 -->
+
+<p><strong><code>Chainloader.PluginInfos</code> only ever lists what BepInEx loaded out of <code>BepInEx/plugins/</code>.</strong> On a
+normal client that is StationeersLaunchPad and nothing else; every Workshop mod arrives through
+StationeersLaunchPad and is invisible to it. Combined with the destroyed-component problem above,
+<code>Chainloader.PluginInfos[guid].Instance.Config</code> is useless for reaching a mod's settings.</p>
+<p>What works: scan <code>AppDomain.CurrentDomain.GetAssemblies()</code> for a type carrying
+<code>[BepInPlugin(guid, ...)]</code>, then walk its static members for any <code>ConfigEntryBase</code> and read
+<code>entry.ConfigFile</code>. A <code>ConfigEntry</code> holds a reference to its owning <code>ConfigFile</code>, and both outlive
+the MonoBehaviour. From the <code>ConfigFile</code> the whole <code>Keys</code> collection is reachable, and
+<code>ConfigEntryBase.BoxedValue</code> is settable with a value produced by
+<code>TomlTypeConverter.ConvertToValue(string, entry.SettingType)</code>.</p>
+<p>Verified end to end: writing <code>net.spraypaintplus</code> / <code>Client - Color Cycling</code> / <code>Color Cycling</code> from
+<code>AllColors</code> to <code>WithinFamily</code> changed the value <code>SprayPaintPlus.SettingsMerge.EffectiveColorCycling</code>
+computes, immediately, with no restart.</p>
+<p>Scanning by assembly also exposes duplicates: two loaded copies of the same mod assembly both carry
+the attribute, and only the copy whose <code>Awake</code> ran has populated statics. Try every match rather
+than the first.</p>
+<h2 id="the-stationeerslaunchpad-settings-panel">The StationeersLaunchPad settings panel<a class="headerlink" href="#the-stationeerslaunchpad-settings-panel" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-27, StationeersLaunchPad 0.5.0 -->
+
+<p><code>StationeersLaunchPad.ConfigPanel.DrawWorkshopConfig(ModInfo)</code> is public static and opens its own
+ImGui window. Vanilla only calls it while the Workshop menu is open and a mod row is selected:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="k">private</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">DrawWorkshopMenuConfig</span><span class="p">()</span>
+</span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="p">{</span>
+</span><span id="__span-9-3"><a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(((</span><span class="n">Behaviour</span><span class="p">)</span><span class="n">WorkshopMenu</span><span class="p">.</span><span class="n">Instance</span><span class="p">).</span><span class="n">isActiveAndEnabled</span><span class="p">)</span>
+</span><span id="__span-9-4"><a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-9-5"><a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a><span class="w">        </span><span class="p">...</span><span class="w"> </span><span class="n">workshopMenuSelectedField</span><span class="p">.</span><span class="n">GetValue</span><span class="p">(</span><span class="n">WorkshopMenu</span><span class="p">.</span><span class="n">Instance</span><span class="p">)</span><span class="w"> </span><span class="p">...</span>
+</span><span id="__span-9-6"><a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a><span class="w">        </span><span class="n">ConfigPanel</span><span class="p">.</span><span class="n">DrawWorkshopConfig</span><span class="p">(</span><span class="n">LaunchPadConfig</span><span class="p">.</span><span class="n">MatchMod</span><span class="p">(...));</span>
+</span><span id="__span-9-7"><a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-9-8"><a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>Calling <code>DrawWorkshopConfig</code> directly from a prefix on <code>OrbitalSimulation.Draw</code> renders the same
+panel with no menu state involved, which makes the panel screenshot-testable without driving a
+mouse through a list. The <code>ModInfo</code> to pass is <code>LoadedMod.Info</code> from <code>ModLoader.LoadedMods</code>.</p>
+<p>Because the seam is <code>OrbitalSimulation.Draw</code>, this only works once the real main menu is up; see
+the <code>RenderOverlay</code> branch above.</p>
+<h2 id="failure-modes-seen-on-a-live-client">Failure modes seen on a live client<a class="headerlink" href="#failure-modes-seen-on-a-live-client" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-27 -->
+
+<p><strong>Transient Steam Workshop failure parks the client forever.</strong> When
+<code>StationeersLaunchPad.Steam.FetchWorkshopPage</code> throws (a <code>NullReferenceException</code> out of
+<code>Steamworks.Helpers.TakeMemory</code> inside <code>ISteamUGC.GetQueryUGCPreviewURL</code>), StationeersLaunchPad
+prints "Error occurred during initialisation. Mods will not be loaded.", shows its own ImGui screen
+with a Start Game button, and never reaches the menu. Loaded plugin count stays at 2. It clears on
+relaunch; an unattended loop needs to detect it and retry.</p>
+<p><strong><code>ConfirmationPanel.IsVisible</code> is a false positive during boot.</strong> It is
+<code>gameObject.activeInHierarchy</code>, which is true for a window early in startup with an empty
+<code>_dataStack</code> behind it. Treat a dialog as showing only when the stack has data.</p>
+<p><strong><code>StationeersLua</code> and <code>ScriptedScreens</code> throw an exception every single frame.</strong> Their
+<code>ScriptedScreensScriptableUiSystem</code> static ctor pulls <code>McpMultiplayerDebugProxy</code>, which pulls
+MessagePack, which fails with
+<code>Could not load file or assembly 'System.Collections.Immutable, Version=8.0.0.0'</code>. Once the ctor
+fails, every later access rethrows <code>TypeInitializationException</code>, and it rethrows from
+<code>ScriptedScreensBehaviorPatch.KeyWrap_PollForInput_Prefix</code> -&gt; <code>KeyMap.PollInputs</code> -&gt;
+<code>KeyManager.ManagerUpdate</code> -&gt; <code>GameManager.Update</code>, i.e. every frame for the rest of the session,
+at the main menu and in world alike. It floods the console ring hard enough to evict thousands of
+lines. Disabling both mods removes the exception but does not by itself fix a stalled join.</p>
+<p>Attribution was checked properly rather than assumed, because a driving plugin patching
+<code>UnityEngine.Input</code> is an obvious suspect for a fault on the input path. Counting occurrences in
+<code>BepInEx/LogOutput.log</code> is misleading: BepInEx collapses the repeats there, so the file shows single
+digits while the game console is taking thousands. Measured against the game's own console instead,
+with the <code>UnityEngine.Input</code> patches never applied at all, the exception still fires at the same
+rate. It is not caused by patching <code>Input</code>.</p>
+<h2 id="keeping-a-driven-session-out-of-the-developers-save-folder">Keeping a driven session out of the developer's save folder<a class="headerlink" href="#keeping-a-driven-session-out-of-the-developers-save-folder" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-27 -->
+
+<p><code>StationSaveUtils.GetSavePath()</code> resolves <code>Settings.CurrentData.SavePath</code> on every call and creates
+<code>saves</code>, <code>scripts</code> and <code>mods</code> beneath it:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="nf">GetSavePath</span><span class="p">()</span>
+</span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="p">{</span>
+</span><span id="__span-10-3"><a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="kt">string</span><span class="p">.</span><span class="n">IsNullOrEmpty</span><span class="p">(</span><span class="n">Settings</span><span class="p">.</span><span class="n">CurrentData</span><span class="p">.</span><span class="n">SavePath</span><span class="p">))</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">Settings</span><span class="p">.</span><span class="n">CurrentData</span><span class="p">.</span><span class="n">SavePath</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">DefaultPath</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+</span><span id="__span-10-4"><a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="w">    </span><span class="kt">string</span><span class="w"> </span><span class="n">savePath</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Settings</span><span class="p">.</span><span class="n">CurrentData</span><span class="p">.</span><span class="n">SavePath</span><span class="p">;</span>
+</span><span id="__span-10-5"><a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a><span class="w">    </span><span class="kt">string</span><span class="w"> </span><span class="n">text</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Path</span><span class="p">.</span><span class="n">Combine</span><span class="p">(</span><span class="n">savePath</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;saves&quot;</span><span class="p">);</span>
+</span><span id="__span-10-6"><a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a><span class="w">    </span><span class="p">...</span>
+</span><span id="__span-10-7"><a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>Assigning <code>Settings.CurrentData.SavePath</code> at runtime before creating a world therefore redirects
+every write to a scratch directory. The change is in memory; the game persists settings on a clean
+exit, so restore it or exit hard. Verified: a world created after the redirect wrote only into the
+scratch tree, and the real <code>saves</code> folder kept its original timestamp.</p>
+<p>The world ids accepted by the <code>new</code> console command are <code>Europa3</code>, <code>Lunar</code>, <code>Mars2</code>,
+<code>MimasHerschel</code>, <code>Venus</code>, <code>Vulcan (Deprecated)</code>, <code>Vulcan2</code>. <code>Moon</code> is not one of them, despite the
+Lunar world's display name being "Moon: Great Mare".</p>
 <h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
 <ul>
-<li>2026-05-18: Page created from Assembly-CSharp.decompiled.cs line 386206. Grid-watch registration, GridEvent-driven detection path, OnThreadUpdate reconciliation, LogicType surface, and behavioural contrast with ProximitySensor captured verbatim. No prior page existed.</li>
+<li>2026-07-27: page created from the ClientDriver build-out. Every section exercised against a live
+  client on 0.2.6403.27689 with StationeersLaunchPad 0.5.0 and 35 Workshop mods loaded: console
+  capture, console command execution, synthetic keys (F3 toggling the console, observed through
+  <code>ConsoleWindow.IsOpen</code>), mouse wheel driving SprayPaintPlus colour cycling, teleport, look,
+  look-at, spawn into hand, structure placement, <code>AttackWith</code> painting a wall, backbuffer
+  screenshots at the menu and in world, forced LaunchPad settings panel, and a live ConfigEntry
+  write reflected in the mod's computed value.</li>
+<li>2026-07-27: corrected the StationeersLua / ScriptedScreens entry. It was first written as "fires
+  once multiplayer is entered", based on occurrence counts in <code>BepInEx/LogOutput.log</code>. That file
+  collapses the repeats and is not a usable measure. Re-measured against the game's own console ring
+  with the plugin's <code>UnityEngine.Input</code> patches disabled: the exception fires continuously with no
+  join involved and with no input patching in the process.</li>
 </ul>
 <h2 id="open-questions">Open questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>
 <ul>
-<li>The set of <code>DynamicThing</code> subclasses that actually generate <code>GridEvent.Enter</code> / <code>Leave</code> for a watched grid cell depends on <code>GridController.SetWatchGrid</code> and the broader Grid / WorldGrid system. Not characterised on this page. See <code>Research/GameClasses/Grid3.md</code> (and related grid pages) for the dispatch side.</li>
+<li>A Direct Connect to this repo's dedicated server reaches the server (<code>A connection is incoming</code>,
+  <code>VerifyPlayer - Serialising connection method: RocketNet</code>) but never completes: the client stays
+  at <code>GameState.Joining</code> / <code>NetworkState.WaitingForConnection</code> for at least 180 seconds with no
+  further console output, on a client whose mod set is not identical to the server's. Whether this
+  is a mod-list mismatch, a verify-handshake stall, or something specific to that server's state
+  was not determined. The client side of the join was verified as far as the game itself controls.</li>
+<li>Whether the <code>System.Collections.Immutable</code> load failure in <code>StationeersLua</code> / <code>ScriptedScreens</code> is
+  a packaging bug in those mods or a StationeersLaunchPad assembly-resolution gap. Both mods ship
+  the DLL in their own Workshop folder and it is still not resolved at runtime.</li>
 </ul>
 
 
@@ -8897,7 +9329,7 @@
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
           
-          <a href="../Motherboard/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Motherboard device-list refresh">
+          <a href="../CameraEffectsRuntime/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Camera Effects at Runtime">
             <div class="md-footer__button md-icon">
               
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
@@ -8907,20 +9339,20 @@
                 Previous
               </span>
               <div class="md-ellipsis">
-                Motherboard device-list refresh
+                Camera Effects at Runtime
               </div>
             </div>
           </a>
         
         
           
-          <a href="../MultiConstructor/" class="md-footer__link md-footer__link--next" aria-label="Next: MultiConstructor">
+          <a href="../HealAllDamagedThings/" class="md-footer__link md-footer__link--next" aria-label="Next: Heal All Damaged Things">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                MultiConstructor
+                Heal All Damaged Things
               </div>
             </div>
             <div class="md-footer__button md-icon">
