@@ -782,6 +782,8 @@
       
         
       
+        
+      
     
     
     
@@ -1204,6 +1206,34 @@
     
   
     Cladding
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../Client/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Client
   
 
     
@@ -3930,6 +3960,8 @@
       
         
       
+        
+      
     
     
     
@@ -4884,6 +4916,34 @@
     
   
     PlacementOrientation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/PlayerIdentityAcrossRejoin/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Player identity across a disconnect and rejoin
   
 
     
@@ -8955,7 +9015,7 @@
         <p class="research-meta-verified">
           <strong>Verified</strong>
            in game version <code>0.2.6403.27689</code>
-           on 2026-07-14.
+           on 2026-07-27.
         </p>
       
       
@@ -9140,6 +9200,7 @@
 <li>The two conditions are independent. <code>IsPaintable</code> is gated solely by <code>PaintableMaterial != null</code>, but the recolor set is gated by the per-renderer rule above. A prefab can therefore have texture-array materials (so its renderers <em>would</em> recolor) yet be non-sprayable because its <code>PaintableMaterial</code> slot was left null. Assigning any non-null <code>PaintableMaterial</code> flips <code>IsPaintable</code> to true, and the already-present texture-array renderers recolor with no further work.</li>
 <li><code>colorIndex</code> (the <code>CustomColorMapping</code> default-color, third ctor arg) is <code>GameManager.GetColorIndex(PaintableMaterial)</code>. With <code>PaintableMaterial</code> null this is <code>-1</code>; assigning the prefab its real base paint material gives the mapping the correct "unpainted default" index. Active painting (<code>SetCustomColor(index)</code>) applies the chosen index regardless, so a wrong default does not block painting, only the unpainted baseline.</li>
 <li>Worked example (game 0.2.6228.27061): the Steel Frame kit (<code>ItemSteelFrames</code>) builds four shapes. <code>StructureFrame</code> and <code>StructureFrameCornerCut</code> ship with <code>PaintableMaterial</code> set (paintable); <code>StructureFrameCorner</code> and <code>StructureFrameSide</code> ship with it null (non-sprayable in vanilla) even though their steel material is the same texture-array material. Copying the base <code>StructureFrame.PaintableMaterial</code> onto the two null prefabs at load makes all four sprayable; cross-checked on the dedicated server that the two flip to <code>IsPaintable == true</code> after the assignment, and all four report <code>structureRenderMode == Standard</code> so <code>Structure.SetCustomColor</code> does not throw the batched-mesh <code>NotImplementedException</code> (see <code>./Structure.md</code>).</li>
+<li><strong>Superseded by the base game in 0.2.6332.27293.</strong> <!-- verified: 0.2.6403.27689 @ 2026-07-27 --> The worked example above is historical. The shipped per-build changelog (<code>rocketstation_Data/StreamingAssets/version.ini</code>, under <code>[Version 0.2.6332.27293]</code>) reads "Fixed Structure Frame Corner and Side could not be painted. Now they can." All four Steel Frame shapes now ship with <code>PaintableMaterial</code> set, so the copy-from-donor workaround is a no-op on 0.2.6403.27689 and later. Confirmed on a live client running only SprayPaintPlus, StationeersLaunchPad and ClientDriver: SprayPaintPlus's donor-copy pass resolved both prefabs, found <code>PaintableMaterial</code> already non-null on each, and reported <code>Extra paintability: 0 structure(s) made paintable.</code> The technique itself is unchanged and still applies to any other prefab shipping a null <code>PaintableMaterial</code> slot.</li>
 </ul>
 <h3 id="structures-build-the-recolor-set-per-build-state">Structures build the recolor set per build state<a class="headerlink" href="#structures-build-the-recolor-set-per-build-state" title="Permanent link">&para;</a></h3>
 <p><code>Structure.Awake</code> (decompile line 295943-295980) runs its own copy of this inclusion test, once per <code>BuildState</code>: for each <code>BuildState.InitialDrawData.materials</code> slot it adds a <code>CustomColorMapping</code> when <code>material == PaintableMaterial || material.mainTexture is Texture2DArray</code>. That is why a structure recolors at every construction stage, not only when finished. <code>Structure.SetCustomColor</code> (line 295933) forwards to <code>base.SetCustomColor</code> (the <code>Thing</code> version above) when <code>structureRenderMode == StructureRenderMode.Standard</code>, and throws <code>NotImplementedException</code> when it is <code>Batched</code> (combined-mesh structures cannot be recolored per instance; see <code>./Structure.md</code>).</p>
@@ -9463,6 +9524,7 @@
 <li>2026-06-20: added "CustomColorMapping build rule (which renderers recolor)" section. Additive; no existing content changed (the "CustomColor field and IsPaintable gate" section described <code>IsPaintable</code> and <code>SetCustomColor</code>'s swap loop, but not the Awake-time rule that decides which renderers populate <code>_customMaterials</code>). Source: <code>Thing.Awake</code> <code>_customMaterials</code> build at decompile line 301261-301284 (the <code>material == PaintableMaterial || material.mainTexture is Texture2DArray</code> inclusion test), game version 0.2.6228.27061. Worked example (the steel-frame Corner/Side shapes made paintable by copying <code>PaintableMaterial</code>) cross-checked live on the dedicated server via the ScenarioRunner <code>paintable-prefab-dump</code> probe: <code>StructureFrameCorner</code> and <code>StructureFrameSide</code> flip to <code>PaintableMaterialSet=True</code> after the load-time assignment, all four steel-frame shapes report <code>renderMode=Standard</code>. No fresh validator required: additive, no contradiction of previously-verified claims.</li>
 <li>2026-06-20: extended the "CustomColorMapping build rule" section with a "Structures build the recolor set per build state" subsection while answering a SprayPaintPlus savegame-removal-safety question. Documents <code>Structure.Awake</code>'s per-<code>BuildState</code> <code>_customMaterials</code> build (decompile 295943-295980, same <code>== PaintableMaterial || Texture2DArray</code> rule) and <code>Structure.SetCustomColor</code>'s Standard-forwards / Batched-throws dispatch (line 295933-295941), and spells out the removal-safe consequence (a runtime <code>PaintableMaterial</code> assignment is never serialized; a vanilla <code>CustomColorIndex</code> is reapplied via the Texture2DArray branch on load even without the mod). Additive; consistent with the existing <code>./Structure.md</code> <code>SetCustomColor</code> coverage. No fresh validator required.</li>
 <li>2026-07-14: added "Interaction and hover surface" section (game version 0.2.6403.27689, all bodies read verbatim from the 0.2.6403.27689 decompile): <code>GetInteractable(Collider)</code> strict <code>TryGetValue</code> lookup with no fallback (320193-320201; <code>InteractableType</code> overload 320203), the full <code>InteractWith</code> base body (321491-321541) including the <code>doAction: false</code> hover-preview contract, the OnOff error-flash state append (<code>GameStrings.ThingCurrentlyFlashingError</code>, 321523-321526) and the inverse-of-<code>OnOff</code> write (321529), <code>GetContextualName</code> (319699-319725) with the action-word (not state-word) semantics and the <code>ActionStrings</code> anchors (class 285747 in <code>Assets.Scripts.Inventory</code>, <code>Off</code> 285807, <code>On</code> 285809, state words <code>Opened</code>/<code>Closed</code>/<code>Powered</code>/<code>Unpowered</code> 285803-285813), and <code>GetExtendedText</code> (320726-320753, <code>AddDamageString</code> 320755). Also recorded the 0.2.6403.27689 anchors for <code>OnOff</code> (318249) and <code>HasOnOffState</code> (317241), whose full semantics live on <a href="../Device/">Device</a>. Additive; consistent with the earlier 0.2.6228 excerpts on <a href="../SprayGun/">SprayGun</a> (<code>InteractWith</code> old line 302420, <code>GetContextualName</code> old line 300637; both bodies unchanged apart from line drift) and with <a href="../Device/">Device</a>'s state-property section. Occasion: the PowerGridPlus tooltip-pipeline curation pass, alongside the display-route sections added to <a href="../ElectricalInputOutput/">ElectricalInputOutput</a> the same day. Bumped frontmatter verified_in / verified_at; added the <code>ui</code> tag.</li>
+<li>2026-07-27: corrected the steel-frame worked example in "CustomColorMapping build rule (which renderers recolor)". The 2026-06-20 entries above recorded <code>StructureFrameCorner</code> and <code>StructureFrameSide</code> as shipping with a null <code>PaintableMaterial</code>, which was true on 0.2.6228.27061 but is no longer true: the base game fixed it in build 0.2.6332.27293 ("Fixed Structure Frame Corner and Side could not be painted. Now they can.", quoted verbatim from <code>rocketstation_Data/StreamingAssets/version.ini</code>, which ships the per-build changelog in the install). 0.2.6332.27293 was an internal build; the first public release carrying the fix is 0.2.6403.27689 (the Sanitation Update, 2026-07-02), because no stable release shipped between 2026-03-26 and 2026-07-02. Confirmed empirically the same day on a live client with exactly three plugins loaded (SprayPaintPlus 1.11.0, StationeersLaunchPad 0.5.0, ClientDriver): SprayPaintPlus's donor-copy pass ran with its setting enabled, resolved both prefabs with no "not found" warning, found <code>PaintableMaterial</code> already non-null on both, and logged <code>Extra paintability: 0 structure(s) made paintable.</code> Additive: the historical example is kept with its 0.2.6228.27061 label and a superseding bullet was added beneath it. No fresh validator required, since the game version advanced rather than the earlier reading being wrong. The section stamp is deliberately left at 0.2.6228.27061 because only this one worked example was re-checked against 0.2.6403.27689, not the rest of the section; the new bullet carries its own inline stamp. Bumped frontmatter verified_at.</li>
 </ul>
 <h2 id="open-questions">Open questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>
 <p>None at creation.</p>

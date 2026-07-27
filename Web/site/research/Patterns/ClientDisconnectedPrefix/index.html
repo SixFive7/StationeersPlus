@@ -780,6 +780,8 @@
       
         
       
+        
+      
     
     
     
@@ -1202,6 +1204,34 @@
     
   
     Cladding
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/Client/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Client
   
 
     
@@ -3620,6 +3650,8 @@
       
         
       
+        
+      
     
     
     
@@ -4574,6 +4606,34 @@
     
   
     PlacementOrientation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/PlayerIdentityAcrossRejoin/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Player identity across a disconnect and rejoin
   
 
     
@@ -8542,31 +8602,47 @@
       
         <p class="research-meta-verified">
           <strong>Verified</strong>
-           in game version <code>0.2.6228.27061</code>
-           on 2026-04-20.
+           in game version <code>0.2.6403.27689</code>
+           on 2026-07-27.
         </p>
       
       
+        <p class="research-meta-created">
+          <strong>First written</strong> against game version <code>0.2.6228.27061</code>.
+        </p>
+      
       
         <details class="research-meta-sources">
-          <summary><strong>Sources</strong> (3)</summary>
+          <summary><strong>Sources</strong> (7)</summary>
           <ul>
             
               <li><code>Mods/SprayPaintPlus/RESEARCH.md:193-195 (F0029h, primary)</code></li>
             
               <li><code>Mods/SprayPaintPlus/RESEARCH.md:87-90 (F0014)</code></li>
             
-              <li><code>Mods/SprayPaintPlus/SprayPaintPlus/CleanupPatches.cs:24-30 (F0326)</code></li>
+              <li><code>Mods/SprayPaintPlus/SprayPaintPlus/CleanupPatches.cs:24-30 (F0326, original wording)</code></li>
+            
+              <li><code>Mods/SprayPaintPlus/SprayPaintPlus/CleanupPatches.cs:25-47 (F0326, corrected wording)</code></li>
+            
+              <li><code>{'$(StationeersPath)\\rocketstation_Data\\Managed\\Assembly-CSharp.dll :': 'NetworkBase.RemoveClient'}</code></li>
+            
+              <li><code>{'$(StationeersPath)\\rocketstation_Data\\Managed\\Assembly-CSharp.dll :': 'Assets.Scripts.NetworkServer.ClientDisconnected'}</code></li>
+            
+              <li><code>{'$(StationeersPath)\\rocketstation_Data\\Managed\\Assembly-CSharp.dll :': 'Assets.Scripts.Client'}</code></li>
             
           </ul>
         </details>
       
       
         <details class="research-meta-related">
-          <summary><strong>Related pages</strong> (1)</summary>
+          <summary><strong>Related pages</strong> (3)</summary>
           <ul>
             
+              <li><code>../GameClasses/Client.md</code></li>
+            
               <li><code>../GameSystems/NetworkRoles.md</code></li>
+            
+              <li><code>../GameSystems/PlayerIdentityAcrossRejoin.md</code></li>
             
           </ul>
         </details>
@@ -8597,64 +8673,145 @@
 
 
 <h1 id="clientdisconnected-cleanup-prefix">ClientDisconnected cleanup Prefix<a class="headerlink" href="#clientdisconnected-cleanup-prefix" title="Permanent link">&para;</a></h1>
-<p>Patches that clean up per-client state when a player disconnects must run as a Harmony Prefix on <code>NetworkServer.ClientDisconnected</code>. A Postfix cannot read the <code>Client</code> record because vanilla's own <code>RemoveClient</code> call destroys it before returning.</p>
+<p>Patches that clean up per-client state when a player disconnects must run as a Harmony Prefix on <code>NetworkServer.ClientDisconnected</code>. The reason is lookup, not lifetime. Vanilla's own <code>NetworkBase.RemoveClient</code> call takes the <code>Client</code> out of the static <code>NetworkBase.Clients</code> list before returning, and that list is what <code>Client.Find</code> scans, so the patch's <code>connectionId</code> argument stops resolving to anything the moment vanilla's body runs.</p>
 <h2 id="problem">Problem<a class="headerlink" href="#problem" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
+<!-- verified: 0.2.6403.27689 @ 2026-07-27 -->
 
+<p>The patched method is <code>Assets.Scripts.NetworkServer.ClientDisconnected</code> (line 213891):</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">ClientDisconnected</span><span class="p">(</span><span class="kt">long</span><span class="w"> </span><span class="n">connectionId</span><span class="p">)</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="p">{</span>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">    </span><span class="n">Client</span><span class="w"> </span><span class="n">client</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Client</span><span class="p">.</span><span class="n">Find</span><span class="p">(</span><span class="n">connectionId</span><span class="p">);</span>
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">client</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="k">null</span><span class="p">)</span>
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="w">        </span><span class="n">client</span><span class="p">.</span><span class="n">SetState</span><span class="p">(</span><span class="n">ClientState</span><span class="p">.</span><span class="n">Disconnected</span><span class="p">);</span>
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="w">        </span><span class="n">ConsoleWindow</span><span class="p">.</span><span class="n">Print</span><span class="p">(</span><span class="s">&quot;Client disconnected: &quot;</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">client</span><span class="p">.</span><span class="n">ToStringOneLine</span><span class="p">());</span>
+</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="w">        </span><span class="n">NetworkBase</span><span class="p">.</span><span class="n">RemoveClient</span><span class="p">(</span><span class="n">client</span><span class="p">);</span>
+</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>Its only argument is <code>connectionId</code>. Everything the method knows about the player it recovers through <code>Client.Find(connectionId)</code>.</p>
+<p><code>NetworkBase.RemoveClient</code> (line 39227, global namespace, not <code>Assets.Scripts.Networking</code>) and the <code>OnClientRemoved</code> hook it calls (line 39247):</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">RemoveClient</span><span class="p">(</span><span class="n">Client</span><span class="w"> </span><span class="n">client</span><span class="p">)</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="p">{</span>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">    </span><span class="n">Clients</span><span class="p">.</span><span class="n">Remove</span><span class="p">(</span><span class="n">client</span><span class="p">);</span>
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">    </span><span class="n">OnClientRemoved</span><span class="p">();</span>
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="p">}</span>
+</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>
+</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="k">private</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">OnClientRemoved</span><span class="p">()</span>
+</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="p">{</span>
+</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">GameManager</span><span class="p">.</span><span class="n">IsBatchMode</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">Settings</span><span class="p">.</span><span class="n">CurrentData</span><span class="p">.</span><span class="n">AutoPauseServer</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">Clients</span><span class="p">.</span><span class="n">Count</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span>
+</span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-1-11"><a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="w">        </span><span class="n">_lastClientLeaveCancellation</span><span class="p">.</span><span class="n">CancelAndInitialize</span><span class="p">();</span>
+</span><span id="__span-1-12"><a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="w">        </span><span class="n">AutoSaveOnLastClientLeave</span><span class="p">(</span><span class="n">_lastClientLeaveCancellation</span><span class="p">.</span><span class="n">Token</span><span class="p">).</span><span class="n">Forget</span><span class="p">();</span>
+</span><span id="__span-1-13"><a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-1-14"><a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>The two are not adjacent in the decompile; <code>ClearClientsList</code> (39233) and <code>OnClientAdded</code> (39239) sit between them.</p>
+<p><code>RemoveClient</code> clears no field, destroys no <code>Human</code>, and severs no reference. It removes the instance from one static list and runs a batch-mode autosave hook. <code>Client.SetState</code> (line 212239) is equally inert:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="k">public</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">SetState</span><span class="p">(</span><span class="n">ClientState</span><span class="w"> </span><span class="n">clientState</span><span class="p">)</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="p">{</span>
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">    </span><span class="n">state</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">clientState</span><span class="p">;</span>
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>So after vanilla's body has run, the <code>Client</code> instance is fully intact and every field on it still reads correctly. What stops working is the static lookup. <code>Client.Find(long connectionId)</code> (line 212286) scans <code>NetworkBase.Clients</code>:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="n">Client</span><span class="w"> </span><span class="nf">Find</span><span class="p">(</span><span class="kt">long</span><span class="w"> </span><span class="n">connectionId</span><span class="p">)</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="p">{</span>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">Assets</span><span class="p">.</span><span class="n">Scripts</span><span class="p">.</span><span class="n">Networking</span><span class="p">.</span><span class="n">NetworkManager</span><span class="p">.</span><span class="n">HostClient</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="k">null</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">Assets</span><span class="p">.</span><span class="n">Scripts</span><span class="p">.</span><span class="n">Networking</span><span class="p">.</span><span class="n">NetworkManager</span><span class="p">.</span><span class="n">HostClient</span><span class="p">.</span><span class="n">connectionId</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">connectionId</span><span class="p">)</span>
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">Assets</span><span class="p">.</span><span class="n">Scripts</span><span class="p">.</span><span class="n">Networking</span><span class="p">.</span><span class="n">NetworkManager</span><span class="p">.</span><span class="n">HostClient</span><span class="p">;</span>
+</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="w">    </span><span class="k">foreach</span><span class="w"> </span><span class="p">(</span><span class="n">Client</span><span class="w"> </span><span class="n">client</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">NetworkBase</span><span class="p">.</span><span class="n">Clients</span><span class="p">)</span>
+</span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-3-9"><a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">client</span><span class="p">.</span><span class="n">connectionId</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">connectionId</span><span class="p">)</span>
+</span><span id="__span-3-10"><a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="w">        </span><span class="p">{</span>
+</span><span id="__span-3-11"><a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a><span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="n">client</span><span class="p">;</span>
+</span><span id="__span-3-12"><a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a><span class="w">        </span><span class="p">}</span>
+</span><span id="__span-3-13"><a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-3-14"><a id="__codelineno-3-14" name="__codelineno-3-14" href="#__codelineno-3-14"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="k">null</span><span class="p">;</span>
+</span><span id="__span-3-15"><a id="__codelineno-3-15" name="__codelineno-3-15" href="#__codelineno-3-15"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>Once the instance is out of <code>Clients</code> the scan finds nothing and <code>Find</code> returns null. A bare Postfix holding only <code>connectionId</code> therefore has no route back to the player. That, and not the destruction of any record, is why the cleanup has to be a Prefix.</p>
+<p>Two details fall out of the same code:</p>
+<ul>
+<li>The <code>NetworkManager.HostClient</code> short-circuit runs ahead of the list scan, so the host's own record keeps resolving through <code>Find</code> even after <code>RemoveClient</code> has taken it out of <code>Clients</code>. The Prefix rule is about remote clients.</li>
+<li><code>Client.Disconnect()</code> (line 212323) also calls <code>NetworkServer.ClientDisconnected(connectionId)</code>, so the patched method is the single choke point for both the transport-driven and the explicit disconnect paths.</li>
+</ul>
+<h2 id="solution-recipe">Solution / recipe<a class="headerlink" href="#solution-recipe" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-27 -->
+
+<p>Write the cleanup as a <code>[HarmonyPrefix]</code> on <code>NetworkServer.ClientDisconnected</code>. Resolve the <code>Client</code> while <code>Find</code> still works, resolve the player identity from it, and remove the per-player entries before returning. The Prefix runs, then vanilla's body sets the state, prints, and drops the instance from <code>Clients</code>, then control returns to the caller.</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="na">[HarmonyPatch(typeof(NetworkServer), nameof(NetworkServer.ClientDisconnected))]</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="k">internal</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nc">ClientDisconnectCleanupPatch</span>
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="p">{</span>
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">    </span><span class="na">[HarmonyPrefix]</span>
+</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">Prefix</span><span class="p">(</span><span class="kt">long</span><span class="w"> </span><span class="n">connectionId</span><span class="p">)</span>
+</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-4-7"><a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="w">        </span><span class="n">Client</span><span class="w"> </span><span class="n">client</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Client</span><span class="p">.</span><span class="n">Find</span><span class="p">(</span><span class="n">connectionId</span><span class="p">);</span>
+</span><span id="__span-4-8"><a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">client</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="k">null</span><span class="p">)</span>
+</span><span id="__span-4-9"><a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="w">            </span><span class="k">return</span><span class="p">;</span>
+</span><span id="__span-4-10"><a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a>
+</span><span id="__span-4-11"><a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">client</span><span class="p">.</span><span class="n">ClientId</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0UL</span><span class="p">)</span>
+</span><span id="__span-4-12"><a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a><span class="w">            </span><span class="k">return</span><span class="p">;</span>
+</span><span id="__span-4-13"><a id="__codelineno-4-13" name="__codelineno-4-13" href="#__codelineno-4-13"></a>
+</span><span id="__span-4-14"><a id="__codelineno-4-14" name="__codelineno-4-14" href="#__codelineno-4-14"></a><span class="w">        </span><span class="n">Human</span><span class="w"> </span><span class="n">owner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Human</span><span class="p">.</span><span class="n">Find</span><span class="p">(</span><span class="n">client</span><span class="p">.</span><span class="n">ClientId</span><span class="p">);</span>
+</span><span id="__span-4-15"><a id="__codelineno-4-15" name="__codelineno-4-15" href="#__codelineno-4-15"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">owner</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="k">null</span><span class="p">)</span>
+</span><span id="__span-4-16"><a id="__codelineno-4-16" name="__codelineno-4-16" href="#__codelineno-4-16"></a><span class="w">            </span><span class="n">PlayerModifiers</span><span class="p">.</span><span class="n">Remove</span><span class="p">(</span><span class="n">owner</span><span class="p">.</span><span class="n">ReferenceId</span><span class="p">);</span>
+</span><span id="__span-4-17"><a id="__codelineno-4-17" name="__codelineno-4-17" href="#__codelineno-4-17"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-4-18"><a id="__codelineno-4-18" name="__codelineno-4-18" href="#__codelineno-4-18"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>Three things this skeleton encodes:</p>
+<ul>
+<li><strong>Resolve the player through <code>Thing.OwnerClientId</code>, not through <code>Client.RegisteredHuman</code>.</strong> <code>RegisteredHuman</code> is null for the whole session for any character that came out of a save, which is the normal case for every returning player on a dedicated server. The full argument and the reliable alternatives are on <a href="../../GameClasses/Client/">Client</a>.</li>
+<li><strong>Reject <code>clientId == 0</code> before calling <code>Human.Find</code>.</strong> <code>OwnerClientId</code> is 0 on every unowned <code>Thing</code> in the world, so <code>Human.Find(0)</code> returns an arbitrary unowned <code>Human</code>. A <code>Client</code> that has not completed its handshake still has <code>ClientId == 0</code>.</li>
+<li><strong>Do not let the Prefix throw.</strong> The deployed patch wraps its whole body, on the reasoning that an exception out of a prefix propagates instead of running the original, which would stop <code>NetworkBase.RemoveClient</code> from ever running and leave a dead client in the server's list, breaking disconnects for the base game and every other mod on the server.</li>
+</ul>
+<p>A Prefix plus Postfix pair is also viable when the cleanup genuinely needs to run after vanilla: stash the <code>Client</code> reference from the Prefix in Harmony <code>__state</code> and act on it in the Postfix. Because <code>RemoveClient</code> mutates nothing on the instance, a reference captured before the call reads exactly the same afterwards. What cannot work is a Postfix that tries to re-derive the <code>Client</code> from <code>connectionId</code> on its own.</p>
+<h2 id="cited-verifications">Cited verifications<a class="headerlink" href="#cited-verifications" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-27 -->
+
+<p>The three findings below are the original provenance of this page. All three reach the correct conclusion (the cleanup must be a Prefix), but all three state the mechanism as "<code>RemoveClient</code> destroys the record". That wording is imprecise: nothing is destroyed. Read them for the rule, not for the mechanism.</p>
 <p>F0029h (Mods/SprayPaintPlus/RESEARCH.md:193-195, primary):</p>
 <blockquote>
 <p><code>NetworkServer.ClientDisconnected</code> calls <code>NetworkBase.RemoveClient</code> before returning. The <code>Client</code> record is gone by the time a Postfix runs, so the cleanup patch must be a Prefix.</p>
 </blockquote>
-<p>Any code that looks up the disconnecting player's <code>Human</code> / <code>ReferenceId</code> / other identity from the <code>Client</code> must run BEFORE vanilla removes the record. After the vanilla call, the record is unreachable and the cleanup patch cannot find the identity to clean up.</p>
-<h2 id="solution-recipe">Solution / recipe<a class="headerlink" href="#solution-recipe" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
-
-<p>Write the cleanup as a <code>[HarmonyPrefix]</code> on <code>NetworkServer.ClientDisconnected</code>. Read the <code>Client</code> record, resolve the <code>Human.ReferenceId</code>, and remove the per-player entries before returning. The Prefix runs, then vanilla's <code>RemoveClient</code> destroys the record, then control returns to the caller.</p>
 <p>F0014 (Mods/SprayPaintPlus/RESEARCH.md:87-90):</p>
 <blockquote>
 <ul>
 <li><code>ClientDisconnectCleanupPatch</code> (Prefix on <code>NetworkServer.ClientDisconnected</code>): Removes the disconnecting player's entry from <code>PlayerModifiers</code>. Must be a Prefix because vanilla's <code>RemoveClient</code> destroys the <code>Client</code> record before returning, making it unreachable in a Postfix.</li>
 </ul>
 </blockquote>
-<p>F0326 (code comment, <code>CleanupPatches.cs:24-30</code>):</p>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>    /// &lt;summary&gt;
-</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    /// Cleans up PlayerModifiers dictionary when a client disconnects.
-</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    /// Runs as a Prefix because NetworkServer.ClientDisconnected calls
-</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    /// NetworkBase.RemoveClient before returning, making the Client record
-</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    /// unreachable to a Postfix. We look up the disconnecting client&#39;s
-</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    /// registered Human and remove the modifiers entry keyed by its ReferenceId.
-</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    /// &lt;/summary&gt;
+<p>F0326 (code comment, <code>CleanupPatches.cs:24-30</code>), original wording:</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>    /// &lt;summary&gt;
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>    /// Cleans up PlayerModifiers dictionary when a client disconnects.
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>    /// Runs as a Prefix because NetworkServer.ClientDisconnected calls
+</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>    /// NetworkBase.RemoveClient before returning, making the Client record
+</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>    /// unreachable to a Postfix. We look up the disconnecting client&#39;s
+</span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>    /// registered Human and remove the modifiers entry keyed by its ReferenceId.
+</span><span id="__span-5-7"><a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a>    /// &lt;/summary&gt;
 </span></code></pre></div>
-<p>Skeleton:</p>
-<div class="language-csharp highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="na">[HarmonyPatch(typeof(NetworkServer), nameof(NetworkServer.ClientDisconnected))]</span>
-</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="k">internal</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nc">ClientDisconnectCleanupPatch</span>
-</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="p">{</span>
-</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">    </span><span class="na">[HarmonyPrefix]</span>
-</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">Prefix</span><span class="p">(</span><span class="n">Client</span><span class="w"> </span><span class="n">client</span><span class="p">)</span>
-</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="w">    </span><span class="p">{</span>
-</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="w">        </span><span class="kt">var</span><span class="w"> </span><span class="n">human</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="cm">/* resolve Human from client */</span><span class="p">;</span>
-</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">human</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="k">null</span><span class="p">)</span>
-</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="w">            </span><span class="n">PlayerModifiers</span><span class="p">.</span><span class="n">Remove</span><span class="p">(</span><span class="n">human</span><span class="p">.</span><span class="n">ReferenceId</span><span class="p">);</span>
-</span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="w">    </span><span class="p">}</span>
-</span><span id="__span-1-11"><a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="p">}</span>
+<p>The deployed source has since been corrected in place. <code>CleanupPatches.cs:29-34</code> now reads:</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>    /// Runs as a Prefix because NetworkServer.ClientDisconnected calls
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>    /// NetworkBase.RemoveClient before returning. RemoveClient does not clear any
+</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>    /// field on the Client, but it does take it out of NetworkBase.Clients, which
+</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>    /// is the list Client.Find scans, so connectionId stops resolving to anything
+</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>    /// the moment vanilla&#39;s body runs. A Postfix would have no way back to the
+</span><span id="__span-6-6"><a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>    /// disconnecting player.
 </span></code></pre></div>
-<p>A Postfix that takes <code>Client client</code> still compiles; it just sees a record whose links have already been severed by <code>RemoveClient</code>, so lookups that depend on those links fail silently.</p>
-<h2 id="cited-verifications">Cited verifications<a class="headerlink" href="#cited-verifications" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
-
+<p>Summary of what each finding is good for:</p>
 <ul>
-<li>F0029h: primary statement of the ordering ("RemoveClient destroys the record before returning").</li>
-<li>F0014: SprayPaintPlus's patch catalog entry stating the Prefix rule with the concrete cleanup target (<code>PlayerModifiers</code>).</li>
-<li>F0326: code comment on the deployed patch reiterating the rationale.</li>
+<li>F0029h: primary statement of the ordering. Correct that the Prefix is required; the "record is gone" phrasing is wrong.</li>
+<li>F0014: SprayPaintPlus's patch catalog entry stating the Prefix rule with the concrete cleanup target (<code>PlayerModifiers</code>). Same imprecise mechanism, and it still describes <code>PlayerModifiers</code> as keyed off the registered <code>Human</code>, which the deployed patch no longer relies on for the notice budget.</li>
+<li>F0326: code comment on the deployed patch. Now carries the corrected mechanism.</li>
 </ul>
 <h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
+<!-- verified: 0.2.6403.27689 @ 2026-07-27 -->
 
 <ul>
 <li>2026-04-20: page created from the Research migration; F0029h primary, with F0014 and F0326 corroborating.</li>
+<li>2026-07-27: conflict on "what RemoveClient does to the Client record". Previous claim: RemoveClient destroys the Client record and severs its links. New finding: RemoveClient only removes the instance from NetworkBase.Clients and calls OnClientRemoved, leaving every field intact; only Client.Find stops resolving. Fresh validator verdict: B is correct. Result: rewrote the page intro, the "Problem" section, and the "Solution / recipe" section against verbatim 0.2.6403.27689 bodies for <code>NetworkServer.ClientDisconnected</code>, <code>NetworkBase.RemoveClient</code>, <code>OnClientRemoved</code>, <code>Client.SetState</code>, and <code>Client.Find(long)</code>; the practical conclusion (Prefix required, because <code>Client.Find(connectionId)</code> is the only route from the argument back to the player) is unchanged. Added the <code>NetworkManager.HostClient</code> short-circuit caveat, the <code>Client.Disconnect()</code> second entry point, and the Prefix-plus-<code>__state</code>-Postfix variant that the corrected mechanism makes viable. Kept the F0029h / F0014 / F0326 blocks verbatim under a note that their "destroys the record" wording is imprecise, and recorded F0326's corrected in-source wording alongside the original. Replaced the recipe's <code>Client.RegisteredHuman</code> lookup with <code>Human.Find(client.ClientId)</code> plus a zero-id guard, and linked the new <a href="../../GameClasses/Client/">Client</a> page. Also corrected the namespace of <code>NetworkBase</code> (global, not <code>Assets.Scripts.Networking</code>) and of <code>NetworkServer</code> / <code>Client</code> (<code>Assets.Scripts</code>).</li>
 </ul>
 <h2 id="open-questions">Open questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>
-<p>None at creation.</p>
+<p>None.</p>
 
 
 
