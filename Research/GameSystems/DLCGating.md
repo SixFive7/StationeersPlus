@@ -190,7 +190,7 @@ public static void ClearAll() => SharedDLC = 0;
 Lifecycle:
 
 - `SharedDLCManager.ClearAll()` runs on world teardown, resetting the pool to 0.
-- `HostFinishedLoad()` seeds the pool from the host's own entitlements. Its sole call site is decompile line 268799, at the end of the world-load path, immediately after `World.OnLoadingFinished`. Of the two guard terms only `!IsBatchMode` can fail on a server: `GameManager.RunSimulation` is `=> !NetworkManager.IsClient` (203945), which is always true on a server. So a dedicated server does NOT seed the pool from the server process; the pool starts empty and fills only from connecting clients. See "Dedicated server behavior" below for what `IsBatchMode` actually keys off, which is broader than the `-batchmode` flag.
+- `HostFinishedLoad()` seeds the pool from the host's own entitlements. Its sole call site is decompile line 268799, at the end of the world-load path, immediately after `World.OnLoadingFinished`. Of the two guard terms only `!IsBatchMode` can fail on a server: `GameManager.RunSimulation` is `=> !NetworkManager.IsClient` (203945), which is always true on a server. So a dedicated server does NOT seed the pool from the server process; the pool starts empty and fills only from connecting clients. See "Dedicated server behavior" below for what `IsBatchMode` actually keys off, which is broader than the `-batchmode` flag. Note also that the new-world path never reaches that call site at all, so a freshly created single-player world starts with an empty pool even when the host owns the DLC; see "Single player: new world versus loaded world" below.
 - `ClientFinishedLoad()` makes each client send `AvailableDLCMessage` to the server with its own `DLCType` bitmask.
 - `AvailableDLCMessage.Process` calls `SharedDLCManager.AddSharedDLC(DLCType)`, ORing the client's entitlements into the pool.
 - The pool syncs back to clients as delta state under network update bit 256.
@@ -209,6 +209,50 @@ Exhaustive write-site list for the pool, from a whole-file search of the decompi
 ```
 
 There is no disconnect, leave, or player-removal path that clears or recomputes the pool, and no per-player subtraction is even possible because no per-player entitlement record exists anywhere (see "Not caller-scoped" below).
+
+### Single player: new world versus loaded world
+
+<!-- verified: 0.2.6403.27689 @ 2026-07-27 -->
+
+`HostFinishedLoad()` is the only thing that ever seeds the pool from local entitlements, and its sole call site sits at the end of `XmlSaveLoad.LoadWorld` (268799). The new-world path does not reach it. An owning single-player host therefore gets an empty pool in a freshly created world, and a correctly seeded pool in that same world after a save and reload.
+
+The two paths diverge in `Assets.Scripts.Objects.World`:
+
+```
+private static async UniTask NewAsync(string worldName, CancellationToken cancellationToken = default(CancellationToken))
+{
+    ...
+    GameManager.OnReadyToPlay();
+    ...
+    WorldManager.StartWorld();
+    await GameManager.StartGame();
+    ImGuiLoadingScreen.SetActive(active: false);
+}
+
+public static void OnLoadingFinished(XmlSaveLoad.WorldData worldData)
+{
+    HelperHintsManager.Initialize();
+    WorldManager.StartWorld();
+    GameManager.StartGame().Forget();
+    ...
+}
+```
+
+`World.NewAsync` (324921, reached from `World.StartNewWorld` at 324892) runs `WorldManager.StartWorld()` and `GameManager.StartGame()` itself and then returns. `World.OnLoadingFinished` (324961) runs the same two calls, but it is invoked from inside `XmlSaveLoad.LoadWorld` at 268797, which calls `SharedDLCManager.HostFinishedLoad()` two lines later at 268799. The seeding is attached to the load path, not to world startup.
+
+Neither `GameManager.StartGame()` (204575) nor `WorldManager.StartWorld()` (60520) touches `SharedDLCManager`.
+
+The gap is a missing call, not a failed guard. Both terms in `HostFinishedLoad` pass for a single-player host: `GameManager.RunSimulation` is `=> !NetworkManager.IsClient` (203945), true when not a client, and `IsBatchMode` is false in a normal client build.
+
+Confirmed at runtime in 0.2.6403.27689, in a programmatically created single-player world (difficulty Creative, world Lunar) on an install that owns Metallic Paints: `SharedDLCManager.SharedDLC` reads 0 and the `dlc shared` console command prints `dlc: None`.
+
+Consequences:
+
+- In a freshly created single-player world, the two vanilla in-world gates read an empty pool, so the four metallic spray cans cannot be spawned or fabricated even though the player owns the DLC. This is a vanilla defect, not a mod interaction.
+- Saving and reloading that world routes through `XmlSaveLoad.LoadWorld`, runs `HostFinishedLoad()`, and sets the pool to the owned bitmask. The same world then behaves correctly.
+- A mod that reproduces the vanilla gate with `CheckSharedAccess` alone inherits the defect and will block owning players in freshly created single-player worlds.
+
+`DLCManager.CheckAccess(Thing)` (192405) is the local-ownership counterpart. It is public, reads `_ownedDLC` directly, and has no caller anywhere in `Assembly-CSharp`. A mod that must accept both a locally entitled single-player host and a shared multiplayer pool should OR the two checks rather than relying on either alone, subject to the `DLCManager.Initialize()` timing constraint in "Initialization timing" above.
 
 ### Dedicated server behavior
 
@@ -404,7 +448,7 @@ The design is coherent for vanilla: the only way to reach a DLC paint color is t
 
 The gap this leaves for mods: `GameManager.CustomColors` is an ungated list, and any code that applies a color by index reaches DLC colors with no check. A mod that lets the player pick a color by index rather than by holding a can (a color cycler, a color picker UI, an eyedropper, a logic-driven paint writable) bypasses entitlement without touching any gated code path. Vanilla has no backstop to catch it.
 
-Mod authors handling colors by index should reproduce the vanilla gate themselves. The check that matches vanilla in-world behavior is `SharedDLCManager.CheckSharedAccess(dlcType)`. Resolving a color index to a `DLCType` requires going through the spray can prefab that carries that color, because the swatch itself does not record one:
+Mod authors handling colors by index should reproduce the vanilla gate themselves. The check that matches vanilla in-world behavior is `SharedDLCManager.CheckSharedAccess(dlcType)`. Reproducing it exactly also reproduces the single-player defect documented in "Single player: new world versus loaded world" above, which blocks owning players in freshly created worlds; ORing in `DLCManager.CheckAccess(Thing)` avoids that. Resolving a color index to a `DLCType` requires going through the spray can prefab that carries that color, because the swatch itself does not record one:
 
 ```
 foreach (Thing thing in Prefab.AllPrefabs)
@@ -443,6 +487,7 @@ The four swatches sit at `CustomColors` indices 12-15 in the order `ColorObsidia
 
 <!-- verified: 0.2.6403.27689 @ 2026-07-27 -->
 
+- 2026-07-27: added the "Single player: new world versus loaded world" subsection. Additive finding, no existing claim contradicted: the page already stated that `HostFinishedLoad()`'s sole call site is 268799 at the end of the world-load path, but did not note that the new-world path never reaches it. `World.NewAsync` (324921, from `World.StartNewWorld` at 324892) calls `WorldManager.StartWorld()` then `GameManager.StartGame()` and returns, while `World.OnLoadingFinished` (324961) is invoked from inside `XmlSaveLoad.LoadWorld` at 268797 with `SharedDLCManager.HostFinishedLoad()` following at 268799. Neither `GameManager.StartGame()` (204575) nor `WorldManager.StartWorld()` (60520) touches `SharedDLCManager`, so a freshly created single-player world leaves the pool at 0 for an owning host, and both vanilla in-world gates then refuse that host's own DLC content until the world is saved and reloaded. Both `HostFinishedLoad` guard terms pass in single player, so the cause is the missing call and not a failed condition. Corroborated by a runtime observation on an install owning Metallic Paints: `SharedDLC` reads 0 and `dlc shared` prints `dlc: None` in a programmatically created Creative Lunar world. Also cross-referenced the defect from the mod-author guidance in "Where the game does NOT check", since that section recommends `CheckSharedAccess` as the gate to copy. Confirmed `DLCManager.CheckAccess(Thing)` (192405) is public with no caller in `Assembly-CSharp`, making it the available local-ownership counterpart. Decompile of `DLC.SharedDLCManager` re-extracted from the 0.2.6403.27689 DLL and compared against the full-assembly decompile before quoting; the two agree.
 - 2026-07-27: added "Dedicated server behavior" and "Not caller-scoped" subsections, and widened the `HostFinishedLoad` lifecycle bullet. Findings: `GameManager.RunSimulation` is `!NetworkManager.IsClient` (203945) and so always passes on a server, leaving `!IsBatchMode` as the only term that blocks self-seeding; `IsBatchMode` is set by `SetMatchMode()` (204290-204304) from `Application.isBatchMode` OR `RuntimePlatform.LinuxServer`/`WindowsServer`, so a dedicated-server build sets it without the `-batchmode` flag; `HostFinishedLoad`'s sole call site is 268799; the client sends its bitmask at 213241, immediately before `UpdateHandshakeState(HandshakeType.ClientReady)` at 213243, so the pool is empty for the whole of an owning client's join; `AvailableDLCMessage` is absent from the `MessageBase.DeserializeReceivedData` whitelist (39302) though `Process` at 39306 runs regardless of that check; `Process` discards `hostId` and no per-player entitlement record exists, so the check cannot be made caller-scoped without a mod-maintained map; `ClearAll`'s sole caller is `GameManager.ClearGameAll` (204756, call at 204810). Also resolved the second open question: it hypothesised that a dedicated server "grants DLC content only while an owning client is connected", which the exhaustive write-site list disproves, and which already contradicted the verified line in this section stating the pool only grows. Replaced with a narrower open question about live confirmation. All quotes re-read first-hand against the 0.2.6403.27689 decompile rather than taken from a sub-agent summary.
 - 2026-07-25: independent re-verification of the "Where the game does NOT check" claim against the 0.2.6403.27689 decompile. `CheckSharedAccess` resolves to exactly three occurrences (console spawn gate at 40154, definition at 192472, fabricator gate at 420505). `CheckAccess` resolves to the definitions and internal calls at 192370 / 192396 / 192400 / 192405 / 192411 / 192475 / 192507 plus exactly one external caller at 194337 (`DLCManager.CheckAccess(kitItem)` inside `HasDLC`). No additional enforcement site exists, confirming that no DLC check runs on any paint-application path.
 - 2026-07-25: corrected the namespace on all three types. The page was created citing `Assets.Scripts.DLCManager` / `SharedDLCManager` / `DLCType`; they are actually in the bare `DLC` namespace (decompile line 192302 opens `namespace DLC`). Found while writing a mod against the page, which is exactly the sort of error that costs a later reader a build failure. Also added the "Initialization timing" subsection: `DLCManager.Initialize()` runs from a manager's `async void Start()`, so entitlement is still zero during BepInEx plugin `Awake`, which rules out testing ownership at `Config.Bind` time.
