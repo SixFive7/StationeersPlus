@@ -10,8 +10,10 @@ sources:
 related:
   - ./Entity.md
   - ./ChatMessage.md
+  - ./Client.md
   - ./ILifeSuspender.md
   - ../GameSystems/StunStateMachine.md
+  - ../GameSystems/PlayerIdentityAcrossRejoin.md
 tags: [entity]
 ---
 

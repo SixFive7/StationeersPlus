@@ -9,6 +9,7 @@ sources:
 related:
   - ../GameClasses/Human.md
   - ../GameClasses/LanderCapsule.md
+  - ./PlayerIdentityAcrossRejoin.md
 tags: [entity]
 ---
 
