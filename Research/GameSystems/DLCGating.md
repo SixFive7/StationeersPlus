@@ -3,7 +3,7 @@ title: DLC gating
 type: GameSystems
 created_in: 0.2.6403.27689
 verified_in: 0.2.6403.27689
-verified_at: 2026-07-27
+verified_at: 2026-07-28
 sources:
   - $(StationeersPath)\rocketstation_Data\Managed\Assembly-CSharp.dll :: DLC.DLCManager
   - $(StationeersPath)\rocketstation_Data\Managed\Assembly-CSharp.dll :: DLC.SharedDLCManager
@@ -11,7 +11,10 @@ sources:
   - $(StationeersPath)\rocketstation_Data\Managed\Assembly-CSharp.dll :: Assets.Scripts.Objects.Thing (_dlcType field)
   - $(StationeersPath)\rocketstation_Data\Managed\Assembly-CSharp.dll :: Assets.Scripts.Networking.AvailableDLCMessage
   - $(StationeersPath)\rocketstation_Data\StreamingAssets\Data\paints.xml
+  - $(StationeersPath)\rocketstation_Data\StreamingAssets\Data\tradeables.xml
   - $(StationeersPath)\rocketstation_Data\StreamingAssets\Language\english.xml
+  - $(StationeersPath)\rocketstation_Data\StreamingAssets\version.ini (in-game changelog)
+  - $(StationeersPath)\rocketstation_Data\Managed\Assembly-CSharp.dll :: Assets.Scripts.Networking.ThingColorMessage
   - $(StationeersPath)\rocketstation_Data\Managed\Assembly-CSharp.dll :: Assets.Scripts.GameManager (IsBatchMode, RunSimulation, SetMatchMode, ClearGameAll)
   - $(StationeersPath)\rocketstation_Data\Managed\Assembly-CSharp.dll :: Assets.Scripts.Networking.MessageBase (DeserializeReceivedData)
 related:
@@ -434,17 +437,75 @@ Cosmetic character content is gated on personal ownership (`DLCManager.CheckAcce
 
 ## Where the game does NOT check
 
-<!-- verified: 0.2.6403.27689 @ 2026-07-25 -->
+<!-- verified: 0.2.6403.27689 @ 2026-07-28 -->
 
 There is no DLC check anywhere on the paint-application path. A full-text search of `Assembly-CSharp` for `CheckSharedAccess` and `DLCManager.CheckAccess` returns only the four call sites above (three enforcement sites plus the definition). None of the following consults `DLCType`:
 
-- `Thing.SetCustomColor(int index, bool emissive = false)`
-- `OnServer.SetCustomColor(Thing thing, int colorIndex)`
-- `ISprayer.DoSpray(Thing thing, ISprayer sprayer, bool doAction)`
+- `Thing.SetCustomColor(int index, bool emissive = false)` (321962). Its only guard is `if (!GameManager.IsValidColor(index)) return;` (321964), a pure bounds check.
+- `OnServer.SetCustomColor(Thing thing, int colorIndex)` (39792)
+- `ISprayer.DoSpray(Thing thing, ISprayer sprayer, bool doAction)` (354359). Its guards are paint material, same-color, tool on/off, and empty-can only; it ends at `OnServer.SetCustomColor(thing, colorSwatch.Index)` (354409).
+- `SprayCan` in its entirety (354314-354346). `OnUseItem` (354340) only decrements `Quantity` and emits pollution.
 - `ColorSwatch` itself (the class has no `DLCType` field; see `../GameClasses/ColorSwatch.md`)
-- `GameManager.CustomColors`, which holds every swatch regardless of entitlement
+- `GameManager.CustomColors`, which holds every swatch regardless of entitlement. `GetRandomColor` (204163) draws from the same unfiltered list and can therefore return a DLC swatch.
+- `ThingColorMessage.Process` (277590), which applies a client-supplied color index with no validation of any kind. See below.
 
 The design is coherent for vanilla: the only way to reach a DLC paint color is to hold the matching spray can, and both routes to that can (console spawn, fabrication) are gated. Ownership of the color is expressed entirely through ownership of the item.
+
+### ThingColorMessage is unvalidated
+
+<!-- verified: 0.2.6403.27689 @ 2026-07-28 -->
+
+The network message that carries a color application performs no checks at all:
+
+```
+public class ThingColorMessage : ProcessedMessage<ThingColorMessage>
+{
+    public long ThingId;
+
+    public int ColorIndex;
+
+    public override void Process(long hostId)
+    {
+        Thing.Find<Thing>(ThingId).SetCustomColor(ColorIndex);
+    }
+
+    public override void Deserialize(RocketBinaryReader reader)
+    {
+        ThingId = reader.ReadInt64();
+        ColorIndex = reader.ReadInt32();
+    }
+
+    public override void Serialize(RocketBinaryWriter writer)
+    {
+        writer.WriteInt64(ThingId);
+        writer.WriteInt32(ColorIndex);
+    }
+}
+```
+
+`Process` (277590-277593) has no entitlement check, no `PaintOnly` check, and no null guard on `Thing.Find`. It is sent from `OnServer.SetCustomColor` at 39799. Any client able to construct the message can set any color index on any `Thing`, so the vanilla wire protocol offers no backstop that a mod could lean on. `Thing.SetCustomColor`'s own `IsValidColor` bounds check is the only thing standing between the wire and the paint.
+
+### The logic and IC10 color path is closed, but not by entitlement
+
+<!-- verified: 0.2.6403.27689 @ 2026-07-28 -->
+
+Writing `LogicType.Color` from IC10 or a logic writer cannot reach a metallic color, but the predicate is visibility, not ownership:
+
+```
+case LogicType.Color:
+{
+    int num = (int)value.Clamp(0.0, GameManager.ColorCount - 1);
+    if (GameManager.IsLogicSelectableColor(num))
+    {
+        OnServer.Interact(base.InteractColor, num);
+    }
+    break;
+}
+```
+
+This appears in `DynamicThing.SetLogicValue(LogicType, double)` (299004-299012) and identically in `Device.SetLogicValue(LogicType, double)` (371134). `GameManager.IsLogicSelectableColor(int)` (204129-204136) returns `!CustomColors[colorIndex].PaintOnly`, and `GenerateColorStrings()` (204110-204127) skips `PaintOnly` entries at 204120 when building `LogicColorIndices` and `ColorStrings`.
+
+The consequence for a mod author: the logic-driven paint route is already blocked in vanilla, so it is not a hole to close, but it is blocked for every player equally including owners of the DLC. A mod that unblocks it by bypassing `IsLogicSelectableColor` inherits no entitlement check whatsoever and must supply its own.
 
 The gap this leaves for mods: `GameManager.CustomColors` is an ungated list, and any code that applies a color by index reaches DLC colors with no check. A mod that lets the player pick a color by index rather than by holding a can (a color cycler, a color picker UI, an eyedropper, a logic-driven paint writable) bypasses entitlement without touching any gated code path. Vanilla has no backstop to catch it.
 
@@ -466,7 +527,7 @@ Both the swatches and the can prefabs are present regardless of entitlement, so 
 
 ## Metallic Paints DLC content
 
-<!-- verified: 0.2.6403.27689 @ 2026-07-25 -->
+<!-- verified: 0.2.6403.27689 @ 2026-07-28 -->
 
 `DLCType.MetallicPaints` (0x100, Steam app 4842920) covers four spray cans. `rocketstation_Data/StreamingAssets/Data/paints.xml` lists Tool Manufactory recipes for all sixteen cans, twelve vanilla plus these four:
 
@@ -483,10 +544,45 @@ The corresponding color swatches carry `ColorSwatch.PaintOnly = true`, which dri
 
 The four swatches sit at `CustomColors` indices 12-15 in the order `ColorObsidian`, `ColorSilver`, `ColorBronze`, `ColorGold`, confirmed at runtime. Note the swatch names drop the `Metallic` prefix the prefab names carry, and the swatch order matches neither alphabetical order nor the `paints.xml` recipe order, so neither identifier nor index can be derived from the other.
 
+### Gate provenance: what 0.2.6402.27686 actually changed
+
+<!-- verified: 0.2.6403.27689 @ 2026-07-28 -->
+
+The metallic colors did not ship as DLC. They arrived as ordinary trader-only content and were converted to DLC content later. The in-game changelog (`StreamingAssets/version.ini`, which is the game's own changelog; the `changelog.txt` in the install root belongs to BepInEx) records both steps verbatim.
+
+`[Version 0.2.6325.27252]`:
+
+```
+- <color=green>Added</color> four new metallic spray can colors that are available only via the Cosmic Curiosities trader: Gold, Silver, Bronze, and Obsidian.
+```
+
+`[Version 0.2.6402.27686]`:
+
+```
+- <color=green>Added</color> the metallic paints DLC gate.
+- <color=green>Added</color> some editor only DLC commands.
+- <color=green>Updated</color> thumbnails for spray cans to all be consistent.
+```
+
+What "the metallic paints DLC gate" means in code is data-side wiring, not a new enforcement site. The exhaustive call-site search in "Where the game does NOT check" was run against 0.2.6403.27689, one build LATER, and still finds exactly three `CheckSharedAccess` occurrences (40154, 192472, 420505) and one external `DLCManager.CheckAccess` caller (194337). No call site was added in 6402. The change consisted of:
+
+- Adding `DLCType.MetallicPaints = 0x100` to the enum and to `AllDLC`, with the Steam app 4842920 mapping in `FetchOwnershipFromSteam` and `GetStorePageLink`.
+- Setting `_dlcType` to `MetallicPaints` on the four `SprayCan` prefabs, which is asset data rather than code. Runtime-confirmed on 2026-07-25 at 0.2.6403.27689: indices 12-15 resolve to `DLCType.MetallicPaints`.
+- Removing the trader route, which was the acquisition path the generic gates did not cover.
+
+The trader removal is verifiable in the data files. `StreamingAssets/Data/tradeables.xml` contains no metallic spray can: the only spray cans in trade data are the two "Box of Spray Cans" entries (lines 1801 and 2083), both stocking `ItemSprayCanRed`, `Blue`, `Green`, `Yellow`, `Black`, `White` only. There is no Cosmic Curiosities trader left in `tradeables.xml` at all; the string `Cosmic Curiosities` survives only as an orphaned language entry in `Language/english.xml` (line 23280). The metallic prefab names appear in exactly two data files, `Data/paints.xml` and `Language/english.xml`, and in no trade table.
+
+`paints.xml` carries no DLC attribute of any kind, so nothing about the gate is data-driven from XML. The recipes ship to every player and the fabricator gate at 420505 is what stops a non-owner producing them.
+
+The net effect of 6402 is that the four cans moved from "ungated, trader-only" to "gated at acquisition like every other DLC item". It changed which items the existing gates apply to. It did not add a gate to any new part of the pipeline, and in particular it added nothing to the paint-application path.
+
+On the second line, "editor only DLC commands": the shipped `DLCCommand` (97470) exposes only the `shared` argument documented above. Editor-only commands are compiled out of the shipped assembly, which is consistent with the shipped command surface being unchanged.
+
 ## Verification history
 
-<!-- verified: 0.2.6403.27689 @ 2026-07-27 -->
+<!-- verified: 0.2.6403.27689 @ 2026-07-28 -->
 
+- 2026-07-28: re-ran the exhaustive enforcement-site search and added three subsections. Trigger: a changelog sweep reported that the base game "added its own Metallic Paints DLC gate" in 0.2.6402.27686, which appeared to contradict this page's "Where the game does NOT check" claim verified at the later 0.2.6403.27689. No contradiction exists and no fresh-validator pass was required: the searches reproduce exactly, `CheckSharedAccess` at 40154 / 192472 / 420505 and `DLCManager.CheckAccess` with one external caller at 194337, so 6402 added no call site. The changelog entry is real and now quoted verbatim in the new "Gate provenance" subsection, along with `[Version 0.2.6325.27252]` showing the metallic colors originally shipped as Cosmic Curiosities trader-only content. The 6402 change is data-side: enum bit, Steam app mapping, prefab `_dlcType`, and removal of the trader route. Trader removal confirmed in `tradeables.xml`, which stocks only the six basic cans in its two "Box of Spray Cans" entries (1801, 2083) and no longer contains a Cosmic Curiosities trader; the name survives only as an orphaned `english.xml` string at 23280. `paints.xml` carries no DLC attribute. Also added "ThingColorMessage is unvalidated" (277584-277606), a genuinely new finding: `Process` applies a client-supplied color index with no entitlement, `PaintOnly`, or null check, so the vanilla wire protocol is not a backstop. Also added "The logic and IC10 color path is closed, but not by entitlement", recording that `DynamicThing.SetLogicValue` (299004-299012) and `Device.SetLogicValue` (371134) gate `LogicType.Color` on `IsLogicSelectableColor` (204129), which reads `PaintOnly` and not `DLCType`. Corroborating detail for the existing `PaintOnly` claim: the field's `[Tooltip]` at 295151 states outright that it is a spray-only and logic-visibility flag. All quotes re-read first-hand against the 0.2.6403.27689 decompile rather than taken from a sub-agent summary; one sub-agent claim that a "tablet colour scroll UI" iterated the unfiltered color list was checked and rejected, the code at 338885 being `AccessController : Cartridge` (338824) building an access-bit color grid on `ColorSwatch.Bit` and `HasAccess`, which is not a paint path.
 - 2026-07-27: added the "Single player: new world versus loaded world" subsection. Additive finding, no existing claim contradicted: the page already stated that `HostFinishedLoad()`'s sole call site is 268799 at the end of the world-load path, but did not note that the new-world path never reaches it. `World.NewAsync` (324921, from `World.StartNewWorld` at 324892) calls `WorldManager.StartWorld()` then `GameManager.StartGame()` and returns, while `World.OnLoadingFinished` (324961) is invoked from inside `XmlSaveLoad.LoadWorld` at 268797 with `SharedDLCManager.HostFinishedLoad()` following at 268799. Neither `GameManager.StartGame()` (204575) nor `WorldManager.StartWorld()` (60520) touches `SharedDLCManager`, so a freshly created single-player world leaves the pool at 0 for an owning host, and both vanilla in-world gates then refuse that host's own DLC content until the world is saved and reloaded. Both `HostFinishedLoad` guard terms pass in single player, so the cause is the missing call and not a failed condition. Corroborated by a runtime observation on an install owning Metallic Paints: `SharedDLC` reads 0 and `dlc shared` prints `dlc: None` in a programmatically created Creative Lunar world. Also cross-referenced the defect from the mod-author guidance in "Where the game does NOT check", since that section recommends `CheckSharedAccess` as the gate to copy. Confirmed `DLCManager.CheckAccess(Thing)` (192405) is public with no caller in `Assembly-CSharp`, making it the available local-ownership counterpart. Decompile of `DLC.SharedDLCManager` re-extracted from the 0.2.6403.27689 DLL and compared against the full-assembly decompile before quoting; the two agree.
 - 2026-07-27: added "Dedicated server behavior" and "Not caller-scoped" subsections, and widened the `HostFinishedLoad` lifecycle bullet. Findings: `GameManager.RunSimulation` is `!NetworkManager.IsClient` (203945) and so always passes on a server, leaving `!IsBatchMode` as the only term that blocks self-seeding; `IsBatchMode` is set by `SetMatchMode()` (204290-204304) from `Application.isBatchMode` OR `RuntimePlatform.LinuxServer`/`WindowsServer`, so a dedicated-server build sets it without the `-batchmode` flag; `HostFinishedLoad`'s sole call site is 268799; the client sends its bitmask at 213241, immediately before `UpdateHandshakeState(HandshakeType.ClientReady)` at 213243, so the pool is empty for the whole of an owning client's join; `AvailableDLCMessage` is absent from the `MessageBase.DeserializeReceivedData` whitelist (39302) though `Process` at 39306 runs regardless of that check; `Process` discards `hostId` and no per-player entitlement record exists, so the check cannot be made caller-scoped without a mod-maintained map; `ClearAll`'s sole caller is `GameManager.ClearGameAll` (204756, call at 204810). Also resolved the second open question: it hypothesised that a dedicated server "grants DLC content only while an owning client is connected", which the exhaustive write-site list disproves, and which already contradicted the verified line in this section stating the pool only grows. Replaced with a narrower open question about live confirmation. All quotes re-read first-hand against the 0.2.6403.27689 decompile rather than taken from a sub-agent summary.
 - 2026-07-25: independent re-verification of the "Where the game does NOT check" claim against the 0.2.6403.27689 decompile. `CheckSharedAccess` resolves to exactly three occurrences (console spawn gate at 40154, definition at 192472, fabricator gate at 420505). `CheckAccess` resolves to the definitions and internal calls at 192370 / 192396 / 192400 / 192405 / 192411 / 192475 / 192507 plus exactly one external caller at 194337 (`DLCManager.CheckAccess(kitItem)` inside `HasDLC`). No additional enforcement site exists, confirming that no DLC check runs on any paint-application path.
@@ -496,5 +592,5 @@ The four swatches sit at `CustomColors` indices 12-15 in the order `ColorObsidia
 
 ## Open questions
 
-- `DLCManager.GrantFullOwnership()` has no observed call site. Whether it is dead code, called via reflection, or reached from a build-conditional path has not been traced.
+- `DLCManager.GrantFullOwnership()` has no observed call site. Whether it is dead code, called via reflection, or reached from a build-conditional path has not been traced. One lead: the `[Version 0.2.6402.27686]` changelog line "Added some editor only DLC commands" implies DLC debug commands that exist in the editor build and are compiled out of the shipped assembly, which would explain a caller being absent here. Not confirmed, since editor-only code is not present in the shipped DLL to inspect.
 - The dedicated-server pool behavior in "Dedicated server behavior" is derived from code, not yet observed in a live session. The `dlc shared` console command is the intended runtime probe: its scope is `CommandScope.InGame | CommandScope.HostOrSinglePlayer` (97480), so it runs on the dedicated-server console, though reaching it from a connected admin client needs `serverrun`.
