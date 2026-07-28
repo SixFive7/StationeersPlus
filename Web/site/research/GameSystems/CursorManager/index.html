@@ -12,13 +12,13 @@
         <meta name="author" content="SixFive7">
       
       
-        <link rel="canonical" href="https://stationeers.huisman.io/research/Workflows/TTSDeadEnd/">
+        <link rel="canonical" href="https://stationeers.huisman.io/research/GameSystems/CursorManager/">
       
       
-        <link rel="prev" href="../StationeersLaunchPadModLoading/">
+        <link rel="prev" href="../CreativeModeAndDifficulty/">
       
       
-        <link rel="next" href="../TimeSkipWorldManipulation/">
+        <link rel="next" href="../DLCGating/">
       
       
         
@@ -29,7 +29,7 @@
     
     
       
-        <title>TTS Dead End - StationeersPlus</title>
+        <title>CursorManager and the cursor-target tuple - StationeersPlus</title>
       
     
     
@@ -82,7 +82,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#tts-dead-end" class="md-skip">
+        <a href="#the-cursor-is-a-tuple-not-a-field" class="md-skip">
           Skip to content
         </a>
       
@@ -118,7 +118,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              TTS Dead End
+              CursorManager and the cursor-target tuple
             
           </span>
         </div>
@@ -3525,8 +3525,10 @@
                 
   
   
+    
   
   
+  
     
     
       
@@ -3661,11 +3663,11 @@
       
     
     
-    <li class="md-nav__item md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_3" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_3" checked>
         
           
           <label class="md-nav__link" for="__nav_3_3" id="__nav_3_3_label" tabindex="0">
@@ -3686,7 +3688,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_3_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_3_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_3_3">
             <span class="md-nav__icon md-icon"></span>
             
@@ -3704,7 +3706,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../GameSystems/AtmosphericThingTickDispatch/" class="md-nav__link">
+      <a href="../AtmosphericThingTickDispatch/" class="md-nav__link">
         
   
   
@@ -3732,7 +3734,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../GameSystems/BreathingAndOxygenation/" class="md-nav__link">
+      <a href="../BreathingAndOxygenation/" class="md-nav__link">
         
   
   
@@ -3760,7 +3762,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../GameSystems/CameraFilterPack/" class="md-nav__link">
+      <a href="../CameraFilterPack/" class="md-nav__link">
         
   
   
@@ -3788,7 +3790,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../GameSystems/ChatBroadcast/" class="md-nav__link">
+      <a href="../ChatBroadcast/" class="md-nav__link">
         
   
   
@@ -3816,7 +3818,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../GameSystems/ChemistryGasPhaseData/" class="md-nav__link">
+      <a href="../ChemistryGasPhaseData/" class="md-nav__link">
         
   
   
@@ -3844,7 +3846,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../GameSystems/ConveyorBeltCutContent/" class="md-nav__link">
+      <a href="../ConveyorBeltCutContent/" class="md-nav__link">
         
   
   
@@ -3872,7 +3874,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../GameSystems/CreativeModeAndDifficulty/" class="md-nav__link">
+      <a href="../CreativeModeAndDifficulty/" class="md-nav__link">
         
   
   
@@ -3897,10 +3899,35 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../../GameSystems/CursorManager/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CursorManager and the cursor-target tuple
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -3916,6 +3943,112 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#the-cursor-is-a-tuple-not-a-field" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The cursor is a tuple, not a field
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#thinggetslotcollider-has-no-null-guard-and-its-dictionary-is-never-null" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Thing.GetSlot(Collider) has no null guard, and its dictionary is never null
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#why-a-throw-from-updateeachframe-starves-the-cursor-forever" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why a throw from UpdateEachFrame starves the cursor forever
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-concrete-failure-plantanalysercartridge" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The concrete failure: PlantAnalyserCartridge
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#unguarded-readers-of-the-cursor-state" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Unguarded readers of the cursor state
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#setting-a-cursor-target-from-a-mod-safely" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Setting a cursor target from a mod, safely
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#verification-history" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verification history
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#open-questions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Open questions
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -3928,7 +4061,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../GameSystems/DLCGating/" class="md-nav__link">
+      <a href="../DLCGating/" class="md-nav__link">
         
   
   
@@ -3956,7 +4089,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../GameSystems/DamageState/" class="md-nav__link">
+      <a href="../DamageState/" class="md-nav__link">
         
   
   
@@ -3984,7 +4117,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../GameSystems/DedicatedServerSettings/" class="md-nav__link">
+      <a href="../DedicatedServerSettings/" class="md-nav__link">
         
   
   
@@ -4012,7 +4145,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../GameSystems/DevicePortGeometry/" class="md-nav__link">
+      <a href="../DevicePortGeometry/" class="md-nav__link">
         
   
   
@@ -4040,7 +4173,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../GameSystems/DevicePowerDraw/" class="md-nav__link">
+      <a href="../DevicePowerDraw/" class="md-nav__link">
         
   
   
@@ -4068,7 +4201,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../GameSystems/DirectConnect/" class="md-nav__link">
+      <a href="../DirectConnect/" class="md-nav__link">
         
   
   
@@ -4096,7 +4229,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../GameSystems/EntityHydrationAndNeeds/" class="md-nav__link">
+      <a href="../EntityHydrationAndNeeds/" class="md-nav__link">
         
   
   
@@ -4124,7 +4257,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../GameSystems/Explosions/" class="md-nav__link">
+      <a href="../Explosions/" class="md-nav__link">
         
   
   
@@ -4152,7 +4285,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../GameSystems/HeatEmissionToAtmosphere/" class="md-nav__link">
+      <a href="../HeatEmissionToAtmosphere/" class="md-nav__link">
         
   
   
@@ -4180,7 +4313,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../GameSystems/IC10DeviceAddressing/" class="md-nav__link">
+      <a href="../IC10DeviceAddressing/" class="md-nav__link">
         
   
   
@@ -4208,7 +4341,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../GameSystems/IC10ExecutionTick/" class="md-nav__link">
+      <a href="../IC10ExecutionTick/" class="md-nav__link">
         
   
   
@@ -4236,7 +4369,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../GameSystems/IC10SourceLimits/" class="md-nav__link">
+      <a href="../IC10SourceLimits/" class="md-nav__link">
         
   
   
@@ -4264,7 +4397,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../GameSystems/IC10Stack/" class="md-nav__link">
+      <a href="../IC10Stack/" class="md-nav__link">
         
   
   
@@ -4292,7 +4425,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../GameSystems/IC10SyntaxHighlighting/" class="md-nav__link">
+      <a href="../IC10SyntaxHighlighting/" class="md-nav__link">
         
   
   
@@ -4320,7 +4453,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../GameSystems/KeyBinding/" class="md-nav__link">
+      <a href="../KeyBinding/" class="md-nav__link">
         
   
   
@@ -4348,7 +4481,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../GameSystems/LightSources/" class="md-nav__link">
+      <a href="../LightSources/" class="md-nav__link">
         
   
   
@@ -4376,7 +4509,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../GameSystems/Localization/" class="md-nav__link">
+      <a href="../Localization/" class="md-nav__link">
         
   
   
@@ -4404,7 +4537,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../GameSystems/LogicType/" class="md-nav__link">
+      <a href="../LogicType/" class="md-nav__link">
         
   
   
@@ -4432,7 +4565,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../GameSystems/LogicValueFormatting/" class="md-nav__link">
+      <a href="../LogicValueFormatting/" class="md-nav__link">
         
   
   
@@ -4460,7 +4593,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../GameSystems/ModDeduplication/" class="md-nav__link">
+      <a href="../ModDeduplication/" class="md-nav__link">
         
   
   
@@ -4488,7 +4621,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../GameSystems/ModLoadSequence/" class="md-nav__link">
+      <a href="../ModLoadSequence/" class="md-nav__link">
         
   
   
@@ -4516,7 +4649,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../GameSystems/ModMetadataLimits/" class="md-nav__link">
+      <a href="../ModMetadataLimits/" class="md-nav__link">
         
   
   
@@ -4544,7 +4677,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../GameSystems/NetworkRoles/" class="md-nav__link">
+      <a href="../NetworkRoles/" class="md-nav__link">
         
   
   
@@ -4572,7 +4705,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../GameSystems/NetworkUpdateFlags/" class="md-nav__link">
+      <a href="../NetworkUpdateFlags/" class="md-nav__link">
         
   
   
@@ -4600,7 +4733,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../GameSystems/Occlusion/" class="md-nav__link">
+      <a href="../Occlusion/" class="md-nav__link">
         
   
   
@@ -4628,7 +4761,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../GameSystems/PlacementOrientation/" class="md-nav__link">
+      <a href="../PlacementOrientation/" class="md-nav__link">
         
   
   
@@ -4656,7 +4789,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../GameSystems/PlayerIdentityAcrossRejoin/" class="md-nav__link">
+      <a href="../PlayerIdentityAcrossRejoin/" class="md-nav__link">
         
   
   
@@ -4684,7 +4817,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../GameSystems/PowerProducerLogicReadability/" class="md-nav__link">
+      <a href="../PowerProducerLogicReadability/" class="md-nav__link">
         
   
   
@@ -4712,7 +4845,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../GameSystems/PowerProducerOnOffState/" class="md-nav__link">
+      <a href="../PowerProducerOnOffState/" class="md-nav__link">
         
   
   
@@ -4740,7 +4873,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../GameSystems/PowerSegmentingDevices/" class="md-nav__link">
+      <a href="../PowerSegmentingDevices/" class="md-nav__link">
         
   
   
@@ -4768,7 +4901,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../GameSystems/PowerTickThreading/" class="md-nav__link">
+      <a href="../PowerTickThreading/" class="md-nav__link">
         
   
   
@@ -4796,7 +4929,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../GameSystems/PrefabSourceAttribution/" class="md-nav__link">
+      <a href="../PrefabSourceAttribution/" class="md-nav__link">
         
   
   
@@ -4824,7 +4957,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../GameSystems/RecipeDataLoading/" class="md-nav__link">
+      <a href="../RecipeDataLoading/" class="md-nav__link">
         
   
   
@@ -4852,7 +4985,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../GameSystems/RenderingPipelineAndGlow/" class="md-nav__link">
+      <a href="../RenderingPipelineAndGlow/" class="md-nav__link">
         
   
   
@@ -4880,7 +5013,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../GameSystems/RepairMechanics/" class="md-nav__link">
+      <a href="../RepairMechanics/" class="md-nav__link">
         
   
   
@@ -4908,7 +5041,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../GameSystems/RespawnFlow/" class="md-nav__link">
+      <a href="../RespawnFlow/" class="md-nav__link">
         
   
   
@@ -4936,7 +5069,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../GameSystems/RocketConstructionEligibility/" class="md-nav__link">
+      <a href="../RocketConstructionEligibility/" class="md-nav__link">
         
   
   
@@ -4964,7 +5097,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../GameSystems/SaveDataRegistration/" class="md-nav__link">
+      <a href="../SaveDataRegistration/" class="md-nav__link">
         
   
   
@@ -4992,7 +5125,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../GameSystems/SaveZipExtension/" class="md-nav__link">
+      <a href="../SaveZipExtension/" class="md-nav__link">
         
   
   
@@ -5020,7 +5153,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../GameSystems/ScreenDropdownBase/" class="md-nav__link">
+      <a href="../ScreenDropdownBase/" class="md-nav__link">
         
   
   
@@ -5048,7 +5181,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../GameSystems/ScrollInputHandling/" class="md-nav__link">
+      <a href="../ScrollInputHandling/" class="md-nav__link">
         
   
   
@@ -5076,7 +5209,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../GameSystems/SimulationTickDriverHooks/" class="md-nav__link">
+      <a href="../SimulationTickDriverHooks/" class="md-nav__link">
         
   
   
@@ -5104,7 +5237,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../GameSystems/StationAutoSave/" class="md-nav__link">
+      <a href="../StationAutoSave/" class="md-nav__link">
         
   
   
@@ -5132,7 +5265,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../GameSystems/StationpediaAscendedInternals/" class="md-nav__link">
+      <a href="../StationpediaAscendedInternals/" class="md-nav__link">
         
   
   
@@ -5160,7 +5293,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../GameSystems/StationpediaMarkup/" class="md-nav__link">
+      <a href="../StationpediaMarkup/" class="md-nav__link">
         
   
   
@@ -5188,7 +5321,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../GameSystems/StationpediaPageRendering/" class="md-nav__link">
+      <a href="../StationpediaPageRendering/" class="md-nav__link">
         
   
   
@@ -5216,7 +5349,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../GameSystems/StationpediaSearch/" class="md-nav__link">
+      <a href="../StationpediaSearch/" class="md-nav__link">
         
   
   
@@ -5244,7 +5377,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../GameSystems/StructurePlacementValidation/" class="md-nav__link">
+      <a href="../StructurePlacementValidation/" class="md-nav__link">
         
   
   
@@ -5272,7 +5405,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../GameSystems/StructureRegistration/" class="md-nav__link">
+      <a href="../StructureRegistration/" class="md-nav__link">
         
   
   
@@ -5300,7 +5433,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../GameSystems/StunStateMachine/" class="md-nav__link">
+      <a href="../StunStateMachine/" class="md-nav__link">
         
   
   
@@ -5328,7 +5461,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../GameSystems/TerrainOctree/" class="md-nav__link">
+      <a href="../TerrainOctree/" class="md-nav__link">
         
   
   
@@ -5356,7 +5489,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../GameSystems/ThirdPartyModIdentities/" class="md-nav__link">
+      <a href="../ThirdPartyModIdentities/" class="md-nav__link">
         
   
   
@@ -5384,7 +5517,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../GameSystems/UnregisteredSaveDataBehavior/" class="md-nav__link">
+      <a href="../UnregisteredSaveDataBehavior/" class="md-nav__link">
         
   
   
@@ -5412,7 +5545,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../GameSystems/WorldStateAPIs/" class="md-nav__link">
+      <a href="../WorldStateAPIs/" class="md-nav__link">
         
   
   
@@ -7815,10 +7948,8 @@
                 
   
   
-    
   
   
-  
     
     
       
@@ -7861,11 +7992,11 @@
       
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_7" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_7" >
         
           
           <label class="md-nav__link" for="__nav_3_7" id="__nav_3_7_label" tabindex="0">
@@ -7886,7 +8017,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_7_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_7_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_3_7">
             <span class="md-nav__icon md-icon"></span>
             
@@ -7904,7 +8035,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../BCSIImplementationRoadmap/" class="md-nav__link">
+      <a href="../../Workflows/BCSIImplementationRoadmap/" class="md-nav__link">
         
   
   
@@ -7932,7 +8063,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../CameraEffectsRuntime/" class="md-nav__link">
+      <a href="../../Workflows/CameraEffectsRuntime/" class="md-nav__link">
         
   
   
@@ -7960,7 +8091,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../DrivingTheGameClientProgrammatically/" class="md-nav__link">
+      <a href="../../Workflows/DrivingTheGameClientProgrammatically/" class="md-nav__link">
         
   
   
@@ -7988,7 +8119,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../HealAllDamagedThings/" class="md-nav__link">
+      <a href="../../Workflows/HealAllDamagedThings/" class="md-nav__link">
         
   
   
@@ -8016,7 +8147,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../InspectorPlusUsage/" class="md-nav__link">
+      <a href="../../Workflows/InspectorPlusUsage/" class="md-nav__link">
         
   
   
@@ -8044,7 +8175,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../KnockPlayerUnconscious/" class="md-nav__link">
+      <a href="../../Workflows/KnockPlayerUnconscious/" class="md-nav__link">
         
   
   
@@ -8072,7 +8203,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../LaunchPadNativeDllTrap/" class="md-nav__link">
+      <a href="../../Workflows/LaunchPadNativeDllTrap/" class="md-nav__link">
         
   
   
@@ -8100,7 +8231,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../ModProjectSetup/" class="md-nav__link">
+      <a href="../../Workflows/ModProjectSetup/" class="md-nav__link">
         
   
   
@@ -8128,7 +8259,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../ResetTerrainLive/" class="md-nav__link">
+      <a href="../../Workflows/ResetTerrainLive/" class="md-nav__link">
         
   
   
@@ -8156,7 +8287,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../ResetTerrainOffline/" class="md-nav__link">
+      <a href="../../Workflows/ResetTerrainOffline/" class="md-nav__link">
         
   
   
@@ -8184,7 +8315,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../SPADumpKeys/" class="md-nav__link">
+      <a href="../../Workflows/SPADumpKeys/" class="md-nav__link">
         
   
   
@@ -8212,7 +8343,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../StationeersLaunchPadDedicatedServer/" class="md-nav__link">
+      <a href="../../Workflows/StationeersLaunchPadDedicatedServer/" class="md-nav__link">
         
   
   
@@ -8240,7 +8371,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../StationeersLaunchPadModLoading/" class="md-nav__link">
+      <a href="../../Workflows/StationeersLaunchPadModLoading/" class="md-nav__link">
         
   
   
@@ -8265,37 +8396,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    TTS Dead End
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../../Workflows/TTSDeadEnd/" class="md-nav__link">
         
   
   
@@ -8311,92 +8415,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#when-to-use" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        When to use
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#per-path-disqualifying-problems" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Per-path disqualifying problems
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#combined-risk-assessment" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Combined risk assessment
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#current-decision" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Current decision
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#verification-history" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Verification history
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#open-questions" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Open questions
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -8409,7 +8427,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../TimeSkipWorldManipulation/" class="md-nav__link">
+      <a href="../../Workflows/TimeSkipWorldManipulation/" class="md-nav__link">
         
   
   
@@ -8437,7 +8455,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../TriggerLanderCapsule/" class="md-nav__link">
+      <a href="../../Workflows/TriggerLanderCapsule/" class="md-nav__link">
         
   
   
@@ -8490,8 +8508,6 @@
   
   
   
-    
-  
   
     <label class="md-nav__title" for="__toc">
       <span class="md-nav__icon md-icon"></span>
@@ -8500,10 +8516,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#when-to-use" class="md-nav__link">
+  <a href="#the-cursor-is-a-tuple-not-a-field" class="md-nav__link">
     <span class="md-ellipsis">
       
-        When to use
+        The cursor is a tuple, not a field
       
     </span>
   </a>
@@ -8511,10 +8527,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#per-path-disqualifying-problems" class="md-nav__link">
+  <a href="#thinggetslotcollider-has-no-null-guard-and-its-dictionary-is-never-null" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Per-path disqualifying problems
+        Thing.GetSlot(Collider) has no null guard, and its dictionary is never null
       
     </span>
   </a>
@@ -8522,10 +8538,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#combined-risk-assessment" class="md-nav__link">
+  <a href="#why-a-throw-from-updateeachframe-starves-the-cursor-forever" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Combined risk assessment
+        Why a throw from UpdateEachFrame starves the cursor forever
       
     </span>
   </a>
@@ -8533,10 +8549,32 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#current-decision" class="md-nav__link">
+  <a href="#the-concrete-failure-plantanalysercartridge" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Current decision
+        The concrete failure: PlantAnalyserCartridge
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#unguarded-readers-of-the-cursor-state" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Unguarded readers of the cursor state
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#setting-a-cursor-target-from-a-mod-safely" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Setting a cursor target from a mod, safely
       
     </span>
   </a>
@@ -8626,10 +8664,10 @@
     
     
       <li class="md-path__item">
-        <a href="../BCSIImplementationRoadmap/" class="md-path__link">
+        <a href="../AtmosphericThingTickDispatch/" class="md-path__link">
           
   <span class="md-ellipsis">
-    Workflows
+    GameSystems
   </span>
 
         </a>
@@ -8648,35 +8686,39 @@
     <aside class="research-meta" markdown>
       
         <p class="research-meta-type">
-          <strong>Category:</strong> Workflows
+          <strong>Category:</strong> GameSystems
         </p>
       
       
         <p class="research-meta-verified">
           <strong>Verified</strong>
-           in game version <code>0.2.6228.27061</code>
-           on 2026-04-20.
+           in game version <code>0.2.6403.27689</code>
+           on 2026-07-29.
         </p>
       
       
       
         <details class="research-meta-sources">
-          <summary><strong>Sources</strong> (2)</summary>
+          <summary><strong>Sources</strong> (3)</summary>
           <ul>
             
-              <li><code>Plans/LLM/RESEARCH.md:618-646</code></li>
+              <li><code>.work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs</code></li>
             
-              <li><code>Plans/LLM/RESEARCH.md:648-656</code></li>
+              <li><code>.work/decomp/0.2.6403.27689/Assembly-CSharp.GameManager.decompiled.cs</code></li>
+            
+              <li><code>DedicatedServer/dev-plugins/ClientDriver/ClientDriver/Router.cs</code></li>
             
           </ul>
         </details>
       
       
         <details class="research-meta-related">
-          <summary><strong>Related pages</strong> (1)</summary>
+          <summary><strong>Related pages</strong> (2)</summary>
           <ul>
             
-              <li><code>../GameSystems/Chat.md</code></li>
+              <li><code>../Workflows/DrivingTheGameClientProgrammatically.md</code></li>
+            
+              <li><code>../Patterns/ThingEnumerationOffMainThread.md</code></li>
             
           </ul>
         </details>
@@ -8699,76 +8741,243 @@
       
       
       
-        <span class="md-tag">llm</span>
+        <span class="md-tag">harmony</span>
+      
+    
+      
+      
+      
+      
+        <span class="md-tag">ui</span>
+      
+    
+      
+      
+      
+      
+        <span class="md-tag">unity</span>
       
     
   </nav>
 
 
 
-<h1 id="tts-dead-end">TTS Dead End<a class="headerlink" href="#tts-dead-end" title="Permanent link">&para;</a></h1>
-<p>Preserved investigation of every path for adding text-to-speech to a Stationeers mod. Each viable path has a disqualifying problem; combined, they make TTS too fragile to ship as a dependable feature. Reach for this page when a future contributor is about to re-investigate "should we add TTS to the chat bot," so they do not repeat the same three-day walk.</p>
-<h2 id="when-to-use">When to use<a class="headerlink" href="#when-to-use" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
+  <h1>CursorManager and the cursor-target tuple</h1>
 
-<ul>
-<li>A contributor is weighing adding spoken output to chat messages, log events, or any narrative text surface.</li>
-<li>A new TTS engine or API surfaces and someone wonders whether it clears the blockers recorded here.</li>
-</ul>
-<p>Use this page as the starting lookup. If a new engine plausibly clears every blocker listed below, add a dated note to Verification History and Open Questions; do not silently overwrite the existing findings.</p>
-<h2 id="per-path-disqualifying-problems">Per-path disqualifying problems<a class="headerlink" href="#per-path-disqualifying-problems" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
+<p>What the client's cursor state actually consists of, why a mod that sets only part of it can put
+<code>GameManager.Update</code> into a permanent exception loop, and what a mod has to write to set or clear a
+cursor target safely.</p>
+<h2 id="the-cursor-is-a-tuple-not-a-field">The cursor is a tuple, not a field<a class="headerlink" href="#the-cursor-is-a-tuple-not-a-field" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-29 -->
 
-<p>Every viable path has a disqualifying problem. Combined, they make TTS too fragile to ship as a dependable feature.</p>
-<p><strong><code>System.Speech.Synthesis</code> does not work under Unity Mono.</strong> Unity runs on Mono, not the full .NET Framework CLR. <code>System.Speech</code> is implemented via COM interop (<code>CoCreateInstance</code> for <code>SpVoice</code>). Mono's COM interop does not support this. The failure mode is a <code>TypeLoadException</code> at assembly load, before any code runs. This is documented across multiple BepInEx and Unity projects (MissionPlanner, ARKStatsExtractor). Even referencing the type from a code path that never executes causes the mod to fail to load.</p>
-<p><strong>SAPI voices available through <code>GetInstalledVoices()</code> are limited.</strong> On a clean Windows 10 or 11 install, SAPI exposes only Microsoft David (en-US male) and Microsoft Zira (en-US female). Windows 11 ships higher-quality "natural voices" (Aria, Jenny, Guy) but these are locked to the Narrator app, registered under <code>Speech_OneCore</code> registry key, invisible to SAPI. Installing language packs adds OneCore voices, not SAPI voices. Multilingual support through SAPI is not practical.</p>
-<p><strong>SAPI does not handle language mismatch gracefully.</strong> Given French text and an English voice, SAPI applies English phoneme rules to French orthography and spells out unknown words letter-by-letter. The output is garbled nonsense, not accented speech. This forces either a system prompt that constrains the LLM to English, or a language detection step with fallback logic for every response.</p>
-<p><strong>Windows N/KN editions (EU/Korea) are uncertain.</strong> SAPI is not explicitly listed among removed Media Feature Pack components, but Cortana speech features are documented as not working on N editions. Testing would be required on every edition variant to be sure.</p>
-<p><strong>The native C++ DLL bridge workaround adds maintenance burden.</strong> The proven pattern (Weisshaar blog, UnityWindowsTTS, UnityAccessibilityLib) is to write a small C++ DLL that calls SAPI via native COM, expose C functions via P/Invoke. Works reliably. But it means:</p>
+<p><code>CursorManager : ManagerBase</code> holds the cursor target across four members, and <code>SetCursorTarget</code>
+writes them together on every frame:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="na">[ReadOnly]</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">Thing</span><span class="w"> </span><span class="n">FoundThing</span><span class="p">;</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="na">[ReadOnly]</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">Collider</span><span class="w"> </span><span class="n">CursorTargetCollider</span><span class="p">;</span>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="k">public</span><span class="w"> </span><span class="n">CursorTerrain</span><span class="w"> </span><span class="n">FoundTerrain</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">get</span><span class="p">;</span><span class="w"> </span><span class="k">set</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="n">RaycastHit</span><span class="w"> </span><span class="n">CursorHit</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">get</span><span class="p">;</span><span class="w"> </span><span class="k">set</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="n">Thing</span><span class="w"> </span><span class="n">CursorThing</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">Instance</span><span class="p">.</span><span class="n">FoundThing</span><span class="p">;</span>
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="n">CursorTerrain</span><span class="w"> </span><span class="n">CursorTerrain</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">Instance</span><span class="p">.</span><span class="n">FoundTerrain</span><span class="p">;</span>
+</span></code></pre></div>
+<p><code>[ReadOnly]</code> is a Stationeers inspector attribute, not a C# access modifier: both fields are freely
+writable from code.</p>
+<p><code>SetCursorTarget()</code> has exactly three outcomes, and each writes the whole tuple:</p>
 <ul>
-<li>A second build toolchain (MSVC + C++ project) alongside the .NET Framework mod</li>
-<li>Shipping an x64 native DLL per platform</li>
-<li>Debugging across the managed/native boundary when something breaks</li>
-<li>No Unity audio pipeline integration (audio goes directly to OS device)</li>
+<li><strong>Suppressed</strong> (console open, Stationpedia open and locked, <code>BlockCursorRaycast</code>, or the player
+  seated without mouse control): <code>CursorTargetCollider = null; FoundThing = null;
+  FoundTerrain = CursorTerrain.Invalid;</code>.</li>
+<li><strong>Raycast miss</strong>: the same three assignments.</li>
+<li><strong>Raycast hit</strong>: <code>CursorTargetCollider = _raycastHit.collider;</code> plus either the terrain branch
+  (<code>FoundThing = null</code>, <code>FoundTerrain</code> set) or the Thing branch (<code>FoundTerrain = Invalid</code>,
+  <code>FoundThing = _raycastTransform.GetComponentInParent&lt;Thing&gt;()</code>).</li>
 </ul>
-<p><strong>Neural TTS engines all have blockers.</strong></p>
-<ul>
-<li><strong>Piper</strong>: high-quality voices, 100+ languages, but uses espeak-ng for phonemization. espeak-ng is GPL 3.0, which is incompatible with the mod's Apache 2.0 license. Distributing espeak-ng would force the mod to GPL. The license is one-way compatible (Apache into GPL, not the reverse).</li>
-<li><strong>Kokoro via KokoroSharp</strong>: state-of-the-art voices, pure C# NuGet, but depends on ONNX Runtime. ONNX Runtime &gt;= 1.15.0 has documented crash issues with Unity Mono (<code>System.Buffer.InternalMemcpy</code> failures, issue #18441 on microsoft/onnxruntime). Adds ~320 MB model and a new native dependency stack that conflicts with how LLamaSharp is currently wired up. Also uses espeak-ng for phonemization (same GPL issue).</li>
-<li><strong>Sherpa-ONNX</strong>: comprehensive but heavyweight, requires Unity 2022.3+, same ONNX/Mono risk.</li>
-</ul>
-<p><strong>Cloud TTS APIs (OpenAI, Azure, ElevenLabs)</strong> would add:</p>
-<ul>
-<li>Network dependency (defeats "no downloads at runtime")</li>
-<li>API key management per player</li>
-<li>Per-token costs</li>
-<li>Privacy implications (sending chat text to a third-party)</li>
-<li>Latency (network round-trip per response)</li>
-</ul>
-<h2 id="combined-risk-assessment">Combined risk assessment<a class="headerlink" href="#combined-risk-assessment" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
+<p><code>CursorHit</code> is assigned from the private static <code>_raycastHit</code> before the branch, so it is written
+even on a miss. It is a <code>RaycastHit</code> struct; <code>.collider</code> is a read-only Unity property backed by an
+instance-id field and cannot be assigned. That matters less than it looks: <strong>nothing in the assembly
+reads <code>CursorHit.collider</code></strong>. Only <code>.point</code> is read, at seven sites. The field consumers actually
+dereference is <code>CursorManager.Instance.CursorTargetCollider</code>.</p>
+<p>There is one vanilla path that leaves a stale tuple: in third person, when a second raycast from the
+camera hits a different transform, <code>SetCursorTarget</code> returns early and last frame's values stand.</p>
+<p><code>CursorManager.ClearAll()</code> exists and is an empty stub. <code>LateUpdate()</code> clears only two per-frame
+position caches. There is no reset a mod can call; the tuple is purely rebuilt by <code>SetCursorTarget</code>.</p>
+<h2 id="thinggetslotcollider-has-no-null-guard-and-its-dictionary-is-never-null"><code>Thing.GetSlot(Collider)</code> has no null guard, and its dictionary is never null<a class="headerlink" href="#thinggetslotcollider-has-no-null-guard-and-its-dictionary-is-never-null" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-29 -->
 
-<p>Every viable path requires one of:</p>
-<ul>
-<li>A native C++ DLL we build and maintain ourselves</li>
-<li>A GPL license that changes the mod's licensing</li>
-<li>An ONNX Runtime stack with known Mono crashes</li>
-<li>A cloud service with API keys and network dependency</li>
-<li>Acceptance that non-English speakers get garbled output</li>
-</ul>
-<p>None of these match the mod's design goals: zero runtime downloads, Apache 2.0 licensing, universal compatibility, self-contained distribution.</p>
-<h2 id="current-decision">Current decision<a class="headerlink" href="#current-decision" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="k">private</span><span class="w"> </span><span class="k">readonly</span><span class="w"> </span><span class="n">Dictionary</span><span class="o">&lt;</span><span class="n">Collider</span><span class="p">,</span><span class="w"> </span><span class="n">Slot</span><span class="o">&gt;</span><span class="w"> </span><span class="n">_slotLookup</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">Dictionary</span><span class="o">&lt;</span><span class="n">Collider</span><span class="p">,</span><span class="w"> </span><span class="n">Slot</span><span class="o">&gt;</span><span class="p">();</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="k">public</span><span class="w"> </span><span class="n">Slot</span><span class="w"> </span><span class="nf">GetSlot</span><span class="p">(</span><span class="n">Collider</span><span class="w"> </span><span class="n">selectedCollider</span><span class="p">)</span>
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="p">{</span>
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">    </span><span class="n">_slotLookup</span><span class="p">.</span><span class="n">TryGetValue</span><span class="p">(</span><span class="n">selectedCollider</span><span class="p">,</span><span class="w"> </span><span class="k">out</span><span class="w"> </span><span class="kt">var</span><span class="w"> </span><span class="k">value</span><span class="p">);</span>
+</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="k">value</span><span class="p">;</span>
+</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="p">}</span>
+</span></code></pre></div>
+<p><code>_slotLookup</code> is <code>readonly</code> and eagerly constructed, so <code>GetSlot(null)</code> reaches
+<code>Dictionary.TryGetValue(null)</code> and throws <code>ArgumentNullException</code> on <strong>every</strong> Thing.</p>
+<p>Its sibling looks similar and behaves differently:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="k">public</span><span class="w"> </span><span class="n">Interactable</span><span class="w"> </span><span class="nf">GetInteractable</span><span class="p">(</span><span class="n">Collider</span><span class="w"> </span><span class="n">selectedCollider</span><span class="p">)</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="p">{</span>
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">_interactableColliderLookup</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="k">null</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="k">null</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">    </span><span class="n">_interactableColliderLookup</span><span class="p">.</span><span class="n">TryGetValue</span><span class="p">(</span><span class="n">selectedCollider</span><span class="p">,</span><span class="w"> </span><span class="k">out</span><span class="w"> </span><span class="kt">var</span><span class="w"> </span><span class="k">value</span><span class="p">);</span>
+</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="k">value</span><span class="p">;</span>
+</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>That guard is on the dictionary, not the key. It survives a null key only because
+<code>_interactableColliderLookup</code> is lazily allocated and stays null on a Thing with no interactables;
+on a Thing that has them, <code>GetInteractable(null)</code> throws too. So "the interactable variant is safe"
+is a coincidence of allocation, not a guarantee, and does not generalise.</p>
+<p><code>_slotLookup</code> is keyed on <code>Slot.Collider</code> (<code>public BoxCollider Collider;</code>) and only populated for
+slots that have one and are interactable:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="n">_slotLookup</span><span class="p">.</span><span class="n">Clear</span><span class="p">();</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="p">...</span>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">((</span><span class="kt">bool</span><span class="p">)</span><span class="n">slot</span><span class="p">.</span><span class="n">Collider</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">slot</span><span class="p">.</span><span class="n">IsInteractable</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="o">!</span><span class="n">_slotLookup</span><span class="p">.</span><span class="n">ContainsKey</span><span class="p">(</span><span class="n">slot</span><span class="p">.</span><span class="n">Collider</span><span class="p">))</span>
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">        </span><span class="n">_slotLookup</span><span class="p">.</span><span class="n">Add</span><span class="p">(</span><span class="n">slot</span><span class="p">.</span><span class="n">Collider</span><span class="p">,</span><span class="w"> </span><span class="n">slot</span><span class="p">);</span>
+</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">    </span><span class="p">}</span>
+</span></code></pre></div>
+<h2 id="why-a-throw-from-updateeachframe-starves-the-cursor-forever">Why a throw from <code>UpdateEachFrame</code> starves the cursor forever<a class="headerlink" href="#why-a-throw-from-updateeachframe-starves-the-cursor-forever" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-29 -->
 
-<p>Ship text-only. If a contributor later wants to add TTS as an optional client-side add-on, the path of least resistance is the native C++ DLL bridge to SAPI (radio filter: low-pass at 3kHz + reverb through Unity audio filters). That would be a separate mod, not part of the LLM mod itself.</p>
+<p><code>GameManager.Update</code> runs the per-frame Thing pass and the manager loop in one method with no
+try/catch between them:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="k">public</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">Update</span><span class="p">()</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="p">{</span>
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">IsInitialized</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">return</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">WorldManager</span><span class="p">.</span><span class="n">IsGamePaused</span><span class="p">)</span>
+</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="w">        </span><span class="p">...</span>
+</span><span id="__span-4-7"><a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="w">        </span><span class="n">OcclusionManager</span><span class="p">.</span><span class="n">UpdatingThings</span><span class="p">.</span><span class="n">ForEach</span><span class="p">(</span><span class="n">UpdateEachFrameAction</span><span class="p">);</span><span class="w">   </span><span class="c1">// ~line 1498</span>
+</span><span id="__span-4-8"><a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="w">        </span><span class="p">...</span>
+</span><span id="__span-4-9"><a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-4-10"><a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a><span class="w">    </span><span class="k">foreach</span><span class="w"> </span><span class="p">(</span><span class="n">ManagerBase</span><span class="w"> </span><span class="n">manager2</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">Managers</span><span class="p">)</span><span class="w">                            </span><span class="c1">// ~line 1540</span>
+</span><span id="__span-4-11"><a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-4-12"><a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a><span class="w">        </span><span class="n">manager2</span><span class="p">.</span><span class="n">ManagerUpdate</span><span class="p">();</span>
+</span><span id="__span-4-13"><a id="__codelineno-4-13" name="__codelineno-4-13" href="#__codelineno-4-13"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-4-14"><a id="__codelineno-4-14" name="__codelineno-4-14" href="#__codelineno-4-14"></a><span class="w">    </span><span class="n">BatchRenderer</span><span class="p">.</span><span class="n">RenderAll</span><span class="p">();</span>
+</span><span id="__span-4-15"><a id="__codelineno-4-15" name="__codelineno-4-15" href="#__codelineno-4-15"></a><span class="w">    </span><span class="n">WindTurbineGenerator</span><span class="p">.</span><span class="n">UpdateWind</span><span class="p">();</span>
+</span><span id="__span-4-16"><a id="__codelineno-4-16" name="__codelineno-4-16" href="#__codelineno-4-16"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>and the delegate itself is unguarded:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="k">private</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">readonly</span><span class="w"> </span><span class="n">Action</span><span class="o">&lt;</span><span class="n">Thing</span><span class="o">&gt;</span><span class="w"> </span><span class="n">UpdateEachFrameAction</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">delegate</span><span class="p">(</span><span class="n">Thing</span><span class="w"> </span><span class="n">thing</span><span class="p">)</span>
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="p">{</span>
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">    </span><span class="n">thing</span><span class="o">?.</span><span class="n">UpdateEachFrame</span><span class="p">();</span>
+</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="p">};</span>
+</span></code></pre></div>
+<p><code>CursorManager.ManagerUpdate</code> is the only caller of <code>SetCursorTarget()</code>, and it sits in that second
+loop. So any exception raised from a Thing's <code>UpdateEachFrame</code> aborts the frame <strong>before</strong> the
+cursor can be rebuilt. If the exception's cause is the cursor state itself, nothing ever repairs it
+and the loop is self-sustaining.</p>
+<p>Two consequences beyond the cursor, both from the same unguarded loop:</p>
+<ul>
+<li><code>NetworkManager.ManagerUpdate</code> is in it and is the client's only network receive pump, so a wedged
+  client processes zero packets. This is the same mechanism behind the multiplayer join stall
+  documented in <code>../Workflows/DrivingTheGameClientProgrammatically.md</code>.</li>
+<li><code>KeyManager.ManagerUpdate</code> is in it, so no input reaches the game either.</li>
+</ul>
+<h2 id="the-concrete-failure-plantanalysercartridge">The concrete failure: <code>PlantAnalyserCartridge</code><a class="headerlink" href="#the-concrete-failure-plantanalysercartridge" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-29 -->
+
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="k">private</span><span class="w"> </span><span class="n">Plant</span><span class="w"> </span><span class="nf">GetScannedPlant</span><span class="p">()</span>
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="p">{</span>
+</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">RootParent</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="o">!</span><span class="n">RootParent</span><span class="p">.</span><span class="n">HasAuthority</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="k">null</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">InPlayerHand</span><span class="p">())</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="k">null</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="w">    </span><span class="n">Collider</span><span class="w"> </span><span class="n">cursorTargetCollider</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">CursorManager</span><span class="p">.</span><span class="n">Instance</span><span class="p">.</span><span class="n">CursorTargetCollider</span><span class="p">;</span>
+</span><span id="__span-6-6"><a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a><span class="w">    </span><span class="n">Thing</span><span class="w"> </span><span class="n">cursorThing</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">CursorManager</span><span class="p">.</span><span class="n">CursorThing</span><span class="p">;</span>
+</span><span id="__span-6-7"><a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="p">(</span><span class="n">cursorThing</span><span class="w"> </span><span class="k">is</span><span class="w"> </span><span class="n">HydroponicTray</span><span class="w"> </span><span class="n">hydroponicTray</span><span class="p">))</span>
+</span><span id="__span-6-8"><a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-6-9"><a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">cursorThing</span><span class="w"> </span><span class="k">is</span><span class="w"> </span><span class="n">HydroponicsTrayDevice</span><span class="w"> </span><span class="n">hydroponicsTrayDevice</span><span class="p">)</span>
+</span><span id="__span-6-10"><a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a><span class="w">        </span><span class="p">{</span>
+</span><span id="__span-6-11"><a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a><span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="n">hydroponicsTrayDevice</span><span class="p">.</span><span class="n">Plant</span><span class="p">;</span>
+</span><span id="__span-6-12"><a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a><span class="w">        </span><span class="p">}</span>
+</span><span id="__span-6-13"><a id="__codelineno-6-13" name="__codelineno-6-13" href="#__codelineno-6-13"></a><span class="w">        </span><span class="n">Slot</span><span class="w"> </span><span class="n">slot</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">cursorThing</span><span class="o">?.</span><span class="n">GetSlot</span><span class="p">(</span><span class="n">cursorTargetCollider</span><span class="p">);</span>
+</span><span id="__span-6-14"><a id="__codelineno-6-14" name="__codelineno-6-14" href="#__codelineno-6-14"></a><span class="w">        </span><span class="p">...</span>
+</span></code></pre></div>
+<p>The <code>?.</code> guards <code>cursorThing</code>, not the collider. Reached from
+<code>Cartridge.UpdateEachFrame</code> -&gt; <code>OnScreenUpdate</code> -&gt; <code>GenerateInfoStrings</code>, gated on a held, powered,
+switched-on tablet.</p>
+<p>Observed cost of the loop, on a driven client with the tablet in hand: 100 exceptions per 6 seconds,
+indefinitely, with the frame loop dead. Only leaving the world recovered it.</p>
+<h2 id="unguarded-readers-of-the-cursor-state">Unguarded readers of the cursor state<a class="headerlink" href="#unguarded-readers-of-the-cursor-state" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-29 -->
+
+<p>Anything that sets a cursor target has to satisfy all of these, not just the cartridge:</p>
+<table>
+<thead>
+<tr>
+<th>Reader</th>
+<th>What breaks with a null or wrong collider</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>CursorManager.GetCurrentVoxelWorld</code></td>
+<td><code>((BoxCollider)Instance.CursorTargetCollider).center</code>, guarded only by <code>CursorTerrain.IsValid</code>. Null gives a <code>NullReferenceException</code>, a non-box collider an <code>InvalidCastException</code>.</td>
+</tr>
+<tr>
+<td><code>InventoryManager</code> attack path</td>
+<td><code>CanAttackWith(collider)</code> dereferences <code>selectedCollider.isTrigger</code>.</td>
+</tr>
+<tr>
+<td><code>PlantAnalyserCartridge.GetScannedPlant</code></td>
+<td><code>Thing.GetSlot(null)</code>, see above.</td>
+</tr>
+</tbody>
+</table>
+<p>Readers of <code>CursorHit.point</code> are all safe: <code>RaycastHit.point</code> is a value type, so a stale pin only
+produces a stale point.</p>
+<p>Keeping <code>FoundTerrain = CursorTerrain.Invalid</code> is what keeps the voxel cast unreachable, so it
+belongs in any forced-cursor write even though the terrain itself is not the subject.</p>
+<h2 id="setting-a-cursor-target-from-a-mod-safely">Setting a cursor target from a mod, safely<a class="headerlink" href="#setting-a-cursor-target-from-a-mod-safely" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-29 -->
+
+<p><code>SetCursorTarget</code> overwrites the tuple every frame from <code>ManagerUpdate</code>, so a pin has to be a
+Harmony postfix on it. The postfix must write all three:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="n">instance</span><span class="p">.</span><span class="n">FoundThing</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">thing</span><span class="p">;</span>
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="n">instance</span><span class="p">.</span><span class="n">CursorTargetCollider</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">collider</span><span class="p">;</span><span class="w">   </span><span class="c1">// never leave this at whatever the raycast produced</span>
+</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="n">instance</span><span class="p">.</span><span class="n">FoundTerrain</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">CursorTerrain</span><span class="p">.</span><span class="n">Invalid</span><span class="p">;</span>
+</span></code></pre></div>
+<p>Choosing the collider, most faithful first. Only the first makes <code>GetSlot(collider)</code> return an
+actual Slot rather than merely not throw:</p>
+<ol>
+<li>A <code>Slot.Collider</code> from <code>thing.Slots</code> where <code>slot.IsInteractable</code> (these are the <code>_slotLookup</code>
+   keys).</li>
+<li><code>thing._selfColliders</code>, then <code>_staticColliders</code>, then <code>_dynamicColliders</code>. Despite the underscore
+   names these are public <code>List&lt;Collider&gt;</code> fields, populated by <code>Thing.CacheColliders()</code>.</li>
+<li><code>thing.GetComponentInChildren&lt;Collider&gt;()</code>.</li>
+</ol>
+<p>There is no <code>Thing.GetCollider()</code>, no <code>Thing.Collider</code>, and no <code>Thing.InteractableColliders</code>.</p>
+<p>If none of those yields a collider, do not pin: the resulting state is the wedge.</p>
+<p><strong>Clearing has to write the fields, not just drop the pin.</strong> Removing a mod's stored target only
+stops the postfix re-applying it; it cannot help when the reason the cursor is stale is that
+<code>SetCursorTarget</code> is no longer reachable. Assign <code>FoundThing = null</code>,
+<code>CursorTargetCollider = null</code>, <code>FoundTerrain = CursorTerrain.Invalid</code> directly. For that write to
+land on an already-wedged client it must be driven from a pump that is not downstream of
+<code>GameManager.Update</code>; a plugin's own <code>MonoBehaviour.Update</code> or an <code>ImGuiManager.LateUpdate</code> postfix
+both qualify.</p>
+<p>Also unpin when the target is destroyed. A pinned Thing that gets deconstructed or consumed leaves a
+dead reference in a field the game will happily dereference.</p>
 <h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
-
 <ul>
-<li>2026-04-20: page created from the Research migration; verbatim content lifted from F0094 and F0095 (<code>Plans/LLM/RESEARCH.md:618-656</code>). Mirror decision recorded from F0095u.</li>
+<li>2026-07-29: page created from a decompile sweep of <code>CursorManager</code>, <code>Thing.GetSlot</code>,
+  <code>PlantAnalyserCartridge</code> and <code>GameManager.Update</code> on 0.2.6403.27689, prompted by ClientDriver's
+  <code>/cursor/force</code> wedging a live client. Corrects the earlier working theory recorded in
+  <code>.work/2026-07-27-spraypaintplus-settings-split/TEST-RESULTS.md</code> (run 2, T1a), which named
+  <code>CursorManager.CursorHit.collider</code> as the field being dereferenced; the actual field is
+  <code>CursorManager.Instance.CursorTargetCollider</code>, and <code>CursorHit.collider</code> has no readers anywhere in
+  the assembly. The fix built on this page's findings was exercised on a live client the same day:
+  a target pinned with its collider, with the player then aimed at empty sky so the vanilla raycast
+  missed, held for 10 seconds at roughly 57 fps with zero exceptions, network traffic still flowing,
+  and <code>clear</code> restoring <code>CursorThing</code> to null.</li>
 </ul>
 <h2 id="open-questions">Open questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>
-<p>None at creation. If a new TTS engine surfaces that plausibly clears every blocker, add it here as a candidate with a dated note rather than overwriting the above.</p>
+<ul>
+<li>The refusal path for a Thing with no reachable collider is implemented but has never fired: every
+  candidate tried in a live world, including a cartridge sitting inside a tablet, had a reachable
+  collider. Whether any Thing in a normal world lacks one is unknown.</li>
+<li>Whether <code>Physics.Raycast</code> against a real collider could be used to synthesise a fully faithful
+  <code>CursorHit</code> (including <code>.point</code> and <code>.normal</code>) for a pinned target was not explored, because no
+  consumer needs it today.</li>
+</ul>
 
 
 
@@ -8808,7 +9017,7 @@
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
           
-          <a href="../StationeersLaunchPadModLoading/" class="md-footer__link md-footer__link--prev" aria-label="Previous: StationeersLaunchPad mod loading pipeline">
+          <a href="../CreativeModeAndDifficulty/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Creative Mode and Difficulty">
             <div class="md-footer__button md-icon">
               
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
@@ -8818,20 +9027,20 @@
                 Previous
               </span>
               <div class="md-ellipsis">
-                StationeersLaunchPad mod loading pipeline
+                Creative Mode and Difficulty
               </div>
             </div>
           </a>
         
         
           
-          <a href="../TimeSkipWorldManipulation/" class="md-footer__link md-footer__link--next" aria-label="Next: Time-Skip World Manipulation">
+          <a href="../DLCGating/" class="md-footer__link md-footer__link--next" aria-label="Next: DLC gating">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                Time-Skip World Manipulation
+                DLC gating
               </div>
             </div>
             <div class="md-footer__button md-icon">
