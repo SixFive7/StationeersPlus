@@ -40,7 +40,7 @@ namespace NetworkPuristPlus
             }
             catch (Exception e)
             {
-                NetworkPuristPlusPlugin.PlayerError($"could not scan placed cables: {e}");
+                NetworkPuristPlusPlugin.PlayerError("could not scan placed cables", e);
                 return;
             }
             if (targets.Count == 0) return;
@@ -49,11 +49,14 @@ namespace NetworkPuristPlus
             foreach (Cable c in targets)
             {
                 try { if (CableRoll.Normalise(c)) changed++; }
-                catch (Exception e) { failed++; NetworkPuristPlusPlugin.PlayerWarn($"could not align cable (ref {(c != null ? c.ReferenceId : 0)}): {e}"); }
+                // File log, not the player's console: this is one line per cable in the world, and a
+                // systemic failure would put thousands of them on screen. The summary below carries the
+                // count, which is all a player can act on.
+                catch (Exception e) { failed++; NetworkPuristPlusPlugin.Log?.LogWarning($"could not align cable (ref {(c != null ? c.ReferenceId : 0)}): {e}"); }
             }
 
             if (changed > 0 || failed > 0)
-                NetworkPuristPlusPlugin.PlayerLog($"aligned {changed} straight cable(s) to a consistent orientation{(failed > 0 ? $" ({failed} failed -- see warnings above)" : "")}.");
+                NetworkPuristPlusPlugin.PlayerLog($"aligned {changed} straight cable(s) to a consistent orientation{(failed > 0 ? $" ({failed} failed -- see the log)" : "")}.");
         }
     }
 }

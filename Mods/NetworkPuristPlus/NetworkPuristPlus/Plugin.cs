@@ -48,10 +48,20 @@ namespace NetworkPuristPlus
         internal static NetworkPuristPlusPlugin Instance;
 
         // --- In-game `~` console (Assets.Scripts.ConsoleWindow, aliased above) -----------------------
-        // The in-game console does NOT show plain UnityEngine.Debug.Log output -- only ConsoleWindow.Print*
-        // calls. We call ConsoleWindow.PrintAction / PrintError directly via the alias; the try/catch is
-        // because some of these fire from OnPrefabsLoaded, before the console UI is fully up (ConsoleWindow
-        // has an internal PrematureLog queue, so it should be fine, but the catch costs nothing).
+        // What reaches the in-game console, and what does not:
+        //   - ConsoleWindow.Print* calls: always.
+        //   - UnityEngine.Debug.LogError / LogException: ALSO printed. ConsoleWindow subscribes to
+        //     Application.logMessageReceivedThreaded and re-prints LogType.Error and LogType.Exception
+        //     itself, lowercased, in red, with a stack trace. So pairing Debug.LogError with a
+        //     ConsoleWindow call for the same text shows it to the player TWICE.
+        //   - UnityEngine.Debug.Log / LogWarning: never printed (the handler filters them out).
+        //   - BepInEx Logger.Log*: never printed.
+        // There is no PrintWarning; yellow is PrintAction. `aged` is inverted from its name: aged: true
+        // (the Print default) means the line is NOT shown on the closed-console overlay and only appears
+        // once the console is opened, so anything meant to be seen without opening the console passes
+        // aged: false. The try/catch is because some of these fire from OnPrefabsLoaded, before the
+        // console UI is fully up (ConsoleWindow has an internal PrematureLog queue, so it should be
+        // fine, but the catch costs nothing).
 
         // A "player-visible" log line. Three channels:
         //   - BepInEx log (BepInEx\LogOutput.log; StationeersLaunchPad also mirrors it into Player.log)
@@ -64,18 +74,35 @@ namespace NetworkPuristPlus
             try { ConsoleWindow.PrintAction($"[{PluginName}] {message}", aged: false); } catch { }
         }
 
+        // Yellow, not red: a warning is not an error. The game has no PrintWarning, so PrintAction is
+        // the yellow channel. Debug.LogWarning is LogType.Warning, which the console handler ignores,
+        // so it costs no duplicate console line.
         internal static void PlayerWarn(string message)
         {
             Log?.LogWarning(message);
             UnityEngine.Debug.LogWarning($"[{PluginName}] {message}");
-            try { ConsoleWindow.PrintError($"[{PluginName}] {message}", suppressStacktrace: true); } catch { }
+            try { ConsoleWindow.PrintAction($"[{PluginName}] {message}", aged: false); } catch { }
         }
 
+        // Deliberately no UnityEngine.Debug.LogError here. It would be re-printed by the console's own
+        // logMessageReceivedThreaded handler, so the player would see the same line twice: once as this
+        // controlled PrintError, and again lowercased with an unavoidable stack trace. Nothing is lost
+        // by dropping it -- Log.LogError already reaches LogOutput.log and is mirrored into Player.log
+        // by StationeersLaunchPad, which is the same sink Debug.LogError would have written to.
         internal static void PlayerError(string message)
         {
             Log?.LogError(message);
-            UnityEngine.Debug.LogError($"[{PluginName}] {message}");
             try { ConsoleWindow.PrintError($"[{PluginName}] {message}", suppressStacktrace: true); } catch { }
+        }
+
+        // Exception overload. The full exception (type, message, stack trace, inner exceptions) goes to
+        // the file log; the player's console gets only the type and message. Interpolating a bare {e}
+        // into a console line dumps a multi-line managed stack trace, complete with compiler-generated
+        // frame names like <Postfix>b__0, in front of someone who cannot act on any of it.
+        internal static void PlayerError(string message, Exception e)
+        {
+            Log?.LogError($"{message}: {e}");
+            try { ConsoleWindow.PrintError($"[{PluginName}] {message}: {e.GetType().Name}: {e.Message}", suppressStacktrace: true); } catch { }
         }
 
         private void Awake()

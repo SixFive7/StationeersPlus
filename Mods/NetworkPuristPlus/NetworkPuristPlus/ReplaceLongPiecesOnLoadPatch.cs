@@ -59,7 +59,7 @@ namespace NetworkPuristPlus
             }
             catch (Exception e)
             {
-                NetworkPuristPlusPlugin.PlayerError($"could not scan placed structures: {e}");
+                NetworkPuristPlusPlugin.PlayerError("could not scan placed structures", e);
                 return;
             }
             if (targets.Count == 0)
@@ -90,7 +90,11 @@ namespace NetworkPuristPlus
                     ulong owner = longPiece.OwnerClientId;
                     int colorIndex = PaintedColorIndex(longPiece);
                     Vector3 p = longPiece.ThingTransformPosition;
-                    NetworkPuristPlusPlugin.PlayerLog($"  rebuilding {longPiece.PrefabName} (ref {longPiece.ReferenceId}) at ({p.x:0.#}, {p.y:0.#}, {p.z:0.#}) -> {cells.Length} x {basePrefab.PrefabName}{(colorIndex >= 0 ? $" (color {colorIndex})" : "")}");
+                    // File log only. This is one line per long piece; a world with a few hundred of them
+                    // would blanket the screen, because PlayerLog passes aged: false and so forces every
+                    // line onto the closed-console overlay. The player-facing account of this sweep is
+                    // the count above and the summary below.
+                    NetworkPuristPlusPlugin.Log?.LogInfo($"  rebuilding {longPiece.PrefabName} (ref {longPiece.ReferenceId}) at ({p.x:0.#}, {p.y:0.#}, {p.z:0.#}) -> {cells.Length} x {basePrefab.PrefabName}{(colorIndex >= 0 ? $" (color {colorIndex})" : "")}");
 
                     OnServer.Destroy(longPiece);
                     foreach (Grid3 cell in cells)
@@ -103,7 +107,7 @@ namespace NetworkPuristPlus
                 catch (Exception e)
                 {
                     failed++;
-                    NetworkPuristPlusPlugin.PlayerError($"failed to rebuild {SafeName(longPiece)} (ref {(longPiece != null ? longPiece.ReferenceId : 0)}): {e}");
+                    NetworkPuristPlusPlugin.PlayerError($"failed to rebuild {SafeName(longPiece)} (ref {(longPiece != null ? longPiece.ReferenceId : 0)})", e);
                 }
             }
 

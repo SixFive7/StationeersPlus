@@ -73,6 +73,13 @@ namespace NetworkPuristPlus
 
     internal static class CableRollOnConstruct
     {
+        /// <summary>
+        /// One-shot guard for the failure path, mirroring the <c>loggedActive</c> one-shot on the
+        /// success path. This runs on every cable placement (including every cell of a ZoopMod drag),
+        /// so an unguarded console line here would print once per placed cable.
+        /// </summary>
+        private static bool _loggedError;
+
         internal static void Apply(ref Quaternion targetRotation, ref bool loggedActive, string via)
         {
             try
@@ -86,7 +93,12 @@ namespace NetworkPuristPlus
             }
             catch (Exception e)
             {
-                NetworkPuristPlusPlugin.PlayerWarn($"could not canonicalise a built cable's roll: {e}");
+                if (!_loggedError)
+                {
+                    _loggedError = true;
+                    NetworkPuristPlusPlugin.PlayerWarn($"could not canonicalise a built cable's roll: {e.GetType().Name}: {e.Message}. Cable alignment is cosmetic; building is unaffected. Further occurrences go to the log only.");
+                }
+                NetworkPuristPlusPlugin.Log?.LogWarning($"could not canonicalise a built cable's roll: {e}");
             }
         }
     }
