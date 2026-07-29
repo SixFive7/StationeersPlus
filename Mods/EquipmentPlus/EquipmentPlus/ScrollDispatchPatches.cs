@@ -268,7 +268,10 @@ namespace EquipmentPlus
             {
                 if (ScrollDispatchState.ScrollTrace)
                     EquipmentPlusPlugin.Log.LogInfo("[EquipmentPlus.scroll] tablet auto-equip: no room to stow occupant (inventory full, off-hand occupied)");
-                ConsoleWindow.PrintError("[EquipmentPlus] No room to swap. Manually stow or drop the item in your active hand to equip the tablet.");
+                // Informational, so PlayerNotice.Show (yellow, no stack trace) rather than PrintError,
+                // and throttled: scrolling to hunt for a tablet with a full inventory hits this on
+                // every notch of the wheel.
+                PlayerNotice.Show("No room to swap. Manually stow or drop the item in your active hand to equip the tablet.");
             }
         }
 

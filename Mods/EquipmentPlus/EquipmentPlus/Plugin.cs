@@ -13,6 +13,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
+using ConsoleWindow = Assets.Scripts.ConsoleWindow;
 
 namespace EquipmentPlus
 {
@@ -283,13 +284,30 @@ namespace EquipmentPlus
             }
         }
 
+        /// <summary>
+        /// Number of times the conflict banner is repeated in the player's console. Bounded on
+        /// purpose: this used to loop forever, which meant a red line every five seconds for the
+        /// whole session with no way to silence it. Long enough to survive the load screen and be
+        /// noticed, short enough that the console stays usable afterwards. The permanent record is
+        /// the LogFatal line in the BepInEx log.
+        /// </summary>
+        private const int ConflictBannerRepeats = 6;
+
         private static IEnumerator RepeatWarning(string conflicts)
         {
-            var msg = $"[EquipmentPlus] NOT LOADED! Conflicting mods: {conflicts}. " +
-                      "Disable them and restart.";
-            while (true)
+            var msg = $"NOT LOADED! Conflicting mods: {conflicts}. Disable them and restart.";
+            for (int i = 0; i < ConflictBannerRepeats; i++)
             {
-                Debug.LogError(msg);
+                // PrintError, not Debug.LogError. The console re-prints LogType.Error itself (it
+                // subscribes to Application.logMessageReceivedThreaded), so Debug.LogError showed
+                // the player a lowercased copy plus a full stack trace on every repeat. PrintError
+                // with suppressStacktrace gives one controlled red line, already aged: false so it
+                // shows without opening the console.
+                bool last = i == ConflictBannerRepeats - 1;
+                var line = last
+                    ? $"[EquipmentPlus] {msg} (This warning will stop repeating; see the BepInEx log.)"
+                    : $"[EquipmentPlus] {msg}";
+                try { ConsoleWindow.PrintError(line, suppressStacktrace: true); } catch { }
                 yield return new WaitForSeconds(5f);
             }
         }

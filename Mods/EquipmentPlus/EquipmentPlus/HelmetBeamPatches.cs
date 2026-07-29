@@ -116,11 +116,15 @@ namespace EquipmentPlus
                 // suppresses the light without telling the player. Surface
                 // the failure via the in-game console so the player knows
                 // why the scroll did nothing.
+                //
+                // Informational, so PlayerNotice.Show (yellow, no stack trace)
+                // rather than PrintError. It is also throttled: one wheel flick
+                // is 10-20 notches, and every one of them lands here.
                 if (!HelmetHasPower(helmet))
                 {
                     if (ScrollDispatchState.ScrollTrace)
                         EquipmentPlusPlugin.Log.LogInfo("[EquipmentPlus.scroll] headlamp: OFF + scroll -> blocked, no power");
-                    ConsoleWindow.PrintError("[EquipmentPlus] Helmet has no power.");
+                    PlayerNotice.Show("Helmet has no power.");
                     return;
                 }
                 if (ScrollDispatchState.ScrollTrace)
