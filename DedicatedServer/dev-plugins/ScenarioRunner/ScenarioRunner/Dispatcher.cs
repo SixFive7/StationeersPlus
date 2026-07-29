@@ -91,11 +91,48 @@ namespace ScenarioRunner
             }
         }
 
+        /// <summary>
+        ///     The configured scenario string, split on commas and semicolons so a
+        ///     session can arm more than one at a time.
+        ///
+        ///     Most scenarios are one-shot probes and there is no reason to run two,
+        ///     but the request-file pollers (<c>config-set</c>, <c>give-item</c>) are
+        ///     passive and sit armed for a whole session doing nothing until an agent
+        ///     drops a file in. A test that needs to both hand a player an item and
+        ///     flip a live setting mid-session needs both armed at once, and
+        ///     restarting the server to swap between them ends the very session the
+        ///     test is about.
+        /// </summary>
+        private static readonly char[] ScenarioSeparators = { ',', ';' };
+
         private static void Tick()
         {
             if (string.IsNullOrEmpty(_scenario)) return;
 
-            switch (_scenario)
+            if (_scenario.IndexOfAny(ScenarioSeparators) < 0)
+            {
+                TickOne(_scenario.Trim());
+                return;
+            }
+
+            foreach (var name in _scenario.Split(ScenarioSeparators))
+            {
+                string one = name.Trim();
+                if (one.Length == 0) continue;
+                try
+                {
+                    TickOne(one);
+                }
+                catch (Exception e)
+                {
+                    _log?.LogError($"[ScenarioRunner] scenario '{one}' tick threw: {e}");
+                }
+            }
+        }
+
+        private static void TickOne(string scenario)
+        {
+            switch (scenario)
             {
                 case "inventory":
                     // Already covered by LogInventory on first tick; nothing to do per-tick.
@@ -123,6 +160,14 @@ namespace ScenarioRunner
 
                 case "device-port-dump":
                     Scenario_DevicePortDump();
+                    return;
+
+                case "config-set":
+                    Scenario_ConfigSet();
+                    return;
+
+                case "give-item":
+                    Scenario_GiveItem();
                     return;
 
                 case "spp-color-swatch-probe":
@@ -411,7 +456,7 @@ namespace ScenarioRunner
 
                 default:
                     if (_ticksSeen == _delayTicks)
-                        _log?.LogWarning($"[ScenarioRunner] unknown scenario '{_scenario}'; doing nothing.");
+                        _log?.LogWarning($"[ScenarioRunner] unknown scenario '{scenario}'; doing nothing.");
                     return;
             }
         }

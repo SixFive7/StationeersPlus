@@ -18,7 +18,7 @@ namespace ScenarioRunner
     // without the settings panel, and without a second player.
     //
     // Seven phases:
-    //   P0  Config binding      35 entries, eleven groups, the two enum entries.
+    //   P0  Config binding      33 entries, nine groups, the two enum entries.
     //   P1  Boolean merge       all four client/server combinations, both the locally
     //                           evaluated accessor and the server-side per-player merge.
     //   P2  Cycling ladder      all nine mode combinations, plus the ladder ordering the
@@ -99,7 +99,6 @@ namespace ScenarioRunner
                 var pEffCycling = merge.GetProperty("EffectiveColorCycling", F);
                 var pEffPicking = merge.GetProperty("EffectiveColorPicking", F);
                 var pEffGlow = merge.GetProperty("EffectiveGlowPaint", F);
-                var pEffExtra = merge.GetProperty("EffectiveExtraPaintable", F);
                 var mClearSynced = merge.GetMethod("ClearSynced", F);
                 var mServerAllows = merge.GetMethod("ServerAllows", F);
                 var mHas = prefs.GetMethod("Has", F);
@@ -114,14 +113,14 @@ namespace ScenarioRunner
                 var fLog = plugin.GetField("Log", F);
 
                 if (pIsAuthority == null || pEffCycling == null || pEffPicking == null || pEffGlow == null
-                    || pEffExtra == null || mClearSynced == null || mServerAllows == null || mHas == null
+                    || mClearSynced == null || mServerAllows == null || mHas == null
                     || mSameFamily == null || mFamilyOf == null || mFamilyName == null || mBuildGate == null
                     || mLogEffective == null || mNextInCycle == null || fPlayerModifiers == null || fLog == null)
                 {
                     _log?.LogError($"[ScenarioRunner] {SPP_MERGE_TAG} | member resolution failed " +
                                    $"(isAuthority={pIsAuthority != null} effCycling={pEffCycling != null} " +
                                    $"effPicking={pEffPicking != null} effGlow={pEffGlow != null} " +
-                                   $"effExtra={pEffExtra != null} clearSynced={mClearSynced != null} " +
+                                   $"clearSynced={mClearSynced != null} " +
                                    $"serverAllows={mServerAllows != null} has={mHas != null} " +
                                    $"sameFamily={mSameFamily != null} familyOf={mFamilyOf != null} " +
                                    $"familyName={mFamilyName != null} build={mBuildGate != null} " +
@@ -168,11 +167,11 @@ namespace ScenarioRunner
                 try
                 {
                     SppMerge_P0_ConfigBinding(entries, modeT, plugin);
-                    SppMerge_P1_BooleanTruthTable(entries, merge, mClearSynced, pEffGlow, pEffExtra,
+                    SppMerge_P1_BooleanTruthTable(entries, merge, mClearSynced, pEffGlow,
                         mServerAllows, mHas, prefs, playerModifiers);
                     SppMerge_P2_CyclingLadder(entries, modeT, mClearSynced, pEffCycling, pEffPicking);
                     SppMerge_P3_Authority(entries, merge, modeT, mClearSynced, pIsAuthority,
-                        pEffGlow, pEffCycling, pEffPicking, pEffExtra);
+                        pEffGlow, pEffCycling, pEffPicking);
                     SppMerge_P4_PaintFamilies(mBuildGate, mFamilyOf, mSameFamily, mFamilyName);
                     SppMerge_P5_WithinFamilyNeverCrosses(mNextInCycle, modeT, mFamilyOf, mSameFamily);
                     SppMerge_P6_EffectiveLogLine(entries, modeT, mClearSynced, mLogEffective, fLog);
@@ -224,7 +223,7 @@ namespace ScenarioRunner
                 nulls.Length == 0 ? "every declared ConfigEntry field is bound"
                                   : "unbound: " + string.Join(", ", nulls));
 
-            Chk("P0 entry-count", entries.Count == 35, $"declared ConfigEntry fields={entries.Count} (want 35)");
+            Chk("P0 entry-count", entries.Count == 33, $"declared ConfigEntry fields={entries.Count} (want 33)");
 
             // Reading Value on each is the second half of "bound without error": a bound
             // entry whose stored text failed to parse would throw here.
@@ -241,20 +240,20 @@ namespace ScenarioRunner
             Chk("P0 all-readable", readable == entries.Count(e => e.Value != null),
                 $"entries whose value reads back cleanly={readable}");
 
-            // Eleven groups with exactly these names and sizes.
+            // Nine groups with exactly these names and sizes. The two Paintability groups
+            // went away with Extra Paintable Structures: the base game made the steel and
+            // iron frame variants paintable itself, so the mod no longer adds any.
             var expected = new Dictionary<string, int>(StringComparer.Ordinal)
             {
                 { "Client - Color Cycling", 2 },
                 { "Client - Consumables", 1 },
                 { "Client - Glow Paint", 1 },
                 { "Client - Network Painting", 11 },
-                { "Client - Paintability", 1 },
                 { "Client - Preferences", 2 },
                 { "Server - Color Cycling", 2 },
                 { "Server - Consumables", 2 },
                 { "Server - Glow Paint", 1 },
                 { "Server - Network Painting", 11 },
-                { "Server - Paintability", 1 },
             };
 
             var actual = new Dictionary<string, int>(StringComparer.Ordinal);
@@ -266,7 +265,7 @@ namespace ScenarioRunner
                 actual[section] = n + 1;
             }
 
-            Chk("P0 group-count", actual.Count == 11, $"distinct sections={actual.Count} (want 11)");
+            Chk("P0 group-count", actual.Count == 9, $"distinct sections={actual.Count} (want 9)");
 
             foreach (var want in expected.OrderBy(k => k.Key, StringComparer.Ordinal))
             {
@@ -322,8 +321,8 @@ namespace ScenarioRunner
                 else
                 {
                     var fileSections = cfg.Keys.Select(d => d.Section).Distinct().OrderBy(s => s, StringComparer.Ordinal).ToArray();
-                    Chk("P0 configfile-count", cfg.Count == 35, $"ConfigFile entries={cfg.Count} (want 35)");
-                    Chk("P0 configfile-groups", fileSections.Length == 11,
+                    Chk("P0 configfile-count", cfg.Count == 33, $"ConfigFile entries={cfg.Count} (want 33)");
+                    Chk("P0 configfile-groups", fileSections.Length == 9,
                         $"ConfigFile sections={fileSections.Length}: {string.Join(" | ", fileSections)}");
                 }
             }
@@ -337,7 +336,7 @@ namespace ScenarioRunner
 
         private static void SppMerge_P1_BooleanTruthTable(
             Dictionary<string, ConfigEntryBase> entries, Type merge, MethodInfo clearSynced,
-            PropertyInfo effGlow, PropertyInfo effExtra, MethodInfo serverAllows, MethodInfo has,
+            PropertyInfo effGlow, MethodInfo serverAllows, MethodInfo has,
             Type prefs, Dictionary<long, ushort> playerModifiers)
         {
             _log?.LogInfo($"[ScenarioRunner] {SPP_MERGE_TAG} | P1 boolean merge truth table");
@@ -353,18 +352,6 @@ namespace ScenarioRunner
                     bool got = (bool)effGlow.GetValue(null);
                     bool want = c && s;
                     Chk($"P1 glow[client={OnOff(c)},server={OnOff(s)}]", got == want,
-                        $"effective={OnOff(got)} (want {OnOff(want)})");
-                }
-
-            // A second pair, to rule out a rule that happens to hold for one accessor.
-            foreach (bool c in new[] { false, true })
-                foreach (bool s in new[] { false, true })
-                {
-                    Set(entries, "ClientExtraPaintableStructures", c);
-                    Set(entries, "ServerExtraPaintableStructures", s);
-                    bool got = (bool)effExtra.GetValue(null);
-                    bool want = c && s;
-                    Chk($"P1 extraPaintable[client={OnOff(c)},server={OnOff(s)}]", got == want,
                         $"effective={OnOff(got)} (want {OnOff(want)})");
                 }
 
@@ -463,7 +450,7 @@ namespace ScenarioRunner
         private static void SppMerge_P3_Authority(
             Dictionary<string, ConfigEntryBase> entries, Type merge, Type modeT, MethodInfo clearSynced,
             PropertyInfo isAuthority, PropertyInfo effGlow, PropertyInfo effCycling,
-            PropertyInfo effPicking, PropertyInfo effExtra)
+            PropertyInfo effPicking)
         {
             _log?.LogInfo($"[ScenarioRunner] {SPP_MERGE_TAG} | P3 authority resolution");
 
@@ -557,8 +544,7 @@ namespace ScenarioRunner
             // every role, with no synced value present.
             clearSynced.Invoke(null, null);
             foreach (var name in new[] { "ClientColorPicking", "ServerColorPicking", "ClientGlowPaint",
-                                         "ServerGlowPaint", "ClientExtraPaintableStructures",
-                                         "ServerExtraPaintableStructures" })
+                                         "ServerGlowPaint" })
                 Set(entries, name, true);
             Set(entries, "ClientColorCycling", Enum.Parse(modeT, "AllColors"));
             Set(entries, "ServerColorCycling", Enum.Parse(modeT, "AllColors"));
@@ -568,11 +554,10 @@ namespace ScenarioRunner
                 NetworkManager.NetworkRole = shape.Role;
                 bool allOn = (bool)effPicking.GetValue(null)
                           && (bool)effGlow.GetValue(null)
-                          && (bool)effExtra.GetValue(null)
                           && effCycling.GetValue(null).ToString() == "AllColors";
                 Chk($"P3 defaults-nothing-disabled[{shape.Role}]", allOn,
                     $"{shape.Name}: picking={effPicking.GetValue(null)} glow={effGlow.GetValue(null)} " +
-                    $"extraPaintable={effExtra.GetValue(null)} cycling={effCycling.GetValue(null)} (want all permissive)");
+                    $"cycling={effCycling.GetValue(null)} (want all permissive)");
             }
 
             NetworkManager.NetworkRole = NetworkRole.Server;
@@ -796,8 +781,7 @@ namespace ScenarioRunner
             clearSynced.Invoke(null, null);
             foreach (var name in new[] { "ClientColorPicking", "ServerColorPicking",
                                          "ClientUnlimitedSprayPaintUses", "ServerUnlimitedSprayPaintUses",
-                                         "ServerGlowPaint", "ClientExtraPaintableStructures",
-                                         "ServerExtraPaintableStructures", "ClientNetworkPainting",
+                                         "ServerGlowPaint", "ClientNetworkPainting",
                                          "ServerNetworkPainting", "ClientNetworkPaintPipes" })
                 Set(entries, name, true);
             Set(entries, "ClientGlowPaint", false);          // client off, server on
@@ -836,7 +820,6 @@ namespace ScenarioRunner
                 "Network Paint Pipes=on/off -> off",
                 "Color Picking=on/on -> on",
                 "Unlimited Spray Paint Uses=on/on -> on",
-                "Extra Paintable Structures=on/on -> on",
                 "Network Painting=on/on -> on",
             };
             foreach (var w in wanted)
@@ -847,7 +830,7 @@ namespace ScenarioRunner
             var functions = new[]
             {
                 "Color Cycling", "Color Picking", "Unlimited Spray Paint Uses", "Glow Paint",
-                "Extra Paintable Structures", "Network Painting", "Network Paint Pipes",
+                "Network Painting", "Network Paint Pipes",
                 "Network Paint Cables", "Network Paint Chutes", "Network Paint Walls",
                 "Network Paint Rails", "Network Paint Large Structures", "Network Paint Elevators",
                 "Network Paint Ladders", "Network Paint Stairs", "Network Paint Stairwells",
