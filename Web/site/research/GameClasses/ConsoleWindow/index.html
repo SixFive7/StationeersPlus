@@ -1520,6 +1520,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#lifetime-the-buffer-is-never-reset-on-world-load" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Lifetime: the buffer is never reset on world load
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#process-local-not-networked" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -8621,6 +8632,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#lifetime-the-buffer-is-never-reset-on-world-load" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Lifetime: the buffer is never reset on world load
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#process-local-not-networked" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -8765,7 +8787,7 @@
         <p class="research-meta-verified">
           <strong>Verified</strong>
            in game version <code>0.2.6403.27689</code>
-           on 2026-07-27.
+           on 2026-07-29.
         </p>
       
       
@@ -8776,7 +8798,7 @@
             
               <li><code>{'$(StationeersPath)\\rocketstation_Data\\Managed\\Assembly-CSharp.dll :': 'Assets.Scripts.ConsoleWindow'}</code></li>
             
-              <li><code>.work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs:221811-223400 (ConsoleWindow), :221505-221600 (ConsoleLine), :203899 / :203949 / :205014 (GameManager), :110054-110066 (RocketSystemConsole), :43997 / :44065 / :44604 (KeyMap.ToggleConsole)</code></li>
+              <li><code>.work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs:221811-223383 (ConsoleWindow), :221505-221600 (ConsoleLine), :203899 / :203949 / :205014 (GameManager), :110054-110066 (RocketSystemConsole), :43997 / :44065 / :44604 (KeyMap.ToggleConsole)</code></li>
             
           </ul>
         </details>
@@ -8911,7 +8933,7 @@
 </span></code></pre></div>
 <p>Overlay lifetime is 5 seconds, decremented per frame at 221638-221641, with an alpha fade over the last second (221577-221582).</p>
 <h2 id="the-unity-log-bridge-debuglogerror-reaches-the-players-console">The Unity log bridge: Debug.LogError reaches the player's console<a class="headerlink" href="#the-unity-log-bridge-debuglogerror-reaches-the-players-console" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6403.27689 @ 2026-07-27 -->
+<!-- verified: 0.2.6403.27689 @ 2026-07-29 -->
 
 <p><code>ConsoleWindow</code> subscribes to <code>Application.logMessageReceivedThreaded</code> and re-prints error-level Unity log output into the console itself. Subscription in <code>_Init</code> (221924-221928) and teardown (222261-222264), verbatim:</p>
 <div class="language-csharp highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="w">    </span><span class="na">[RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]</span>
@@ -8949,7 +8971,7 @@
 <li>Printed: <code>LogType.Error</code> and <code>LogType.Exception</code> only. So <code>Debug.LogError</code>, <code>Debug.LogException</code>, and Unity's auto-logged unhandled exceptions all appear in the player's console.</li>
 <li>Ignored: <code>LogType.Log</code> (<code>Debug.Log</code>), <code>LogType.Warning</code> (<code>Debug.LogWarning</code>), and <code>LogType.Assert</code> (<code>Debug.LogAssertion</code>).</li>
 <li>Only the message line is red. The stack trace goes through <code>Print(stacktrace)</code> with all defaults, so it is White and <code>aged: true</code> (overlay-hidden).</li>
-<li>The message is lowercased (<code>logStr.ToLower()</code>); the level tag is uppercased and bracketed, e.g. <code>[ERROR]</code>.</li>
+<li>The message is lowercased (<code>logStr.ToLower()</code>); the level tag is uppercased and bracketed. <code>EnumCollections.LogTypes</code> is built with <code>toProper: false</code> (203493), so <code>Names = Enum.GetNames(typeof(T1))</code> is left untransformed (203609, the <code>ToProper()</code> rewrite at 203618 sitting inside <code>if (toProper)</code>) and the tag is the raw enum name upper-cased: <code>[ERROR]</code> for <code>LogType.Error</code>, <code>[EXCEPTION]</code> for <code>LogType.Exception</code>. <code>GetName</code> is called with <code>padded</code> defaulting to <code>false</code>, so the space-padded <code>PaddedNames</code> array is not used; <code>padded: true</code> would have rendered <code>[ERROR    ]</code> against the 9-character <code>Exception</code>.</li>
 <li>The whole handler is a no-op when <code>CustomLogFile</code> is true (<code>CommandLineArgs?.Contains("-logFile") ?? false</code>, line 221915). <code>CommandLineArgs</code> is populated only inside the <code>IsBatchMode</code> branch of <code>_Init</code> (221929-221931), so on a normal client it is null and <code>CustomLogFile</code> is false. The guard exists to break a recursion loop, because <code>Print</code> under batch + <code>CustomLogFile</code> itself calls <code>UnityEngine.Debug.LogError/LogWarning/Log</code>.</li>
 <li>The non-threaded <code>Application.logMessageReceived</code> is <strong>never</strong> subscribed anywhere in the assembly. A whole-file grep for <code>logMessageReceived</code> returns exactly two hits, both <code>logMessageReceivedThreaded</code> (221927, 222263).</li>
 </ul>
@@ -9017,6 +9039,8 @@
 </span></code></pre></div>
 <p><code>_consoleBuffer</code> starts as <code>Array.Empty&lt;ConsoleLine&gt;()</code> (221843). The queue is drained from <code>Initialize()</code> (221951), unblocked in <code>GameManager.Awake</code> (205014-205019), where <code>ApplySettings()</code> must run before <code>Initialize()</code> because the former allocates the 1024-element array (222799-222811) and the latter only writes into it (221945-221948). Replayed lines carry the <strong>drain</strong> timestamp, not the original: <code>ConsoleLine.Set</code> stamps <code>DateTime.Now</code> at 221547. The queue is unbounded and unsynchronised.</p>
 <p><strong><code>clearLine</code> and <code>unformatted</code> are dead parameters on the non-batch path.</strong> They are read only to populate the premature-log struct (223001, 223003) and are never consulted when the line is actually written (223007-223018).</p>
+<p>Neither has anywhere to go even in principle. <code>ConsoleLine</code> carries no matching field (221507-221519) and the sink signature is <code>public void Set(string text, uint color, float activeTime = 5f, uint[] continuationColors = null)</code> (221523), which has no slot for either. The <code>unformatted: true</code> arguments in the draw path (221698, 221709) are hard-coded literals on the closed-overlay branch, not fed from <code>Print</code>. <code>clearLine</code> does not overwrite the previous line either: the shift loop at 223007-223010 is unconditional and <code>Set</code> always writes slot 0 after it, so there is no branch that could produce overwrite semantics. Two similarly named things are unrelated: <code>_clearConsoleInput</code> (221841, consumed at 222436-222440) clears the input textbox, and <code>RocketSystemConsole.ClearLine()</code> is called unconditionally once per output line inside <code>PrintToConsole</code> (110065), followed by <code>RedrawInputLine()</code> (110069) to repaint the terminal prompt.</p>
+<p>Once the console UI is up, the premature branch is skipped outright, so on a live path the two parameters are not read at all, not even into the queue.</p>
 <h2 id="rendering-imgui-not-textmeshpro">Rendering: ImGui, not TextMeshPro<a class="headerlink" href="#rendering-imgui-not-textmeshpro" title="Permanent link">&para;</a></h2>
 <!-- verified: 0.2.6403.27689 @ 2026-07-27 -->
 
@@ -9038,7 +9062,7 @@
 </span><span id="__span-14-3"><a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a><span class="w">            </span><span class="n">_consoleBuffer</span><span class="p">[</span><span class="n">num</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">].</span><span class="n">Apply</span><span class="p">(</span><span class="n">_consoleBuffer</span><span class="p">[</span><span class="n">num</span><span class="p">]);</span>
 </span><span id="__span-14-4"><a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a><span class="w">        </span><span class="p">}</span>
 </span></code></pre></div>
-<p>There is no <code>lock</code>, <code>Interlocked</code>, or <code>Monitor</code> anywhere in the class body (221811-223400), while the draw loop reads the same array at 222364-222367 / 222429-222435.</p>
+<p>There is no <code>lock</code>, <code>Interlocked</code>, or <code>Monitor</code> anywhere in the class body (221811-223383), while the draw loop reads the same array at 222364-222367 / 222429-222435.</p>
 <p>The game marshals to the main thread before printing from its async paths. <code>PrintError(System.Exception)</code> (222926-222934), verbatim:</p>
 <div class="language-csharp highlight"><pre><span></span><code><span id="__span-15-1"><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">async</span><span class="w"> </span><span class="n">UniTaskVoid</span><span class="w"> </span><span class="nf">PrintError</span><span class="p">(</span><span class="n">System</span><span class="p">.</span><span class="n">Exception</span><span class="w"> </span><span class="n">exception</span><span class="p">)</span>
 </span><span id="__span-15-2"><a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a><span class="p">{</span>
@@ -9057,6 +9081,34 @@
 </span><span id="__span-16-2"><a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a>222799          ConsoleLine[] array = new ConsoleLine[1024];
 </span></code></pre></div>
 <p><code>ApplySettings</code> (222797) hard-codes 1024 and does not read <code>DEFAULT_CONSOLE_BUFFER_SIZE</code>. Every <code>Print</code> runs the full 1023-iteration shift unconditionally: no throttle, no dedupe, no same-message collapse, no early-out. <code>ConsoleLine.Apply</code> (221791-221800) copies seven fields per element, so one print is roughly 1023 x 7 field copies. <code>PrintBlock</code> (223041), <code>PrintSegmentedBlock</code> (223083), and <code>PrintSegmentedBlockRaw</code> (223214) each run the shift once for the whole block, so they are the cheap way to emit N lines. <strong>Rate limiting is entirely the caller's job.</strong></p>
+<h2 id="lifetime-the-buffer-is-never-reset-on-world-load">Lifetime: the buffer is never reset on world load<a class="headerlink" href="#lifetime-the-buffer-is-never-reset-on-world-load" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-29 -->
+
+<p>The ring buffer is process-lifetime state. Nothing clears it on world load, world unload, or a return to the main menu.</p>
+<p><code>ClearConsole()</code> (222815) has exactly one caller in the entire assembly, <code>ClearCommand.Execute</code> (96611-96623):</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-17-1"><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="k">public</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nc">ClearCommand</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="n">CommandBase</span>
+</span><span id="__span-17-2"><a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a><span class="p">{</span>
+</span><span id="__span-17-3"><a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="n">HelpText</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="s">&quot;Clears all text from the console buffer.&quot;</span><span class="p">;</span>
+</span><span id="__span-17-4"><a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a><span class="p">...</span>
+</span><span id="__span-17-5"><a id="__codelineno-17-5" name="__codelineno-17-5" href="#__codelineno-17-5"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="nf">Execute</span><span class="p">(</span><span class="kt">string</span><span class="p">[]</span><span class="w"> </span><span class="n">args</span><span class="p">)</span>
+</span><span id="__span-17-6"><a id="__codelineno-17-6" name="__codelineno-17-6" href="#__codelineno-17-6"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-17-7"><a id="__codelineno-17-7" name="__codelineno-17-7" href="#__codelineno-17-7"></a><span class="w">        </span><span class="n">ConsoleWindow</span><span class="p">.</span><span class="n">ClearConsole</span><span class="p">();</span>
+</span><span id="__span-17-8"><a id="__codelineno-17-8" name="__codelineno-17-8" href="#__codelineno-17-8"></a><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="k">null</span><span class="p">;</span>
+</span><span id="__span-17-9"><a id="__codelineno-17-9" name="__codelineno-17-9" href="#__codelineno-17-9"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-17-10"><a id="__codelineno-17-10" name="__codelineno-17-10" href="#__codelineno-17-10"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>That is the player-typed <code>clear</code> command. <code>ApplySettings()</code> and <code>Initialize()</code> share the single call site <code>GameManager.Awake</code> (205018-205019), and <code>Initialize()</code> early-outs on <code>if (!IsInitialised)</code> (221943), so a second <code>Awake</code> is a no-op. No <code>SceneManager</code>, <code>sceneLoaded</code>, <code>OnWorldLoad</code>, or <code>OnFinishedLoad</code> reference exists anywhere in the class body.</p>
+<p><code>ApplySettings</code> preserves content when it reallocates (222800-222809), so even a repeat call would not wipe the buffer:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-18-1"><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">i</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="n">_consoleBuffer</span><span class="p">.</span><span class="n">Length</span><span class="p">)</span>
+</span><span id="__span-18-2"><a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a><span class="w">            </span><span class="p">{</span>
+</span><span id="__span-18-3"><a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a><span class="w">                </span><span class="n">array</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">ConsoleLine</span><span class="p">();</span>
+</span><span id="__span-18-4"><a id="__codelineno-18-4" name="__codelineno-18-4" href="#__codelineno-18-4"></a><span class="w">            </span><span class="p">}</span>
+</span><span id="__span-18-5"><a id="__codelineno-18-5" name="__codelineno-18-5" href="#__codelineno-18-5"></a><span class="w">            </span><span class="k">else</span>
+</span><span id="__span-18-6"><a id="__codelineno-18-6" name="__codelineno-18-6" href="#__codelineno-18-6"></a><span class="w">            </span><span class="p">{</span>
+</span><span id="__span-18-7"><a id="__codelineno-18-7" name="__codelineno-18-7" href="#__codelineno-18-7"></a><span class="w">                </span><span class="n">array</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">_consoleBuffer</span><span class="p">[</span><span class="n">i</span><span class="p">];</span>
+</span><span id="__span-18-8"><a id="__codelineno-18-8" name="__codelineno-18-8" href="#__codelineno-18-8"></a><span class="w">            </span><span class="p">}</span>
+</span></code></pre></div>
+<p>For a mod this means the 1024-line ring is the only bound on a long session, and lines from a previous world are still in scroll-back after loading a new one. It also means a mod's own per-session print budget does not reset just because the player loaded a different save; if a cap should reset at a world boundary, the mod has to do that itself.</p>
 <h2 id="process-local-not-networked">Process-local, not networked<a class="headerlink" href="#process-local-not-networked" title="Permanent link">&para;</a></h2>
 <!-- verified: 0.2.6403.27689 @ 2026-07-27 -->
 
@@ -9159,13 +9211,14 @@
 <h2 id="opening-the-console">Opening the console<a class="headerlink" href="#opening-the-console" title="Permanent link">&para;</a></h2>
 <!-- verified: 0.2.6403.27689 @ 2026-07-27 -->
 
-<div class="language-text highlight"><pre><span></span><code><span id="__span-17-1"><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a>43997:      KeyMap.ToggleConsole = KeyCode.F3;
-</span><span id="__span-17-2"><a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a>44065:      KeyMap._ToggleConsole.AssignKey(KeyCode.F3);
-</span><span id="__span-17-3"><a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a>44604:  public static KeyCode ToggleConsole;
+<div class="language-text highlight"><pre><span></span><code><span id="__span-19-1"><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a>43997:      KeyMap.ToggleConsole = KeyCode.F3;
+</span><span id="__span-19-2"><a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a>44065:      KeyMap._ToggleConsole.AssignKey(KeyCode.F3);
+</span><span id="__span-19-3"><a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a>44604:  public static KeyCode ToggleConsole;
 </span></code></pre></div>
 <p>F3 is the <strong>default</strong>, not a fixed binding: it is registered as <code>AddKey("ToggleConsole", KeyMap.ToggleConsole, controlsGroup2)</code> (44149) and re-read from saved settings at 44266 / 44332. Consumed at 222449 via <code>Input.GetKeyDown(KeyMap.ToggleConsole)</code>. Documentation aimed at players should say "the console key (F3 by default)" rather than assuming F3.</p>
 <h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
 <ul>
+<li>2026-07-29: re-read while reviewing the console-output fix commits. Three additions and two corrections, all against the same 0.2.6403.27689 decompile. Added: the "Lifetime" section (the ring buffer is never reset on world load; <code>ClearConsole()</code> has exactly one caller, the player-typed <code>clear</code> command at 96611-96623, and <code>ApplySettings</code> preserves content when it reallocates); the derivation behind the log bridge's bracketed tag, which resolved a conflict against <a href="../../Patterns/InGameConsoleOutput/">InGameConsoleOutput</a> under the Rule 3 protocol (that page had generalised the tag to <code>[ERROR]</code>; <code>LogType.Exception</code> renders <code>[EXCEPTION]</code>, and the conflict record lives there); and the evidence that <code>clearLine</code> and <code>unformatted</code> have nowhere to go even in principle, since <code>ConsoleLine</code> has no matching field and <code>Set</code>'s signature has no slot for either. Corrected: the class body ends at 223383, not 223400 (the next top-level type, <code>TerrainDebugHelper</code>, declares at 223384), in the frontmatter source range and in the "Threading and cost" negative-probe sentence. The negative probe itself was re-run over the corrected range and still finds no <code>lock</code>, <code>Interlocked</code>, <code>Monitor</code>, <code>volatile</code>, <code>[ThreadStatic]</code>, or concurrent collection, so that claim is re-confirmed rather than changed.</li>
 <li>2026-07-27: page created during a repo-wide audit of mod console usage against the 0.2.6403.27689 decompile. Split out of <a href="../../Patterns/InGameConsoleOutput/">InGameConsoleOutput</a>, which had grown a partial and partly incorrect API section while being a mod-guidance page; that page now carries the guidance and this one carries the class reference. All sections verified directly against <code>.work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs</code> with verbatim excerpts. Findings that contradicted the older page (the <code>logMessageReceivedThreaded</code> subscription, the inverted <code>aged</code> parameter, <code>PrintError</code>'s default stack-trace dump, the absence of <code>PrintWarning</code>) were resolved under the Rule 3 fresh-validator protocol; the conflict record lives on the InGameConsoleOutput page.</li>
 </ul>
 <h2 id="open-questions">Open questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>

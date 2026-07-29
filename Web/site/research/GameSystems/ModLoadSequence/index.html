@@ -4561,6 +4561,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#onprefabsloaded-fires-at-boot-not-at-world-load" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OnPrefabsLoaded fires at boot, not at world load
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#verification-history" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -8478,6 +8489,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#onprefabsloaded-fires-at-boot-not-at-world-load" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OnPrefabsLoaded fires at boot, not at world load
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#verification-history" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -8588,31 +8610,41 @@
       
         <p class="research-meta-verified">
           <strong>Verified</strong>
-           in game version <code>0.2.6228.27061</code>
-           on 2026-04-20.
+           in game version <code>0.2.6403.27689</code>
+           on 2026-07-29.
         </p>
       
       
+        <p class="research-meta-created">
+          <strong>First written</strong> against game version <code>0.2.6228.27061</code>.
+        </p>
+      
       
         <details class="research-meta-sources">
-          <summary><strong>Sources</strong> (2)</summary>
+          <summary><strong>Sources</strong> (3)</summary>
           <ul>
             
               <li><code>Plans/StationpediaPlus/PLAN.md:259-272</code></li>
             
               <li><code>Plans/StationpediaPlus/PLAN.md:259-269</code></li>
             
+              <li><code>.work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs:322926 / :322971 (Prefab.LoadAll), :59725 (LoadGameDataAsync), :60874-60899 (WorldManager.SetGamePause / EnablePause), :204588 (GameManager.StartGame), :39504 (OnServer), :43646 (KeyManager)</code></li>
+            
           </ul>
         </details>
       
       
         <details class="research-meta-related">
-          <summary><strong>Related pages</strong> (2)</summary>
+          <summary><strong>Related pages</strong> (4)</summary>
           <ul>
             
               <li><code>./StationpediaPageRendering.md</code></li>
             
               <li><code>../Patterns/MainThreadDispatcher.md</code></li>
+            
+              <li><code>../GameClasses/ConsoleWindow.md</code></li>
+            
+              <li><code>../Patterns/InGameConsoleOutput.md</code></li>
             
           </ul>
         </details>
@@ -8656,10 +8688,23 @@
 
 <p><code>Prefab.OnPrefabsLoaded</code> fires on the Unity main thread (runs synchronously inside game's main-thread loading sequence around game.cs:59080-59090, before <code>Stationpedia.Regenerate</code> at line 59090). <code>OnAllModsLoaded</code> is therefore main-thread; all Unity API calls from within it are safe without dispatching.</p>
 <p>PowerTransmitterPlus has a <code>MainThreadDispatcher</code> singleton MonoBehaviour for enqueuing actions from ThreadPool-run PowerTick contexts to the main thread (used by the distance-cost multiplayer sync, not by Stationpedia integration). The StationpediaPlus library does not need this; all its work happens on main thread during <code>OnAllModsLoaded</code> and during the main-thread-driven <code>Regenerate</code> / <code>ChangeDisplay</code> paths.</p>
+<h2 id="onprefabsloaded-fires-at-boot-not-at-world-load">OnPrefabsLoaded fires at boot, not at world load<a class="headerlink" href="#onprefabsloaded-fires-at-boot-not-at-world-load" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-29 -->
+
+<p>This is the trap that matters for anything a mod wants a player to <em>see</em>. <code>Prefab.OnPrefabsLoaded</code> is invoked from <code>Prefab.LoadAll()</code> (<code>Assembly-CSharp.decompiled.cs:322971</code>, guarded by <code>if (PrefabsGameObject != null)</code> at <code>:322926</code>), which is awaited from <code>LoadGameDataAsync()</code> at <code>:59725</code>. That runs during process startup with <code>MainMenuCanvas.enabled = false</code> and the ImGui loading screen up. It completes <strong>before the main menu appears</strong>, and long before any world exists.</p>
+<p>So "prefabs loaded" is not "the player is in a game". A mod that anchors player-facing output to this event is writing to a screen nobody is reading:</p>
+<ul>
+<li>Anything printed to <code>ConsoleWindow</code> here has aged off the closed-console overlay (5 seconds of <code>activeTime</code>, see <a href="../../GameClasses/ConsoleWindow/">ConsoleWindow</a>) long before the player finishes picking a save. It survives only in F3 scrollback.</li>
+<li>A coroutine started here that paces itself with <code>WaitForSeconds</code> runs its whole schedule at the main menu. <code>Mods/EquipmentPlus/EquipmentPlus/Plugin.cs</code> <code>RepeatWarning</code> is the worked example: a six-line, 25-second mod-conflict banner that is fully spent before the player loads a world.</li>
+<li><code>GameManager.RunSimulation</code> is the gate that actually means "a world is running". Spinning on <code>while (!GameManager.RunSimulation) yield return null;</code> before the first print is the fix for a banner that must be seen.</li>
+</ul>
+<p>Related timing fact for any coroutine anchored here: <code>WaitForSeconds</code> is timeScale-scaled, and the assembly's only <code>Time.timeScale = 0f</code> assignment is <code>WorldManager.SetGamePause(bool)</code> at <code>:60899</code>, reachable through <code>EnablePause</code> (<code>:60874-60884</code>) which is itself gated on <code>GameManager.RunSimulation</code>. <code>GameManager.StartGame()</code> restores it to <code>1f</code> at <code>:204588</code>. So a coroutine running at the main menu is never stalled by a pause, but one that has waited for <code>RunSimulation</code> can be, and should use <code>WaitForSecondsRealtime</code> if its cadence matters.</p>
+<p>Two namespace facts confirmed while tracing the above, both easy to get wrong because the names look like they belong to <code>Assets.Scripts</code>: <code>KeyManager</code> (<code>:43646</code>) and <code>OnServer</code> (<code>:39504</code>) are declared in the <strong>global</strong> namespace, before the first <code>namespace</code> block. Neither needs a <code>using</code> at all.</p>
 <h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
+<!-- verified: 0.2.6403.27689 @ 2026-07-29 -->
 
 <ul>
+<li>2026-07-29: added the "OnPrefabsLoaded fires at boot, not at world load" section against 0.2.6403.27689. Purely additive; the existing main-thread claim is unaffected and was not re-verified against the new decompile, so its 0.2.6228.27061 stamp stands. Found while reviewing a mod-conflict banner that paced itself with <code>WaitForSeconds</code> from this event and therefore played out entirely at the main menu. Also records the single <code>Time.timeScale = 0f</code> assignment site and its <code>RunSimulation</code> gate, and the fact that <code>KeyManager</code> and <code>OnServer</code> live in the global namespace rather than <code>Assets.Scripts</code>.</li>
 <li>2026-04-20: page created from the Research migration; F0219c is the primary source per MigrationMap §5.1. F0246 is a duplicate extraction that merges here.</li>
 </ul>
 <h2 id="open-questions">Open questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>
