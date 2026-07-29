@@ -57,7 +57,6 @@ namespace SprayPaintPlus
         internal static ConfigEntry<bool> ClientNetworkPaintLadders;
         internal static ConfigEntry<bool> ClientNetworkPaintStairs;
         internal static ConfigEntry<bool> ClientNetworkPaintStairwells;
-        internal static ConfigEntry<bool> ClientExtraPaintableStructures;
 
         // Server halves
         internal static ConfigEntry<ColorCyclingMode> ServerColorCycling;
@@ -76,7 +75,6 @@ namespace SprayPaintPlus
         internal static ConfigEntry<bool> ServerNetworkPaintLadders;
         internal static ConfigEntry<bool> ServerNetworkPaintStairs;
         internal static ConfigEntry<bool> ServerNetworkPaintStairwells;
-        internal static ConfigEntry<bool> ServerExtraPaintableStructures;
 
         private static readonly string[] ConflictingAssemblies = { "ColorCycler", "NetworkPainter" };
 
@@ -120,7 +118,7 @@ namespace SprayPaintPlus
                 MOD.Networking.RegisterMessage<PaintModifierMessage>();
                 MOD.Networking.RegisterMessage<SettingBlockedNotice>();
 
-                // Push the sixteen server-half settings down to a joining client as
+                // Push the fifteen server-half settings down to a joining client as
                 // part of the world snapshot. It has to ride the join payload rather
                 // than an INetworkMessage broadcast: NetworkManager.PlayerConnected
                 // fires before the joiner is in NetworkBase.Clients, so a SendAll
@@ -143,8 +141,6 @@ namespace SprayPaintPlus
                 harmony.PatchAll();
                 Log.LogInfo("Patches applied successfully");
 
-                ApplyExtraPaintability();
-
                 // The support line, so a bug report from a single-player or host
                 // session carries the same settings dump a joining client gets.
                 // Those sessions never receive a join payload, so nothing else
@@ -155,57 +151,6 @@ namespace SprayPaintPlus
             {
                 Log.LogFatal($"Failed to apply patches: {e}");
             }
-        }
-
-        // Structures the base game ships without a PaintableMaterial, so the vanilla
-        // spray can refuses them. Setting PaintableMaterial flips Thing.IsPaintable to
-        // true; the recolor itself works because the steel-frame material is a
-        // Texture2DArray-backed paint material (Thing builds its _customMaterials list
-        // from any renderer whose material == PaintableMaterial OR uses a Texture2DArray),
-        // and the frames render in Standard mode so Structure.SetCustomColor does not
-        // throw. Verified on game 0.2.6228.27061: the Steel Frame and Steel Frame
-        // (Corner Cut) ship paintable; Steel Frame (Corner) and (Side) do not. Once
-        // paintable they also flow through the existing "Network Paint Large Structures"
-        // flood automatically.
-        private static readonly string[] ExtraPaintableStructures =
-        {
-            "StructureFrameSide",
-            "StructureFrameCorner",
-        };
-
-        private static void ApplyExtraPaintability()
-        {
-            // Both halves are local at boot: no session exists yet, so SettingsMerge
-            // reads the local server half. The prefab mutation is one-way and never
-            // unwound, so a later join cannot adopt or reverse it; the synced host value
-            // is used only to warn the player. See WarningNotifier.
-            if (!SettingsMerge.EffectiveExtraPaintable) return;
-
-            // Donor material from a paintable sibling in the same Steel Frame kit; the
-            // Corner/Side meshes use this same steel paint material.
-            var donor = Prefab.Find("StructureFrame") as Thing;
-            var donorMaterial = (donor != null) ? donor.PaintableMaterial : null;
-            if (donorMaterial == null)
-            {
-                Log.LogWarning("Extra paintability: donor 'StructureFrame' has no PaintableMaterial; skipping.");
-                return;
-            }
-
-            int changed = 0;
-            foreach (var prefabName in ExtraPaintableStructures)
-            {
-                var thing = Prefab.Find(prefabName) as Thing;
-                if (thing == null)
-                {
-                    Log.LogWarning($"Extra paintability: prefab '{prefabName}' not found; skipping.");
-                    continue;
-                }
-                if (thing.PaintableMaterial != null) continue; // already paintable in vanilla
-                thing.PaintableMaterial = donorMaterial;
-                changed++;
-                Log.LogInfo($"Extra paintability: '{prefabName}' is now paintable.");
-            }
-            Log.LogInfo($"Extra paintability: {changed} structure(s) made paintable.");
         }
 
         private static void RegisterSaveDataTypeLate(Type t)
@@ -406,18 +351,6 @@ namespace SprayPaintPlus
                     null,
                     new KeyValuePair<string, int>("Order", 110)));
 
-            // ---- Client - Paintability ------------------------------------------
-            ClientExtraPaintableStructures = Config.Bind(
-                "Client - Paintability", "Extra Paintable Structures", true,
-                new ConfigDescription(
-                    ClientPaired +
-                    "Spray-paint structures the base game leaves unpaintable, currently Steel Frame " +
-                    "(Corner) and Steel Frame (Side). Both you and the server need this on or " +
-                    "painting them does nothing at all. Applies at game start, so changing it needs " +
-                    "a restart.",
-                    null,
-                    new KeyValuePair<string, int>("Order", 10)));
-
             // ---- Client - Preferences -------------------------------------------
             PaintSingleItemByDefault = Config.Bind(
                 "Client - Preferences", "Paint Single Item By Default", false,
@@ -587,16 +520,6 @@ namespace SprayPaintPlus
                     "No effect if Network Painting is off.",
                     null,
                     new KeyValuePair<string, int>("Order", 110)));
-
-            // ---- Server - Paintability ---------------------------------------------
-            ServerExtraPaintableStructures = Config.Bind(
-                "Server - Paintability", "Extra Paintable Structures", true,
-                new ConfigDescription(
-                    ServerPaired +
-                    "Allows the extra paintable structures to be painted on this server, currently " +
-                    "Steel Frame (Corner) and Steel Frame (Side). Applies at server start.",
-                    null,
-                    new KeyValuePair<string, int>("Order", 10)));
         }
     }
 }

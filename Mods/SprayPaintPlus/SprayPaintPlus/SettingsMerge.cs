@@ -41,7 +41,6 @@ namespace SprayPaintPlus
         internal static bool? SyncedColorPicking;
         internal static bool? SyncedGlowPaint;
         internal static bool? SyncedUnlimitedUses;
-        internal static bool? SyncedExtraPaintable;
         internal static bool? SyncedNetworkPainting;
         internal static bool? SyncedNetworkPaintPipes;
         internal static bool? SyncedNetworkPaintCables;
@@ -60,7 +59,6 @@ namespace SprayPaintPlus
             SyncedColorPicking = null;
             SyncedGlowPaint = null;
             SyncedUnlimitedUses = null;
-            SyncedExtraPaintable = null;
             SyncedNetworkPainting = null;
             SyncedNetworkPaintPipes = null;
             SyncedNetworkPaintCables = null;
@@ -119,10 +117,6 @@ namespace SprayPaintPlus
         internal static bool EffectiveGlowPaint =>
             (SprayPaintPlusPlugin.ClientGlowPaint?.Value ?? true)
             && ServerHalf(SprayPaintPlusPlugin.ServerGlowPaint, SyncedGlowPaint);
-
-        internal static bool EffectiveExtraPaintable =>
-            (SprayPaintPlusPlugin.ClientExtraPaintableStructures?.Value ?? true)
-            && ServerHalf(SprayPaintPlusPlugin.ServerExtraPaintableStructures, SyncedExtraPaintable);
 
         // ---- Server-side per-player merge ---------------------------------------
         // Used by the paint path, which runs on the authority and must merge the ACTING

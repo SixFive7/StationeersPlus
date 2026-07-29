@@ -73,7 +73,6 @@ namespace SprayPaintPlus
             internal const string ColorPicking = "Color Picking";
             internal const string UnlimitedUses = "Unlimited Spray Paint Uses";
             internal const string GlowPaint = "Glow Paint";
-            internal const string ExtraPaintable = "Extra Paintable Structures";
             internal const string NetworkPainting = "Network Painting";
             internal const string Pipes = "Network Paint Pipes";
             internal const string Cables = "Network Paint Cables";
@@ -146,12 +145,6 @@ namespace SprayPaintPlus
                 SprayPaintPlusPlugin.ServerGlowPaint,
                 SettingsMerge.SyncedGlowPaint,
                 SettingsMerge.EffectiveGlowPaint);
-
-            Append(sb, Functions.ExtraPaintable,
-                SprayPaintPlusPlugin.ClientExtraPaintableStructures,
-                SprayPaintPlusPlugin.ServerExtraPaintableStructures,
-                SettingsMerge.SyncedExtraPaintable,
-                SettingsMerge.EffectiveExtraPaintable);
 
             Append(sb, Functions.NetworkPainting,
                 SprayPaintPlusPlugin.ClientNetworkPainting,
@@ -241,10 +234,6 @@ namespace SprayPaintPlus
                 SprayPaintPlusPlugin.ClientGlowPaint,
                 SprayPaintPlusPlugin.ServerGlowPaint,
                 SettingsMerge.SyncedGlowPaint);
-            AddIfBlocked(blocked, Functions.ExtraPaintable,
-                SprayPaintPlusPlugin.ClientExtraPaintableStructures,
-                SprayPaintPlusPlugin.ServerExtraPaintableStructures,
-                SettingsMerge.SyncedExtraPaintable);
             AddIfBlocked(blocked, Functions.NetworkPainting,
                 SprayPaintPlusPlugin.ClientNetworkPainting,
                 SprayPaintPlusPlugin.ServerNetworkPainting,
@@ -306,7 +295,7 @@ namespace SprayPaintPlus
         ///
         /// Called on the client from SettingBlockedNotice.Process for the functions
         /// the server evaluates, and directly for the ones the client evaluates
-        /// itself (color cycling, color picking, extra paintability).
+        /// itself (color cycling, color picking).
         /// </summary>
         internal static void WarnBlocked(string function)
         {

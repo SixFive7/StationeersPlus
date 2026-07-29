@@ -48,13 +48,6 @@ Spray-paint a wall and every same-type wall bounding the same room is painted. S
 - Large structures flood-fill on a grid using 6-neighbor (cardinal) adjacency only; diagonals are not followed
 - Same Shift / Ctrl modifiers apply
 
-### Extra Paintable Structures
-Some structures ship from the base game without a paintable surface, so the spray can ignores them. This mod adds the missing surface so they paint like their siblings.
-- Currently covers the **Steel Frame (Corner)** and **Steel Frame (Side)** shapes from the Steel Frames kit; the base Steel Frame and Steel Frame (Corner Cut) were already paintable
-- Controlled by the **Extra Paintable Structures** setting (default on), which you and the server both have to allow
-- Painted frames also flow through Network Paint Large Structures like any other connected structure
-- More normally-unpaintable structures will be added in future versions
-
 ### Glow Paint
 
 *Flavour: classified ODA research paint; the datasheet redacts everything below "handle with gloves".*
@@ -86,7 +79,7 @@ Three settings have no partner. **Paint Single Item By Default** and **Invert Co
 
 The [Metallic Paints DLC](https://store.steampowered.com/app/4842920) gate sits on top of all of this and no setting can move it. Without the DLC in the session the four metallic colors (Obsidian, Silver, Bronze, Gold) stay locked whatever the color cycling mode is, exactly as in the base game.
 
-The in-game settings panel groups the 35 entries under eleven headers, six client and five server. Groups sort alphabetically, so every **Client** group appears above every **Server** group.
+The in-game settings panel groups the 33 entries under nine headers, five client and four server. Groups sort alphabetically, so every **Client** group appears above every **Server** group.
 
 **Client - Color Cycling**:
 
@@ -122,12 +115,6 @@ The in-game settings panel groups the 35 entries under eleven headers, six clien
 | Network Paint Ladders | On | Includes the whole ladder column and its end caps. No effect if Network Painting is off |
 | Network Paint Stairs | On | Includes a whole staircase across its width and its climb. No effect if Network Painting is off |
 | Network Paint Stairwells | On | Includes every adjacent stairwell block, all eight types, any orientation. No effect if Network Painting is off |
-
-**Client - Paintability**:
-
-| Setting | Default | Description |
-|---|---|---|
-| Extra Paintable Structures | On | Spray-paint structures the base game leaves unpaintable, currently Steel Frame (Corner) and Steel Frame (Side). Both you and the server need this on or painting them does nothing at all. Applies at game start, so changing it needs a restart |
 
 **Client - Preferences**:
 
@@ -172,12 +159,6 @@ The in-game settings panel groups the 35 entries under eleven headers, six clien
 | Network Paint Stairs | On | Includes a whole staircase across its width and its climb. No effect if Network Painting is off |
 | Network Paint Stairwells | On | Includes every adjacent stairwell block, all eight types, any orientation. No effect if Network Painting is off |
 
-**Server - Paintability**:
-
-| Setting | Default | Description |
-|---|---|---|
-| Extra Paintable Structures | On | Allows the extra paintable structures to be painted on this server. Applies at server start |
-
 ## Compatibility
 
 **Requires:** BepInEx + StationeersLaunchPad
@@ -193,6 +174,16 @@ The in-game settings panel groups the 35 entries under eleven headers, six clien
 **All players** on a server must have Spray Paint Plus installed. Matching mod versions are enforced during the connection handshake automatically.
 
 **Dedicated servers** need the same BepInEx + StationeersLaunchPad + SprayPaintPlus setup installed server-side. The paint logic runs server-authoritatively and the handshake rejects mixed installs.
+
+## Known Base Game Behavior
+
+**Metallic colors are unreachable in a brand new world until you save and reload once.** This is base game behavior, not something this mod does, and it applies whether or not this mod is installed.
+
+The game tracks which downloadable content the current session may use in a shared pool. That pool is only filled at the end of the world **loading** path, and creating a new world does not go through it, so a freshly created world starts with an empty pool even when you own Metallic Paints. Save the world and load it again and the pool fills correctly; the metallic colors then work for the rest of that world's life.
+
+You can confirm it is not this mod: in a fresh world the base game will not let you spawn or fabricate the metallic spray cans either, with the mod uninstalled. The in-game `dlc shared` console command prints the live pool and reads `None` before the reload.
+
+Verified in game version 0.2.6403.27689.
 
 ## Reporting Issues
 

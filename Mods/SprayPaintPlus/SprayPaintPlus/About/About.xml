@@ -66,19 +66,18 @@ Saves written by v1.6.0+ open cleanly without this mod; glow lives in a side-car
 
 Joining a server gives you one console message naming every function you have enabled that the server does not allow, and a message the first three times you actually try to use one. Your own settings are never rewritten; they just have no effect there.
 
-35 settings across eleven groups, six client and five server. What they cover:
+33 settings across nine groups, five client and four server. What they cover:
 [list]
 [*][b]Color Cycling[/b]: how the mouse wheel changes a can's color (all colors, only within the can's own paint family, or not at all), and whether the right-click eyedropper works
 [*][b]Network Painting[/b]: the master toggle plus one entry per kind of network, for pipes, cables, chutes, walls, rails, large structures, elevators, ladders, stairs and stairwells
 [*][b]Glow Paint[/b]: whether the Spray Paint Gun applies glow, or reverts to the base game gun that loads a spray can
-[*][b]Paintability[/b]: whether the extra paintable structures accept paint
 [*][b]Consumables[/b]: unlimited spray can uses, plus pollution suppression (server-only, the atmosphere is shared)
 [*][b]Preferences[/b]: single-item-by-default and inverted scroll direction (client-only, pure input mapping)
 [/list]
 
 Metallic Paints DLC rules apply on top of every mode; no setting can reach a color the session is not entitled to.
 
-The full 35-entry table with every default is in the [url=https://github.com/SixFive7/StationeersPlus/tree/master/Mods/SprayPaintPlus#settings]README on GitHub[/url].
+The full 33-entry table with every default is in the [url=https://github.com/SixFive7/StationeersPlus/tree/master/Mods/SprayPaintPlus#settings]README on GitHub[/url].
 
 [h2]Compatibility[/h2]
 
@@ -98,6 +97,8 @@ The full 35-entry table with every default is in the [url=https://github.com/Six
 
 [b]All players[/b] (including dedicated servers) need the same BepInEx + StationeersLaunchPad + Spray Paint Plus setup; matching versions are enforced by the handshake.
 
+[b]Metallic colors in a brand new world:[/b] locked until you save and reload once. Base game behavior, not this mod. Without the mod the game will not spawn or fabricate metallic cans there either.
+
 [h2]Reporting Issues[/h2]
 Found a bug? Please open an issue on [url=https://github.com/SixFive7/StationeersPlus/issues]GitHub[/url] with the mod name in the title. Steam comment notifications are unreliable, so GitHub is the way to make sure a report is seen.
 
@@ -116,12 +117,13 @@ Licensed under the [url=https://github.com/SixFive7/StationeersPlus/blob/master/
   <ChangeLog>
 v1.11.0: Every setting has a client half and a server half
 - CHANGE: All settings reset to their defaults on this update. BepInEx identifies a setting by its group plus its name, and nearly every setting moved group, so the stored values are orphaned and the defaults are re-seeded on first launch. Set your preferences once more after updating. The same reset happened at v1.5.0.
-- NEW: Every capability now has a client setting and a server setting, and works only when both allow it. 35 settings across eleven groups, up from 18 across five. Your half decides what you do, never what you see; the host's half decides what the world allows.
+- NEW: Every capability now has a client setting and a server setting, and works only when both allow it. 33 settings across nine groups, up from 18 across five. Your half decides what you do, never what you see; the host's half decides what the world allows.
 - NEW: Color Cycling is a dropdown with three modes. Cycles through all colors is the default and matches the old behavior. Cycles within paint family keeps a base-color can on the twelve base colors and a metallic can on the four metallic ones. Can cannot change color turns the wheel off, so each color needs its own printed can.
 - NEW: Color Picking, the right-click eyedropper, is its own setting instead of riding along with color cycling.
 - NEW: Joining a server gives you one console message naming every function you have enabled that the server does not allow, and a message the first three times you actually try to use one. Your own settings are never rewritten; they just have no effect there.
 - CHANGE: The client setting "Enable Metallic Paints" is gone. Cycles within paint family replaces it.
-- CHANGE: Extra Paintable Structures and Glow Paint already needed both sides to agree, but a mismatch failed silently and read as a bug. Both now say so in their descriptions and report it in-game.
+- REMOVED: the Extra Paintable Structures setting, because the base game now ships Steel Frame (Corner) and (Side) paintable as of game version 0.2.6332.27293.
+- CHANGE: Glow Paint already needed both sides to agree, but a mismatch failed silently and read as a bug. It now says so in its descriptions and reports it in-game.
 - Three settings deliberately have no partner. Paint Single Item By Default and Invert Color Scroll Direction are pure input mapping, where a server has no sensible opinion. Suppress Spray Paint Pollution is server-only, because the atmosphere is shared and one player opting out would change the air for everybody.
 - Single-player and hosting count as the server: both halves are local, both apply, and either one can switch a capability off.
 - Metallic Paints DLC rules are unchanged and still apply on top of every mode. No mod setting can reach a color the session is not entitled to.

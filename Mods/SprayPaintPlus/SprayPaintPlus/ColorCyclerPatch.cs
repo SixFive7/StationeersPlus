@@ -184,12 +184,14 @@ namespace SprayPaintPlus
             ushort prefs = SettingsMerge.PlayerPrefs.PackLocal(singleItem, checkered);
 
             // The dictionary is the record of what we last reported, so it doubles as the
-            // dedupe. A plain "last sent" static cannot do that job any more: statics live
-            // for the whole process but the dictionary does not survive a world change (the
-            // local Human comes back with a fresh ReferenceId, and CleanupPatches prunes on
-            // disconnect). A player whose preferences happened to match the previous session
-            // would then never report them at all, and the server would fall back to
-            // treating every unreported bit as permissive.
+            // dedupe, and the server keeps its own copy of the same row under the same key.
+            // The two stay symmetric because neither side drops it: a rejoin into the same
+            // world hands the player back the same Human ReferenceId (see
+            // Research/GameSystems/PlayerIdentityAcrossRejoin.md), and the server no longer
+            // prunes on disconnect precisely so that a client with nothing new to say does
+            // not have to say it again. A settings change while away is still reported: the
+            // mask is repacked from the live config entries on every call, so it differs
+            // from the row here and the send goes out.
             if (SprayPaintHelpers.PlayerModifiers.TryGetValue(localHuman.ReferenceId, out ushort reported)
                 && reported == prefs)
                 return;

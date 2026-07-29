@@ -4,12 +4,13 @@ Full version history for Spray Paint Plus. The newest entry also appears in `Abo
 
 ## v1.11.0: Every setting has a client half and a server half
 - CHANGE: All settings reset to their defaults on this update. BepInEx identifies a setting by its group plus its name, and nearly every setting moved group, so the stored values are orphaned and the defaults are re-seeded on first launch. Set your preferences once more after updating. The same reset happened at v1.5.0.
-- NEW: Every capability now has a client setting and a server setting, and works only when both allow it. 35 settings across eleven groups, up from 18 across five. Your half decides what you do, never what you see; the host's half decides what the world allows.
+- NEW: Every capability now has a client setting and a server setting, and works only when both allow it. 33 settings across nine groups, up from 18 across five. Your half decides what you do, never what you see; the host's half decides what the world allows.
 - NEW: Color Cycling is a dropdown with three modes. Cycles through all colors is the default and matches the old behavior. Cycles within paint family keeps a base-color can on the twelve base colors and a metallic can on the four metallic ones. Can cannot change color turns the wheel off, so each color needs its own printed can.
 - NEW: Color Picking, the right-click eyedropper, is its own setting instead of riding along with color cycling.
 - NEW: Joining a server gives you one console message naming every function you have enabled that the server does not allow, and a message the first three times you actually try to use one. Your own settings are never rewritten; they just have no effect there.
 - CHANGE: The client setting "Enable Metallic Paints" is gone. Cycles within paint family replaces it.
-- CHANGE: Extra Paintable Structures and Glow Paint already needed both sides to agree, but a mismatch failed silently and read as a bug. Both now say so in their descriptions and report it in-game.
+- REMOVED: the Extra Paintable Structures setting, because the base game now ships Steel Frame (Corner) and (Side) paintable as of game version 0.2.6332.27293.
+- CHANGE: Glow Paint already needed both sides to agree, but a mismatch failed silently and read as a bug. It now says so in its descriptions and reports it in-game.
 - Three settings deliberately have no partner. Paint Single Item By Default and Invert Color Scroll Direction are pure input mapping, where a server has no sensible opinion. Suppress Spray Paint Pollution is server-only, because the atmosphere is shared and one player opting out would change the air for everybody.
 - Single-player and hosting count as the server: both halves are local, both apply, and either one can switch a capability off.
 - Metallic Paints DLC rules are unchanged and still apply on top of every mode. No mod setting can reach a color the session is not entitled to.
