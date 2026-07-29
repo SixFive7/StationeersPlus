@@ -74,7 +74,12 @@ namespace PowerGridPlus
             try
             {
                 if (!UnityMainThreadDispatcher.Exists()) return;   // no UI (e.g. mid-teardown): file log still recorded it
-                UnityMainThreadDispatcher.Instance().Enqueue(() => ConsoleWindow.PrintError(message));
+                // suppressStacktrace: true -- without it PrintError dumps a full Environment.StackTrace
+                // into the player's console as a second line. The stack trace of our own reporting call
+                // says nothing about the third-party device that is actually broken, and the BepInEx
+                // log above already carries the diagnostic detail.
+                UnityMainThreadDispatcher.Instance().Enqueue(
+                    () => ConsoleWindow.PrintError(message, suppressStacktrace: true));
             }
             catch
             {

@@ -115,10 +115,44 @@ namespace PowerGridPlus.Patches
             }
             catch (Exception ex)
             {
-                UnityEngine.Debug.LogError(
-                    $"[PowerGridPlus] Atomic electricity tick threw: {ex.Message}\n{ex.StackTrace}");
+                ReportTickThrow(ex);
             }
             return false;   // vanilla ElectricityTick never runs
+        }
+
+        // Tick-exception reporting, ledger-audit posture (exact counter, one line per 600 ticks).
+        //
+        // This was an unguarded UnityEngine.Debug.LogError. The in-game console subscribes to
+        // Application.logMessageReceivedThreaded and re-prints LogType.Error itself, so a persistent
+        // tick exception put a red block plus a stack trace into the PLAYER's console at the 2 Hz tick
+        // rate, forever. Worse, it did so from the power worker: ConsoleWindow shifts an unlocked
+        // 1024-entry static array while the draw loop reads it, so the re-print raced the renderer.
+        //
+        // A tick exception is a PowerGridPlus bug, not something a player can act on, so it belongs in
+        // the BepInEx log (which the console never re-prints) rather than in front of the player.
+        // Single-threaded by construction: ElectricityTick runs once per tick on the power worker.
+        private const int TickThrowCooldownTicks = 600;   // ~5 minutes at the 2 Hz power tick
+        private static int _lastThrowLoggedTick = int.MinValue;
+        private static int _suppressedThrows;
+
+        private static void ReportTickThrow(Exception ex)
+        {
+            int tick = ElectricityTickCounter.CurrentTick;
+            if (_lastThrowLoggedTick != int.MinValue && tick - _lastThrowLoggedTick < TickThrowCooldownTicks)
+            {
+                _suppressedThrows++;
+                return;
+            }
+
+            int suppressed = _suppressedThrows;
+            _suppressedThrows = 0;
+            _lastThrowLoggedTick = tick;
+
+            string tail = suppressed > 0
+                ? $" ({suppressed} further occurrence(s) suppressed since the previous line.)"
+                : string.Empty;
+            Plugin.Log?.LogError(
+                $"[PowerGridPlus] Atomic electricity tick threw: {ex.Message}\n{ex.StackTrace}{tail}");
         }
     }
 }
