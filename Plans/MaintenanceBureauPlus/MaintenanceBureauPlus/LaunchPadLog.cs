@@ -4,18 +4,40 @@ using System.Collections;
 using System.Reflection;
 
 // =============================================================================
-// PLAYTEST-ONLY BRIDGE — REMOVE BEFORE v1.0.0
+// PLAYTEST-ONLY BRIDGE - REMOVE BEFORE v1.0.0
 // =============================================================================
 // This file forwards every BepInEx log entry to:
 //   1. StationeersLaunchPad.Logger (visible via `slp logs` console command)
-//   2. Stationeers ConsoleWindow.Print (visible directly when F3 opens)
+//   2. Stationeers ConsoleWindow.Print (the in-game console F3 opens)
 //
 // Both bridges exist solely to give us fast triage during playtest. Before
 // v1.0.0 release, this entire file should be deleted (or the ConsoleWindow
-// branch removed and the LaunchPad branch kept on Warning+ only). Watchdog
-// and per-turn DIAG lines flood the F3 console at a rate that makes typing
-// other commands miserable for end users. See plan.md "Pre-release
-// checklist" / TODO.md "Playtest gate" for the full diagnostic-removal pass.
+// branch removed and the LaunchPad branch kept on Warning+ only). See
+// plan.md "Pre-release checklist" / TODO.md "Playtest gate" for the full
+// diagnostic-removal pass.
+//
+// Why the ConsoleWindow branch in particular must not ship. It is hooked in
+// Plugin.Awake with NO severity filter, so every one of the mod's ~104
+// Log.Log* call sites becomes a console line:
+//
+//   - Volume. The watchdog logs every 5000 ms forever (12 lines/minute for
+//     the whole session), RepeatModelErrorWarning is a second unbounded
+//     5-second loop, and each chat turn costs 10-14 [DIAG] lines. The console
+//     holds 1024 lines and has no rate limiting of its own; every print costs
+//     a full 1024-entry array shift. A subscriber cannot type a command over
+//     this.
+//   - Thread safety. OnLogEvent runs on whichever thread called Log.*, and
+//     three named background threads log here (model load, inference, and the
+//     watchdog). ConsoleWindow is main-thread-only: Print shifts an unlocked
+//     static array while the draw loop reads it. This branch is an
+//     unsynchronised cross-thread write, not merely noisy. The mod's
+//     MainThreadQueue is bypassed entirely on this path.
+//   - Unescaped text. Lines carry raw LLM output and verbatim player chat.
+//     The console is ImGui and renders through TextUnformatted, so markup
+//     shows as literal characters, and on a dedicated server any line
+//     containing "<color=" is silently dropped. A player can type that.
+//
+// See Research/Patterns/InGameConsoleOutput.md.
 // =============================================================================
 
 namespace MaintenanceBureauPlus
@@ -125,8 +147,10 @@ namespace MaintenanceBureauPlus
         }
 
         // Mirror to Stationeers' built-in F3 console (ConsoleWindow.Print).
-        // PLAYTEST ONLY — see file header. Watchdog + per-turn DIAG lines
-        // flood the F3 console; remove this branch before v1.0.0.
+        // PLAYTEST ONLY - see the file header for why this must not ship: an
+        // unfiltered ~104-call-site firehose, written cross-thread from three
+        // background threads into a main-thread-only unlocked buffer, carrying
+        // unescaped model and player text. Remove this branch before v1.0.0.
         private static MethodInfo _consolePrintMethod;
         private static object _consoleColorWhite;
         private static object _consoleColorYellow;
@@ -142,10 +166,19 @@ namespace MaintenanceBureauPlus
                 object color = _consoleColorWhite;
                 if ((level & (LogLevel.Error | LogLevel.Fatal)) != 0) color = _consoleColorRed ?? _consoleColorWhite;
                 else if ((level & LogLevel.Warning) != 0) color = _consoleColorYellow ?? _consoleColorWhite;
-                // Print(string, ConsoleColor, clearLine=false, aged=true, unformatted=false)
+                // Print(string, ConsoleColor color, bool clearLine, bool aged, bool unformatted).
+                //
+                // aged is INVERTED from its name: aged: true sets the line's activeTime to 0, so it
+                // is NOT drawn on the closed-console overlay and appears only once the console is
+                // opened. aged: false is what puts a line in front of a player who has not opened
+                // the console. true is deliberate and correct here -- a debug mirror belongs behind
+                // F3, never on the overlay -- and it is the one thing this branch already gets right.
+                //
+                // clearLine and unformatted are dead parameters on this path: Print reads them only
+                // to populate its premature-log queue and never consults them when writing the line.
                 _consolePrintMethod.Invoke(null, new object[]
                 {
-                    "[MBP] " + msg,
+                    "[MaintenanceBureauPlus] " + msg,
                     color,
                     /*clearLine:*/ false,
                     /*aged:*/ true,
