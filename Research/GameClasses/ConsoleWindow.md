@@ -3,10 +3,10 @@ title: ConsoleWindow
 type: GameClasses
 created_in: 0.2.6403.27689
 verified_in: 0.2.6403.27689
-verified_at: 2026-07-27
+verified_at: 2026-07-29
 sources:
   - $(StationeersPath)\rocketstation_Data\Managed\Assembly-CSharp.dll :: Assets.Scripts.ConsoleWindow
-  - .work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs:221811-223400 (ConsoleWindow), :221505-221600 (ConsoleLine), :203899 / :203949 / :205014 (GameManager), :110054-110066 (RocketSystemConsole), :43997 / :44065 / :44604 (KeyMap.ToggleConsole)
+  - .work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs:221811-223383 (ConsoleWindow), :221505-221600 (ConsoleLine), :203899 / :203949 / :205014 (GameManager), :110054-110066 (RocketSystemConsole), :43997 / :44065 / :44604 (KeyMap.ToggleConsole)
 related:
   - ../Patterns/InGameConsoleOutput.md
   - ../Patterns/GameLoggingSinks.md
@@ -129,7 +129,7 @@ With the console closed, `isShown` is false, so a line with `_activeTime <= 0f` 
 Overlay lifetime is 5 seconds, decremented per frame at 221638-221641, with an alpha fade over the last second (221577-221582).
 
 ## The Unity log bridge: Debug.LogError reaches the player's console
-<!-- verified: 0.2.6403.27689 @ 2026-07-27 -->
+<!-- verified: 0.2.6403.27689 @ 2026-07-29 -->
 
 `ConsoleWindow` subscribes to `Application.logMessageReceivedThreaded` and re-prints error-level Unity log output into the console itself. Subscription in `_Init` (221924-221928) and teardown (222261-222264), verbatim:
 
@@ -175,7 +175,7 @@ Consequences:
 - Printed: `LogType.Error` and `LogType.Exception` only. So `Debug.LogError`, `Debug.LogException`, and Unity's auto-logged unhandled exceptions all appear in the player's console.
 - Ignored: `LogType.Log` (`Debug.Log`), `LogType.Warning` (`Debug.LogWarning`), and `LogType.Assert` (`Debug.LogAssertion`).
 - Only the message line is red. The stack trace goes through `Print(stacktrace)` with all defaults, so it is White and `aged: true` (overlay-hidden).
-- The message is lowercased (`logStr.ToLower()`); the level tag is uppercased and bracketed, e.g. `[ERROR] `.
+- The message is lowercased (`logStr.ToLower()`); the level tag is uppercased and bracketed. `EnumCollections.LogTypes` is built with `toProper: false` (203493), so `Names = Enum.GetNames(typeof(T1))` is left untransformed (203609, the `ToProper()` rewrite at 203618 sitting inside `if (toProper)`) and the tag is the raw enum name upper-cased: `[ERROR]` for `LogType.Error`, `[EXCEPTION]` for `LogType.Exception`. `GetName` is called with `padded` defaulting to `false`, so the space-padded `PaddedNames` array is not used; `padded: true` would have rendered `[ERROR    ]` against the 9-character `Exception`.
 - The whole handler is a no-op when `CustomLogFile` is true (`CommandLineArgs?.Contains("-logFile") ?? false`, line 221915). `CommandLineArgs` is populated only inside the `IsBatchMode` branch of `_Init` (221929-221931), so on a normal client it is null and `CustomLogFile` is false. The guard exists to break a recursion loop, because `Print` under batch + `CustomLogFile` itself calls `UnityEngine.Debug.LogError/LogWarning/Log`.
 - The non-threaded `Application.logMessageReceived` is **never** subscribed anywhere in the assembly. A whole-file grep for `logMessageReceived` returns exactly two hits, both `logMessageReceivedThreaded` (221927, 222263).
 
@@ -256,6 +256,10 @@ private static void DrainPrematureLogQueue()
 
 **`clearLine` and `unformatted` are dead parameters on the non-batch path.** They are read only to populate the premature-log struct (223001, 223003) and are never consulted when the line is actually written (223007-223018).
 
+Neither has anywhere to go even in principle. `ConsoleLine` carries no matching field (221507-221519) and the sink signature is `public void Set(string text, uint color, float activeTime = 5f, uint[] continuationColors = null)` (221523), which has no slot for either. The `unformatted: true` arguments in the draw path (221698, 221709) are hard-coded literals on the closed-overlay branch, not fed from `Print`. `clearLine` does not overwrite the previous line either: the shift loop at 223007-223010 is unconditional and `Set` always writes slot 0 after it, so there is no branch that could produce overwrite semantics. Two similarly named things are unrelated: `_clearConsoleInput` (221841, consumed at 222436-222440) clears the input textbox, and `RocketSystemConsole.ClearLine()` is called unconditionally once per output line inside `PrintToConsole` (110065), followed by `RedrawInputLine()` (110069) to repaint the terminal prompt.
+
+Once the console UI is up, the premature branch is skipped outright, so on a live path the two parameters are not read at all, not even into the queue.
+
 ## Rendering: ImGui, not TextMeshPro
 <!-- verified: 0.2.6403.27689 @ 2026-07-27 -->
 
@@ -284,7 +288,7 @@ Every print shifts the ring buffer with no synchronisation (223007-223010), verb
 		}
 ```
 
-There is no `lock`, `Interlocked`, or `Monitor` anywhere in the class body (221811-223400), while the draw loop reads the same array at 222364-222367 / 222429-222435.
+There is no `lock`, `Interlocked`, or `Monitor` anywhere in the class body (221811-223383), while the draw loop reads the same array at 222364-222367 / 222429-222435.
 
 The game marshals to the main thread before printing from its async paths. `PrintError(System.Exception)` (222926-222934), verbatim:
 
@@ -312,6 +316,43 @@ Cost and capacity:
 ```
 
 `ApplySettings` (222797) hard-codes 1024 and does not read `DEFAULT_CONSOLE_BUFFER_SIZE`. Every `Print` runs the full 1023-iteration shift unconditionally: no throttle, no dedupe, no same-message collapse, no early-out. `ConsoleLine.Apply` (221791-221800) copies seven fields per element, so one print is roughly 1023 x 7 field copies. `PrintBlock` (223041), `PrintSegmentedBlock` (223083), and `PrintSegmentedBlockRaw` (223214) each run the shift once for the whole block, so they are the cheap way to emit N lines. **Rate limiting is entirely the caller's job.**
+
+## Lifetime: the buffer is never reset on world load
+<!-- verified: 0.2.6403.27689 @ 2026-07-29 -->
+
+The ring buffer is process-lifetime state. Nothing clears it on world load, world unload, or a return to the main menu.
+
+`ClearConsole()` (222815) has exactly one caller in the entire assembly, `ClearCommand.Execute` (96611-96623):
+
+```csharp
+public class ClearCommand : CommandBase
+{
+	public override string HelpText => "Clears all text from the console buffer.";
+...
+	public override string Execute(string[] args)
+	{
+		ConsoleWindow.ClearConsole();
+		return null;
+	}
+}
+```
+
+That is the player-typed `clear` command. `ApplySettings()` and `Initialize()` share the single call site `GameManager.Awake` (205018-205019), and `Initialize()` early-outs on `if (!IsInitialised)` (221943), so a second `Awake` is a no-op. No `SceneManager`, `sceneLoaded`, `OnWorldLoad`, or `OnFinishedLoad` reference exists anywhere in the class body.
+
+`ApplySettings` preserves content when it reallocates (222800-222809), so even a repeat call would not wipe the buffer:
+
+```csharp
+			if (i >= _consoleBuffer.Length)
+			{
+				array[i] = new ConsoleLine();
+			}
+			else
+			{
+				array[i] = _consoleBuffer[i];
+			}
+```
+
+For a mod this means the 1024-line ring is the only bound on a long session, and lines from a previous world are still in scroll-back after loading a new one. It also means a mod's own per-session print budget does not reset just because the player loaded a different save; if a cap should reset at a world boundary, the mod has to do that itself.
 
 ## Process-local, not networked
 <!-- verified: 0.2.6403.27689 @ 2026-07-27 -->
@@ -361,6 +402,7 @@ F3 is the **default**, not a fixed binding: it is registered as `AddKey("ToggleC
 
 ## Verification history
 
+- 2026-07-29: re-read while reviewing the console-output fix commits. Three additions and two corrections, all against the same 0.2.6403.27689 decompile. Added: the "Lifetime" section (the ring buffer is never reset on world load; `ClearConsole()` has exactly one caller, the player-typed `clear` command at 96611-96623, and `ApplySettings` preserves content when it reallocates); the derivation behind the log bridge's bracketed tag, which resolved a conflict against [InGameConsoleOutput](../Patterns/InGameConsoleOutput.md) under the Rule 3 protocol (that page had generalised the tag to `[ERROR]`; `LogType.Exception` renders `[EXCEPTION]`, and the conflict record lives there); and the evidence that `clearLine` and `unformatted` have nowhere to go even in principle, since `ConsoleLine` has no matching field and `Set`'s signature has no slot for either. Corrected: the class body ends at 223383, not 223400 (the next top-level type, `TerrainDebugHelper`, declares at 223384), in the frontmatter source range and in the "Threading and cost" negative-probe sentence. The negative probe itself was re-run over the corrected range and still finds no `lock`, `Interlocked`, `Monitor`, `volatile`, `[ThreadStatic]`, or concurrent collection, so that claim is re-confirmed rather than changed.
 - 2026-07-27: page created during a repo-wide audit of mod console usage against the 0.2.6403.27689 decompile. Split out of [InGameConsoleOutput](../Patterns/InGameConsoleOutput.md), which had grown a partial and partly incorrect API section while being a mod-guidance page; that page now carries the guidance and this one carries the class reference. All sections verified directly against `.work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs` with verbatim excerpts. Findings that contradicted the older page (the `logMessageReceivedThreaded` subscription, the inverted `aged` parameter, `PrintError`'s default stack-trace dump, the absence of `PrintWarning`) were resolved under the Rule 3 fresh-validator protocol; the conflict record lives on the InGameConsoleOutput page.
 
 ## Open questions

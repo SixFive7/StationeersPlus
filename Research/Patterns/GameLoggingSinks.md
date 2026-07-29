@@ -50,7 +50,7 @@ The last row is the one that most often surprises a mod author: the in-game cons
 - **Writer:** the Unity player runtime itself, internally. No game code writes this file.
 
 ### 2. The log bridge: ConsoleWindow consumes Unity's log stream
-<!-- verified: 0.2.6403.27689 @ 2026-07-27 -->
+<!-- verified: 0.2.6403.27689 @ 2026-07-29 -->
 
 `ConsoleWindow._Init` subscribes to `Application.logMessageReceivedThreaded` (Assembly-CSharp:221927) and its `LogMessage` handler (Assembly-CSharp:222266-222282) re-prints `LogType.Error` and `LogType.Exception` into the in-game console buffer, lowercased, prefixed `[ERROR]` / `[EXCEPTION]`, red, followed by the stack trace in the default colour.
 
@@ -62,6 +62,10 @@ This subscription is a **consumer** of Unity's log notification event. It does n
 - The non-threaded `Application.logMessageReceived` is never subscribed anywhere in the assembly.
 
 Consequence for mods: a `Debug.LogError` is player-visible, and pairing it with a `ConsoleWindow` call for the same text double-prints.
+
+**BepInEx `Log.LogError` does not travel this route, so pairing it with a `ConsoleWindow` call is safe.** This is the fact the whole "log to the file, print to the console" pattern rests on, and it is worth stating as a verified negative rather than an assumption. `StationeersLaunchPad.decompiled.cs` contains no subscription to BepInEx `ManualLogSource.LogEvent`, no `ILogListener` implementation, and no reference to `BepInEx.Logging` at all. Its only re-emission into Unity's log stream is `Logger.LogUnityInternal` (`:2905`, a `Debug.LogFormat` call), reachable only from `Logger.Log(..., unity: true)`, which requires a mod to call StationeersLaunchPad's own `Logger` directly rather than its BepInEx `ManualLogSource`. So a plugin's `Log.LogError(...)` never becomes a `Debug.LogError`, never raises `logMessageReceivedThreaded`, and never reaches the in-game console. `Log.LogError(msg)` alongside `ConsoleWindow.PrintError(msg, suppressStacktrace: true)` yields exactly one console line and one log line, which is the intended shape.
+
+The one in-repo counter-example is a mod that deliberately bridges the two itself: `Plans/MaintenanceBureauPlus/MaintenanceBureauPlus/LaunchPadLog.cs` hooks its own BepInEx `ManualLogSource` and forwards every entry into `ConsoleWindow.Print` by reflection. That is the mod's own wiring, not a StationeersLaunchPad behaviour.
 
 ### 3. Player-prev.log
 <!-- verified: 0.2.6403.27689 @ 2026-07-27 -->
@@ -159,4 +163,4 @@ Resolves to %USERPROFILE%\My Games\Stationeers\.
 
 ## Open questions
 
-None.
+- **By what mechanism do BepInEx mod log lines reach `Player.log`?** The summary table and detail item 1 both credit a StationeersLaunchPad mirror, and that claim is verified only in the sense that the lines are observed in `Player.log`; the mechanism was never traced. It is now in tension with the 2026-07-29 finding in detail item 2, which established that `StationeersLaunchPad.decompiled.cs` has no `BepInEx.Logging` reference, no `ManualLogSource.LogEvent` subscription, and no `ILogListener`. Those two cannot both be right as stated, so one of them is describing the wrong actor. The likely resolution is that the route is BepInEx's own diskless-console or `UnityLogListener` plumbing rather than anything StationeersLaunchPad does, which would make "via LaunchPad mirror" a misattribution rather than a wrong observation. This does not affect the console-double-print rule either way: that rule depends only on the verified negative (no BepInEx to `UnityEngine.Debug` bridge in StationeersLaunchPad), which was established directly. Resolving it needs a pass over `BepInEx.Core` / `BepInEx.Preloader`, which no page here has decompiled yet. Left as an open question rather than silently overwritten, because correcting a verified claim requires the Rule 3 fresh-validator protocol and the evidence in hand is one-sided.
