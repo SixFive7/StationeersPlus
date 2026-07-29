@@ -3,12 +3,15 @@ title: GameLoggingSinks
 type: Patterns
 created_in: 0.2.6228.27061
 verified_in: 0.2.6403.27689
-verified_at: 2026-07-27
+verified_at: 2026-07-29
 sources:
   - $(StationeersPath)\rocketstation_Data\Managed\Assembly-CSharp.dll :: Assets.Scripts.ConsoleWindow, GameManager, RocketSystemConsole, LogCommand, Defines.Paths
   - .work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs:99289-99340 (LogCommand), :221811-223400 (ConsoleWindow), :109870-110066 (RocketSystemConsole), :228560 (Defines.Paths.LocalData)
   - $(StationeersPath)\rocketstation_Data\Managed\0Harmony.dll :: FileLog, FileWriter
   - .work/decomp/0.2.6403.27689/0Harmony.decompiled.cs:8529-8673 (FileLog), :9332-9355 (FileWriter)
+  - $(StationeersPath)\BepInEx\core\BepInEx.dll :: BepInEx.Logging.UnityLogListener, UnityLogSource, DiskLogListener (type and string table inspection only, not decompiled)
+  - $(StationeersPath)\rocketstation_Data\Managed\UnityEngine.CoreModule.dll :: UnityEngine.UnityLogWriter.WriteStringToUnityLog
+  - $(StationeersPath)\BepInEx\config\BepInEx.cfg :: [Logging] UnityLogListening, LogConsoleToUnityLog; [Logging.Disk] WriteUnityLog; [Logging.Console] Enabled
 related:
   - ./InGameConsoleOutput.md
   - ../GameClasses/ConsoleWindow.md
@@ -23,11 +26,11 @@ The Stationeers game writes diagnostic and telemetry data to multiple log sinks.
 For which sink a MOD should write to, and the traps in the in-game console API, see [InGameConsoleOutput](./InGameConsoleOutput.md). For the `ConsoleWindow` class reference, see [ConsoleWindow](../GameClasses/ConsoleWindow.md).
 
 ## Summary table
-<!-- verified: 0.2.6403.27689 @ 2026-07-27 -->
+<!-- verified: 0.2.6403.27689 @ 2026-07-29 -->
 
 | Log sink | File path | Condition | Content | Writer |
 |---|---|---|---|---|
-| **Player.log** | %USERPROFILE%\AppData\LocalLow\Rocketwerkz\rocketstation\Player.log | Always active | UnityEngine.Debug.Log* and BepInEx mod logs (via LaunchPad mirror) | Unity player runtime (built-in) |
+| **Player.log** | %USERPROFILE%\AppData\LocalLow\Rocketwerkz\rocketstation\Player.log | Always active | UnityEngine.Debug.Log* and BepInEx plugin logs (via BepInEx `UnityLogListener`) | Unity player runtime (built-in) |
 | **Player-prev.log** | Same folder | Auto-rotated | Previous session Player.log | Unity built-in rotation |
 | **Console export** | %USERPROFILE%\My Games\Stationeers\PlayerLog_*.log | Player-initiated via log command | In-game console buffer dump | LogCommand.LogToFile |
 | **Harmony debug log** | Desktop\harmony.log.txt OR HARMONY_LOG_FILE env var | Opt-in (Harmony.DEBUG=true) | Low-level patch tracing | HarmonyLib.FileLog |
@@ -41,12 +44,12 @@ The last row is the one that most often surprises a mod author: the in-game cons
 ## Detailed findings
 
 ### 1. Player.log (primary)
-<!-- verified: 0.2.6403.27689 @ 2026-07-27 -->
+<!-- verified: 0.2.6403.27689 @ 2026-07-29 -->
 
 - **Path:** %USERPROFILE%\AppData\LocalLow\Rocketwerkz\rocketstation\Player.log
 - **Rotation:** Auto-rotated to Player-prev.log on each launch
 - **Content:** UnityEngine.Debug.Log/LogWarning/LogError output
-- **Additional:** BepInEx mod logs mirrored via StationeersLaunchPad
+- **Additional:** BepInEx plugin logs, written by BepInEx's own `UnityLogListener` (an `ILogListener` in `BepInEx.dll`, alongside `ConsoleLogListener` and `DiskLogListener`). It formats each event with `[{0,-7}:{1,10}] {2}` (level left-padded to 7, source right-padded to 10) and passes the result to Unity's internal `UnityEngine.UnityLogWriter.WriteStringToUnityLog`, a native binding exported by `UnityEngine.CoreModule.dll` (`Runtime/Export/Logging/UnityLogWriter.bindings.h`). That call writes the string straight into the player log; it does **not** route through `Debug.unityLogger`, so it raises no `logMessageReceivedThreaded` event, captures no stack trace, and is never re-printed into the in-game console at any severity. StationeersLaunchPad plays no part: BepInEx-format lines appear in `Player.log` before StationeersLaunchPad's assembly is loaded, and `StationeersLaunchPad.decompiled.cs` contains no reference to `BepInEx.Logging` at all.
 - **Writer:** the Unity player runtime itself, internally. No game code writes this file.
 
 ### 2. The log bridge: ConsoleWindow consumes Unity's log stream
@@ -67,12 +70,32 @@ Consequence for mods: a `Debug.LogError` is player-visible, and pairing it with 
 
 The one in-repo counter-example is a mod that deliberately bridges the two itself: `Plans/MaintenanceBureauPlus/MaintenanceBureauPlus/LaunchPadLog.cs` hooks its own BepInEx `ManualLogSource` and forwards every entry into `ConsoleWindow.Print` by reflection. That is the mod's own wiring, not a StationeersLaunchPad behaviour.
 
-### 3. Player-prev.log
+### 3. The reverse bridge: Unity to BepInEx, and why it does not reach LogOutput.log
+<!-- verified: 0.2.6403.27689 @ 2026-07-29 -->
+
+Unity's log stream is also fed INTO the BepInEx logging system, but at default settings it does not reach `LogOutput.log`. `[Logging] UnityLogListening` (default true) installs `UnityLogSource`, which captures `Debug.Log*` output as BepInEx log events. `[Logging.Disk] WriteUnityLog` (default **false**, described in `BepInEx.cfg` as "Include unity log messages in log file output.") then makes `DiskLogListener` discard them. Captured, not written.
+
+Verified against a live session by counting the same markers in both files:
+
+| Marker | `Player.log` | `LogOutput.log` |
+|---|---|---|
+| `^\[Global\]:` (StationeersLaunchPad via `Debug.LogFormat`) | 22 | 0 |
+| `Begin MonoManager` (Unity engine) | 1 | 0 |
+| `UnloadTime` (Unity engine) | 2 | 0 |
+
+**The practical consequence, and the reason this matters for mod code: the useful direction is BepInEx to Unity, not Unity to BepInEx.** One `Log.LogError(msg)` on a plugin's `ManualLogSource` lands in BOTH `LogOutput.log` (via `DiskLogListener`) and `Player.log` (via `UnityLogListener`), from a single call, at every severity, with no console side effect. One `Debug.LogError(msg)` lands only in `Player.log` and additionally double-prints into the in-game console. So a mod that wants its output readable afterwards should prefer its BepInEx `ManualLogSource` over `UnityEngine.Debug.*` for everything.
+
+Two traps in the same area:
+
+- `LogMessage` lowercases the message before printing it (`logStr.ToLower()`, `Assembly-CSharp:222273`), so a `Debug.LogError` shows the player mangled casing for mod names, device names, and IC10 tokens.
+- `Debug.LogAssertion` and `Debug.Assert` are `[Conditional("UNITY_ASSERTIONS")]`, evaluated at the *caller's* compile time. A mod whose `.csproj` does not define `UNITY_ASSERTIONS` has the call removed by its own compiler and the message reaches nothing at all. Across the whole game assembly there are 49 `Debug.Log(`, 36 `Debug.LogWarning(`, 97 `Debug.LogError(` and 35 `Debug.LogException(` call sites and zero of either assertion form, which is the signature of that stripping.
+
+### 4. Player-prev.log
 <!-- verified: 0.2.6403.27689 @ 2026-07-27 -->
 - **Path:** Same directory as Player.log
 - **Content:** Previous session's Player.log (Unity automatic rotation)
 
-### 4. Console buffer export (PlayerLog_<timestamp>.log)
+### 5. Console buffer export (PlayerLog_<timestamp>.log)
 <!-- verified: 0.2.6403.27689 @ 2026-07-27 -->
 - **Path:** %USERPROFILE%\My Games\Stationeers\ (see Defines.Paths.LocalData)
 - **Invocation:** In-game console command: log or log <customname>
@@ -82,7 +105,7 @@ The one in-repo counter-example is a mod that deliberately bridges the two itsel
 - **Custom naming:** Spaces replaced with underscores, .log suffix added
 - **Related:** log clear command deletes all *.log files in LocalData folder
 
-### 5. Harmony FileLog
+### 6. Harmony FileLog
 <!-- verified: 0.2.6403.27689 @ 2026-07-27 -->
 - **Path:** %USERPROFILE%\Desktop\harmony.log.txt
 - **Override:** Environment variable HARMONY_LOG_FILE (checked at 0Harmony line 8550)
@@ -95,7 +118,7 @@ The one in-repo counter-example is a mod that deliberately bridges the two itsel
   - Reset() - deletes harmony.log.txt from desktop
 - **Thread safety:** Guarded by lock object fileLock
 
-### 6. Harmony FileWriter
+### 7. Harmony FileWriter
 <!-- verified: 0.2.6403.27689 @ 2026-07-27 -->
 - **Path:** CWD\HarmonyLog.txt (overridable via FileWriter.FileWriterPath property, 0Harmony:9332)
 - **Activation:** Only if FileWriter.Enabled = true (not default)
@@ -104,7 +127,7 @@ The one in-repo counter-example is a mod that deliberately bridges the two itsel
 - **Operation:** Creates StreamWriter via File.Create on enable (line 9340); subscribes to Logger.MessageReceived
 - **Format:** [LogChannel] Message (line 9352)
 
-### 7. Dedicated server console (RocketSystemConsole)
+### 8. Dedicated server console (RocketSystemConsole)
 <!-- verified: 0.2.6403.27689 @ 2026-07-27 -->
 - **Activation:** Batch mode (GameManager.IsBatchMode) without -logFile flag
 - **Path:** System console window (live output, not persisted by default)
@@ -120,7 +143,7 @@ The one in-repo counter-example is a mod that deliberately bridges the two itsel
 - **Important:** This is live console, not persisted to disk unless stdout redirected
 - **Caveat:** `PrintBlock` and `PrintSegmentedBlock` skip their entire body when IsBatchMode (Assembly-CSharp:223036), so they produce NO dedicated-server output. Only the plain `Print` has a batch-mode sink.
 
-### 8. Custom log file (-logFile flag)
+### 9. Custom log file (-logFile flag)
 <!-- verified: 0.2.6403.27689 @ 2026-07-27 -->
 - **Activation:** Batch mode with -logFile <path> command-line flag
 - **Detection:** ConsoleWindow.CustomLogFile property (Assembly-CSharp:221915): CommandLineArgs?.Contains("-logFile")
@@ -158,9 +181,11 @@ Resolves to %USERPROFILE%\My Games\Stationeers\.
 
 ## Verification history
 
+- 2026-07-29: **conflict on "what puts BepInEx plugin log lines into `Player.log`".** Previous claim (summary table and detail item 1): "BepInEx mod logs mirrored via StationeersLaunchPad". New finding: the route is BepInEx's own `BepInEx.Logging.UnityLogListener`, which formats with `[{0,-7}:{1,10}] {2}` and calls Unity's native `UnityEngine.UnityLogWriter.WriteStringToUnityLog`; StationeersLaunchPad is not involved. Fresh validator verdict: **B is correct**, quoting the assembly-qualified string `UnityEngine.UnityLogWriter, UnityEngine.CoreModule` from the `#US` heap of `BepInEx\core\BepInEx.dll`, with `UnityLogListener`, `UnityLogWriter`, `WriteStringToUnityLog`, `WriteFromUnityLog` and the namespace `BepInEx.Logging` in the same DLL's `#Strings` heap, and both target methods present in `UnityEngine.CoreModule.dll`. The decisive evidence is ordering: in a live `Player.log`, `[Message:   BepInEx] BepInEx 5.4.23.5` is line 19 and plugin `ManualLogSource` output (`[Info   :ClientDriver]`) is at lines 39-43, while `[Info   :   BepInEx] Loading [StationeersLaunchPad 0.5.0]` is line 44 and StationeersLaunchPad's own first line is 52. A component not yet loaded cannot be mirroring. The two competing routes are both off at default (`[Logging.Console] Enabled = false`, `[Logging] LogConsoleToUnityLog = false`), which forces the conclusion. The original observation was always correct; only the actor was misattributed, so the console double-print rule in detail item 2 is unaffected and is in fact strengthened, since the native writer bypasses `Debug.unityLogger` entirely and therefore cannot re-enter the console bridge at any severity. Result: summary table row and detail item 1 corrected; new detail item 3 added on the reverse bridge, recording that `[Logging.Disk] WriteUnityLog` defaults to false and so keeps `Debug.Log*` out of `LogOutput.log`, plus the `LogMessage` lowercasing trap and the `UNITY_ASSERTIONS` stripping trap; downstream detail items renumbered. This closes the Open Question opened earlier the same day. BepInEx assemblies were NOT decompiled (repo rule); see the remaining Open Questions for what that leaves unread.
 - 2026-06-24: Page created from exhaustive search of Assembly-CSharp.decompiled.cs and 0Harmony.decompiled.cs against 0.2.6228.27061. Enumerated all StreamWriter, File.AppendText, File.Create, Application.logMessageReceived handlers, and console classes. Harmony logs verified from FileLog and FileWriter classes. Dedicated server logging verified from RocketSystemConsole and batch-mode initialization paths.
 - 2026-07-27: re-verified and restamped against 0.2.6403.27689 during a repo-wide console-output audit; all Assembly-CSharp line citations updated (they were from the 0.2.6228.27061 decompile, whose folder no longer exists), Harmony citations re-checked and the FileLog class line corrected from 8534 to 8529. Two corrections and one addition. **Correction 1, the Player.log writer.** The summary table credited `Application.logMessageReceivedThreaded` as the writer of Player.log. It is not a writer at all; it is Unity's notification event, and Unity's player runtime writes Player.log internally regardless of subscribers. The row now names the Unity runtime. **Correction 2, what the subscription is for.** Old detail item 1 listed "Subscriber: Application.logMessageReceivedThreaded (ConsoleWindow._Init line 206182)" under Player.log, which conflated a consumer with a sink. That subscription is now its own section (detail item 2) describing what it actually does: pull `LogType.Error` and `LogType.Exception` INTO the in-game console buffer. No fresh validator was needed for either, because this page's claim that the subscription exists was the correct half of a conflict with `InGameConsoleOutput.md` and was upheld; see that page's 2026-07-27 Verification History entry for the binding verdict, which cites this page's original line numbers as the evidence that the subscription predates this game version. **Addition:** an in-game console buffer row in the summary table, the `-logFile` interaction with the log bridge, the `<color=` drop on the non-`-logFile` batch path, and the note that `PrintBlock` / `PrintSegmentedBlock` produce no dedicated-server output.
 
 ## Open questions
 
-- **By what mechanism do BepInEx mod log lines reach `Player.log`?** The summary table and detail item 1 both credit a StationeersLaunchPad mirror, and that claim is verified only in the sense that the lines are observed in `Player.log`; the mechanism was never traced. It is now in tension with the 2026-07-29 finding in detail item 2, which established that `StationeersLaunchPad.decompiled.cs` has no `BepInEx.Logging` reference, no `ManualLogSource.LogEvent` subscription, and no `ILogListener`. Those two cannot both be right as stated, so one of them is describing the wrong actor. The likely resolution is that the route is BepInEx's own diskless-console or `UnityLogListener` plumbing rather than anything StationeersLaunchPad does, which would make "via LaunchPad mirror" a misattribution rather than a wrong observation. This does not affect the console-double-print rule either way: that rule depends only on the verified negative (no BepInEx to `UnityEngine.Debug` bridge in StationeersLaunchPad), which was established directly. Resolving it needs a pass over `BepInEx.Core` / `BepInEx.Preloader`, which no page here has decompiled yet. Left as an open question rather than silently overwritten, because correcting a verified claim requires the Rule 3 fresh-validator protocol and the evidence in hand is one-sided.
+- **Which `WriteStringToUnityLog` overload binds at runtime.** Both `WriteStringToUnityLog` and `WriteStringToUnityLogImpl` appear as name strings in `BepInEx.dll` and both methods exist in `UnityEngine.CoreModule.dll`, which implies a reflection fallback chain. BepInEx's own changelog carries `(37f0a9aa) [Soggy_Pancake] v5: Fix log writer errors for Unity 6 (#1264)`, corroborating that the fallback exists. Which one binds on Unity 2022.3.62f3 was not determined. This is a curiosity, not a blocker: the observable behaviour is identical either way.
+- **`UnityLogListener.LogEvent`'s method body has not been read.** The repo forbids decompiling outside `.work/decomp/<game-version>/`, and no BepInEx assembly is decompiled there. The routing in detail item 1 is established from the type and string tables in `BepInEx.dll`, the config keys, the live log contents, and the elimination of every alternative, but not from IL. Treat the mechanism as verified by behaviour rather than by reading the method.
