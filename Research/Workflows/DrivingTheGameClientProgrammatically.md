@@ -3,7 +3,7 @@ title: Driving the game client programmatically
 type: Workflows
 created_in: 0.2.6403.27689
 verified_in: 0.2.6403.27689
-verified_at: 2026-07-27
+verified_at: 2026-07-30
 sources:
   - .work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs
   - .work/decomp/0.2.6403.27689/Assembly-CSharp.Human.decompiled.cs
@@ -121,7 +121,7 @@ lines in a couple of seconds, so it needs its own ring buffer or it evicts the c
 actually cares about.
 
 ## Input injection
-<!-- verified: 0.2.6403.27689 @ 2026-07-27 -->
+<!-- verified: 0.2.6403.27689 @ 2026-07-30 -->
 
 Patch `UnityEngine.Input`, not `KeyManager`. Every `KeyManager` query bottoms out in the Unity layer:
 
@@ -163,6 +163,180 @@ backstop.
 
 **One frame of wheel is one notch.** Consumers act once per frame, so a two-frame injection scrolls
 a spray can two colours. Verified in world: `frames=1` steps the colour index by exactly 1 per call.
+
+Re-confirmed on 0.2.6403.27689: there is no cached key state anywhere for the patch to sit under.
+`InputSystem.KeyWrap.PollForInput` (line 191636) calls `Input.GetKeyDown` / `GetKey` / `GetKeyUp`
+directly and fires its C# events synchronously from inside that call stack; its `IsPressed` and
+`IsPressedThisFrame` properties are written there and read by nothing in the assembly.
+`KeyMap.PollInputs` (44823) only fans out over a `HashSet<KeyWrap>`. `KeyManager.GetButton`,
+`GetButtonDown` and `GetButtonUp` (44446-44471) are a `ConsoleWindow.IsOpen` short-circuit plus the
+live Unity call. There are 139 direct `Input.*` call sites in `Assembly-CSharp`, so the Unity layer
+really is the one chokepoint. The modern input package is absent: no `UnityEngine.InputSystem`
+references, and no `Unity.InputSystem.dll` in `rocketstation_Data\Managed\`, only
+`UnityEngine.InputLegacyModule.dll`.
+
+## The gameplay input gate: `Cursor.visible` kills per-frame input
+<!-- verified: 0.2.6403.27689 @ 2026-07-30 -->
+
+Patching `UnityEngine.Input` delivers the value. It does not guarantee anything consumes it. The
+consumer side has a gate that closes on its own in a background window, and when it is shut the
+symptom is indistinguishable from injection not working: synthetic keys and wheel do nothing, while
+direct method calls on the same objects work perfectly.
+
+`Assets.Scripts.Inventory.InventoryManager.ManagerUpdate` (287152), abbreviated to the branch that
+matters:
+
+```csharp
+if (Cursor.visible || Parent.IsUnresponsive || ConsoleWindow.IsOpen)
+{
+    return;
+}
+CheckDisplaySlotInput();
+CheckSeatedInput();
+...
+if (Parent.State == EntityState.Alive && IsAllowedToLook() && IsParentSafe() && !Stationpedia.IsOpenAndLocked)
+{
+    switch (CurrentMode)
+    {
+    case Mode.Normal:
+        NormalMode();
+        break;
+    case Mode.Placement:
+        PlacementMode();
+        break;
+    case Mode.PrecisionPlacement:
+        PrecisionPlacementMode();
+        break;
+```
+
+Everything below that early return stops:
+
+- **`CheckDisplaySlotInput` (287367) is the only writer of `InventoryManager.newScrollData` in the
+  whole assembly.** A regex search for `newScrollData\s*=` returns exactly one hit, line 287369,
+  `newScrollData = Input.mouseScrollDelta.y / 10f`. There is no reset to zero anywhere; the
+  once-per-frame overwrite is the reset. So when the gate is shut the wheel is never sampled and the
+  field keeps its last value indefinitely.
+- **`NormalMode` (288000)** never runs, which takes with it every mod that hangs a per-frame patch
+  there. SprayPaintPlus's `ColorCyclerPatch` is a prefix on `NormalMode`, and that is where it packs
+  and sends its client-half preference mask, so a driven client silently never reports its own
+  settings to the server.
+
+Note that `NormalMode` does not read `newScrollData` itself; the placement-rotation reads at 288400,
+288404, 288470, 288474, 288618 and 288622 are all inside `PlacementMode` (288320).
+`PrecisionPlacementMode` (288256) bypasses the field and reads `Input.mouseScrollDelta.y` raw.
+
+The same term gates movement, at 211510:
+
+```csharp
+if (KeyManager.InputState != KeyInputState.Game || Cursor.visible || !IsGround || _jumping || !IsInputAscend)
+```
+
+**Why an unfocused window ends up here.** Unity releases the cursor lock when the application loses
+focus. `MouseModeController.Check` (201335) tries to re-lock every frame and `SetState` (201363)
+re-issues `CursorManager.SetCursor(locked)` whenever the actual state does not match, but it cannot
+take the lock back while the window is in the background, so `Cursor.visible` stays true for as long
+as the window is not foreground.
+
+Nothing in the managed code checks application focus directly. `Application.isFocused` has zero
+occurrences in `Assembly-CSharp`. `Application.runInBackground` appears once, at 102476, inside a
+diagnostic print. The single `OnApplicationFocus` (201248, on `CursorManager`) only restores cursor
+state when focus is regained. The focus dependency is entirely this second-order one through the
+cursor.
+
+**Working around it in-process.** Assert the cursor state from a Harmony prefix on
+`InventoryManager.ManagerUpdate` itself, so the write lands a few instructions before the gate reads
+it and nothing can intervene:
+
+```csharp
+if (Cursor.visible) Cursor.visible = false;
+if (Cursor.lockState != CursorLockMode.Locked) Cursor.lockState = CursorLockMode.Locked;
+```
+
+This needs no window focus and no OS input, so it keeps the never-focus property that makes the
+in-process design worth having. It is only correct for a client nobody is sitting at: it takes the
+mouse cursor away from a real player. ClientDriver gates it behind
+`Client - Gameplay Input / Force Gameplay Input`, default off.
+
+Two further gates worth knowing, both of which report as "input did nothing":
+
+- `ConsoleWindow.IsOpen` short-circuits **every** `KeyManager.GetButton*` call (44448, 44457, 44466)
+  for any key other than `KeyMap.ToggleConsole`, as well as appearing in the `ManagerUpdate` gate.
+- `KeyWrapBindings.KeyWrapOnEvent` (191728) filters every KeyWrap-bound action on
+  `item.inputState == KeyInputState.All || item.inputState.HasFlag(KeyManager.InputState)`.
+  `KeyManager.InputState` (43706) is a public getter with a private setter, defaults to
+  `KeyInputState.Game`, and is moved only by `SetInputState` / `RemoveInputState` (43864, 43870)
+  through a `Dictionary<string, KeyInputState>` stack. A panel that pushes a state and never pops it
+  leaves every bound action inert. `KeyMap._SwapHands.Bind(InputPhase.Down, SwapHandsOnKeyUp,
+  KeyInputState.Game)` at 43771 is one of those, which is why a synthetic SwapHands can be delivered
+  and still do nothing.
+
+`enum KeyInputState : byte { All = 0, Game = 2, Paused = 4, Typing = 8, Cinematic = 0x10 }` (43638).
+
+**Diagnosing it.** Do not infer this from behaviour. Prefix and postfix each link of the chain and
+compare enter counts across the input window: `GameManager.Update` (which runs the manager loop at
+`GameManager.decompiled.cs:1540-1543`), `KeyManager.ManagerUpdate` (43736), `KeyMap.PollInputs`,
+`InventoryManager.ManagerUpdate`, `InventoryManager.CheckDisplaySlotInput`,
+`InventoryManager.NormalMode`. A link whose enter count stops advancing is not being reached; a link
+whose enter count outruns its exit count is throwing. ClientDriver exposes this as `GET /diag/input`.
+
+## Window size and fullscreen come from the game, not the command line
+<!-- verified: 0.2.6403.27689 @ 2026-07-30 -->
+
+`-screen-width`, `-screen-height` and `-screen-fullscreen` are consumed by the Unity player when it
+creates the window, and the game then overrides them twice with its own saved preference. Both call
+sites are unguarded, so this happens in batch mode too.
+
+```csharp
+// Settings.LoadSettings(), line 266641, reached from WorldManager.ManagerAwake() line 59685,
+// which sits ABOVE that method's `if (!GameManager.IsBatchMode)` block
+if (int.TryParse(CurrentData.ScreenWidth, out var result) && int.TryParse(CurrentData.ScreenHeight, out var result2))
+{
+    Screen.SetResolution(result, result2, CurrentData.FullScreen, CurrentData.RefreshRate);
+}
+
+// Settings.ApplyVideoSettings(), line 266686, the last statement of GameManager.Start() at 205102,
+// which runs AFTER CommandLine.ExecutePostLaunchCommands()
+Screen.SetResolution(int.Parse(CurrentData.ScreenWidth), int.Parse(CurrentData.ScreenHeight),
+                     CurrentData.FullScreen, CurrentData.RefreshRate);
+```
+
+The fields are `[XmlElement]` members of `SettingData` (265393-265424), so they are exactly the
+element names in `setting.xml`:
+
+```csharp
+[XmlElement] public int    Monitor       = 1;
+[XmlElement] public string ScreenWidth   = "1920";
+[XmlElement] public string ScreenHeight  = "1080";
+[XmlElement] public int    RefreshRate   = 60;
+[XmlElement] public bool   FullScreen    = true;
+[XmlElement] public bool   Vsync;
+```
+
+Consequences for a driven instance:
+
+- `<FullScreen>` defaults to **true**, so an instance whose `setting.xml` was never edited comes up
+  fullscreen no matter what the launch line said. `-settingspath` gives each instance its own file,
+  so setting `<FullScreen>false</FullScreen>` there is per-instance and costs nothing.
+- `ScreenWidth` and `ScreenHeight` are **strings**. `LoadSettings` uses `int.TryParse` and tolerates
+  garbage; `ApplyVideoSettings` uses a bare `int.Parse` and will throw inside `GameManager.Start()`,
+  an `async void`, if the value is not numeric.
+- `Screen.fullScreenMode` and the `FullScreenMode` enum have zero occurrences; the game only ever
+  uses the legacy `bool fullscreen` overload.
+- `<Monitor>` is serialized and read by nothing. `CurrentData.Monitor` has no consumers.
+- The game never writes Unity's own PlayerPrefs screen keys: the string `Screenmanager` has zero
+  occurrences in the assembly, and the nine `PlayerPrefs` call sites are all server-browser filter
+  and sort state (`FILTER_VERSION`, `FILTER_PASSWORD`, `FILTER_EMPTY`, `JoinSortBy`) plus
+  `ChatSize`. The values under `HKCU\Software\Rocketwerkz\rocketstation` are Unity's, written
+  natively.
+
+The in-process fix is to correct `Settings.CurrentData` before the game reads it, rather than to call
+`Screen.SetResolution` afterwards and be overwritten. A prefix on `ApplyVideoSettings` that rewrites
+the three fields makes the game's own call ask for a window.
+
+Resolving the `Settings` type by name is a trap: it is in the **global namespace**, and other loaded
+assemblies carry their own `Settings`, so `AccessTools.TypeByName("Settings")` can return the wrong
+one. Scan for a type named `Settings` that has both a static `CurrentData` field and a static
+`LoadSettings` method.
 
 ## Direct Connect
 <!-- verified: 0.2.6403.27689 @ 2026-07-27 -->
@@ -428,6 +602,13 @@ Lunar world's display name being "Moon: Great Mare".
   look-at, spawn into hand, structure placement, `AttackWith` painting a wall, backbuffer
   screenshots at the menu and in world, forced LaunchPad settings panel, and a live ConfigEntry
   write reflected in the mod's computed value.
+- 2026-07-30: added "The gameplay input gate" and "Window size and fullscreen come from the game, not
+  the command line". Both are additive; nothing previously on the page was contradicted. The "Input
+  injection" section was re-read against the current decompile and re-confirmed (there is no cached
+  key state to sit under; `KeyWrap.PollForInput` calls `UnityEngine.Input` live), so it was
+  restamped rather than changed. The gate section supplies the missing precondition for the
+  already-recorded "frames=1 steps the colour index by exactly 1 per call" result: it holds only
+  while `InventoryManager.ManagerUpdate` gets past its `Cursor.visible` early return.
 - 2026-07-27: corrected the StationeersLua / ScriptedScreens entry. It was first written as "fires
   once multiplayer is entered", based on occurrence counts in `BepInEx/LogOutput.log`. That file
   collapses the repeats and is not a usable measure. Re-measured against the game's own console ring
