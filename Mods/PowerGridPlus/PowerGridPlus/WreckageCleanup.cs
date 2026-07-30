@@ -5,6 +5,7 @@ using Assets.Scripts.Networks;
 using Assets.Scripts.Objects;
 using Assets.Scripts.Objects.Electrical;
 using Assets.Scripts.Util;
+using StationeersPlus.Shared;
 using UnityEngine;
 
 namespace PowerGridPlus
@@ -42,6 +43,15 @@ namespace PowerGridPlus
     ///
     ///     Player messaging: one plain-text console line per removed piece up to a small cap, then a
     ///     single remainder line, so a heavily corrupted save cannot spam the console.
+    ///
+    ///     <para>The cap stays hand-rolled rather than moving to <c>Throttle.CapWithSummary</c>,
+    ///     because the helper's summary is not the same player-visible output on three counts: it
+    ///     words the line as "N more not shown (last suppressed message)." instead of this sweep's
+    ///     wording, it prefixes it with the mod display name while broadcasts carry no prefix, and it
+    ///     emits through the LOCAL console rather than the networked chat channel, so on a server
+    ///     every connected client would see the six capped lines and lose the remainder line. The
+    ///     three broadcasts below therefore pass <c>Throttle.Never</c>: <c>announced</c> is the
+    ///     cap.</para>
     /// </summary>
     internal static class WreckageCleanup
     {
@@ -104,7 +114,10 @@ namespace PowerGridPlus
                         $"[PowerGridPlus] Wreckage cleanup: removing burnt cable wreckage at {VoltageTier.Coords(wreck)} ({reason}).");
                     if (announced < AnnounceCap)
                     {
-                        PlayerConsole.Broadcast(
+                        // Throttle.Never: the shared announced/AnnounceCap counter above is the cap
+                        // (see the class remarks), and it spans both sweeps plus the remainder line,
+                        // which no single per-key helper policy can express.
+                        PlayerMessage.Broadcast("wreckage-cleanup", Throttle.Never,
                             $"Cleaned up burnt cable wreckage at {VoltageTier.Coords(wreck)}: it was {reason}");
                         announced++;
                     }
@@ -149,7 +162,8 @@ namespace PowerGridPlus
                             $"[PowerGridPlus] Load cleanup: removing hidden duplicate {c.CableType} cable at {VoltageTier.Coords(c)} (stacked with an identical cable).");
                         if (announced < AnnounceCap)
                         {
-                            PlayerConsole.Broadcast(
+                            // Throttle.Never: same shared cap as the wreckage sweep above.
+                            PlayerMessage.Broadcast("wreckage-cleanup", Throttle.Never,
                                 $"Cleaned up a hidden duplicate {VoltageTier.TierWord(c.CableType)} cable at {VoltageTier.Coords(c)}: it was stacked with an identical cable");
                             announced++;
                         }
@@ -159,8 +173,10 @@ namespace PowerGridPlus
                 }
             }
 
+            // Throttle.Never: this IS the overflow summary, emitted once at the end of the sweep, and
+            // it has to ride the networked chat channel like the lines it summarises.
             if (removed > announced)
-                PlayerConsole.Broadcast(
+                PlayerMessage.Broadcast("wreckage-cleanup-summary", Throttle.Never,
                     $"Cleaned up {removed - announced} more stacked cables or wreckage pieces");
         }
 

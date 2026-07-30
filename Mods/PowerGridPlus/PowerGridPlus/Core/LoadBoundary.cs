@@ -42,6 +42,12 @@ namespace PowerGridPlus.Core
             SplitPendingRegistry.ClearAll();
             CableBurnWindow.ClearAll();
             DeviceOutputSanitizer.ClearReported();
+            // Throttle state in the shared console helper is per world for the same reason the set
+            // above is: a player entering a new world must be told about that world's problems. This
+            // covers the broken-device keys the line above clears the enqueue gate for, and any
+            // future once-per-world key. Worker-safe: ResetSession only flushes pending summaries,
+            // and the helper drops its console leg off the main thread.
+            StationeersPlus.Shared.PlayerMessage.ResetSession();
 
             // Per-tick published snapshots and the ownership model.
             PoweredPresentation.Clear();

@@ -65,6 +65,7 @@
   <ItemGroup>
     <Compile Include="..\..\..\Patterns\Logic\LogicTypeNumbers.cs" Link="Patterns\LogicTypeNumbers.cs" />
     <Compile Include="..\..\..\Patterns\Threading\MainThreadDispatcher.cs" Link="Patterns\MainThreadDispatcher.cs" />
+    <Compile Include="..\..\..\Patterns\Console\PlayerMessage.cs" Link="Patterns\PlayerMessage.cs" />
   </ItemGroup>
 
   <ItemGroup>

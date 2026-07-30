@@ -13,6 +13,7 @@ using Assets.Scripts.Objects.Pipes;
 using HarmonyLib;
 using Objects;
 using Objects.Rockets;
+using StationeersPlus.Shared;
 using UnityEngine;
 
 namespace PowerGridPlus
@@ -547,7 +548,12 @@ namespace PowerGridPlus
                 Plugin.Log?.LogInfo($"Voltage tiers: burning a {victim.CableType} cable to split a mixed-tier network ({network.ReferenceId}).");
                 BurnReasonRegistry.RegisterPending(victim,
                     $"Wrong voltage -- {victim.CableType} cable was bridging into a different cable tier");
-                PlayerConsole.Broadcast(
+                // Throttle.Never: one line per burn, and the burn is one deliberate enforcement action
+                // on one cable. ScenarioRunner's pgp-mixedwire-fixture asserts this exact substring
+                // ("burned normal cable joining a super heavy network", phase P6) off
+                // PlayerMessage.LastBroadcast, so any policy that could swallow a repeat would make
+                // the fixture flaky.
+                PlayerMessage.Broadcast("mixed-tier-burn", Throttle.Never,
                     $"Illegal mixed-tier cable at {Coords(victim)}: burned {TierWord(victim.CableType)} cable joining a {TierWord(highestType)} network");
                 victim.Break();
                 return true;
@@ -574,7 +580,10 @@ namespace PowerGridPlus
             }
             Plugin.Log?.LogInfo(
                 $"Voltage tiers: removing a {remove.CableType} cable stacked on a {keep.CableType} cable at {Coords(remove)} (mixed-tier repair).");
-            PlayerConsole.Broadcast(
+            // Throttle.Never: one line per repaired cell, one deliberate enforcement action each.
+            // ScenarioRunner's pgp-mixedwire-fixture asserts this exact substring ("removed normal
+            // cable stacked on a super heavy cable", phase P3) off PlayerMessage.LastBroadcast.
+            PlayerMessage.Broadcast("mixed-tier-stack-repair", Throttle.Never,
                 $"Illegal mixed-tier cable at {Coords(remove)}: removed {TierWord(remove.CableType)} cable stacked on a {TierWord(keep.CableType)} cable");
             OnServer.Destroy(remove);
         }
@@ -605,7 +614,10 @@ namespace PowerGridPlus
             orphan.SmallCell = liveCell;
             Plugin.Log?.LogInfo(
                 $"Voltage tiers: re-seated an orphaned {orphan.CableType} cable at {Coords(orphan)} and rebuilding its network.");
-            PlayerConsole.Broadcast(
+            // Throttle.Never: one line per re-seated orphan, one deliberate repair each.
+            // ScenarioRunner's pgp-mixedwire-fixture asserts this exact substring ("Repaired orphaned
+            // normal cable", phases P5 and P6) off PlayerMessage.LastBroadcast.
+            PlayerMessage.Broadcast("orphan-seat-repair", Throttle.Never,
                 $"Repaired orphaned {TierWord(orphan.CableType)} cable at {Coords(orphan)}: restored to its grid cell");
             CableNetwork.RebuildCableNetworkServer(orphan);
         }

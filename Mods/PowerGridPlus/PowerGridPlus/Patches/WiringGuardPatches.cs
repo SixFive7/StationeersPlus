@@ -8,6 +8,7 @@ using Assets.Scripts.Objects;
 using Assets.Scripts.Objects.Electrical;
 using Assets.Scripts.Objects.Items;
 using HarmonyLib;
+using StationeersPlus.Shared;
 using UnityEngine;
 
 namespace PowerGridPlus.Patches
@@ -153,7 +154,13 @@ namespace PowerGridPlus.Patches
             string reason = thefts != null
                 ? $"stacked on a {VoltageTier.TierWord(thefts[0].Victim.CableType)} cable"
                 : $"joining a {VoltageTier.TierWord(otherTier)} network";
-            PlayerConsole.Broadcast(
+            // Throttle.Never: one line per refused placement, which is one deliberate player (or
+            // printer) action, so the message is self-limiting. ScenarioRunner's
+            // pgp-mixedwire-fixture asserts two exact substrings from this line off
+            // PlayerMessage.LastBroadcast: "refused super heavy cable joining a normal network"
+            // plus "dropped as kit" (phase P1), and "stacked on a normal cable" (phase P2). A
+            // policy that could suppress the second refusal would break P2 outright.
+            PlayerMessage.Broadcast("wiring-guard-refusal", Throttle.Never,
                 $"Illegal cable placement at {VoltageTier.Coords(__instance)}: refused {VoltageTier.TierWord(__instance.CableType)} cable {reason}"
                 + (refunded ? ", dropped as kit" : ""));
             OnServer.Destroy(__instance);

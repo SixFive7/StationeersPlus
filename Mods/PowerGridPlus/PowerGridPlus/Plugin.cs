@@ -29,6 +29,12 @@ namespace PowerGridPlus
         private void Awake()
         {
             Log = Logger;
+            // Every player-facing line and every log line this mod writes goes through the shared
+            // helper (Patterns/Console/PlayerMessage.cs), which owns the prefix, the severity-to-sink
+            // mapping, and the throttle policy. Init runs before anything else in Awake so no call
+            // site can fire while the prefix is still the "[Mod]" placeholder. PluginName is the
+            // display name ("Power Grid Plus"), which is exactly what the helper wants.
+            StationeersPlus.Shared.PlayerMessage.Init(PluginName, Logger);
             // Marshals the device-list refresh cascade (CableNetworkPatches) back to the main thread; it
             // can be triggered from the UniTask power-worker thread. Shared helper linked from
             // Patterns/Threading. See Research/Patterns/MainThreadDispatcher.md.

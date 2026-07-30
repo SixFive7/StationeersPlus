@@ -33,7 +33,7 @@ namespace ScenarioRunner
     // suite's force-unpause covers headless runs) and the PowerGridPlus assembly.
     //
     // Phases:
-    //   P0  seams: WiringGuard.Suspended, PlayerConsole.LastBroadcast, GetTierInfo,
+    //   P0  seams: WiringGuard.Suspended, PlayerMessage.LastBroadcast, GetTierInfo,
     //       DetectViolation(NetRow), ResolveMixedTierNetwork, UnityMainThreadDispatcher.
     //   P1  tier refusal: a super-heavy straight registered adjacent to a normal straight is
     //       destroyed by the guard, the normal net stays single-tier, the console line reads
@@ -294,9 +294,14 @@ namespace ScenarioRunner
             _mwSuspendedF = guardT?.GetField("Suspended", BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Static);
             if (_mwSuspendedF == null) missing.Add("WiringGuard.Suspended");
 
-            var consoleT = asm.GetType("PowerGridPlus.PlayerConsole");
+            // The broadcast seam moved from PowerGridPlus.PlayerConsole to the shared
+            // StationeersPlus.Shared.PlayerMessage helper (Patterns/Console/PlayerMessage.cs). That
+            // file is source-linked into each consuming mod rather than shipped as its own assembly,
+            // so the type lives INSIDE PowerGridPlus.dll and still resolves off this assembly handle.
+            // Field name and semantics are unchanged: last broadcast text, static, no prefix.
+            var consoleT = asm.GetType("StationeersPlus.Shared.PlayerMessage");
             _mwLastBroadcastF = consoleT?.GetField("LastBroadcast", BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Static);
-            if (_mwLastBroadcastF == null) missing.Add("PlayerConsole.LastBroadcast");
+            if (_mwLastBroadcastF == null) missing.Add("PlayerMessage.LastBroadcast");
 
             var enfT = asm.GetType("PowerGridPlus.VoltageTierEnforcer");
             _mwNetRowT = asm.GetType("PowerGridPlus.Core.GridSnapshot+NetRow");
