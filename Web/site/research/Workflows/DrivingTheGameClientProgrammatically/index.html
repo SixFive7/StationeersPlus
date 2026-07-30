@@ -8060,6 +8060,28 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#the-gameplay-input-gate-cursorvisible-kills-per-frame-input" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The gameplay input gate: Cursor.visible kills per-frame input
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#window-size-and-fullscreen-come-from-the-game-not-the-command-line" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Window size and fullscreen come from the game, not the command line
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#direct-connect" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -8637,6 +8659,28 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#the-gameplay-input-gate-cursorvisible-kills-per-frame-input" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The gameplay input gate: Cursor.visible kills per-frame input
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#window-size-and-fullscreen-come-from-the-game-not-the-command-line" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Window size and fullscreen come from the game, not the command line
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#direct-connect" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -8847,7 +8891,7 @@
         <p class="research-meta-verified">
           <strong>Verified</strong>
            in game version <code>0.2.6403.27689</code>
-           on 2026-07-27.
+           on 2026-07-30.
         </p>
       
       
@@ -9042,7 +9086,7 @@ in <code>BepInEx.cfg</code>, every <code>Debug.Log</code> in the process as well
 lines in a couple of seconds, so it needs its own ring buffer or it evicts the console lines a test
 actually cares about.</p>
 <h2 id="input-injection">Input injection<a class="headerlink" href="#input-injection" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6403.27689 @ 2026-07-27 -->
+<!-- verified: 0.2.6403.27689 @ 2026-07-30 -->
 
 <p>Patch <code>UnityEngine.Input</code>, not <code>KeyManager</code>. Every <code>KeyManager</code> query bottoms out in the Unity layer:</p>
 <div class="language-csharp highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="nf">GetButton</span><span class="p">(</span><span class="n">KeyCode</span><span class="w"> </span><span class="n">key</span><span class="p">)</span>
@@ -9077,12 +9121,161 @@ covers everything; a postfix on <code>CheckDisplaySlotInput</code> that assigns 
 backstop.</p>
 <p><strong>One frame of wheel is one notch.</strong> Consumers act once per frame, so a two-frame injection scrolls
 a spray can two colours. Verified in world: <code>frames=1</code> steps the colour index by exactly 1 per call.</p>
+<p>Re-confirmed on 0.2.6403.27689: there is no cached key state anywhere for the patch to sit under.
+<code>InputSystem.KeyWrap.PollForInput</code> (line 191636) calls <code>Input.GetKeyDown</code> / <code>GetKey</code> / <code>GetKeyUp</code>
+directly and fires its C# events synchronously from inside that call stack; its <code>IsPressed</code> and
+<code>IsPressedThisFrame</code> properties are written there and read by nothing in the assembly.
+<code>KeyMap.PollInputs</code> (44823) only fans out over a <code>HashSet&lt;KeyWrap&gt;</code>. <code>KeyManager.GetButton</code>,
+<code>GetButtonDown</code> and <code>GetButtonUp</code> (44446-44471) are a <code>ConsoleWindow.IsOpen</code> short-circuit plus the
+live Unity call. There are 139 direct <code>Input.*</code> call sites in <code>Assembly-CSharp</code>, so the Unity layer
+really is the one chokepoint. The modern input package is absent: no <code>UnityEngine.InputSystem</code>
+references, and no <code>Unity.InputSystem.dll</code> in <code>rocketstation_Data\Managed\</code>, only
+<code>UnityEngine.InputLegacyModule.dll</code>.</p>
+<h2 id="the-gameplay-input-gate-cursorvisible-kills-per-frame-input">The gameplay input gate: <code>Cursor.visible</code> kills per-frame input<a class="headerlink" href="#the-gameplay-input-gate-cursorvisible-kills-per-frame-input" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-30 -->
+
+<p>Patching <code>UnityEngine.Input</code> delivers the value. It does not guarantee anything consumes it. The
+consumer side has a gate that closes on its own in a background window, and when it is shut the
+symptom is indistinguishable from injection not working: synthetic keys and wheel do nothing, while
+direct method calls on the same objects work perfectly.</p>
+<p><code>Assets.Scripts.Inventory.InventoryManager.ManagerUpdate</code> (287152), abbreviated to the branch that
+matters:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">Cursor</span><span class="p">.</span><span class="n">visible</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="n">Parent</span><span class="p">.</span><span class="n">IsUnresponsive</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="n">ConsoleWindow</span><span class="p">.</span><span class="n">IsOpen</span><span class="p">)</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="p">{</span>
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">    </span><span class="k">return</span><span class="p">;</span>
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="p">}</span>
+</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="n">CheckDisplaySlotInput</span><span class="p">();</span>
+</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="n">CheckSeatedInput</span><span class="p">();</span>
+</span><span id="__span-4-7"><a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="p">...</span>
+</span><span id="__span-4-8"><a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">Parent</span><span class="p">.</span><span class="n">State</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">EntityState</span><span class="p">.</span><span class="n">Alive</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">IsAllowedToLook</span><span class="p">()</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">IsParentSafe</span><span class="p">()</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="o">!</span><span class="n">Stationpedia</span><span class="p">.</span><span class="n">IsOpenAndLocked</span><span class="p">)</span>
+</span><span id="__span-4-9"><a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="p">{</span>
+</span><span id="__span-4-10"><a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a><span class="w">    </span><span class="k">switch</span><span class="w"> </span><span class="p">(</span><span class="n">CurrentMode</span><span class="p">)</span>
+</span><span id="__span-4-11"><a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-4-12"><a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a><span class="w">    </span><span class="k">case</span><span class="w"> </span><span class="n">Mode</span><span class="p">.</span><span class="n">Normal</span><span class="p">:</span>
+</span><span id="__span-4-13"><a id="__codelineno-4-13" name="__codelineno-4-13" href="#__codelineno-4-13"></a><span class="w">        </span><span class="n">NormalMode</span><span class="p">();</span>
+</span><span id="__span-4-14"><a id="__codelineno-4-14" name="__codelineno-4-14" href="#__codelineno-4-14"></a><span class="w">        </span><span class="k">break</span><span class="p">;</span>
+</span><span id="__span-4-15"><a id="__codelineno-4-15" name="__codelineno-4-15" href="#__codelineno-4-15"></a><span class="w">    </span><span class="k">case</span><span class="w"> </span><span class="n">Mode</span><span class="p">.</span><span class="n">Placement</span><span class="p">:</span>
+</span><span id="__span-4-16"><a id="__codelineno-4-16" name="__codelineno-4-16" href="#__codelineno-4-16"></a><span class="w">        </span><span class="n">PlacementMode</span><span class="p">();</span>
+</span><span id="__span-4-17"><a id="__codelineno-4-17" name="__codelineno-4-17" href="#__codelineno-4-17"></a><span class="w">        </span><span class="k">break</span><span class="p">;</span>
+</span><span id="__span-4-18"><a id="__codelineno-4-18" name="__codelineno-4-18" href="#__codelineno-4-18"></a><span class="w">    </span><span class="k">case</span><span class="w"> </span><span class="n">Mode</span><span class="p">.</span><span class="n">PrecisionPlacement</span><span class="p">:</span>
+</span><span id="__span-4-19"><a id="__codelineno-4-19" name="__codelineno-4-19" href="#__codelineno-4-19"></a><span class="w">        </span><span class="n">PrecisionPlacementMode</span><span class="p">();</span>
+</span><span id="__span-4-20"><a id="__codelineno-4-20" name="__codelineno-4-20" href="#__codelineno-4-20"></a><span class="w">        </span><span class="k">break</span><span class="p">;</span>
+</span></code></pre></div>
+<p>Everything below that early return stops:</p>
+<ul>
+<li><strong><code>CheckDisplaySlotInput</code> (287367) is the only writer of <code>InventoryManager.newScrollData</code> in the
+  whole assembly.</strong> A regex search for <code>newScrollData\s*=</code> returns exactly one hit, line 287369,
+  <code>newScrollData = Input.mouseScrollDelta.y / 10f</code>. There is no reset to zero anywhere; the
+  once-per-frame overwrite is the reset. So when the gate is shut the wheel is never sampled and the
+  field keeps its last value indefinitely.</li>
+<li><strong><code>NormalMode</code> (288000)</strong> never runs, which takes with it every mod that hangs a per-frame patch
+  there. SprayPaintPlus's <code>ColorCyclerPatch</code> is a prefix on <code>NormalMode</code>, and that is where it packs
+  and sends its client-half preference mask, so a driven client silently never reports its own
+  settings to the server.</li>
+</ul>
+<p>Note that <code>NormalMode</code> does not read <code>newScrollData</code> itself; the placement-rotation reads at 288400,
+288404, 288470, 288474, 288618 and 288622 are all inside <code>PlacementMode</code> (288320).
+<code>PrecisionPlacementMode</code> (288256) bypasses the field and reads <code>Input.mouseScrollDelta.y</code> raw.</p>
+<p>The same term gates movement, at 211510:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">KeyManager</span><span class="p">.</span><span class="n">InputState</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">KeyInputState</span><span class="p">.</span><span class="n">Game</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="n">Cursor</span><span class="p">.</span><span class="n">visible</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="o">!</span><span class="n">IsGround</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="n">_jumping</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="o">!</span><span class="n">IsInputAscend</span><span class="p">)</span>
+</span></code></pre></div>
+<p><strong>Why an unfocused window ends up here.</strong> Unity releases the cursor lock when the application loses
+focus. <code>MouseModeController.Check</code> (201335) tries to re-lock every frame and <code>SetState</code> (201363)
+re-issues <code>CursorManager.SetCursor(locked)</code> whenever the actual state does not match, but it cannot
+take the lock back while the window is in the background, so <code>Cursor.visible</code> stays true for as long
+as the window is not foreground.</p>
+<p>Nothing in the managed code checks application focus directly. <code>Application.isFocused</code> has zero
+occurrences in <code>Assembly-CSharp</code>. <code>Application.runInBackground</code> appears once, at 102476, inside a
+diagnostic print. The single <code>OnApplicationFocus</code> (201248, on <code>CursorManager</code>) only restores cursor
+state when focus is regained. The focus dependency is entirely this second-order one through the
+cursor.</p>
+<p><strong>Working around it in-process.</strong> Assert the cursor state from a Harmony prefix on
+<code>InventoryManager.ManagerUpdate</code> itself, so the write lands a few instructions before the gate reads
+it and nothing can intervene:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">Cursor</span><span class="p">.</span><span class="n">visible</span><span class="p">)</span><span class="w"> </span><span class="n">Cursor</span><span class="p">.</span><span class="n">visible</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">false</span><span class="p">;</span>
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">Cursor</span><span class="p">.</span><span class="n">lockState</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">CursorLockMode</span><span class="p">.</span><span class="n">Locked</span><span class="p">)</span><span class="w"> </span><span class="n">Cursor</span><span class="p">.</span><span class="n">lockState</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">CursorLockMode</span><span class="p">.</span><span class="n">Locked</span><span class="p">;</span>
+</span></code></pre></div>
+<p>This needs no window focus and no OS input, so it keeps the never-focus property that makes the
+in-process design worth having. It is only correct for a client nobody is sitting at: it takes the
+mouse cursor away from a real player. ClientDriver gates it behind
+<code>Client - Gameplay Input / Force Gameplay Input</code>, default off.</p>
+<p>Two further gates worth knowing, both of which report as "input did nothing":</p>
+<ul>
+<li><code>ConsoleWindow.IsOpen</code> short-circuits <strong>every</strong> <code>KeyManager.GetButton*</code> call (44448, 44457, 44466)
+  for any key other than <code>KeyMap.ToggleConsole</code>, as well as appearing in the <code>ManagerUpdate</code> gate.</li>
+<li><code>KeyWrapBindings.KeyWrapOnEvent</code> (191728) filters every KeyWrap-bound action on
+  <code>item.inputState == KeyInputState.All || item.inputState.HasFlag(KeyManager.InputState)</code>.
+  <code>KeyManager.InputState</code> (43706) is a public getter with a private setter, defaults to
+  <code>KeyInputState.Game</code>, and is moved only by <code>SetInputState</code> / <code>RemoveInputState</code> (43864, 43870)
+  through a <code>Dictionary&lt;string, KeyInputState&gt;</code> stack. A panel that pushes a state and never pops it
+  leaves every bound action inert. <code>KeyMap._SwapHands.Bind(InputPhase.Down, SwapHandsOnKeyUp,
+  KeyInputState.Game)</code> at 43771 is one of those, which is why a synthetic SwapHands can be delivered
+  and still do nothing.</li>
+</ul>
+<p><code>enum KeyInputState : byte { All = 0, Game = 2, Paused = 4, Typing = 8, Cinematic = 0x10 }</code> (43638).</p>
+<p><strong>Diagnosing it.</strong> Do not infer this from behaviour. Prefix and postfix each link of the chain and
+compare enter counts across the input window: <code>GameManager.Update</code> (which runs the manager loop at
+<code>GameManager.decompiled.cs:1540-1543</code>), <code>KeyManager.ManagerUpdate</code> (43736), <code>KeyMap.PollInputs</code>,
+<code>InventoryManager.ManagerUpdate</code>, <code>InventoryManager.CheckDisplaySlotInput</code>,
+<code>InventoryManager.NormalMode</code>. A link whose enter count stops advancing is not being reached; a link
+whose enter count outruns its exit count is throwing. ClientDriver exposes this as <code>GET /diag/input</code>.</p>
+<h2 id="window-size-and-fullscreen-come-from-the-game-not-the-command-line">Window size and fullscreen come from the game, not the command line<a class="headerlink" href="#window-size-and-fullscreen-come-from-the-game-not-the-command-line" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-30 -->
+
+<p><code>-screen-width</code>, <code>-screen-height</code> and <code>-screen-fullscreen</code> are consumed by the Unity player when it
+creates the window, and the game then overrides them twice with its own saved preference. Both call
+sites are unguarded, so this happens in batch mode too.</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="c1">// Settings.LoadSettings(), line 266641, reached from WorldManager.ManagerAwake() line 59685,</span>
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="c1">// which sits ABOVE that method&#39;s `if (!GameManager.IsBatchMode)` block</span>
+</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="p">.</span><span class="n">TryParse</span><span class="p">(</span><span class="n">CurrentData</span><span class="p">.</span><span class="n">ScreenWidth</span><span class="p">,</span><span class="w"> </span><span class="k">out</span><span class="w"> </span><span class="kt">var</span><span class="w"> </span><span class="n">result</span><span class="p">)</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="kt">int</span><span class="p">.</span><span class="n">TryParse</span><span class="p">(</span><span class="n">CurrentData</span><span class="p">.</span><span class="n">ScreenHeight</span><span class="p">,</span><span class="w"> </span><span class="k">out</span><span class="w"> </span><span class="kt">var</span><span class="w"> </span><span class="n">result2</span><span class="p">))</span>
+</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="p">{</span>
+</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="w">    </span><span class="n">Screen</span><span class="p">.</span><span class="n">SetResolution</span><span class="p">(</span><span class="n">result</span><span class="p">,</span><span class="w"> </span><span class="n">result2</span><span class="p">,</span><span class="w"> </span><span class="n">CurrentData</span><span class="p">.</span><span class="n">FullScreen</span><span class="p">,</span><span class="w"> </span><span class="n">CurrentData</span><span class="p">.</span><span class="n">RefreshRate</span><span class="p">);</span>
+</span><span id="__span-7-6"><a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a><span class="p">}</span>
+</span><span id="__span-7-7"><a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a>
+</span><span id="__span-7-8"><a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a><span class="c1">// Settings.ApplyVideoSettings(), line 266686, the last statement of GameManager.Start() at 205102,</span>
+</span><span id="__span-7-9"><a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a><span class="c1">// which runs AFTER CommandLine.ExecutePostLaunchCommands()</span>
+</span><span id="__span-7-10"><a id="__codelineno-7-10" name="__codelineno-7-10" href="#__codelineno-7-10"></a><span class="n">Screen</span><span class="p">.</span><span class="n">SetResolution</span><span class="p">(</span><span class="kt">int</span><span class="p">.</span><span class="n">Parse</span><span class="p">(</span><span class="n">CurrentData</span><span class="p">.</span><span class="n">ScreenWidth</span><span class="p">),</span><span class="w"> </span><span class="kt">int</span><span class="p">.</span><span class="n">Parse</span><span class="p">(</span><span class="n">CurrentData</span><span class="p">.</span><span class="n">ScreenHeight</span><span class="p">),</span>
+</span><span id="__span-7-11"><a id="__codelineno-7-11" name="__codelineno-7-11" href="#__codelineno-7-11"></a><span class="w">                     </span><span class="n">CurrentData</span><span class="p">.</span><span class="n">FullScreen</span><span class="p">,</span><span class="w"> </span><span class="n">CurrentData</span><span class="p">.</span><span class="n">RefreshRate</span><span class="p">);</span>
+</span></code></pre></div>
+<p>The fields are <code>[XmlElement]</code> members of <code>SettingData</code> (265393-265424), so they are exactly the
+element names in <code>setting.xml</code>:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="na">[XmlElement]</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="kt">int</span><span class="w">    </span><span class="n">Monitor</span><span class="w">       </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="na">[XmlElement]</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="n">ScreenWidth</span><span class="w">   </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;1920&quot;</span><span class="p">;</span>
+</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="na">[XmlElement]</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="n">ScreenHeight</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;1080&quot;</span><span class="p">;</span>
+</span><span id="__span-8-4"><a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="na">[XmlElement]</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="kt">int</span><span class="w">    </span><span class="n">RefreshRate</span><span class="w">   </span><span class="o">=</span><span class="w"> </span><span class="mi">60</span><span class="p">;</span>
+</span><span id="__span-8-5"><a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a><span class="na">[XmlElement]</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="kt">bool</span><span class="w">   </span><span class="n">FullScreen</span><span class="w">    </span><span class="o">=</span><span class="w"> </span><span class="k">true</span><span class="p">;</span>
+</span><span id="__span-8-6"><a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a><span class="na">[XmlElement]</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="kt">bool</span><span class="w">   </span><span class="n">Vsync</span><span class="p">;</span>
+</span></code></pre></div>
+<p>Consequences for a driven instance:</p>
+<ul>
+<li><code>&lt;FullScreen&gt;</code> defaults to <strong>true</strong>, so an instance whose <code>setting.xml</code> was never edited comes up
+  fullscreen no matter what the launch line said. <code>-settingspath</code> gives each instance its own file,
+  so setting <code>&lt;FullScreen&gt;false&lt;/FullScreen&gt;</code> there is per-instance and costs nothing.</li>
+<li><code>ScreenWidth</code> and <code>ScreenHeight</code> are <strong>strings</strong>. <code>LoadSettings</code> uses <code>int.TryParse</code> and tolerates
+  garbage; <code>ApplyVideoSettings</code> uses a bare <code>int.Parse</code> and will throw inside <code>GameManager.Start()</code>,
+  an <code>async void</code>, if the value is not numeric.</li>
+<li><code>Screen.fullScreenMode</code> and the <code>FullScreenMode</code> enum have zero occurrences; the game only ever
+  uses the legacy <code>bool fullscreen</code> overload.</li>
+<li><code>&lt;Monitor&gt;</code> is serialized and read by nothing. <code>CurrentData.Monitor</code> has no consumers.</li>
+<li>The game never writes Unity's own PlayerPrefs screen keys: the string <code>Screenmanager</code> has zero
+  occurrences in the assembly, and the nine <code>PlayerPrefs</code> call sites are all server-browser filter
+  and sort state (<code>FILTER_VERSION</code>, <code>FILTER_PASSWORD</code>, <code>FILTER_EMPTY</code>, <code>JoinSortBy</code>) plus
+  <code>ChatSize</code>. The values under <code>HKCU\Software\Rocketwerkz\rocketstation</code> are Unity's, written
+  natively.</li>
+</ul>
+<p>The in-process fix is to correct <code>Settings.CurrentData</code> before the game reads it, rather than to call
+<code>Screen.SetResolution</code> afterwards and be overwritten. A prefix on <code>ApplyVideoSettings</code> that rewrites
+the three fields makes the game's own call ask for a window.</p>
+<p>Resolving the <code>Settings</code> type by name is a trap: it is in the <strong>global namespace</strong>, and other loaded
+assemblies carry their own <code>Settings</code>, so <code>AccessTools.TypeByName("Settings")</code> can return the wrong
+one. Scan for a type named <code>Settings</code> that has both a static <code>CurrentData</code> field and a static
+<code>LoadSettings</code> method.</p>
 <h2 id="direct-connect">Direct Connect<a class="headerlink" href="#direct-connect" title="Permanent link">&para;</a></h2>
 <!-- verified: 0.2.6403.27689 @ 2026-07-27 -->
 
 <p>One public instance method does the whole join:</p>
-<div class="language-csharp highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="c1">// Assets.Scripts.NetworkClient</span>
-</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="k">public</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">JoinClientFromMenu</span><span class="p">(</span><span class="kt">string</span><span class="w"> </span><span class="n">ipPort</span><span class="p">)</span>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="c1">// Assets.Scripts.NetworkClient</span>
+</span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="k">public</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">JoinClientFromMenu</span><span class="p">(</span><span class="kt">string</span><span class="w"> </span><span class="n">ipPort</span><span class="p">)</span>
 </span></code></pre></div>
 <p>It runs <code>ClientPreJoin()</code> (sets <code>GameManager.GameState = GameState.Joining</code>), splits the address,
 and calls <code>NetworkManager.StartClient(address, port, localPort)</code>, then <code>OnJoinStart()</code>. Calling
@@ -9093,13 +9286,13 @@ enabled components and returns null for roughly the first minute of a session. F
 it appears.</p>
 <p>The second trap is the join timer. <code>OnJoinStart</code> arms a 10 second <code>AutoReset</code> timer whose elapsed
 handler does nothing but give up:</p>
-<div class="language-csharp highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="k">private</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">async</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">ConnectionTimerOnElapsed</span><span class="p">(</span><span class="kt">object</span><span class="w"> </span><span class="n">sender</span><span class="p">,</span><span class="w"> </span><span class="n">ElapsedEventArgs</span><span class="w"> </span><span class="n">e</span><span class="p">)</span>
-</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="p">{</span>
-</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">    </span><span class="n">ConsoleWindow</span><span class="p">.</span><span class="n">PrintError</span><span class="p">(</span><span class="s">&quot;Connection could not be established&quot;</span><span class="p">);</span>
-</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="w">    </span><span class="k">await</span><span class="w"> </span><span class="n">UniTask</span><span class="p">.</span><span class="n">SwitchToMainThread</span><span class="p">();</span>
-</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="w">    </span><span class="n">StopConnectionTimer</span><span class="p">();</span>
-</span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="w">    </span><span class="n">Singleton</span><span class="o">&lt;</span><span class="n">ConfirmationPanel</span><span class="o">&gt;</span><span class="p">.</span><span class="n">Instance</span><span class="p">.</span><span class="n">Show</span><span class="p">(</span><span class="n">MultiplayerCouldNotConnectKey</span><span class="p">,</span><span class="w"> </span><span class="n">MultiplayerCheckAddressKey</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;ButtonOk&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">Cancel</span><span class="p">);</span>
-</span><span id="__span-5-7"><a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="p">}</span>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="k">private</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">async</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">ConnectionTimerOnElapsed</span><span class="p">(</span><span class="kt">object</span><span class="w"> </span><span class="n">sender</span><span class="p">,</span><span class="w"> </span><span class="n">ElapsedEventArgs</span><span class="w"> </span><span class="n">e</span><span class="p">)</span>
+</span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="p">{</span>
+</span><span id="__span-10-3"><a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="w">    </span><span class="n">ConsoleWindow</span><span class="p">.</span><span class="n">PrintError</span><span class="p">(</span><span class="s">&quot;Connection could not be established&quot;</span><span class="p">);</span>
+</span><span id="__span-10-4"><a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="w">    </span><span class="k">await</span><span class="w"> </span><span class="n">UniTask</span><span class="p">.</span><span class="n">SwitchToMainThread</span><span class="p">();</span>
+</span><span id="__span-10-5"><a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a><span class="w">    </span><span class="n">StopConnectionTimer</span><span class="p">();</span>
+</span><span id="__span-10-6"><a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a><span class="w">    </span><span class="n">Singleton</span><span class="o">&lt;</span><span class="n">ConfirmationPanel</span><span class="o">&gt;</span><span class="p">.</span><span class="n">Instance</span><span class="p">.</span><span class="n">Show</span><span class="p">(</span><span class="n">MultiplayerCouldNotConnectKey</span><span class="p">,</span><span class="w"> </span><span class="n">MultiplayerCheckAddressKey</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;ButtonOk&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">Cancel</span><span class="p">);</span>
+</span><span id="__span-10-7"><a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a><span class="p">}</span>
 </span></code></pre></div>
 <p>Ten seconds is not enough for a heavily modded dedicated server. Observed: the server logs
 <code>A connection is incoming</code> and <code>VerifyPlayer - Serialising connection method: RocketNet</code>, then the
@@ -9182,29 +9375,29 @@ not exist. There is no <code>CharacterController</code> anywhere in the assembly
 multiplayer client, so it is a silent no-op there. The game's own <code>teleport</code> console command
 sidesteps it and writes <code>InventoryManager.Parent.Transform.position</code> raw. The reliable sequence,
 which is <code>ForceSetPosition</code> minus the gate:</p>
-<div class="language-csharp highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="n">human</span><span class="p">.</span><span class="n">ThingTransformPosition</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">target</span><span class="p">;</span><span class="w">   </span><span class="c1">// writes the transform and the Position cache</span>
-</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="n">human</span><span class="p">.</span><span class="n">Transform</span><span class="p">.</span><span class="n">position</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">target</span><span class="p">;</span>
-</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="n">rb</span><span class="p">.</span><span class="n">MovePosition</span><span class="p">(</span><span class="n">target</span><span class="p">);</span>
-</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">rb</span><span class="p">.</span><span class="n">isKinematic</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">rb</span><span class="p">.</span><span class="n">velocity</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Vector3</span><span class="p">.</span><span class="n">zero</span><span class="p">;</span><span class="w"> </span><span class="n">rb</span><span class="p">.</span><span class="n">angularVelocity</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Vector3</span><span class="p">.</span><span class="n">zero</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
-</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="n">human</span><span class="p">.</span><span class="n">ResetInterpolation</span><span class="p">();</span><span class="w">              </span><span class="c1">// public, on DynamicThing</span>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="n">human</span><span class="p">.</span><span class="n">ThingTransformPosition</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">target</span><span class="p">;</span><span class="w">   </span><span class="c1">// writes the transform and the Position cache</span>
+</span><span id="__span-11-2"><a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="n">human</span><span class="p">.</span><span class="n">Transform</span><span class="p">.</span><span class="n">position</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">target</span><span class="p">;</span>
+</span><span id="__span-11-3"><a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="n">rb</span><span class="p">.</span><span class="n">MovePosition</span><span class="p">(</span><span class="n">target</span><span class="p">);</span>
+</span><span id="__span-11-4"><a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">rb</span><span class="p">.</span><span class="n">isKinematic</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">rb</span><span class="p">.</span><span class="n">velocity</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Vector3</span><span class="p">.</span><span class="n">zero</span><span class="p">;</span><span class="w"> </span><span class="n">rb</span><span class="p">.</span><span class="n">angularVelocity</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Vector3</span><span class="p">.</span><span class="n">zero</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+</span><span id="__span-11-5"><a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a><span class="n">human</span><span class="p">.</span><span class="n">ResetInterpolation</span><span class="p">();</span><span class="w">              </span><span class="c1">// public, on DynamicThing</span>
 </span></code></pre></div>
 <p>Verified in single player: position moved exactly as requested and stuck.</p>
 <p>Look direction: <code>CameraController.UnitTest_SetRotation(float InRotationX, float InRotationY)</code> is
 public and sets pitch then yaw. <code>SetMouseLook()</code> adds mouse delta to both every <code>LateUpdate</code>, so a
 one-shot write holds only while the mouse is still, which is the normal case for a driven client.
 To aim at a world point:</p>
-<div class="language-csharp highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="n">Vector3</span><span class="w"> </span><span class="n">dir</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">worldPoint</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">CameraController</span><span class="p">.</span><span class="n">CameraOrigin</span><span class="p">).</span><span class="n">normalized</span><span class="p">;</span>
-</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="kt">float</span><span class="w"> </span><span class="n">yaw</span><span class="w">   </span><span class="o">=</span><span class="w"> </span><span class="n">Mathf</span><span class="p">.</span><span class="n">Atan2</span><span class="p">(</span><span class="n">dir</span><span class="p">.</span><span class="n">x</span><span class="p">,</span><span class="w"> </span><span class="n">dir</span><span class="p">.</span><span class="n">z</span><span class="p">)</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">Mathf</span><span class="p">.</span><span class="n">Rad2Deg</span><span class="p">;</span>
-</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="kt">float</span><span class="w"> </span><span class="n">pitch</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Mathf</span><span class="p">.</span><span class="n">Asin</span><span class="p">(</span><span class="n">dir</span><span class="p">.</span><span class="n">y</span><span class="p">)</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">Mathf</span><span class="p">.</span><span class="n">Rad2Deg</span><span class="p">;</span><span class="w">   </span><span class="c1">// positive is up, matching RotationX</span>
-</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="n">CameraController</span><span class="p">.</span><span class="n">Instance</span><span class="p">.</span><span class="n">UnitTest_SetRotation</span><span class="p">(</span><span class="n">pitch</span><span class="p">,</span><span class="w"> </span><span class="n">yaw</span><span class="p">);</span>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="n">Vector3</span><span class="w"> </span><span class="n">dir</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">worldPoint</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">CameraController</span><span class="p">.</span><span class="n">CameraOrigin</span><span class="p">).</span><span class="n">normalized</span><span class="p">;</span>
+</span><span id="__span-12-2"><a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="kt">float</span><span class="w"> </span><span class="n">yaw</span><span class="w">   </span><span class="o">=</span><span class="w"> </span><span class="n">Mathf</span><span class="p">.</span><span class="n">Atan2</span><span class="p">(</span><span class="n">dir</span><span class="p">.</span><span class="n">x</span><span class="p">,</span><span class="w"> </span><span class="n">dir</span><span class="p">.</span><span class="n">z</span><span class="p">)</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">Mathf</span><span class="p">.</span><span class="n">Rad2Deg</span><span class="p">;</span>
+</span><span id="__span-12-3"><a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a><span class="kt">float</span><span class="w"> </span><span class="n">pitch</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Mathf</span><span class="p">.</span><span class="n">Asin</span><span class="p">(</span><span class="n">dir</span><span class="p">.</span><span class="n">y</span><span class="p">)</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">Mathf</span><span class="p">.</span><span class="n">Rad2Deg</span><span class="p">;</span><span class="w">   </span><span class="c1">// positive is up, matching RotationX</span>
+</span><span id="__span-12-4"><a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a><span class="n">CameraController</span><span class="p">.</span><span class="n">Instance</span><span class="p">.</span><span class="n">UnitTest_SetRotation</span><span class="p">(</span><span class="n">pitch</span><span class="p">,</span><span class="w"> </span><span class="n">yaw</span><span class="p">);</span>
 </span></code></pre></div>
 <p>Verified: a target 10 m along +Z gives yaw 0 pitch 0, 10 m along +X gives yaw 90, and 10 m forward
 and 10 m down gives pitch -45.</p>
 <p>Using the held item on a specific target, without aiming, goes through:</p>
-<div class="language-csharp highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="c1">// global namespace</span>
-</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="n">OnServer</span><span class="p">.</span><span class="n">AttackWith</span><span class="p">(</span><span class="n">Thing</span><span class="w"> </span><span class="n">attackParent</span><span class="p">,</span><span class="w"> </span><span class="kt">byte</span><span class="w"> </span><span class="n">activeHandSlotId</span><span class="p">,</span><span class="w"> </span><span class="kt">byte</span><span class="w"> </span><span class="n">offHandSlotId</span><span class="p">,</span>
-</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="w">                                       </span><span class="kt">long</span><span class="w"> </span><span class="n">targetId</span><span class="p">,</span><span class="w"> </span><span class="n">Vector3</span><span class="w"> </span><span class="n">attackPosition</span><span class="p">,</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="n">completedRatio</span><span class="p">,</span>
-</span><span id="__span-8-4"><a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="w">                                       </span><span class="kt">bool</span><span class="w"> </span><span class="n">isDestroy</span><span class="p">,</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">isCopy</span><span class="p">)</span>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="c1">// global namespace</span>
+</span><span id="__span-13-2"><a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="n">OnServer</span><span class="p">.</span><span class="n">AttackWith</span><span class="p">(</span><span class="n">Thing</span><span class="w"> </span><span class="n">attackParent</span><span class="p">,</span><span class="w"> </span><span class="kt">byte</span><span class="w"> </span><span class="n">activeHandSlotId</span><span class="p">,</span><span class="w"> </span><span class="kt">byte</span><span class="w"> </span><span class="n">offHandSlotId</span><span class="p">,</span>
+</span><span id="__span-13-3"><a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a><span class="w">                                       </span><span class="kt">long</span><span class="w"> </span><span class="n">targetId</span><span class="p">,</span><span class="w"> </span><span class="n">Vector3</span><span class="w"> </span><span class="n">attackPosition</span><span class="p">,</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="n">completedRatio</span><span class="p">,</span>
+</span><span id="__span-13-4"><a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a><span class="w">                                       </span><span class="kt">bool</span><span class="w"> </span><span class="n">isDestroy</span><span class="p">,</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">isCopy</span><span class="p">)</span>
 </span></code></pre></div>
 <p>It predicts locally with <code>doAction: GameManager.RunSimulation</code> and sends an <code>AttackWithMessage</code> when
 <code>NetworkManager.IsClient</code>, so it is correct on both a host and a client. It constructs the <code>Attack</code>
@@ -9292,14 +9485,14 @@ than the first.</p>
 
 <p><code>StationeersLaunchPad.ConfigPanel.DrawWorkshopConfig(ModInfo)</code> is public static and opens its own
 ImGui window. Vanilla only calls it while the Workshop menu is open and a mod row is selected:</p>
-<div class="language-csharp highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="k">private</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">DrawWorkshopMenuConfig</span><span class="p">()</span>
-</span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="p">{</span>
-</span><span id="__span-9-3"><a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(((</span><span class="n">Behaviour</span><span class="p">)</span><span class="n">WorkshopMenu</span><span class="p">.</span><span class="n">Instance</span><span class="p">).</span><span class="n">isActiveAndEnabled</span><span class="p">)</span>
-</span><span id="__span-9-4"><a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="w">    </span><span class="p">{</span>
-</span><span id="__span-9-5"><a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a><span class="w">        </span><span class="p">...</span><span class="w"> </span><span class="n">workshopMenuSelectedField</span><span class="p">.</span><span class="n">GetValue</span><span class="p">(</span><span class="n">WorkshopMenu</span><span class="p">.</span><span class="n">Instance</span><span class="p">)</span><span class="w"> </span><span class="p">...</span>
-</span><span id="__span-9-6"><a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a><span class="w">        </span><span class="n">ConfigPanel</span><span class="p">.</span><span class="n">DrawWorkshopConfig</span><span class="p">(</span><span class="n">LaunchPadConfig</span><span class="p">.</span><span class="n">MatchMod</span><span class="p">(...));</span>
-</span><span id="__span-9-7"><a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a><span class="w">    </span><span class="p">}</span>
-</span><span id="__span-9-8"><a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a><span class="p">}</span>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-14-1"><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="k">private</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">DrawWorkshopMenuConfig</span><span class="p">()</span>
+</span><span id="__span-14-2"><a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a><span class="p">{</span>
+</span><span id="__span-14-3"><a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(((</span><span class="n">Behaviour</span><span class="p">)</span><span class="n">WorkshopMenu</span><span class="p">.</span><span class="n">Instance</span><span class="p">).</span><span class="n">isActiveAndEnabled</span><span class="p">)</span>
+</span><span id="__span-14-4"><a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-14-5"><a id="__codelineno-14-5" name="__codelineno-14-5" href="#__codelineno-14-5"></a><span class="w">        </span><span class="p">...</span><span class="w"> </span><span class="n">workshopMenuSelectedField</span><span class="p">.</span><span class="n">GetValue</span><span class="p">(</span><span class="n">WorkshopMenu</span><span class="p">.</span><span class="n">Instance</span><span class="p">)</span><span class="w"> </span><span class="p">...</span>
+</span><span id="__span-14-6"><a id="__codelineno-14-6" name="__codelineno-14-6" href="#__codelineno-14-6"></a><span class="w">        </span><span class="n">ConfigPanel</span><span class="p">.</span><span class="n">DrawWorkshopConfig</span><span class="p">(</span><span class="n">LaunchPadConfig</span><span class="p">.</span><span class="n">MatchMod</span><span class="p">(...));</span>
+</span><span id="__span-14-7"><a id="__codelineno-14-7" name="__codelineno-14-7" href="#__codelineno-14-7"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-14-8"><a id="__codelineno-14-8" name="__codelineno-14-8" href="#__codelineno-14-8"></a><span class="p">}</span>
 </span></code></pre></div>
 <p>Calling <code>DrawWorkshopConfig</code> directly from a prefix on <code>OrbitalSimulation.Draw</code> renders the same
 panel with no menu state involved, which makes the panel screenshot-testable without driving a
@@ -9338,13 +9531,13 @@ rate. It is not caused by patching <code>Input</code>.</p>
 
 <p><code>StationSaveUtils.GetSavePath()</code> resolves <code>Settings.CurrentData.SavePath</code> on every call and creates
 <code>saves</code>, <code>scripts</code> and <code>mods</code> beneath it:</p>
-<div class="language-csharp highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="nf">GetSavePath</span><span class="p">()</span>
-</span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="p">{</span>
-</span><span id="__span-10-3"><a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="kt">string</span><span class="p">.</span><span class="n">IsNullOrEmpty</span><span class="p">(</span><span class="n">Settings</span><span class="p">.</span><span class="n">CurrentData</span><span class="p">.</span><span class="n">SavePath</span><span class="p">))</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">Settings</span><span class="p">.</span><span class="n">CurrentData</span><span class="p">.</span><span class="n">SavePath</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">DefaultPath</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
-</span><span id="__span-10-4"><a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="w">    </span><span class="kt">string</span><span class="w"> </span><span class="n">savePath</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Settings</span><span class="p">.</span><span class="n">CurrentData</span><span class="p">.</span><span class="n">SavePath</span><span class="p">;</span>
-</span><span id="__span-10-5"><a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a><span class="w">    </span><span class="kt">string</span><span class="w"> </span><span class="n">text</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Path</span><span class="p">.</span><span class="n">Combine</span><span class="p">(</span><span class="n">savePath</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;saves&quot;</span><span class="p">);</span>
-</span><span id="__span-10-6"><a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a><span class="w">    </span><span class="p">...</span>
-</span><span id="__span-10-7"><a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a><span class="p">}</span>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-15-1"><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="nf">GetSavePath</span><span class="p">()</span>
+</span><span id="__span-15-2"><a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a><span class="p">{</span>
+</span><span id="__span-15-3"><a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="kt">string</span><span class="p">.</span><span class="n">IsNullOrEmpty</span><span class="p">(</span><span class="n">Settings</span><span class="p">.</span><span class="n">CurrentData</span><span class="p">.</span><span class="n">SavePath</span><span class="p">))</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">Settings</span><span class="p">.</span><span class="n">CurrentData</span><span class="p">.</span><span class="n">SavePath</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">DefaultPath</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+</span><span id="__span-15-4"><a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a><span class="w">    </span><span class="kt">string</span><span class="w"> </span><span class="n">savePath</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Settings</span><span class="p">.</span><span class="n">CurrentData</span><span class="p">.</span><span class="n">SavePath</span><span class="p">;</span>
+</span><span id="__span-15-5"><a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a><span class="w">    </span><span class="kt">string</span><span class="w"> </span><span class="n">text</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Path</span><span class="p">.</span><span class="n">Combine</span><span class="p">(</span><span class="n">savePath</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;saves&quot;</span><span class="p">);</span>
+</span><span id="__span-15-6"><a id="__codelineno-15-6" name="__codelineno-15-6" href="#__codelineno-15-6"></a><span class="w">    </span><span class="p">...</span>
+</span><span id="__span-15-7"><a id="__codelineno-15-7" name="__codelineno-15-7" href="#__codelineno-15-7"></a><span class="p">}</span>
 </span></code></pre></div>
 <p>Assigning <code>Settings.CurrentData.SavePath</code> at runtime before creating a world therefore redirects
 every write to a scratch directory. The change is in memory; the game persists settings on a clean
@@ -9362,6 +9555,13 @@ Lunar world's display name being "Moon: Great Mare".</p>
   look-at, spawn into hand, structure placement, <code>AttackWith</code> painting a wall, backbuffer
   screenshots at the menu and in world, forced LaunchPad settings panel, and a live ConfigEntry
   write reflected in the mod's computed value.</li>
+<li>2026-07-30: added "The gameplay input gate" and "Window size and fullscreen come from the game, not
+  the command line". Both are additive; nothing previously on the page was contradicted. The "Input
+  injection" section was re-read against the current decompile and re-confirmed (there is no cached
+  key state to sit under; <code>KeyWrap.PollForInput</code> calls <code>UnityEngine.Input</code> live), so it was
+  restamped rather than changed. The gate section supplies the missing precondition for the
+  already-recorded "frames=1 steps the colour index by exactly 1 per call" result: it holds only
+  while <code>InventoryManager.ManagerUpdate</code> gets past its <code>Cursor.visible</code> early return.</li>
 <li>2026-07-27: corrected the StationeersLua / ScriptedScreens entry. It was first written as "fires
   once multiplayer is entered", based on occurrence counts in <code>BepInEx/LogOutput.log</code>. That file
   collapses the repeats and is not a usable measure. Re-measured against the game's own console ring
