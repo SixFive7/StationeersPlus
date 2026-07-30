@@ -62,6 +62,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Include="..\..\..\Patterns\Console\PlayerMessage.cs" Link="Patterns\PlayerMessage.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Content Include="About\About.xml">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>

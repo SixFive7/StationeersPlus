@@ -7,8 +7,8 @@ using Assets.Scripts.Objects.Items;
 using HarmonyLib;
 using JetBrains.Annotations;
 using LaunchPadBooster.Networking;
+using StationeersPlus.Shared;
 using UnityEngine;
-using ConsoleWindow = Assets.Scripts.ConsoleWindow;
 
 namespace SprayPaintPlus
 {
@@ -301,18 +301,26 @@ namespace SprayPaintPlus
             // The family rule is a restriction, not a disabled function, so it does not go
             // through WarnBlocked: it answers a deliberate action every single time rather
             // than reporting a background condition, and is therefore exempt from the
-            // three-per-session cap. Printed directly, with aged: false so it appears on
-            // the bottom-left overlay without the player opening the console.
+            // three-per-session cap.
+            //
+            // Throttle.Never keeps that intent exactly, and the input shape is what makes
+            // it safe. This sits behind KeyManager.GetMouseDown("Secondary"), a press edge,
+            // not a per-frame or per-scroll-notch path, and it is reached only after the
+            // cursor resolved a paintable target carrying a color the session is entitled
+            // to and different from the one on the can. Rapid clicking is the worst case
+            // and it costs one line per click. A Cooldown would trade that for something
+            // worse: the second right-click, aimed at a different object, would answer
+            // with silence, which reads as the mod being broken rather than as a rule
+            // being enforced. Never say nothing in reply to a deliberate action.
             if (SettingsMerge.EffectiveColorCycling == ColorCyclingMode.WithinFamily
                 && !DlcPaintGate.SameFamily(current, pickedIndex))
             {
                 string canFamily = DlcPaintGate.FamilyName(current);
                 string pickedFamily = DlcPaintGate.FamilyName(pickedIndex);
-                ConsoleWindow.PrintAction(
-                    $"[{SprayPaintPlusPlugin.PluginName}] Color cycling is limited to one paint family here: " +
+                PlayerMessage.Info("eyedropper-cross-family", Throttle.Never,
+                    $"Color cycling is limited to one paint family here: " +
                     $"a {canFamily} spray can cannot copy {pickedFamily} paint. " +
-                    $"Print a {pickedFamily} can to use that color.",
-                    aged: false);
+                    $"Print a {pickedFamily} can to use that color.");
                 return;
             }
 

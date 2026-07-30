@@ -1,11 +1,8 @@
 using BepInEx.Configuration;
+using StationeersPlus.Shared;
 using System;
 using System.Collections.Generic;
 using System.Text;
-using ConsoleWindow = Assets.Scripts.ConsoleWindow;   // the in-game console (F3). An alias,
-                                                      // not `using Assets.Scripts;`, so the
-                                                      // namespace's own Settings type cannot
-                                                      // collide with anything here (CS0104).
 
 namespace SprayPaintPlus
 {
@@ -27,31 +24,23 @@ namespace SprayPaintPlus
     ///                             matters: the join line gets scrolled past and the
     ///                             failure happens minutes later.
     ///
-    /// Console rules, all counter-intuitive enough to be worth stating:
+    /// The console mechanics (aged inversion, no PrintWarning, PrintError's stack
+    /// trace, the Debug.LogError re-print, plain text only, main thread only) all live
+    /// in Patterns/Console/PlayerMessage.cs, which this file emits through. Nothing
+    /// here calls ConsoleWindow directly.
     ///
-    /// - `aged` is inverted from its name. ConsoleWindow.Print defaults to
-    ///   aged: true, which means the line is NOT on the bottom-left overlay and only
-    ///   shows once the player opens the console. Anything meant to be seen passes
-    ///   aged: false. PrintAction already defaults that way.
-    /// - PrintAction is the yellow channel. There is no PrintWarning, and PrintError
-    ///   is red and dumps Environment.StackTrace unless suppressed. These messages
-    ///   are informational: the player did nothing wrong.
-    /// - Plain text only. The console renders through ImGui.TextUnformatted, so rich
-    ///   text shows as literal characters, and a dedicated server silently discards
-    ///   any line containing "&lt;color=".
-    /// - Never pair a print with Debug.LogError or Debug.LogException. ConsoleWindow
-    ///   subscribes to Unity's error stream and re-prints them itself, so the player
-    ///   would see the same text twice. BepInEx Log.* is fine; it never reaches the
-    ///   console.
-    /// - Main thread only. Print shifts a 1024-entry static array with no lock while
-    ///   the draw loop reads it, every print is O(1024), and nothing anywhere rate
-    ///   limits it. Self-limiting is not optional, which is what the three-per-
-    ///   function cap is for.
+    /// What stays here is policy, and one rule drives all of it: the console has no
+    /// rate limiting of its own and every print is an O(1024) array shift, so a
+    /// message that fires from a repeatable action has to bound itself. That is
+    /// MaxNoticesPerFunction, and it is deliberately hand-rolled rather than handed to
+    /// the helper as a Throttle. Two reasons. The count is read, not just tested: the
+    /// third notice says so in its own text, which a throttle cannot do because it
+    /// reports nothing back to the caller. And the same constant bounds the SERVER's
+    /// send side in SettingBlockedNotice.TakeNoticeBudget, so the number has to sit
+    /// somewhere both sides can read it and stay visibly one number.
     /// </summary>
     internal static class WarningNotifier
     {
-        private const string Prefix = "[SprayPaintPlus] ";
-
         /// <summary>
         /// How many console notices one function may produce per session. Internal
         /// because the send side reads it too: SettingBlockedNotice caps what the
@@ -283,7 +272,10 @@ namespace SprayPaintPlus
 
             // One line for all of them. Phrased as information: nothing here is the
             // player's fault and nothing about their own settings has been changed.
-            Print("This server does not allow " + string.Join(", ", blocked.ToArray()) +
+            // Its own key, because it is a different message from the per-function
+            // notices and must not share their budget.
+            Print("join-blocked-summary",
+                  "This server does not allow " + string.Join(", ", blocked.ToArray()) +
                   ". Your own settings are untouched, they just have no effect here.");
         }
 
@@ -308,7 +300,11 @@ namespace SprayPaintPlus
             var message = function + " is turned off on this server, so it had no effect.";
             if (seen + 1 == MaxNoticesPerFunction)
                 message += " No more notices about this one until you rejoin.";
-            Print(message);
+
+            // The function name is the key. It is already the identity this cap counts
+            // by and the identity SettingBlockedNotice puts on the wire, so keying the
+            // emit anything else would invent a fourth name for the same thing.
+            Print(function, message);
         }
 
         // ---- Internals ----------------------------------------------------------
@@ -375,21 +371,21 @@ namespace SprayPaintPlus
                 into.Add(name);
         }
 
-        private static void Print(string message)
+        // The only emit in this file. Warn rather than Info because the BepInEx log is
+        // where the severity survives at all: the console has no PrintWarning, so both
+        // arrive yellow either way. The bracketed mod name comes from PlayerMessage, so
+        // nothing here prefixes.
+        //
+        // Throttle.Never at this level is correct and is not a bypass. The two callers
+        // are already self-limiting and they limit differently: WarnBlocked counts to
+        // MaxNoticesPerFunction per function, and the join summary fires once per join
+        // payload. A throttle here would be a second, coarser cap sitting on top of two
+        // finer ones, and it would silently eat the third notice's "no more notices"
+        // line. The key is still passed through so the helper's state is per subject if
+        // a later caller does want a policy.
+        private static void Print(string key, string message)
         {
-            // PrintAction, not PrintError: yellow, no stack trace, and already
-            // aged: false so the line lands on the overlay instead of waiting for
-            // the player to open the console. The argument is passed explicitly
-            // anyway so a future default change cannot silently hide these.
-            // The catch is for prints that fire before the console UI exists;
-            // ConsoleWindow queues those itself, but the guard costs nothing.
-            try { ConsoleWindow.PrintAction(Prefix + message, aged: false); }
-            catch { }
-
-            // BepInEx only. Deliberately no Debug.LogError or Debug.LogException
-            // here: ConsoleWindow re-prints Unity's error stream, so the player
-            // would get the same text twice, the second time in red with a trace.
-            SprayPaintPlusPlugin.Log?.LogWarning(message);
+            PlayerMessage.Warn(key, Throttle.Never, message);
         }
     }
 }

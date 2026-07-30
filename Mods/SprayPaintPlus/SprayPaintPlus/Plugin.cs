@@ -6,6 +6,7 @@ using BepInEx.Configuration;
 using BepInEx.Logging;
 using HarmonyLib;
 using LaunchPadBooster;
+using StationeersPlus.Shared;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -81,6 +82,9 @@ namespace SprayPaintPlus
         void Awake()
         {
             Log = Logger;
+            // Display name, not the code name: this string becomes the bracketed prefix
+            // on every line the mod puts in front of a player.
+            PlayerMessage.Init("Spray Paint Plus", Logger);
             BindConfig();
 
             // StationeersLaunchPad loads mods progressively; conflicting assemblies may not exist
@@ -186,14 +190,73 @@ namespace SprayPaintPlus
             }
         }
 
+        /// <summary>
+        /// Number of times the conflict banner is repeated in the player's console. Bounded on
+        /// purpose: this used to loop forever calling Debug.LogError, and the in-game console
+        /// subscribes to Application.logMessageReceivedThreaded and re-prints LogType.Error
+        /// itself, lowercased, in red, with a stack trace nothing can suppress. So a player with
+        /// a mod conflict got that block every five seconds for the whole session and had no way
+        /// to silence it. The permanent record is the LogError line naming each conflict and the
+        /// LogFatal line that follows, both in the BepInEx log.
+        ///
+        /// KNOWN GAP, do not read this count as "long enough to be noticed": the banner is started
+        /// from Prefab.OnPrefabsLoaded, which fires at the tail of LoadGameDataAsync during BOOT,
+        /// while the ImGui loading screen is up and before the main menu appears. It is not the
+        /// world-load screen. So all six lines are emitted while the player is still at the main
+        /// menu, and by the time they are in a world the lines have aged off the closed-console
+        /// overlay and survive only in the F3 scrollback. The old unbounded loop was wrong about
+        /// volume but did guarantee the banner was on screen whenever the player happened to look;
+        /// bounding it traded that away. Raising the count is not the fix, because the anchor is
+        /// what is wrong. The fix is to wait for GameManager.RunSimulation before the first print
+        /// (and to use WaitForSecondsRealtime, since WaitForSeconds is timeScale-scaled). Left as
+        /// a deliberate open decision rather than changed silently; see TODO.md.
+        /// </summary>
+        private const int ConflictBannerRepeats = 6;
+
+        // Announced twice, on purpose, because the two moments reach different readers.
+        //
+        // This coroutine is started from Prefab.OnPrefabsLoaded, which fires at the tail of
+        // LoadGameDataAsync during BOOT: loading screen up, before the main menu exists. One line there
+        // is worth having, because it lands in StationeersLaunchPad's boot panel and in both log files
+        // while someone is plausibly watching the splash. But it is useless as the ONLY announcement:
+        // console overlay lines live five seconds, so it is long gone by the time the player has picked
+        // a save. The banner the player is actually meant to read therefore waits for a world.
+        //
+        // On this path the mod returned before PatchAll, so it is completely inert. A player who never
+        // gets told is a player wondering why nothing works.
         private static IEnumerator RepeatWarning(string conflicts)
         {
-            var msg = $"[SprayPaintPlus] NOT LOADED! Conflicting mods: {conflicts}. " +
-                      "Disable them and restart.";
-            while (true)
+            var msg = $"NOT LOADED! Conflicting mods: {conflicts}. Disable them and restart.";
+
+            // Boot line. Separate throttle key from the banner below so the two never suppress
+            // each other.
+            PlayerMessage.Error("conflict-banner-boot", Throttle.Never, msg);
+
+            // PlayerMessage owns this test because the obvious-looking gate is the wrong one:
+            // GameManager.RunSimulation is only !NetworkManager.IsClient, so it is already true at the
+            // main menu and would not delay anything.
+            yield return PlayerMessage.WaitForWorld();
+
+            for (int i = 0; i < ConflictBannerRepeats; i++)
             {
-                Debug.LogError(msg);
-                yield return new WaitForSeconds(5f);
+                // Throttle.Never because the loop is already the bound: it runs exactly
+                // ConflictBannerRepeats times and then the coroutine ends. Handing the count to
+                // the helper (Throttle.MaxTimes) would not remove the counter, because only the
+                // caller can know which iteration is the last one and Error reports nothing back
+                // about what it suppressed. One bound, in the place the doc comment above explains.
+                // No prefix in the text either: the helper supplies "[Spray Paint Plus] ", and red,
+                // stack-trace-free and visible without opening the console are its job now. See
+                // Patterns/Console/PlayerMessage.cs for why none of that is optional.
+                bool last = i == ConflictBannerRepeats - 1;
+                var line = last
+                    ? $"{msg} (This warning will stop repeating; see the BepInEx log.)"
+                    : msg;
+                PlayerMessage.Error("conflict-banner", Throttle.Never, line);
+
+                // Realtime, not WaitForSeconds: now that a world is running the player can pause, and
+                // pausing sets Time.timeScale to 0, which would stall the banner mid-run. No wait after
+                // the last line, which would just idle the coroutine for five seconds before it ends.
+                if (!last) yield return new WaitForSecondsRealtime(5f);
             }
         }
 
