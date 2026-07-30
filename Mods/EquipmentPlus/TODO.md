@@ -45,20 +45,6 @@ Alternative considered: route through the vanilla `SetLogicValueMessage` (id 104
 
 User requested four items in one batch then paused for compaction. Pick up here:
 
-### A. Helmet power gating (PROMOTED FROM "in-game check" -- implement now)
-
-User wants explicit power check before scroll turns the helmet light on. Implementation, not just verification.
-
-- File: `Mods/EquipmentPlus/EquipmentPlus/HelmetBeamPatches.cs`, function `HandleScroll(Human, int)`.
-- Current behavior: only checks `helmet.HasOnOffState`, then `helmet.OnOff = true`. Trusts vanilla to refuse on unpowered.
-- Plan:
-  1. Add a `HelmetHasPower(DynamicThing helmet) -> bool` helper. Iterate `helmet.Slots`, find a battery slot (vanilla helmets have `Slot.Class.Battery` -- verify via decompile of `ItemHelmet*` prefab class hierarchy), get the occupant cast as a power source (likely `BatteryCell` / `BatteryCellLarge` in `Assets.Scripts.Objects.Items`; their public `PowerStored` field is what matters), return `> 0`.
-  2. Gate the OFF->ON path in `HandleScroll` (around line 104 `if (!helmet.OnOff)` block): if `!HelmetHasPower(helmet)`, bail with `PlayerNotice.Show("Helmet has no power.")` and a scroll-trace log line. Do NOT also gate the brightness-adjust path -- if it's already on, it's powered.
-     - Use `PlayerNotice`, never a bare `ConsoleWindow.PrintError`. This is an informational hint, not an error: `PrintError` is red and, without `suppressStacktrace: true`, dumps a full `Environment.StackTrace` into the player's console. `PlayerNotice.Show` is yellow (`PrintAction`), passes `aged: false` so the line shows without opening the console, and throttles repeats -- one wheel flick is 10-20 notches and every one of them hits this branch. See `Research/Patterns/InGameConsoleOutput.md`.
-- Research need before coding: confirm helmet battery slot class enum and the power-source type. Decompile the `ItemHelmet*` prefab class hierarchy from the Stationeers install per the `.work/decomp/<game-version>/` convention in the root `CLAUDE.md` -- grep for `Helmet`, `HelmetBase`, `BatteryCell`, and the `Slot.Class` enum.
-- Status: both steps have landed (`HelmetBeamPatches.cs`, `HelmetHasPower` helper plus the gate in `HandleScroll`). What remains is the in-game check, which is tracked in `PLAYTEST.md`.
-- Verification after impl: equip helmet with no battery -> scroll -> expect the yellow notice and no `OnOff=true`. Drain a battery to 0 -> scroll -> same. Power back up -> scroll -> light turns on.
-
 ### B. Suppress vanilla NormalMode hotbar/inventory scroll when ANY modifier is held
 
 User reports: while holding a modifier and scrolling, vanilla inventory selection cycles in addition to the modifier-scroll dispatch. Need to consume the scroll event when a modifier is held.
@@ -101,7 +87,7 @@ User wants the viewport-aware snap implemented now alongside A/B/C.
   - `ConfigCartridgeScrollPatch.Prefix` (around line 116-121): on the wheel-tick path.
   - `ConfigCartridgeScreenPatch.Postfix` (around line 166-171): on the per-frame text-rebuild path. This one is more aggressive -- re-snaps EVERY frame so the highlight tracks through `_needTopScroll` and other vanilla resets. Be careful not to break that recovery behavior.
 - Plan:
-  1. **Decompile-find** the visible-range API on `Assets.Scripts.UI.CustomScrollPanel.ScrollPanel`. Need a way to ask "what normalized range is currently visible?" so we can answer "is `selPos` inside it?". Likely candidates to look for: `NormalizedScrollPosition`, `Viewport`, `ContentRect`, `ScrollRect.normalizedPosition`, or a getter that returns the same value `SetScrollPosition` writes to. If `ScrollPanel` wraps a Unity `ScrollRect` internally, the answer is `scrollRect.verticalNormalizedPosition` plus `viewport.rect.height / content.rect.height` for the visible fraction. Decompile dumps available at `C:/Users/jori/Downloads/tmp-eq7-research/dump/Assets/Scripts/UI/CustomScrollPanel/`.
+  1. **Decompile-find** the visible-range API on `Assets.Scripts.UI.CustomScrollPanel.ScrollPanel`. Need a way to ask "what normalized range is currently visible?" so we can answer "is `selPos` inside it?". Likely candidates to look for: `NormalizedScrollPosition`, `Viewport`, `ContentRect`, `ScrollRect.normalizedPosition`, or a getter that returns the same value `SetScrollPosition` writes to. If `ScrollPanel` wraps a Unity `ScrollRect` internally, the answer is `scrollRect.verticalNormalizedPosition` plus `viewport.rect.height / content.rect.height` for the visible fraction. Decompile `Assembly-CSharp` from the Stationeers install per the `.work/decomp/<game-version>/` convention in the root `CLAUDE.md` and look under `Assets/Scripts/UI/CustomScrollPanel/`.
   2. **Helper**: `IsSelectionVisible(ScrollPanel panel, float selPos) -> bool`. Returns true if `selPos` is between the current top and bottom of the visible window (with maybe a small margin so the highlight isn't right at the edge).
   3. **Wheel-tick site**: replace unconditional `SetScrollPosition(pos)` with `if (!IsSelectionVisible(panel, pos)) panel.SetScrollPosition(NearestEdgePosition(panel, pos));` -- where `NearestEdgePosition` snaps just enough to bring the highlight to the nearest visible edge instead of dead-center.
   4. **Per-frame postfix site**: this one's trickier. The current frame-by-frame snap is what defeats vanilla's `_needTopScroll` reset. If we make it conditional, vanilla's reset can drift the panel away from the highlight and our conditional snap might never fire. **Safer change**: keep the per-frame snap unconditional but ONLY when the panel was just reset (`_needTopScroll` flag was set this frame, or scrollPosition has moved compared to last frame). Otherwise leave alone. This requires tracking the previous-frame scroll position. Or: only do the per-frame snap when the highlight is visibly off-screen, accepting that one frame of drift is OK before we re-snap.
@@ -113,11 +99,10 @@ User wants the viewport-aware snap implemented now alongside A/B/C.
 1. Read source files at new Mods/ paths (Read tool needs a fresh read in a new session). Files: `HelmetBeamPatches.cs`, `ScrollDispatchPatches.cs`, `ConfigCartridgePatches.cs`, `ConfigCartridgeSlotDisplay.cs`. Already read (still in context, but compaction will drop them).
 2. Item C first (smallest, low-risk): swap two consts in `ConfigCartridgeSlotDisplay.cs` + wording fixes in README/About.xml (writable=green now, read-only=grey). Build + verify size caps + redeploy.
 3. Item B: decompile-check `InventoryManager.NormalMode` (does it do non-scroll work that our prefix would skip if we returned false?), then change Prefix signature to `bool` and add the suppression on any modifier. Build + redeploy.
-4. Item A: decompile-find helmet battery slot class + power-source field, write `HelmetHasPower` helper, gate the OFF->ON path in `HandleScroll`. Build + redeploy.
-5. Item E (S2): decompile-check `ScrollPanel` for visible-range API, write `IsSelectionVisible` helper, make the wheel-tick snap conditional, decide on the per-frame postfix policy (keep unconditional with movement detection vs make conditional with fallback). Build + redeploy.
-6. Re-test A/B/C/E in single-player. The multiplayer test list (Case 1-Case 11) is in `PLAYTEST.md`.
+4. Item E (S2): decompile-check `ScrollPanel` for visible-range API, write `IsSelectionVisible` helper, make the wheel-tick snap conditional, decide on the per-frame postfix policy (keep unconditional with movement detection vs make conditional with fallback). Build + redeploy.
+5. Re-test B/C/E in single-player. Item A has landed and its in-game check is in `PLAYTEST.md`, along with the multiplayer test list (Case 1-Case 11).
 
-Bundling note: A/B/C/E are independent edits across four files. C and B are pure source edits, no decompile needed. A and E both need a quick decompile pass first. Recommended: do C (5 min), then B (15 min), then A (30 min including decompile), then E (45 min including decompile + the trickier per-frame snap question). One build + deploy at the end. Keep diagnostic logging in for these edits -- they'll help diagnose any regression. The diagnostic-strip pass stays a separate later todo.
+Bundling note: B/C/E are independent edits across three files. C and B are pure source edits, no decompile needed. E needs a quick decompile pass first. Recommended: do C (5 min), then B (15 min), then E (45 min including decompile + the trickier per-frame snap question). One build + deploy at the end. Keep diagnostic logging in for these edits -- they'll help diagnose any regression. The diagnostic-strip pass stays a separate later todo.
 
 ## Feature: auto turn on/off devices on (un)equip
 

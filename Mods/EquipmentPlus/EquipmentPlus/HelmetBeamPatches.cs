@@ -1,4 +1,3 @@
-using Assets.Scripts;
 using Assets.Scripts.Networking;
 using Assets.Scripts.Objects;
 using Assets.Scripts.Objects.Entities;
@@ -6,6 +5,7 @@ using Assets.Scripts.Objects.Items;
 using HarmonyLib;
 using JetBrains.Annotations;
 using LaunchPadBooster.Networking;
+using StationeersPlus.Shared;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -117,14 +117,16 @@ namespace EquipmentPlus
                 // the failure via the in-game console so the player knows
                 // why the scroll did nothing.
                 //
-                // Informational, so PlayerNotice.Show (yellow, no stack trace)
-                // rather than PrintError. It is also throttled: one wheel flick
-                // is 10-20 notches, and every one of them lands here.
+                // Informational, so PlayerMessage.Info (yellow, no stack trace)
+                // rather than Error. Cooldown rather than one of the counting
+                // policies: one wheel flick is 10-20 notches and every one of
+                // them lands here, but the player fixing the battery and coming
+                // back later still deserves to be told.
                 if (!HelmetHasPower(helmet))
                 {
                     if (ScrollDispatchState.ScrollTrace)
                         EquipmentPlusPlugin.Log.LogInfo("[EquipmentPlus.scroll] headlamp: OFF + scroll -> blocked, no power");
-                    PlayerNotice.Show("Helmet has no power.");
+                    PlayerMessage.Info("helmet-no-power", Throttle.Cooldown(5f), "Helmet has no power.");
                     return;
                 }
                 if (ScrollDispatchState.ScrollTrace)
@@ -145,7 +147,7 @@ namespace EquipmentPlus
             float hi = Mathf.Max(minAngle, maxAngle);
             float newAngle = Mathf.Clamp(settings.SpotAngle - direction * step, lo, hi);
 
-            // Clamp at both ends — wheel-up at tightest is no-op (A=i),
+            // Clamp at both ends: wheel-up at tightest is no-op (A=i),
             // wheel-down at widest is no-op (B=i; light does not turn off
             // via scroll).
             if (newAngle == settings.SpotAngle)

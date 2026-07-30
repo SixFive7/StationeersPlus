@@ -8,12 +8,12 @@ using BepInEx.Logging;
 using HarmonyLib;
 using LaunchPadBooster;
 using LaunchPadBooster.Networking;
+using StationeersPlus.Shared;
 using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
-using ConsoleWindow = Assets.Scripts.ConsoleWindow;
 
 namespace EquipmentPlus
 {
@@ -64,6 +64,9 @@ namespace EquipmentPlus
         {
             Instance = this;
             Log = Logger;
+            // Display name, not the code name: this string becomes the bracketed
+            // prefix on every line the mod puts in front of a player.
+            PlayerMessage.Init("Equipment Plus", Logger);
             BindHelmetBeamConfig();
             Prefab.OnPrefabsLoaded += OnAllModsLoaded;
         }
@@ -287,28 +290,59 @@ namespace EquipmentPlus
         /// <summary>
         /// Number of times the conflict banner is repeated in the player's console. Bounded on
         /// purpose: this used to loop forever, which meant a red line every five seconds for the
-        /// whole session with no way to silence it. Long enough to survive the load screen and be
-        /// noticed, short enough that the console stays usable afterwards. The permanent record is
-        /// the LogFatal line in the BepInEx log.
+        /// whole session with no way to silence it. Short enough that the console stays usable.
+        /// The permanent record is the LogError line naming each conflict and the LogFatal line
+        /// that follows, both in the BepInEx log.
+        ///
+        /// The count is only the WORLD-ENTRY half of the banner. Do not raise it hoping to make the
+        /// banner more noticeable; the reason a bounded banner used to be missed was the anchor, not
+        /// the duration, and that is now handled by waiting for a world. See RepeatWarning.
         /// </summary>
         private const int ConflictBannerRepeats = 6;
 
+        // Announced twice, on purpose, because the two moments reach different readers.
+        //
+        // This coroutine is started from Prefab.OnPrefabsLoaded, which fires at the tail of
+        // LoadGameDataAsync during BOOT: loading screen up, before the main menu exists. One line there
+        // is worth having, because it lands in StationeersLaunchPad's boot panel and in both log files
+        // while someone is plausibly watching the splash. But it is useless as the ONLY announcement:
+        // console overlay lines live five seconds, so it is long gone by the time the player has picked
+        // a save. The banner the player is actually meant to read therefore waits for a world.
+        //
+        // On this path the mod returned before PatchAll, so it is completely inert. A player who never
+        // gets told is a player wondering why nothing works.
         private static IEnumerator RepeatWarning(string conflicts)
         {
             var msg = $"NOT LOADED! Conflicting mods: {conflicts}. Disable them and restart.";
+
+            // Boot line. Separate throttle key from the banner below so the two never suppress
+            // each other.
+            PlayerMessage.Error("conflict-banner-boot", Throttle.Never, msg);
+
+            // PlayerMessage owns this test because the obvious-looking gate is the wrong one:
+            // GameManager.RunSimulation is only !NetworkManager.IsClient, so it is already true at the
+            // main menu and would not delay anything.
+            yield return PlayerMessage.WaitForWorld();
+
             for (int i = 0; i < ConflictBannerRepeats; i++)
             {
-                // PrintError, not Debug.LogError. The console re-prints LogType.Error itself (it
-                // subscribes to Application.logMessageReceivedThreaded), so Debug.LogError showed
-                // the player a lowercased copy plus a full stack trace on every repeat. PrintError
-                // with suppressStacktrace gives one controlled red line, already aged: false so it
-                // shows without opening the console.
+                // Throttle.Never because the loop is already the bound: it runs exactly
+                // ConflictBannerRepeats times and then the coroutine ends. Handing the count to
+                // the helper (Throttle.MaxTimes) would not remove the counter, because only the
+                // caller can know which iteration is the last one and Error reports nothing back
+                // about what it suppressed. One bound, in the place the doc comment above explains.
+                // Red, stack-trace-free and visible without opening the console are the helper's
+                // job now; see Patterns/Console/PlayerMessage.cs for why none of that is optional.
                 bool last = i == ConflictBannerRepeats - 1;
                 var line = last
-                    ? $"[EquipmentPlus] {msg} (This warning will stop repeating; see the BepInEx log.)"
-                    : $"[EquipmentPlus] {msg}";
-                try { ConsoleWindow.PrintError(line, suppressStacktrace: true); } catch { }
-                yield return new WaitForSeconds(5f);
+                    ? $"{msg} (This warning will stop repeating; see the BepInEx log.)"
+                    : msg;
+                PlayerMessage.Error("conflict-banner", Throttle.Never, line);
+
+                // Realtime, not WaitForSeconds: now that a world is running the player can pause, and
+                // pausing sets Time.timeScale to 0, which would stall the banner mid-run. No wait after
+                // the last line, which would just idle the coroutine for five seconds before it ends.
+                if (!last) yield return new WaitForSecondsRealtime(5f);
             }
         }
     }

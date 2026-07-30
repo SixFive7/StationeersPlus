@@ -1,4 +1,3 @@
-using Assets.Scripts;
 using Assets.Scripts.Inventory;
 using Assets.Scripts.Networking;
 using Assets.Scripts.Objects;
@@ -8,6 +7,7 @@ using Assets.Scripts.UI;
 using HarmonyLib;
 using JetBrains.Annotations;
 using LaunchPadBooster.Networking;
+using StationeersPlus.Shared;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -268,10 +268,12 @@ namespace EquipmentPlus
             {
                 if (ScrollDispatchState.ScrollTrace)
                     EquipmentPlusPlugin.Log.LogInfo("[EquipmentPlus.scroll] tablet auto-equip: no room to stow occupant (inventory full, off-hand occupied)");
-                // Informational, so PlayerNotice.Show (yellow, no stack trace) rather than PrintError,
-                // and throttled: scrolling to hunt for a tablet with a full inventory hits this on
-                // every notch of the wheel.
-                PlayerNotice.Show("No room to swap. Manually stow or drop the item in your active hand to equip the tablet.");
+                // Informational, so PlayerMessage.Info (yellow, no stack trace) rather than Error,
+                // and on a cooldown: scrolling to hunt for a tablet with a full inventory hits this
+                // on every notch of the wheel, but it must say so again once the player has moved
+                // something and tries afresh.
+                PlayerMessage.Info("tablet-no-room", Throttle.Cooldown(5f),
+                    "No room to swap. Manually stow or drop the item in your active hand to equip the tablet.");
             }
         }
 
