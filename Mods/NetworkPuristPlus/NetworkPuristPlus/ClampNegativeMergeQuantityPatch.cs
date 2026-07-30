@@ -1,6 +1,7 @@
 using Assets.Scripts.GridSystem;
 using Assets.Scripts.Objects;
 using HarmonyLib;
+using StationeersPlus.Shared;
 using UnityEngine;
 
 namespace NetworkPuristPlus
@@ -48,11 +49,17 @@ namespace NetworkPuristPlus
             quantity = 0;
 
             _clampCount++;
-            if (_clampCount == 1)
-                NetworkPuristPlusPlugin.PlayerLog(
-                    $"prevented a construction crash: a merge tried to consume a negative item quantity ({original}); clamped to 0 and the build continued. " +
-                    "This is the ZoopMod + base-game long-variant merge interaction (reported at github.com/Nivvdiy/ZoopModRecovered issue 22).");
-            else
+
+            // Throttle.Once is exactly the hand-rolled `_clampCount == 1` guard this replaces: the mod
+            // never calls PlayerMessage.ResetSession, so "first occurrence for the session" and "first
+            // occurrence for the process" are the same instant. The cause does not change between
+            // occurrences, so one line says everything the player can act on; a zoop across a long run
+            // clamps once per cell and would otherwise print once per cell. `_clampCount` stays because
+            // the file log below still numbers the repeats.
+            PlayerMessage.Info("negative-merge-quantity", Throttle.Once,
+                $"prevented a construction crash: a merge tried to consume a negative item quantity ({original}); clamped to 0 and the build continued. " +
+                "This is the ZoopMod + base-game long-variant merge interaction (reported at github.com/Nivvdiy/ZoopModRecovered issue 22).");
+            if (_clampCount > 1)
                 NetworkPuristPlusPlugin.Log?.LogInfo($"clamped a negative construct quantity ({original}) to 0 (occurrence {_clampCount}).");
         }
     }

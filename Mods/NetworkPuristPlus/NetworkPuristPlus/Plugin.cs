@@ -5,10 +5,8 @@ using BepInEx.Logging;
 using HarmonyLib;
 using LaunchPadBooster;
 using LaunchPadBooster.Networking;
+using StationeersPlus.Shared;
 using System;
-using ConsoleWindow = Assets.Scripts.ConsoleWindow;   // the in-game `~` console (Assets.Scripts.ConsoleWindow).
-                                                      // alias, not `using Assets.Scripts;`, because that namespace
-                                                      // also has a `Settings` type that would clash with NetworkPuristPlus.Settings (CS0104).
 
 namespace NetworkPuristPlus
 {
@@ -41,74 +39,26 @@ namespace NetworkPuristPlus
         // version. The JoinValidator below adds the per-family / master settings to that check.
         internal static readonly Mod MOD = new Mod(PluginName, PluginVersion);
 
-        // BepInEx log source (-> BepInEx\LogOutput.log, also mirrored into Player.log by StationeersLaunchPad).
+        // BepInEx log source. One call reaches BOTH BepInEx\LogOutput.log (via DiskLogListener) and
+        // Player.log (via BepInEx's own UnityLogListener, which writes through Unity's native log writer
+        // and so never re-enters the in-game console's error bridge). StationeersLaunchPad plays no part;
+        // see Research/Patterns/GameLoggingSinks.md.
         internal static ManualLogSource Log;
 
         // The plugin's MonoBehaviour instance (for StartCoroutine).
         internal static NetworkPuristPlusPlugin Instance;
 
-        // --- In-game `~` console (Assets.Scripts.ConsoleWindow, aliased above) -----------------------
-        // What reaches the in-game console, and what does not:
-        //   - ConsoleWindow.Print* calls: always.
-        //   - UnityEngine.Debug.LogError / LogException: ALSO printed. ConsoleWindow subscribes to
-        //     Application.logMessageReceivedThreaded and re-prints LogType.Error and LogType.Exception
-        //     itself, lowercased, in red, with a stack trace. So pairing Debug.LogError with a
-        //     ConsoleWindow call for the same text shows it to the player TWICE.
-        //   - UnityEngine.Debug.Log / LogWarning: never printed (the handler filters them out).
-        //   - BepInEx Logger.Log*: never printed.
-        // There is no PrintWarning; yellow is PrintAction. `aged` is inverted from its name: aged: true
-        // (the Print default) means the line is NOT shown on the closed-console overlay and only appears
-        // once the console is opened, so anything meant to be seen without opening the console passes
-        // aged: false. The try/catch is because some of these fire from OnPrefabsLoaded, before the
-        // console UI is fully up (ConsoleWindow has an internal PrematureLog queue, so it should be
-        // fine, but the catch costs nothing).
-
-        // A "player-visible" log line. Three channels:
-        //   - BepInEx log (BepInEx\LogOutput.log; StationeersLaunchPad also mirrors it into Player.log)
-        //   - Unity's Player.log via Debug.Log
-        //   - the in-game `~` console via ConsoleWindow (the channel a player actually sees while playing)
-        internal static void PlayerLog(string message)
-        {
-            Log?.LogInfo(message);
-            UnityEngine.Debug.Log($"[{PluginName}] {message}");
-            try { ConsoleWindow.PrintAction($"[{PluginName}] {message}", aged: false); } catch { }
-        }
-
-        // Yellow, not red: a warning is not an error. The game has no PrintWarning, so PrintAction is
-        // the yellow channel. Debug.LogWarning is LogType.Warning, which the console handler ignores,
-        // so it costs no duplicate console line.
-        internal static void PlayerWarn(string message)
-        {
-            Log?.LogWarning(message);
-            UnityEngine.Debug.LogWarning($"[{PluginName}] {message}");
-            try { ConsoleWindow.PrintAction($"[{PluginName}] {message}", aged: false); } catch { }
-        }
-
-        // Deliberately no UnityEngine.Debug.LogError here. It would be re-printed by the console's own
-        // logMessageReceivedThreaded handler, so the player would see the same line twice: once as this
-        // controlled PrintError, and again lowercased with an unavoidable stack trace. Nothing is lost
-        // by dropping it -- Log.LogError already reaches LogOutput.log and is mirrored into Player.log
-        // by StationeersLaunchPad, which is the same sink Debug.LogError would have written to.
-        internal static void PlayerError(string message)
-        {
-            Log?.LogError(message);
-            try { ConsoleWindow.PrintError($"[{PluginName}] {message}", suppressStacktrace: true); } catch { }
-        }
-
-        // Exception overload. The full exception (type, message, stack trace, inner exceptions) goes to
-        // the file log; the player's console gets only the type and message. Interpolating a bare {e}
-        // into a console line dumps a multi-line managed stack trace, complete with compiler-generated
-        // frame names like <Postfix>b__0, in front of someone who cannot act on any of it.
-        internal static void PlayerError(string message, Exception e)
-        {
-            Log?.LogError($"{message}: {e}");
-            try { ConsoleWindow.PrintError($"[{PluginName}] {message}: {e.GetType().Name}: {e.Message}", suppressStacktrace: true); } catch { }
-        }
-
         private void Awake()
         {
             Log = Logger;
             Instance = this;
+
+            // Everything this mod says to a player goes through the shared PlayerMessage helper
+            // (Patterns/Console/PlayerMessage.cs, linked into the build). It owns the console-severity
+            // mapping, the aged/stack-trace flags, the worker-thread guard, and the per-key throttling;
+            // see Research/Patterns/InGameConsoleOutput.md for why each of those is not obvious. The
+            // display name, with spaces, becomes the bracketed prefix on every player-facing line.
+            PlayerMessage.Init("Network Purist Plus", Logger);
 
             // Bind the settings panel (master + per-family long-piece toggles + cable-alignment toggle,
             // all in "Server - *" sections). Done in Awake so LongVariantRegistry.Build() and the patches
@@ -148,18 +98,24 @@ namespace NetworkPuristPlus
                 LongVariantRegistry.Build();          // map long -> base (per-family gated), hide from Stationpedia, strip kit wheels, set Straight on straight pieces / align cursors
                 new Harmony(PluginGuid).PatchAll();   // World.OnLoadingFinished (rebuild long pieces + align cables on load), MultiConstructor.Construct + Constructor.Construct (align a straight cable as it is built), SPDADataHandler.HandleThingPageOverrides (re-hide)
 
+                // The startup status line: exactly one of these four branches, exactly once per session.
+                // Prefab.OnPrefabsLoaded fires once and this handler unsubscribes itself at entry, so the
+                // line is already self-limiting and Throttle.Never is the honest policy. They share one
+                // key because they are one message with four wordings, not four messages.
                 if (!Settings.MasterEnabled)
-                    PlayerWarn($"v{PluginVersion}: the master toggle (Enable Network Purist Plus) is OFF -- the mod does nothing this session. (All players on a server must have the same value; a joining client whose value differs from the host's is rejected.)");
+                    PlayerMessage.Warn("startup", Throttle.Never, $"v{PluginVersion}: the master toggle (Enable Network Purist Plus) is OFF -- the mod does nothing this session. (All players on a server must have the same value; a joining client whose value differs from the host's is rejected.)");
                 else if (LongVariantRegistry.LongToBase.Count == 0 && !Settings.CableAlignmentEnabled)
-                    PlayerWarn($"v{PluginVersion}: no long-variant prefabs to remove (every family toggle off, or the game version changed) and cable alignment is off -- nothing to do.");
+                    PlayerMessage.Warn("startup", Throttle.Never, $"v{PluginVersion}: no long-variant prefabs to remove (every family toggle off, or the game version changed) and cable alignment is off -- nothing to do.");
                 else if (LongVariantRegistry.LongToBase.Count == 0)
-                    PlayerWarn($"v{PluginVersion}: no long-variant prefabs found to remove (every family toggle off, or the game version changed). Cable alignment still active.");
+                    PlayerMessage.Warn("startup", Throttle.Never, $"v{PluginVersion}: no long-variant prefabs found to remove (every family toggle off, or the game version changed). Cable alignment still active.");
                 else
-                    PlayerLog($"v{PluginVersion} active: {LongVariantRegistry.LongToBase.Count} long-variant prefab(s) removed from build menus and the Stationpedia; {LongVariantRegistry.StrippedKitCount} kit(s) cleaned. Long pieces are rebuilt from single tiles on the next world load" + (Settings.CableAlignmentEnabled ? "; straight cables are aligned to a consistent orientation on load and as they are built." : " (cable alignment is off).") + " Server-authoritative; all players must run the same version and settings.");
+                    PlayerMessage.Info("startup", Throttle.Never, $"v{PluginVersion} active: {LongVariantRegistry.LongToBase.Count} long-variant prefab(s) removed from build menus and the Stationpedia; {LongVariantRegistry.StrippedKitCount} kit(s) cleaned. Long pieces are rebuilt from single tiles on the next world load" + (Settings.CableAlignmentEnabled ? "; straight cables are aligned to a consistent orientation on load and as they are built." : " (cable alignment is off).") + " Server-authoritative; all players must run the same version and settings.");
             }
             catch (Exception e)
             {
-                PlayerError($"failed to initialise: {e}");
+                // Same one-shot path as the status line above, so Throttle.Never. The Exception overload
+                // keeps the stack trace in the log files and puts only the type and message on screen.
+                PlayerMessage.Error("init-failed", Throttle.Never, "failed to initialise", e);
             }
         }
 

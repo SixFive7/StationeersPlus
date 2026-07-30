@@ -2,6 +2,7 @@ using Assets.Scripts.GridSystem;
 using Assets.Scripts.Objects;
 using Assets.Scripts.Objects.Electrical;
 using HarmonyLib;
+using StationeersPlus.Shared;
 using System;
 using UnityEngine;
 
@@ -73,13 +74,6 @@ namespace NetworkPuristPlus
 
     internal static class CableRollOnConstruct
     {
-        /// <summary>
-        /// One-shot guard for the failure path, mirroring the <c>loggedActive</c> one-shot on the
-        /// success path. This runs on every cable placement (including every cell of a ZoopMod drag),
-        /// so an unguarded console line here would print once per placed cable.
-        /// </summary>
-        private static bool _loggedError;
-
         internal static void Apply(ref Quaternion targetRotation, ref bool loggedActive, string via)
         {
             try
@@ -93,12 +87,19 @@ namespace NetworkPuristPlus
             }
             catch (Exception e)
             {
-                if (!_loggedError)
-                {
-                    _loggedError = true;
-                    NetworkPuristPlusPlugin.PlayerWarn($"could not canonicalise a built cable's roll: {e.GetType().Name}: {e.Message}. Cable alignment is cosmetic; building is unaffected. Further occurrences go to the log only.");
-                }
-                NetworkPuristPlusPlugin.Log?.LogWarning($"could not canonicalise a built cable's roll: {e}");
+                // Throttle.Once, replacing a hand-rolled one-shot bool. This method runs on every cable
+                // placement, including every cell of a ZoopMod drag, so an unthrottled console line here
+                // would print once per placed cable. Once is exactly right rather than a cap: the failure
+                // is systemic (the same canonicalisation, the same exception, every time), so occurrence
+                // two carries no information the player can act on, which is why the text says so.
+                //
+                // Warn, not Error: the wording, the yellow, and the trailing reassurance are deliberate
+                // (see the 2026-07-27 entry in RESEARCH.md and the pending PLAYTEST.md case) because the
+                // build itself succeeds and only the cosmetic roll is lost. The Exception overload keeps
+                // that severity: it puts the full exception in the file log and only the type and message
+                // on screen, in one call, so there is no second hand-rolled log line to drift out of sync.
+                PlayerMessage.Warn("cable-roll-construct-failed", Throttle.Once,
+                    "could not canonicalise a built cable's roll. Cable alignment is cosmetic; building is unaffected. Further occurrences go to the log only.", e);
             }
         }
     }

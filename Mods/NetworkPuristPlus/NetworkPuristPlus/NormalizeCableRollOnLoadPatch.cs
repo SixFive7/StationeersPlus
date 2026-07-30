@@ -3,6 +3,7 @@ using Assets.Scripts.GridSystem;
 using Assets.Scripts.Objects;
 using Assets.Scripts.Objects.Electrical;
 using HarmonyLib;
+using StationeersPlus.Shared;
 using System;
 using System.Collections.Generic;
 
@@ -40,7 +41,9 @@ namespace NetworkPuristPlus
             }
             catch (Exception e)
             {
-                NetworkPuristPlusPlugin.PlayerError("could not scan placed cables", e);
+                // Once per sweep, and a sweep is one world load: Throttle.Never. It also aborts the
+                // sweep, so there is no second chance to say it.
+                PlayerMessage.Error("cable-scan-failed", Throttle.Never, "could not scan placed cables", e);
                 return;
             }
             if (targets.Count == 0) return;
@@ -55,8 +58,10 @@ namespace NetworkPuristPlus
                 catch (Exception e) { failed++; NetworkPuristPlusPlugin.Log?.LogWarning($"could not align cable (ref {(c != null ? c.ReferenceId : 0)}): {e}"); }
             }
 
+            // The sweep summary, one line per world load. Throttle.Never: the per-cable detail (the part
+            // that scales with world size) is on the file log above, and this line is already once-per-sweep.
             if (changed > 0 || failed > 0)
-                NetworkPuristPlusPlugin.PlayerLog($"aligned {changed} straight cable(s) to a consistent orientation{(failed > 0 ? $" ({failed} failed -- see the log)" : "")}.");
+                PlayerMessage.Info("cable-align-summary", Throttle.Never, $"aligned {changed} straight cable(s) to a consistent orientation{(failed > 0 ? $" ({failed} failed -- see the log)" : "")}.");
         }
     }
 }

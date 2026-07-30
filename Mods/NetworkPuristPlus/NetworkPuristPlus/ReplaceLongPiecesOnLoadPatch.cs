@@ -4,6 +4,7 @@ using Assets.Scripts.Networking;
 using Assets.Scripts.Objects;
 using Assets.Scripts.Objects.Electrical;
 using HarmonyLib;
+using StationeersPlus.Shared;
 using System;
 using System.Collections.Generic;
 using UnityEngine;
@@ -36,8 +37,17 @@ namespace NetworkPuristPlus
     // colour and network connectivity are preserved; chute items in transit through a destroyed
     // segment and pipe gas are not.
     //
-    // Every piece this rebuilds is logged via NetworkPuristPlusPlugin.PlayerLog -- BepInEx log,
-    // Player.log, and the in-game `~` console.
+    // Player-facing output is the count line before the sweep and the summary line after it, both via
+    // the shared PlayerMessage helper (BepInEx log, Player.log, and the in-game `~` console). The
+    // per-piece detail -- what was rebuilt, what was skipped, what threw -- goes to the BepInEx log
+    // only. All three are one line per long piece, and PlayerMessage writes its console leg with
+    // aged: false, so on a world with a few hundred long pieces they would blanket the closed-console
+    // overlay at load. The counts in the summary are the part a player can act on.
+    //
+    // Every player-facing line here is Throttle.Never: each is emitted at most once per sweep, and a
+    // sweep is one world load. That is already the granularity the wording claims, so there is nothing
+    // left for a throttle to bound -- the per-piece lines, which is where the volume lives, are on the
+    // file log and never reach the console at all.
     [HarmonyPatch(typeof(World), nameof(World.OnLoadingFinished))]
     internal static class ReplaceLongPiecesOnLoadPatch
     {
@@ -59,16 +69,16 @@ namespace NetworkPuristPlus
             }
             catch (Exception e)
             {
-                NetworkPuristPlusPlugin.PlayerError("could not scan placed structures", e);
+                PlayerMessage.Error("scan-structures-failed", Throttle.Never, "could not scan placed structures", e);
                 return;
             }
             if (targets.Count == 0)
             {
-                NetworkPuristPlusPlugin.PlayerLog("no long pieces in this world; it is already clean, nothing to rebuild. All good.");
+                PlayerMessage.Info("sweep-clean", Throttle.Never, "no long pieces in this world; it is already clean, nothing to rebuild. All good.");
                 return;
             }
 
-            NetworkPuristPlusPlugin.PlayerLog($"found {targets.Count} long piece(s) to rebuild from single-tile pieces...");
+            PlayerMessage.Info("sweep-found", Throttle.Never, $"found {targets.Count} long piece(s) to rebuild from single-tile pieces...");
             int rebuilt = 0, segments = 0, failed = 0;
             foreach (Structure longPiece in targets)
             {
@@ -80,7 +90,7 @@ namespace NetworkPuristPlus
                     var cells = longPiece.GridBounds?.GetLocalSmallGrid(longPiece.ThingTransformPosition, longPiece.ThingTransformRotation) as Grid3[];
                     if (cells == null || cells.Length == 0)
                     {
-                        NetworkPuristPlusPlugin.PlayerWarn($"{SafeName(longPiece)} (ref {longPiece.ReferenceId}): could not determine footprint cells; leaving it in place.");
+                        NetworkPuristPlusPlugin.Log?.LogWarning($"{SafeName(longPiece)} (ref {longPiece.ReferenceId}): could not determine footprint cells; leaving it in place.");
                         failed++;
                         continue;
                     }
@@ -91,9 +101,9 @@ namespace NetworkPuristPlus
                     int colorIndex = PaintedColorIndex(longPiece);
                     Vector3 p = longPiece.ThingTransformPosition;
                     // File log only. This is one line per long piece; a world with a few hundred of them
-                    // would blanket the screen, because PlayerLog passes aged: false and so forces every
-                    // line onto the closed-console overlay. The player-facing account of this sweep is
-                    // the count above and the summary below.
+                    // would blanket the screen, because the console leg passes aged: false and so forces
+                    // every line onto the closed-console overlay. The player-facing account of this sweep
+                    // is the count above and the summary below.
                     NetworkPuristPlusPlugin.Log?.LogInfo($"  rebuilding {longPiece.PrefabName} (ref {longPiece.ReferenceId}) at ({p.x:0.#}, {p.y:0.#}, {p.z:0.#}) -> {cells.Length} x {basePrefab.PrefabName}{(colorIndex >= 0 ? $" (color {colorIndex})" : "")}");
 
                     OnServer.Destroy(longPiece);
@@ -107,11 +117,11 @@ namespace NetworkPuristPlus
                 catch (Exception e)
                 {
                     failed++;
-                    NetworkPuristPlusPlugin.PlayerError($"failed to rebuild {SafeName(longPiece)} (ref {(longPiece != null ? longPiece.ReferenceId : 0)})", e);
+                    NetworkPuristPlusPlugin.Log?.LogError($"failed to rebuild {SafeName(longPiece)} (ref {(longPiece != null ? longPiece.ReferenceId : 0)}): {e}");
                 }
             }
 
-            NetworkPuristPlusPlugin.PlayerLog($"done: rebuilt {rebuilt} long piece(s) as {segments} single-tile segment(s){(failed > 0 ? $" ({failed} failed -- see warnings/errors above)" : "")}. Rebuilt pipe runs start empty -- re-pressurise them.");
+            PlayerMessage.Info("sweep-done", Throttle.Never, $"done: rebuilt {rebuilt} long piece(s) as {segments} single-tile segment(s){(failed > 0 ? $" ({failed} failed -- see the log)" : "")}. Rebuilt pipe runs start empty -- re-pressurise them.");
         }
 
         // The painted swatch index, or -1 ("keep the base prefab's default colour") if the structure

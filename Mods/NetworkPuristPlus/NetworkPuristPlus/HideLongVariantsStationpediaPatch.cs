@@ -1,4 +1,5 @@
 using HarmonyLib;
+using StationeersPlus.Shared;
 using System;
 
 namespace NetworkPuristPlus
@@ -43,12 +44,25 @@ namespace NetworkPuristPlus
                 }
                 catch (Exception e)
                 {
-                    NetworkPuristPlusPlugin.PlayerWarn($"could not re-hide {SafeName(longVariant)} from the Stationpedia: {e.Message}");
+                    // Capped, because this line sits inside a loop over every long variant (two dozen on a
+                    // vanilla install, more with a mod that adds long pieces) on a postfix that is NOT
+                    // one-shot: Stationpedia.PopulateLists re-runs on a language change and on every
+                    // Stationpedia regeneration. Uncapped it was one console line per prefab per rebuild.
+                    // CapWithSummary rather than Once-per-prefab because the failure is systemic when it
+                    // happens at all: three named prefabs are enough to identify what broke, and the count
+                    // of the rest is the only extra thing a player could act on. FlushSummary emits that
+                    // count below, once the loop is done.
+                    PlayerMessage.Warn("stationpedia-rehide-failed", Throttle.CapWithSummary(3),
+                        $"could not re-hide {SafeName(longVariant)} from the Stationpedia: {e.Message}");
                 }
             }
+            PlayerMessage.FlushSummary("stationpedia-rehide-failed");
 
+            // The sweep summary: at most one line per Stationpedia rebuild, and only when a page override
+            // actually cleared the flag (vanilla ships none, so normally never). Throttle.Never, same as
+            // the other sweep summaries -- it is already once per pass and reports a real state change.
             if (reHidden > 0)
-                NetworkPuristPlusPlugin.PlayerLog($"re-hid {reHidden} long-variant prefab(s) from the Stationpedia after a page-override pass cleared the flag.");
+                PlayerMessage.Info("stationpedia-rehide", Throttle.Never, $"re-hid {reHidden} long-variant prefab(s) from the Stationpedia after a page-override pass cleared the flag.");
         }
 
         private static string SafeName(Assets.Scripts.Objects.Structure s)
