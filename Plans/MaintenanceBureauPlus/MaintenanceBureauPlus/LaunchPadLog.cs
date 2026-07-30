@@ -13,8 +13,7 @@ using System.Reflection;
 // Both bridges exist solely to give us fast triage during playtest. Before
 // v1.0.0 release, this entire file should be deleted (or the ConsoleWindow
 // branch removed and the LaunchPad branch kept on Warning+ only). See
-// plan.md "Pre-release checklist" / TODO.md "Playtest gate" for the full
-// diagnostic-removal pass.
+// TODO.md "Playtest gate" for the full diagnostic-removal pass.
 //
 // Why the ConsoleWindow branch in particular must not ship. It is hooked in
 // Plugin.Awake with NO severity filter, so every one of the mod's ~104
@@ -34,8 +33,10 @@ using System.Reflection;
 //     MainThreadQueue is bypassed entirely on this path.
 //   - Unescaped text. Lines carry raw LLM output and verbatim player chat.
 //     The console is ImGui and renders through TextUnformatted, so markup
-//     shows as literal characters, and on a dedicated server any line
-//     containing "<color=" is silently dropped. A player can type that.
+//     shows as literal characters, and on a dedicated server launched
+//     WITHOUT -logFile any line containing "<color=" is silently dropped.
+//     (With -logFile the batch path routes the line to Debug.Log* by colour
+//     band instead, markup intact and unfiltered.) A player can type that.
 //
 // See Research/Patterns/InGameConsoleOutput.md.
 // =============================================================================
@@ -174,8 +175,12 @@ namespace MaintenanceBureauPlus
                 // the console. true is deliberate and correct here -- a debug mirror belongs behind
                 // F3, never on the overlay -- and it is the one thing this branch already gets right.
                 //
-                // clearLine and unformatted are dead parameters on this path: Print reads them only
-                // to populate its premature-log queue and never consults them when writing the line.
+                // clearLine and unformatted are dead parameters: Print never consults either when
+                // writing a line, and the only place it reads them at all is the premature-log queue
+                // it uses before the console buffer is allocated. ConsoleLine has no field to carry
+                // unformatted, and clearLine cannot overwrite the previous line because the ring
+                // shift ahead of the write is unconditional. Once the console UI is up, which is the
+                // only state this bridge runs in, they are not read at all.
                 _consolePrintMethod.Invoke(null, new object[]
                 {
                     "[MaintenanceBureauPlus] " + msg,
