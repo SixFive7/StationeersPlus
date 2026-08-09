@@ -7,7 +7,7 @@ verified_at: 2026-07-02
 sources:
   - Plans/RepairPrototype/plan.md:58-66
   - .work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs :: SaveLoadConstants (lines 265202-265210), SaveHelper.Save (264972-265043)
-  - DedicatedServer/data/saves/Luna/Luna.save (entry listing, 2026-07-02)
+  - TestRig/DedicatedServer/data/saves/Luna/Luna.save (entry listing, 2026-07-02)
 related:
   - ./TerrainDat.md
   - ./TerrainChunkChecksums.md
@@ -37,7 +37,7 @@ The five names are code constants (`SaveLoadConstants`, 0.2.6403.27689 decompile
 ## Mod sidecar entries
 <!-- verified: 0.2.6403.27689 @ 2026-07-02 -->
 
-A save ZIP can carry additional entries beyond the five standard members: mods append their own files at save time. Observed entry listing of a real modded save (`DedicatedServer/data/saves/Luna/Luna.save`, 2026-07-02, sizes in bytes):
+A save ZIP can carry additional entries beyond the five standard members: mods append their own files at save time. Observed entry listing of a real modded save (`TestRig/DedicatedServer/data/saves/Luna/Luna.save`, 2026-07-02, sizes in bytes):
 
 ```
        698  world_meta.xml

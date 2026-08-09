@@ -70,7 +70,7 @@ On a dedicated server started with `-new <Map>`, `XmlSaveLoad.Instance.CurrentSt
 Consequences:
 
 - A `-new` world produces NO real autosaves until it gets a name. The stdin console `save "<name>"` path would assign one, but stdin console commands are a no-op on the batch-mode dedicated server (observed at 0.2.6228.27061 and re-confirmed at 0.2.6403.27689: `save` queued via the launcher control file produced no save folder, no log response). Starting with `-load <SaveName>` instead gives the world a name from the start and autosaves work normally.
-- When a test plan uses "an AutoSave line" as the world-is-ticking readiness marker (`DedicatedServer/CLAUDE.md`, "First-autosave grep"), on a `-new` world watch for the `Save Failed: Folder name is empty.` line instead; it is emitted at the same cadence and implies the same unpaused-and-running state.
+- When a test plan uses "an AutoSave line" as the world-is-ticking readiness marker (`TestRig/DedicatedServer/CLAUDE.md`, "First-autosave grep"), on a `-new` world watch for the `Save Failed: Folder name is empty.` line instead; it is emitted at the same cadence and implies the same unpaused-and-running state.
 
 ## Verification history
 

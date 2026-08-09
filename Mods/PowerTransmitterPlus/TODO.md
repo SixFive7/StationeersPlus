@@ -167,7 +167,7 @@ If option (a) sidecar field is chosen for source-draw plumbing on the transmitte
 
 ### Verification approach
 
-Use [InspectorPlus](../InspectorPlus/) snapshots paired with the dedicated server at [DedicatedServer/](../../DedicatedServer/):
+Use [InspectorPlus](../InspectorPlus/) snapshots paired with the dedicated server at [TestRig/DedicatedServer/](../../TestRig/DedicatedServer/):
 
 - Drop a request `{ "types": ["BeamLine"], "fields": ["_lineRenderer"], "maxDepth": 3, "includePrivate": true }` (or the type that owns the LineRenderer reference, verify in Phase 1) to inspect `colorGradient` / `widthCurve` / `positionCount` after a controlled power level change. Note: prefab templates are NOT visible through InspectorPlus (it uses `FindObjectsOfType`, not `FindObjectsOfTypeAll`); only placed transmitters with active beams are reachable.
 - Before/after snapshot pairs at known power levels (e.g. 5 kW short link, 5 kW @ 10 km link, mod-uncapped high-power link) to confirm the gradient builds match the expected output of `NormalizePower` -> `SampleColor` / `SampleWidth`.
@@ -181,4 +181,4 @@ Use [InspectorPlus](../InspectorPlus/) snapshots paired with the dedicated serve
 - Power transmitter internals (`VisualizerIntensity`, `MaxPowerTransmission`, distance-loss curve): [Research/GameClasses/PowerTransmitter.md](../../Research/GameClasses/PowerTransmitter.md)
 - LaunchPad settings panel grouping conventions: [Research/Patterns/StationeersLaunchPadSettingsGrouping.md](../../Research/Patterns/StationeersLaunchPadSettingsGrouping.md)
 - InspectorPlus capabilities and limits (scene-only via `FindObjectsOfType`): [Research/Workflows/InspectorPlusUsage.md](../../Research/Workflows/InspectorPlusUsage.md)
-- Dedicated server driving procedure and session lock: [DedicatedServer/CLAUDE.md](../../DedicatedServer/CLAUDE.md), [DedicatedServer/session.lock.template](../../DedicatedServer/session.lock.template)
+- Dedicated server driving procedure and session lock: [TestRig/DedicatedServer/CLAUDE.md](../../TestRig/DedicatedServer/CLAUDE.md), [TestRig/DedicatedServer/session.lock.template](../../TestRig/DedicatedServer/session.lock.template)

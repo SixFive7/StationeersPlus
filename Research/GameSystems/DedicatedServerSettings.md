@@ -379,7 +379,7 @@ Confirmation log line on success (line 96453):
 ConsoleWindow.Print("Saved " + stationName);
 ```
 
-This is the line `DedicatedServer/dedicated-server.ps1 -Save -Name <X>` polls for in `data/server.log` to confirm completion.
+This is the line `TestRig/DedicatedServer/dedicated-server.ps1 -Save -Name <X>` polls for in `data/server.log` to confirm completion.
 
 Refuses to save when `GameState != Running && != Paused`. Refuses on remote clients via `CommandBase.CannotAsClient("save")`.
 
@@ -513,7 +513,7 @@ If you launch `rocketstation_DedicatedServer.exe -batchmode -nographics -new Lun
 - SavePath: empty, falling back to `StationSaveUtils.DefaultPath`. In batch mode that resolves to the directory containing `rocketstation_DedicatedServer.exe`. Worlds, scripts, and mods all live under that root.
 - `setting.xml` written to `<SavePath>/setting.xml` on first save, which (with empty SavePath) is the exe directory.
 
-## Notes for DedicatedServer/dedicated-server.ps1
+## Notes for TestRig/DedicatedServer/dedicated-server.ps1
 <!-- verified: 0.2.6228.27061 @ 2026-05-18 -->
 
 The launcher's current `-Start` flag set:
@@ -550,7 +550,7 @@ Verified against the source:
 <!-- verified: 0.2.6228.27061 @ 2026-04-28 -->
 
 - 2026-04-28: page created from a fresh decompile of `Assembly-CSharp.dll` at game version `0.2.6228.27061` (ilspycmd output at `.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs`). All Settings field defaults are verbatim from `Settings.SettingData` (decompile lines 248236-248577). Command dispatch dictionary verbatim from `CommandLine` static constructor (lines 94942-95038). HelpText / Arguments / IsLaunchCmd values for the lifecycle commands (Save, Quit, LoadGame, LoadLatest, NewGame, Settings, SettingsPath, ServerRun, Ban) are verbatim from each command's class declaration.
-- 2026-04-28: launcher relocated from `tools/dedicated-server.ps1` to `DedicatedServer/dedicated-server.ps1` (un-ignored alongside `DedicatedServer/CLAUDE.md`). Flag set updated: `StartLocalHost true` removed (confirmed unnecessary on the dedicated build's load path), `ServerAuthSecret x` added (enables `serverrun` from a connected client). Path references and the "Notes for DedicatedServer/dedicated-server.ps1" section updated to match. Game-internals claims unchanged.
+- 2026-04-28: launcher relocated from `tools/dedicated-server.ps1` to `TestRig/DedicatedServer/dedicated-server.ps1` (un-ignored alongside `TestRig/DedicatedServer/CLAUDE.md`). Flag set updated: `StartLocalHost true` removed (confirmed unnecessary on the dedicated build's load path), `ServerAuthSecret x` added (enables `serverrun` from a connected client). Path references and the "Notes for TestRig/DedicatedServer/dedicated-server.ps1" section updated to match. Game-internals claims unchanged.
 - 2026-05-18: launcher flag set updated to pin `LocalIpAddress 127.0.0.1` and drop `ServerPassword x`. Confirmed via runtime test (host wrapper PID 25800, server UDP bind read via `Get-NetUDPEndpoint`): without LocalIpAddress, RakNet bound UDP 28016 to the LAN IP `10.20.30.200` and refused loopback connections; with LocalIpAddress = 127.0.0.1, the bind moves to loopback and Direct Connect from a same-machine client succeeds. Removed ServerPassword because the loopback bind makes external auth at the network layer impossible to bypass, so a password adds friction without security. Kept `ServerAuthSecret x` (it gates `serverrun`, not connection). Also flipped `AutoPauseServer` to `false` in the documented flag block to match the launcher, which has been carrying that flag for tests that need simulation between client sessions.
 - 2026-04-28: corrected world-id list in the `-new` deep-dive. NewGameCommand source declares `"Moon"` as the default but `WorldSetting.Find("Moon")` returns null at runtime; valid ids verified by runtime probe are `Lunar, Mars2, Europa3, MimasHerschel, Venus, Vulcan2, Vulcan (Deprecated)`. Defaults summary updated to use `-new Lunar` as the example.
 

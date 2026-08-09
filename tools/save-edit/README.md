@@ -51,7 +51,7 @@ The CLI is the simple path. For multi-step edits, import the module:
 ```python
 from stationeers_save import Save
 
-s = Save.open("DedicatedServer/data/saves/Luna/Luna.save")
+s = Save.open("TestRig/DedicatedServer/data/saves/Luna/Luna.save")
 try:
     new_id = s.next_reference_id()
     print(f"next ReferenceId: {new_id}")
@@ -71,7 +71,7 @@ finally:
 
 ## Tier-3 rule
 
-Save edits are always done on a COPY of a tier-2 source save into the tier-3 dedicated-server saves folder (`DedicatedServer/data/saves/`). The launcher loads from that folder; the developer's client save folder is tier-1 and never touched. See the repo-root CLAUDE.md "Workflow: save file access tiers".
+Save edits are always done on a COPY of a tier-2 source save into the tier-3 dedicated-server saves folder (`TestRig/DedicatedServer/data/saves/`). The launcher loads from that folder; the developer's client save folder is tier-1 and never touched. See the repo-root CLAUDE.md "Workflow: save file access tiers".
 
 The CLI's `extract` writes to whatever path you give it; `repack` writes a new ZIP and never overwrites unless that ZIP is the destination you named. The extract / repack pair never mutates the input save.
 

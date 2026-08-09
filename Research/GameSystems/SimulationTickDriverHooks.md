@@ -7,7 +7,7 @@ verified_at: 2026-07-02
 sources:
   - .work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :: line 254905 (ElectricityManager.ElectricityTick), 417811 (AtmosphericsManager : ThreadedManager), 187543 (GameManager.RecordGameTick), 189381 (GameManager.StartGameTick), 189076 (GameManager.GameTickPaused)
   - .work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs :: line 205154 (GameManager.Update), 203880 (GameManager.Managers), 204387 (GameManager.GameTick), 204363 (StartGameTick), 203823 (DefaultTickSpeedMs), 60520 (WorldManager.StartWorld), 60886 (WorldManager.SetGamePause), 272091 (ElectricityManager.ElectricityTick)
-  - DedicatedServer/install/rocketstation_DedicatedServer_Data/Managed/Assembly-CSharp.dll :: Assets.Scripts.GameManager.StartGame + DelayedStartupPause (decompiled to .work/decomp/0.2.6403.27689/Assembly-CSharp.DedicatedServer.GameManager.decompiled.cs lines 902-959)
+  - TestRig/DedicatedServer/install/rocketstation_DedicatedServer_Data/Managed/Assembly-CSharp.dll :: Assets.Scripts.GameManager.StartGame + DelayedStartupPause (decompiled to .work/decomp/0.2.6403.27689/Assembly-CSharp.DedicatedServer.GameManager.decompiled.cs lines 902-959)
 related:
   - ../GameClasses/PowerTick.md
   - ../GameClasses/GameManager.md
@@ -17,7 +17,7 @@ tags: [power, threading, harmony]
 
 # Simulation tick driver hooks
 
-How to drive a diagnostic plugin from the game's per-tick simulation chain. Background for `DedicatedServer/dev-plugins/ScenarioRunner/` and `Mods/InspectorPlus/`.
+How to drive a diagnostic plugin from the game's per-tick simulation chain. Background for `TestRig/DedicatedServer/dev-plugins/ScenarioRunner/` and `Mods/InspectorPlus/`.
 
 ## The chain
 <!-- verified: 0.2.6228.27061 @ 2026-05-26 -->
@@ -46,7 +46,7 @@ On a headless dedicated server:
 - A `FileSystemWatcher` callback fires on a ThreadPool thread, so any Unity API call from it crashes. Routing through the dispatcher only helps if the dispatcher is alive.
 - The GameTick-driven subsystem Tick methods, in contrast, fire on every simulation cycle whenever `RunSimulation` is true. A Harmony postfix on `ElectricityManager.ElectricityTick` is the simplest reliable pump.
 
-`Mods/InspectorPlus/InspectorPlus/RequestPollOnTickPatch.cs` already uses this pattern for its request poller; `DedicatedServer/dev-plugins/ScenarioRunner/ScenarioRunner/SimTickPump.cs` follows the same convention so the two cohabit cleanly.
+`Mods/InspectorPlus/InspectorPlus/RequestPollOnTickPatch.cs` already uses this pattern for its request poller; `TestRig/DedicatedServer/dev-plugins/ScenarioRunner/ScenarioRunner/SimTickPump.cs` follows the same convention so the two cohabit cleanly.
 
 ## Threading constraint on the postfix
 <!-- verified: 0.2.6228.27061 @ 2026-05-26 -->

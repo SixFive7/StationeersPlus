@@ -8,6 +8,7 @@ Shared conventions for all Stationeers mods under this monorepo. `Mods/<ModName>
 - `Plans/` contains mods that are in progress and prototypes not yet released. They follow the same shape as released mods but are not tagged or published. Plans/ mods may carry design documents (`PLAN.md`, `plan.md`, `NOTES.md`) that are not permitted in released mods; these documents consolidate into `RESEARCH.md` or are deleted when the mod graduates to `Mods/`.
 - `Patterns/` contains shared conventions, documentation, and code that more than one mod needs to agree on. Holds `Patterns/Logic/` (centralised `LogicType` numbering catalogue + a shared `LogicTypeNumbers.cs` linked into every mod that registers a custom `LogicType`) and `Patterns/Colors/` (the 12 vanilla `ColorSwatch` index values as a shared `ColorSwatchIndex.cs`). See "Workflow: shared patterns under `Patterns/`" below for the rule on touching anything here.
 - `tools/` contains repository-wide utility scripts.
+- `TestRig/` holds the two tools that drive Stationeers for testing: `TestRig/DedicatedServer/` (a self-contained headless server install) and `TestRig/ClientRig/` (the `ClientDriver` plugin plus its launcher, which drives game clients). Both are gitignored apart from their scripts and docs. See "Tool: TestRig for driving the game" below.
 - `Mods/Template/` is the seed scaffold for creating new mods.
 - `.work/` at the monorepo root is the gitignored scratch directory. All temp, prototype, and throwaway files written during a work session live here. See "Workflow: scratch and working files in .work/" below.
 - `playwright/` holds the Playwright MCP configuration (`config.json`, `README.md`); its `profile/` and `output/` subdirectories are gitignored browser runtime state. See "Tool: Playwright MCP for web browsing" below.
@@ -193,7 +194,7 @@ Every mod folder under `Mods/` and `Plans/` carries a `PLAYTEST.md` next to its 
 The split between the two files:
 
 - `TODO.md` is work not yet done: design, research, audits, features to build, refactors, bugs to investigate.
-- `PLAYTEST.md` is code already written whose behavior can only be confirmed by running the game: single-player, a hosted multiplayer session, or the dedicated server under `DedicatedServer/`. An agent moves an item here (or splits one, leaving the not-yet-done part in `TODO.md`) the moment the implementation lands and the only thing left is to watch it work.
+- `PLAYTEST.md` is code already written whose behavior can only be confirmed by running the game: single-player, a hosted multiplayer session, or the dedicated server under `TestRig/DedicatedServer/`. An agent moves an item here (or splits one, leaving the not-yet-done part in `TODO.md`) the moment the implementation lands and the only thing left is to watch it work.
 
 Rules an agent follows:
 
@@ -304,9 +305,9 @@ Save files fall into three tiers with different access rules:
 
 **Tier 2: Developer-provided source saves, READ-ONLY.** Saves the developer explicitly hands over for testing, typically dropped under `C:\Users\jori\Downloads\` or a comparable scratch path. Agents may read these files freely (diagnostics, hex dumps, listing folder contents), and may copy them OUT into a tier-3 location, but must never write into the source folder, never overwrite the source files, never rename them in place, and never delete them. Treat these like a read-only mirror.
 
-**Tier 3: Dedicated-server saves, FREE TO EDIT.** Anything under `DedicatedServer/data/saves/`. The whole point of the dedicated server folder is autonomous test driving, so agents may copy in, overwrite, rename, delete, or hand-edit save folders here as freely as any other working file. Restoring a save under test means: copy from a tier-2 source over the corresponding tier-3 folder, optionally pruning stale `autosave/manualsave/quicksave/` siblings first.
+**Tier 3: Dedicated-server saves, FREE TO EDIT.** Anything under `TestRig/DedicatedServer/data/saves/`. The whole point of the dedicated server folder is autonomous test driving, so agents may copy in, overwrite, rename, delete, or hand-edit save folders here as freely as any other working file. Restoring a save under test means: copy from a tier-2 source over the corresponding tier-3 folder, optionally pruning stale `autosave/manualsave/quicksave/` siblings first.
 
-`DedicatedServer/dedicated-server.ps1` does not currently have a `-CopyInSave` or `-WipeSave` action; copy save trees in directly with the standard file tools. Starting a fresh world via `-Start -New <Map>` remains the way to get a brand-new save when no source is provided.
+`TestRig/DedicatedServer/dedicated-server.ps1` does not currently have a `-CopyInSave` or `-WipeSave` action; copy save trees in directly with the standard file tools. Starting a fresh world via `-Start -New <Map>` remains the way to get a brand-new save when no source is provided.
 
 Reading a save's contents for diagnostic purposes is always acceptable for tier 2 and tier 3 (the developer providing it implies consent), and never acceptable for tier 1.
 
@@ -357,13 +358,22 @@ Legitimate exceptions where naming AI tools is fine:
 
 Rule of thumb: if a human modder would naturally write the same sentence because the topic genuinely requires it, it is fine. If the sentence only exists because an AI likes that phrasing, rewrite it.
 
+## Tool: TestRig for driving the game
+
+`TestRig/` at the repo root holds the two tools that drive Stationeers for testing. They are peers, and a full multiplayer test uses both: the dedicated server hosts the world, the client rig joins it.
+
+- `TestRig/DedicatedServer/` runs a headless dedicated server. Operating manual: `TestRig/DedicatedServer/CLAUDE.md`. Detail in "Tool: DedicatedServer for multiplayer testing" below.
+- `TestRig/ClientRig/` drives one or more game clients over HTTP through the `ClientDriver` BepInEx plugin, launched and provisioned by `TestRig/ClientRig/client-rig.ps1`. Operating manual: `TestRig/ClientRig/README.md`; durable internals in `TestRig/ClientRig/RESEARCH.md`.
+
+Each half owns its own local state and both are gitignored apart from scripts and docs. `ScenarioRunner` (`TestRig/DedicatedServer/dev-plugins/ScenarioRunner/`) is a dedicated-server plugin and stays on the server side; `ClientDriver` drives the client and lives under `TestRig/ClientRig/`.
+
 ## Tool: DedicatedServer for multiplayer testing
 
-`DedicatedServer/` at the repo root holds a self-contained Stationeers Dedicated Server install used for multiplayer playtests of these mods. The directory is gitignored except for `DedicatedServer/CLAUDE.md` (the operating manual: bootstrap, mod deploy, launch, the exact CLI flag set), `DedicatedServer/dedicated-server.ps1` (the launcher script itself), and `DedicatedServer/session.lock.template` (the session-lock rules).
+`TestRig/DedicatedServer/` holds a self-contained Stationeers Dedicated Server install used for multiplayer playtests of these mods. The directory is gitignored except for `TestRig/DedicatedServer/CLAUDE.md` (the operating manual: bootstrap, mod deploy, launch, the exact CLI flag set), `TestRig/DedicatedServer/dedicated-server.ps1` (the launcher script itself), and `TestRig/DedicatedServer/session.lock.template` (the session-lock rules).
 
-Read `DedicatedServer/CLAUDE.md` before running, modifying, or proposing changes that touch the dedicated server. The folder doc auto-loads when you touch any path inside the folder, including the launcher script.
+Read `TestRig/DedicatedServer/CLAUDE.md` before running, modifying, or proposing changes that touch the dedicated server. The folder doc auto-loads when you touch any path inside the folder, including the launcher script.
 
-The dedicated server is a shared single-instance resource: every agent on this machine contends for one install. Before driving it you MUST acquire a session lock (`dedicated-server.ps1 -Lock -Purpose "<reason>"`) and pass `-As <id>` on every mutating command. The lock spans a whole test session across many start/stop cycles, expires on a timer so an idle agent does not starve others, and is held open while a player is connected. Force-breaking another session's lock is human-gated: never do it without the user's explicit say-so. The complete, authoritative rules live at `DedicatedServer/session.lock.template`; read it before figuring out how to drive the server.
+The dedicated server is a shared single-instance resource: every agent on this machine contends for one install. Before driving it you MUST acquire a session lock (`dedicated-server.ps1 -Lock -Purpose "<reason>"`) and pass `-As <id>` on every mutating command. The lock spans a whole test session across many start/stop cycles, expires on a timer so an idle agent does not starve others, and is held open while a player is connected. Force-breaking another session's lock is human-gated: never do it without the user's explicit say-so. The complete, authoritative rules live at `TestRig/DedicatedServer/session.lock.template`; read it before figuring out how to drive the server.
 
 The launcher reads `<StationeersPath>` from `Directory.Build.props` and `STEAMCMD_PATH` from the environment (set per `DEV.md`). It contains no developer-specific paths.
 

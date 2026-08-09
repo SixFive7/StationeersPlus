@@ -8,7 +8,7 @@ sources:
   - .work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs
   - .work/decomp/0.2.6403.27689/Assembly-CSharp.Human.decompiled.cs
   - .work/decomp/0.2.6403.27689/StationeersLaunchPad.decompiled.cs
-  - DedicatedServer/dev-plugins/ClientDriver/
+  - TestRig/ClientRig/
 related:
   - ../Workflows/InspectorPlusUsage.md
   - ../GameClasses/ColorSwatch.md
@@ -18,8 +18,8 @@ tags: [client, automation, input, networking, multiplayer, screenshots, bepinex,
 Everything a BepInEx plugin needs in order to drive the Stationeers **client** with nobody at the
 keyboard: the seams for input, joining a server, spawning, screenshots and live mod config, plus
 the boot-order and lifecycle traps that make a naive implementation fail silently. All of it was
-exercised against a live client on 0.2.6403.27689; the implementation is
-`DedicatedServer/dev-plugins/ClientDriver/`.
+exercised against a live client on 0.2.6403.27689; the implementation is the ClientDriver plugin
+and its launcher under `TestRig/ClientRig/`.
 
 ## Plugin lifecycle: the BepInEx component is destroyed during boot
 <!-- verified: 0.2.6403.27689 @ 2026-07-27 -->

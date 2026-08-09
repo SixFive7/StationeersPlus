@@ -41,7 +41,7 @@ Game versions referenced: 0.2.6228.27061 unless otherwise noted.
 
 All eight sub-checks against the developer's Luna save (a populated multi-mod
 station with 23 batteries, 41 transformers, 16 APCs, 121 cable networks, and
-14 fuses). Driven by `DedicatedServer/dev-plugins/ScenarioRunner/` (was `Plans/PgpVerifyHelper/` at test time; renamed to RuntimeProbe and moved 2026-05-26, then renamed again to ScenarioRunner 2026-05-26). Commit: `1247d99`.
+14 fuses). Driven by `TestRig/DedicatedServer/dev-plugins/ScenarioRunner/` (was `Plans/PgpVerifyHelper/` at test time; renamed to RuntimeProbe and moved 2026-05-26, then renamed again to ScenarioRunner 2026-05-26). Commit: `1247d99`.
 
 - **Power flows on a normal-cable network with loads + a small generator.**
   Seven `StructureTransformerSmall` / `StructureTransformerSmallReversed`
@@ -253,7 +253,7 @@ station with 23 batteries, 41 transformers, 16 APCs, 121 cable networks, and
   XML more compactly than the game's serializer); the loader accepts
   both shapes. Commit: `d688e3e`.
 
-- **`DedicatedServer/dev-plugins/ScenarioRunner/` runs scenarios from a Harmony postfix on
+- **`TestRig/DedicatedServer/dev-plugins/ScenarioRunner/` runs scenarios from a Harmony postfix on
   `ElectricityManager.ElectricityTick`.** 2026-05-25. Five working
   scenarios so far: `inventory`, `battery-charge-snapshot`,
   `transformer-conservation`, `battery-efficiency-probe`,

@@ -16,7 +16,7 @@ Mods for the game Stationeers, developed by SixFive7.
 - `Patterns/` contains shared conventions, documentation, and code that more than one mod needs to agree on. Currently holds `Patterns/Logic/` (centralised `LogicType` numbering catalogue + a shared `LogicTypeNumbers.cs` linked into every mod that registers a custom `LogicType`). Future shared patterns land here as separate subfolders.
 - `Research/` contains the central knowledge base for Stationeers game internals (decompiled-class notes, system behaviours, protocols, workflows). Curated per `Research/WORKFLOW.md`; see `Research/CLAUDE.md` for the structural rules.
 - `tools/` contains repository-wide utility scripts that serve more than one mod.
-- `DedicatedServer/` holds a self-contained Stationeers Dedicated Server install used for multiplayer testing. Everything inside is gitignored except `DedicatedServer/CLAUDE.md`, the operating manual.
+- `TestRig/` holds the tooling that drives the game for testing. `TestRig/DedicatedServer/` is a self-contained Stationeers Dedicated Server install used for multiplayer testing; everything inside it is gitignored except the operating manual `CLAUDE.md`, the launcher script, the session-lock template, and the dev-plugin sources. `TestRig/ClientRig/` provisions and drives isolated game clients on one machine.
 - `Mods/Template/` is the seed scaffold for creating new mods. Copy it, rename to the new mod's name, and edit.
 
 Local build configuration is documented in `CLAUDE.md` (shared conventions) and `DEV.md.template` (developer-specific paths; copy to `DEV.md` and fill in).

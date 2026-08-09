@@ -8,8 +8,8 @@ sources:
   - Plans/SaveFixPrototype/plan.md:160-178
   - Plans/SaveFixPrototype/plan.md:217-220
   - .work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs :: XmlSaveLoad.XmlReaderSettings (line 267981), XmlSaveLoad.ManagerStart ExtraTypes build (268106), XmlSaveLoad.LoadWorld (268507), XmlSaveLoad.Load (268463), XmlSerialization.Deserialize (268982), Serializers (234110), SaveHelper.Save (264972), DynamicThingSaveData (298176), DynamicThing.InitialiseSaveData / DeserializeSave / MoveToParent (299544, 299570, 299593)
-  - DedicatedServer/data/saves/Luna/Luna.save :: world.xml (game-written, 61514025 bytes, inspected 2026-07-02)
-  - DedicatedServer/data/saves/Luna_mixedwire/Luna_mixedwire.save :: world.xml (game-written, 65195989 bytes, censused 2026-07-14)
+  - TestRig/DedicatedServer/data/saves/Luna/Luna.save :: world.xml (game-written, 61514025 bytes, inspected 2026-07-02)
+  - TestRig/DedicatedServer/data/saves/Luna_mixedwire/Luna_mixedwire.save :: world.xml (game-written, 65195989 bytes, censused 2026-07-14)
 related:
   - ./SaveFileStructure.md
   - ./AtmosphereSaveData.md
@@ -76,7 +76,7 @@ There is no explicit sun-angle or day-length element in world.xml; the sun is de
 ## Invalid numeric character references: the game tolerates them, strict parsers do not
 <!-- verified: 0.2.6403.27689 @ 2026-07-14 -->
 
-A game-written world.xml can contain numeric character references to characters that XML 1.0 forbids. Observed in a real game-written save (`DedicatedServer/data/saves/Luna/Luna.save`, world.xml 61514025 bytes), exactly one occurrence, on a sign:
+A game-written world.xml can contain numeric character references to characters that XML 1.0 forbids. Observed in a real game-written save (`TestRig/DedicatedServer/data/saves/Luna/Luna.save`, world.xml 61514025 bytes), exactly one occurrence, on a sign:
 
 ```xml
 <ThingSaveData xsi:type="StructureSaveData">
@@ -244,7 +244,7 @@ Notes:
 ## Writer attribution and Thing serialization (Luna_mixedwire census)
 <!-- verified: 0.2.6403.27689 @ 2026-07-14 -->
 
-Facts established 2026-07-14 by an offline census of a dedicated-server world (`DedicatedServer/data/saves/Luna_mixedwire/`, world.xml 65195989 bytes; Python `zipfile` + `xml.etree.iterparse` after the character-reference shim from the invalid-references section above). Census scale: 34650 `ThingSaveData` elements, 15134 placed cables (7422 heavy, 4183 normal, 3515 super-heavy, 14 fuses), 287 cable networks, max ReferenceId 673617. The world had suffered a mixed-tier cable print the previous day (a blueprint mod bypassed occupancy checks; see [../Patterns/BlueprintModPlacement.md](../Patterns/BlueprintModPlacement.md)), which is the incident several of these facts were learned diagnosing.
+Facts established 2026-07-14 by an offline census of a dedicated-server world (`TestRig/DedicatedServer/data/saves/Luna_mixedwire/`, world.xml 65195989 bytes; Python `zipfile` + `xml.etree.iterparse` after the character-reference shim from the invalid-references section above). Census scale: 34650 `ThingSaveData` elements, 15134 placed cables (7422 heavy, 4183 normal, 3515 super-heavy, 14 fuses), 287 cable networks, max ReferenceId 673617. The world had suffered a mixed-tier cable print the previous day (a blueprint mod bypassed occupancy checks; see [../Patterns/BlueprintModPlacement.md](../Patterns/BlueprintModPlacement.md)), which is the incident several of these facts were learned diagnosing.
 
 **ZIP member count attributes the writer.** A dedicated-server-written `.save` carries only the 3 standard ZIP members (`world_meta.xml`, `world.xml`, `terrain.dat`); a client-written `.save` carries 5 (adds `preview.png` and `screenshot.png`; the PNG previews are skipped in batch mode). Mod sidecar XML entries (see [../GameSystems/SaveZipExtension.md](../GameSystems/SaveZipExtension.md)) ride the ZIP in addition on both kinds. Observed: the client-written main save carried both PNGs plus four mod sidecars; every server autosave beside it carried the same members minus the two PNGs. Presence or absence of the PNG pair dates and attributes every save file in a folder.
 

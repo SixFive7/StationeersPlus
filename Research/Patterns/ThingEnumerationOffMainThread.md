@@ -10,7 +10,7 @@ sources:
   - Mods/PowerGridPlus/PowerGridPlus/Patches/AtomicElectricityTickPatch.cs (worker-thread pipeline header; GridSnapshot.Build SNAPSHOT phase)
   - Mods/PowerGridPlus/PowerGridPlus/DeliveryEffectClassifier.cs:32 (classifier runs on the power worker, GridSnapshot.Build)
   - Plans/PgpVerifyHelper/PgpVerifyHelper/ScenarioRunner.cs (the working enumeration pattern)
-  - DedicatedServer/data/server.log (crash repro on the ElectricityTick worker thread)
+  - TestRig/DedicatedServer/data/server.log (crash repro on the ElectricityTick worker thread)
 related:
   - ../GameClasses/PowerTick.md
   - ../Workflows/InspectorPlusUsage.md
@@ -161,7 +161,7 @@ The reason the FIRST run happened to work but the second crashed is undetermined
 
 - 2026-07-15: added the "Capturing a device name during off-thread snapshot build" section (additive; no existing section changed, so no fresh-validator pass). PowerGridPlus's `AtomicElectricityTickPatch` prefix (replacing `ElectricityManager.ElectricityTick`) and its `GridSnapshot.Build` SNAPSHOT phase run on the UniTask ThreadPool worker (patch header comment; `DeliveryEffectClassifier.cs:32`), so device fields read during snapshot build are off-thread reads. `Thing.PrefabName` (plain immutable string, already on the safe list) is the correct off-thread name source; `Thing.DisplayName` (Assembly-CSharp 0.2.6403.27689 line 317670: player-rename `CustomName` with a `Localization.GetThingName` fallback, and `virtual`) and `Localization.GetThingName` (line 210256, calls `Animator.StringToHash` on both the primary and the fallback lookup) are NOT confirmed worker-safe. Verified against the 0.2.6403.27689 decompile and the current PowerGridPlus source; top-level verified_in / verified_at advanced to 0.2.6403.27689 / 2026-07-15 (the pre-existing sections keep their earlier stamps).
 - 2026-07-07: added `thing.IsBeingDestroyed` to the safe-off-thread reads list (game version 0.2.6403.27689: `public bool IsBeingDestroyed => BeingDestroyed;` on Thing, decompile line 318452). Occasion: PowerGridPlus partial-power forensics. Single-bullet addition with its own inline version note; the section stamp and the other entries keep their 0.2.6228.27061 basis.
-- 2026-05-25: page created. Source: live crash repro on the dedicated server during PgpVerifyHelper development (`DedicatedServer/data/server.log` after the 2026-05-25 transformer-conservation run) plus the `Plans/PgpVerifyHelper/PgpVerifyHelper/ScenarioRunner.cs` fix. Decompile reference for the static pools verified in place at `OcclusionManager.AllThings` (line 199822), `CableNetwork.AllCableNetworks` (line 253430), `AtmosphericsManager.AllAtmospheres` (line 417824).
+- 2026-05-25: page created. Source: live crash repro on the dedicated server during PgpVerifyHelper development (`TestRig/DedicatedServer/data/server.log` after the 2026-05-25 transformer-conservation run) plus the `Plans/PgpVerifyHelper/PgpVerifyHelper/ScenarioRunner.cs` fix. Decompile reference for the static pools verified in place at `OcclusionManager.AllThings` (line 199822), `CableNetwork.AllCableNetworks` (line 253430), `AtmosphericsManager.AllAtmospheres` (line 417824).
 
 ## Open questions
 

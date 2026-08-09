@@ -120,7 +120,7 @@ cone). Three triggers fire on every peer and only on actual change: the
   `ptp-autoaim-cache-probe`, `ptp-long-distance-link-probe`,
   `ptp-beam-predicate-probe`, and the `ptp-all` runner. All three are
   one-shot, log structured `[ScenarioRunner] ...` lines to
-  `DedicatedServer/install/BepInEx/LogOutput.log`, gracefully no-op and
+  `TestRig/DedicatedServer/install/BepInEx/LogOutput.log`, gracefully no-op and
   log a warning if the `PowerTransmitterPlus` assembly is not loaded, and
   are designed to be safe to call from the UniTask ThreadPool worker that
   the simulation-tick hook runs on (no Unity API reads of
@@ -128,5 +128,5 @@ cone). Three triggers fire on every peer and only on actual change: the
   `_linkedReceiverDistance`, `LinkedReceiver`, `OnOff`,
   `NetworkUpdateFlags` and the `AutoAimState.GetCachedTarget` /
   `RestoreCache` internals only). Documented in
-  `DedicatedServer/dev-plugins/ScenarioRunner/README.md`. Commit: this
+  `TestRig/DedicatedServer/dev-plugins/ScenarioRunner/README.md`. Commit: this
   commit.

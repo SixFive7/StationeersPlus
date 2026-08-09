@@ -10,7 +10,7 @@ sources:
   - .work/revolt-source/Assets/Scripts/Patches/*.cs (Re-Volt patch attributes)
   - E:\Steam\steamapps\workshop\content\544550\3243132734 (MorePowerMod installed)
   - E:\Steam\steamapps\workshop\content\544550\3579306377 (PowerOverhaul installed)
-  - DedicatedServer/data/server.log (live test logs from 2026-05-22 sessions)
+  - TestRig/DedicatedServer/data/server.log (live test logs from 2026-05-22 sessions)
 related:
   - ../../Mods/PowerGridPlus/RESEARCH.md
   - ../GameClasses/PowerTick.md
@@ -25,7 +25,7 @@ Cross-mod compatibility findings for Power Grid Plus against the power-related S
 
 This page covers two kinds of finding:
 
-- **Live-tested** against game version 0.2.6228.27061 on `DedicatedServer/` (the user's full enabled-mod set, fresh Mars2 world): MorePowerMod (3243132734) and PowerOverhaul (3579306377).
+- **Live-tested** against game version 0.2.6228.27061 on `TestRig/DedicatedServer/` (the user's full enabled-mod set, fresh Mars2 world): MorePowerMod (3243132734) and PowerOverhaul (3579306377).
 - **Code-analytical** for priority mods that are not subscribed in the developer's modconfig.xml: assessment based on the public information in Appendix B / D plus, for Re-Volt, direct reading of the source clone at `.work/revolt-source/`.
 
 The eighth TODO bullet explicitly states "If a mod from the priority list is not enabled in the developer's modconfig, document the gap in the compat page and skip; do NOT install Workshop mods autonomously."
@@ -35,7 +35,7 @@ The eighth TODO bullet explicitly states "If a mod from the priority list is not
 
 Two server runs, both `-Start -New Mars2` on the dedicated server with InspectorPlus `Force Unpause Without Client = true`:
 
-1. **Run A (with PGP)**: full user mod set including a freshly built `Mods/PowerGridPlus/PowerGridPlus/bin/Release/PowerGridPlus.dll` overlaid into `DedicatedServer/data/mods/Local_PowerGridPlus/`. Hash D034FEB497..., 91648 bytes, mtime 2026-05-22 03:20:32. World started at 03:55:56 game-clock.
+1. **Run A (with PGP)**: full user mod set including a freshly built `Mods/PowerGridPlus/PowerGridPlus/bin/Release/PowerGridPlus.dll` overlaid into `TestRig/DedicatedServer/data/mods/Local_PowerGridPlus/`. Hash D034FEB497..., 91648 bytes, mtime 2026-05-22 03:20:32. World started at 03:55:56 game-clock.
 2. **Run B (without PGP)**: same mod set with the PGP DLL moved out of `Local_PowerGridPlus/` (folder remains so StationeersLaunchPad still discovers it but loads no plugin). World started at 04:02 game-clock.
 
 Both runs used the same set of currently-enabled mods from the developer's `%USERPROFILE%\Documents\My Games\Stationeers\modconfig.xml` (snapshot 2026-05-22): MorePowerMod, PowerOverhaul, Omni Transmitter Settings, BetterAdvancedTablet, JetpackHeightUnlocker, InspectorPlus, EquipmentPlus, PowerTransmitterPlus, plus a long tail of unrelated Workshop entries (~60 mods total). The dedicated server's mirror was sync'd at 03:05 by an earlier session.
@@ -53,7 +53,7 @@ Run A log markers:
 03:55:38: successfully loaded the 'Power Grid Plus' mod
 ```
 
-No `[Error]` / `[Fatal]` entries attributable to PGP. Harmony `PatchAll` succeeded; the `CableCostPatches.ApplyRecipeCost()` runtime override fired for the configured `Super-Heavy Cable Cost Multiplier`. PGP was loaded only from `<DedicatedServer>/data/mods/Local_PowerGridPlus/PowerGridPlus.dll`; the `install/BepInEx/plugins/PowerGridPlus/PowerGridPlus.dll` overlay (deployed earlier via `-DeployMods`) was NOT a second load — StationeersLaunchPad's LocalModSource owned the load and BepInEx's Chainloader silently deduplicated the install/plugins copy. **Recommendation**: prefer `-SyncMods` alone when testing cross-mod compat (per `DedicatedServer/CLAUDE.md`'s duplicate-load guidance), and skip `-DeployMods` unless the user's modconfig entry points at a stale build.
+No `[Error]` / `[Fatal]` entries attributable to PGP. Harmony `PatchAll` succeeded; the `CableCostPatches.ApplyRecipeCost()` runtime override fired for the configured `Super-Heavy Cable Cost Multiplier`. PGP was loaded only from `<DedicatedServer>/data/mods/Local_PowerGridPlus/PowerGridPlus.dll`; the `install/BepInEx/plugins/PowerGridPlus/PowerGridPlus.dll` overlay (deployed earlier via `-DeployMods`) was NOT a second load — StationeersLaunchPad's LocalModSource owned the load and BepInEx's Chainloader silently deduplicated the install/plugins copy. **Recommendation**: prefer `-SyncMods` alone when testing cross-mod compat (per `TestRig/DedicatedServer/CLAUDE.md`'s duplicate-load guidance), and skip `-DeployMods` unless the user's modconfig entry points at a stale build.
 
 ### MorePowerMod (3243132734) NRE on fresh-world spawn -- not PGP's fault
 
@@ -189,7 +189,7 @@ The rest of Appendix B (recipe / content / economy / QoL mods, IC10 scripts) is 
 ## Verification history
 <!-- verified: 0.2.6228.27061 @ 2026-05-22 -->
 
-- 2026-05-22: page created as the eighth-verification-task result for Power Grid Plus. Live tests on `DedicatedServer/` with fresh Mars2 worlds in game version 0.2.6228.27061. Two runs (with and without PGP) isolated the MorePowerMod `StationBatteryNuclear.PoweredChanged` NRE as a pre-existing MorePowerMod bug. Re-Volt assessment is code-analytical against `.work/revolt-source/Assets/Scripts/Patches/*.cs` (`PowerTickPatches.cs`, `CableNetworkPatches.cs`, `StationaryBatteryPatches.cs`, `TransformerExploitPatch.cs`, `AreaPowerControllerPatches.cs`, `DevicePatches.cs`, `BatteryLogicPatch.cs`). The remaining 15 priority mods could not be live-tested because they are not subscribed in the developer's modconfig.xml; their assessments are taken from `Mods/PowerGridPlus/RESEARCH.md` Appendix B and the public Workshop descriptions.
+- 2026-05-22: page created as the eighth-verification-task result for Power Grid Plus. Live tests on `TestRig/DedicatedServer/` with fresh Mars2 worlds in game version 0.2.6228.27061. Two runs (with and without PGP) isolated the MorePowerMod `StationBatteryNuclear.PoweredChanged` NRE as a pre-existing MorePowerMod bug. Re-Volt assessment is code-analytical against `.work/revolt-source/Assets/Scripts/Patches/*.cs` (`PowerTickPatches.cs`, `CableNetworkPatches.cs`, `StationaryBatteryPatches.cs`, `TransformerExploitPatch.cs`, `AreaPowerControllerPatches.cs`, `DevicePatches.cs`, `BatteryLogicPatch.cs`). The remaining 15 priority mods could not be live-tested because they are not subscribed in the developer's modconfig.xml; their assessments are taken from `Mods/PowerGridPlus/RESEARCH.md` Appendix B and the public Workshop descriptions.
 
 ## Open questions
 <!-- verified: 0.2.6228.27061 @ 2026-05-22 -->

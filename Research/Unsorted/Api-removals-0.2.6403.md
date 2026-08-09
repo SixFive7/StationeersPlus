@@ -8,7 +8,7 @@ sources:
   - .work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs :: whole-file greps for LoadThing / ConnectedDevices / ShowTransformArrow / UnitTest_ConstructionValidate (zero hits each); Wireframe class (line 255549), SmallGrid class (line 312025), XmlSaveLoad.Load overloads (lines 268424, 268463)
   - .work/decomp/0.2.6403.27689/Assembly-CSharp.DedicatedServer.GridController.decompiled.cs :: CanContainAtmos overloads (lines 959, 964); client decompile line 207165 (same shape)
   - .work/decomp/0.2.6403.27689/ForceFieldDoorMod.decompiled.cs (Workshop_3328065049) and its ilspycmd -il dump :: the surviving 1-arg call sites
-  - DedicatedServer/data/server.log and DedicatedServer/install/BepInEx/LogOutput.log, 2026-07-02 dedicated-server boots at game 0.2.6403.27689
+  - TestRig/DedicatedServer/data/server.log and TestRig/DedicatedServer/install/BepInEx/LogOutput.log, 2026-07-02 dedicated-server boots at game 0.2.6403.27689
 related:
   - ../Patterns/SaveLoadOrdering.md
   - ../Patterns/CursorAdjacencyLookup.md
@@ -90,7 +90,7 @@ Observed offender: ForceFieldDoorMod (`Workshop_3328065049`, About version 0.2.4
 
 ## Verification history
 
-- 2026-07-02: page created during the dedicated-server boot investigation at game 0.2.6403.27689. All four absences verified by whole-file grep of `.work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs`; surviving-class evidence and remaining-member inventories read directly from the same decompile; failure signatures quoted verbatim from `DedicatedServer/data/server.log` (lines 2350-2357, 2409-2415) and `DedicatedServer/install/BepInEx/LogOutput.log` (line 21) of the same day's boot. ModularConsoleMod breaking on the `LoadThing` removal is recorded from the boot-investigation session notes, not from these log files (its failure predates the current log rotation).
+- 2026-07-02: page created during the dedicated-server boot investigation at game 0.2.6403.27689. All four absences verified by whole-file grep of `.work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs`; surviving-class evidence and remaining-member inventories read directly from the same decompile; failure signatures quoted verbatim from `TestRig/DedicatedServer/data/server.log` (lines 2350-2357, 2409-2415) and `TestRig/DedicatedServer/install/BepInEx/LogOutput.log` (line 21) of the same day's boot. ModularConsoleMod breaking on the `LoadThing` removal is recorded from the boot-investigation session notes, not from these log files (its failure predates the current log rotation).
 - 2026-07-02 (later, Luna_rearch dead-sim investigation): added the `GridController.CanContainAtmos` signature-change row and section. Overload shapes read from the dedicated-server GridController decompile and confirmed by whole-IL grep (every vanilla call site 2-arg); the offending 1-arg refs quoted from the ForceFieldDoorMod IL dump; the per-tick failure (3,363+ repeats in one server.log) and the post-rewrite clean boot observed live the same day. Additive; no existing claim touched.
 
 ## Open questions

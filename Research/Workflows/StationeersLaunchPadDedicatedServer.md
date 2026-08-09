@@ -5,9 +5,9 @@ created_in: 0.2.6228.27061
 verified_in: 0.2.6403.27689
 verified_at: 2026-07-08
 sources:
-  - DedicatedServer/install/BepInEx/plugins/StationeersLaunchPad/StationeersLaunchPad.dll (decompile at .work/decomp/0.2.6228.27061/StationeersLaunchPad.decompiled.cs)
+  - TestRig/DedicatedServer/install/BepInEx/plugins/StationeersLaunchPad/StationeersLaunchPad.dll (decompile at .work/decomp/0.2.6228.27061/StationeersLaunchPad.decompiled.cs)
   - rocketstation_Data/Managed/Assembly-CSharp.dll :: NetworkServer.VerifyConnection / PackageJoinData / ProcessJoinData, GameManager.GetGameVersion, NetworkMessages.VerifyPlayer (decompile at .work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs lines 204091, 212898-212902, 213188, 213684, 213768-213813, 279339-279438)
-  - DedicatedServer/install/BepInEx/plugins/StationeersLaunchPad/StationeersLaunchPad.dll :: no join-path patch (decompile at .work/decomp/0.2.6403.27689/StationeersLaunchPad.decompiled.cs lines 3692-3717, 3763-3803, 16922, 17193, 17255)
+  - TestRig/DedicatedServer/install/BepInEx/plugins/StationeersLaunchPad/StationeersLaunchPad.dll :: no join-path patch (decompile at .work/decomp/0.2.6403.27689/StationeersLaunchPad.decompiled.cs lines 3692-3717, 3763-3803, 16922, 17193, 17255)
   - rocketstation_Data/Managed/Assembly-CSharp.dll :: WorkshopMenu (decompile lines 38373-38491)
   - StationeersLaunchPad GitHub releases (server-side asset)
   - https://github.com/StationeersLaunchPad/StationeersLaunchPad at tag v0.4.0 :: StationeersLaunchPad/Platform.cs, StationeersLaunchPad/LaunchPadConfig.cs, StationeersLaunchPad/Configs.cs, StationeersLaunchPad/Loading/LoadStrategy.cs (fetched 2026-07-02)
@@ -272,7 +272,7 @@ The verbatim copy approach assumes `modconfig.xml` is a SOURCE of truth for what
 To mirror a client's mod set onto a dedicated server, three things are needed in the right places on the server:
 
 1. `<install>/BepInEx/plugins/StationeersLaunchPad/` with all five DLLs from the **server** zip (mirroring the client's `BepInEx/plugins/StationeersLaunchPad/` and adding `RG.ImGui.dll` produces an equivalent tree).
-2. `<SavePath>/mods/<Source>_<DirectoryName>/...` for every enabled mod on the client. The directory name follows the export convention: `Workshop_<PublishedFileId>` for Workshop mods, `Local_<DirName>` for Local mods. The contents are a recursive copy of the source mod folder. **`<SavePath>` is whatever you set via `-settings SavePath <path>`; if unset, it defaults to `<install>/`. Our launcher sets it to `<repo>/DedicatedServer/data/`.**
+2. `<SavePath>/mods/<Source>_<DirectoryName>/...` for every enabled mod on the client. The directory name follows the export convention: `Workshop_<PublishedFileId>` for Workshop mods, `Local_<DirName>` for Local mods. The contents are a recursive copy of the source mod folder. **`<SavePath>` is whatever you set via `-settings SavePath <path>`; if unset, it defaults to `<install>/`. Our launcher sets it to `<repo>/TestRig/DedicatedServer/data/`.**
 3. `<install>/modconfig.xml` with one `<Core Enabled="true">` entry plus optionally one `<Local Enabled="true"><Path Value="<Source>_<DirectoryName>" /></Local>` entry per mod. (See the auto-add note below: the file is not strictly required since `ApplyConfig` adds any discovered mod that is not in modconfig with `Enabled = true`. Including the file is still recommended to express intent and to disable specific mods if needed.)
 
 The `<install>/modconfig.xml` lives at `<DefaultPath>` even when SavePath is redirected; it is a config file and the engine hardcodes its path to `Path.Combine(StationSaveUtils.DefaultPath, "modconfig.xml")`.
@@ -314,7 +314,7 @@ Path B produces a tree byte-equivalent to what Path A would produce (with the ca
 ## Why the client's `BepInEx/config/*.cfg` mirror is not sufficient
 <!-- verified: 0.2.6228.27061 @ 2026-04-28 -->
 
-The client's `<install>/BepInEx/config/` contains `.cfg` files for every BepInEx-style mod the client has loaded (e.g. `BetterAdvancedTablet.cfg`, `JetpackHeightUnlocker.cfg`, dozens more). Mirroring this directory to the server is documented in `DedicatedServer/CLAUDE.md` as part of `-Bootstrap`.
+The client's `<install>/BepInEx/config/` contains `.cfg` files for every BepInEx-style mod the client has loaded (e.g. `BetterAdvancedTablet.cfg`, `JetpackHeightUnlocker.cfg`, dozens more). Mirroring this directory to the server is documented in `TestRig/DedicatedServer/CLAUDE.md` as part of `-Bootstrap`.
 
 These configs are written by mods AS THEY LOAD, not by BepInEx ahead of time. Their presence on the server does NOT cause those mods to load; they are written for mods that DO load and remain as no-ops if the corresponding mods are missing. Mirroring the configs is only valuable to preserve user-tuned settings across client / server boundary; the mod DLLs and `mods/<...>/` folders are still required for the mods to actually run.
 

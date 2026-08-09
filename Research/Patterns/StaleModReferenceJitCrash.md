@@ -5,7 +5,7 @@ created_in: 0.2.6403.27689
 verified_in: 0.2.6403.27689
 verified_at: 2026-07-02
 sources:
-  - DedicatedServer/data/server.log, 2026-07-02 Luna_rearch boot at game 0.2.6403.27689 (3,363+ repeats of the quoted exception)
+  - TestRig/DedicatedServer/data/server.log, 2026-07-02 Luna_rearch boot at game 0.2.6403.27689 (3,363+ repeats of the quoted exception)
   - .work/decomp/0.2.6403.27689/ForceFieldDoorMod.decompiled.cs (Workshop_3328065049, mod About version 0.2.4767.21868.1, assembly ref Assembly-CSharp 0.2.5259.23818)
   - ilspycmd -il dumps of the server Assembly-CSharp (AtmosphericsManager <>c lambda) and of ForceFieldDoorMod.dll, 2026-07-02
 related:
@@ -71,7 +71,7 @@ After swapping the rewritten DLL into `data/mods/Workshop_3328065049/` (server s
 
 ## Verification history
 
-- 2026-07-02: page created during the Luna_rearch dead-sim investigation at game 0.2.6403.27689. Exception block quoted verbatim from `DedicatedServer/data/server.log`; caller IL and mod IL quoted from same-day `ilspycmd -il` dumps; the two-file binary-grep result, the 15-door save census (`world.xml` PrefabName scan), and the post-fix clean boot are from the same session.
+- 2026-07-02: page created during the Luna_rearch dead-sim investigation at game 0.2.6403.27689. Exception block quoted verbatim from `TestRig/DedicatedServer/data/server.log`; caller IL and mod IL quoted from same-day `ilspycmd -il` dumps; the two-file binary-grep result, the 15-door save census (`world.xml` PrefabName scan), and the post-fix clean boot are from the same session.
 
 ## Open questions
 

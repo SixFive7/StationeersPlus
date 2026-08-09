@@ -6,7 +6,7 @@ verified_in: 0.2.6403.27689
 verified_at: 2026-07-17
 sources:
   - .work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs :: lines 312730-312745 (connection cell math), 312896-312941 (FillConnected)
-  - DedicatedServer/dev-plugins/ScenarioRunner/ScenarioRunner/Dispatcher.FreshDeviceTrace.cs :: FdProbeOne / FdProbeSpawnMainThread (the probe instrument)
+  - TestRig/DedicatedServer/dev-plugins/ScenarioRunner/ScenarioRunner/Dispatcher.FreshDeviceTrace.cs :: FdProbeOne / FdProbeSpawnMainThread (the probe instrument)
   - Live probe capture on the dedicated server, fresh Lunar world, 2026-07-17 (scenario pgp-fresh-device-trace, PROBE log lines quoted verbatim below)
 related:
   - ../GameClasses/Structure.md
