@@ -2,8 +2,8 @@
 title: Rendering Pipeline and Glow Implementation
 type: GameSystems
 created_in: 0.2.6228.27061
-verified_in: 0.2.6228.27061
-verified_at: 2026-04-21
+verified_in: 0.2.6403.27689
+verified_at: 2026-08-09
 sources:
   - rocketstation_Data/Managed/Assembly-CSharp.dll :: Assets.Scripts.CameraController
   - rocketstation_Data/Managed/Assembly-CSharp.dll :: Assets.Scripts.CameraEffectCollection
@@ -62,6 +62,23 @@ foreach (ThingRenderer renderer in Renderers)
 On every `SetCustomColor` call, the game drives the renderer with two independent signals: the material-swap (via `CustomColorMapping.SetEmissive(material)` on colors that have an `Emissive` variant) and the shader property write (`_EmissionColor` on every `ThingRenderer`). The property write happens unconditionally regardless of whether the swatch has an `Emissive` material.
 
 Mod code that wants to read the post-call renderer state goes through `ThingRenderer.Materials` / `sharedMaterials` / `GetMaterial()` on each entry in `Thing.Renderers`; see `../GameClasses/ThingRenderer.md` for the accessor shapes and null-safety caveats.
+
+### Reading the emissive state back off a live Thing
+
+<!-- verified: 0.2.6403.27689 @ 2026-08-09 -->
+
+There is a simpler read-back than walking the renderers. `Thing.EmissionColor` is a **public instance field**, declared `public UnityEngine.Color EmissionColor = UnityEngine.Color.white;`, and `Thing.SetCustomColor(int index, bool emissive)` assigns it `Color.white * (emissive ? 1f : 0f)` immediately before pushing it to every `ThingRenderer`. One field therefore answers "is this Thing currently rendered emissive on THIS machine":
+
+| `EmissionColor` | Meaning |
+|---|---|
+| `(1, 1, 1, 1)` | the last `SetCustomColor` on this machine passed `emissive: true` |
+| `(0, 0, 0, 0)` | the last `SetCustomColor` on this machine passed `emissive: false` |
+
+Two things make it the right probe for a multiplayer glow test. It is per-machine, so the same Thing can be sampled on a host and on a joined client and the two answers compared. And it is an ordinary instance field, so InspectorPlus can dump it by type without any mod-side instrumentation, which matters because a mod's own glow bookkeeping is usually a `Dictionary` that a static-only reflection endpoint cannot render.
+
+**The initialiser is a trap.** The field starts at `Color.white`, not at zero, so a Thing on which `SetCustomColor` has never run reads `(1, 1, 1, 1)` and looks glowing. Only read it on a Thing that has been painted at least once. Measured live on 0.2.6403.27689: a freshly spawned `ItemSprayGun` reported `(1, 1, 1, 1)` while never having been painted, and two freshly built pipes reported `(0, 0, 0, 0)` as soon as a spray can had touched them.
+
+`Thing.DiffuseIndex` sits next to it and is assigned `index` on the same code path, so a single InspectorPlus request for `ReferenceId`, `DiffuseIndex` and `EmissionColor` reports colour and glow together.
 
 ## C. How existing glowing things work in-game
 
@@ -152,6 +169,7 @@ If step 3 produces no halo, check:
 - 2026-04-21: corrected section C. Original claim "Every color has both Normal and Emissive materials" was not accurate; vanilla code contains `if (CustomColor.Emissive == null)` null-checks, so `Emissive` is optional per swatch. Page now links to `../GameClasses/ColorSwatch.md` which documents the class fully, and section F distinguishes the two glow paths (material swap vs. property write) based on whether `Emissive` is present. Also restamped section formatting to the `<!-- verified: ... -->` HTML-comment form required by `Research/CLAUDE.md`.
 - 2026-04-21: added runtime read accessor chain for bloom to section A (`CameraController.Instance.CameraEffects[0].Bloom` with `.enabled` check) and cross-references to the new `../GameClasses/CameraController.md` and `../GameClasses/ThingRenderer.md` pages. Section H updated to reference the `Plans/GlowPaintProbe/` probe plugin now that InspectorPlus is off-limits. Additive; no prior claim changed.
 - 2026-04-21: resolved the "fraction of swatches with non-null `Emissive`" open question via GlowPaintProbe plugin logs. All 12 shipping swatches in v0.2.6228.27061 carry non-null `Normal` and `Emissive` materials. Full inventory (names + presence) is documented in `../GameClasses/ColorSwatch.md` section "Vanilla swatch inventory (v0.2.6228.27061)". Approach F.1 is therefore viable for every vanilla paint color; approach F.2 only matters for mod-added swatches that leave `Emissive` null.
+- 2026-08-09: added the "Reading the emissive state back off a live Thing" subsection to section B, from the 0.2.6403.27689 decompile of `Assets.Scripts.Objects.Thing` (the `public UnityEngine.Color EmissionColor = UnityEngine.Color.white` field declaration and its assignment inside `SetCustomColor(int, bool)`), cross-checked live against two rig instances during the Spray Paint Plus glow playtest. Additive: no prior claim changed, and the `EmissionColor` code the section builds on was already quoted in section B. Page `verified_in` / `verified_at` moved to 0.2.6403.27689 / 2026-08-09 for the new subsection only; every other section keeps its 0.2.6228.27061 stamp and was not re-read this pass.
 - 2026-04-21: approach F.1 visually and programmatically confirmed via GlowPaintProbe. Calling `Thing.SetCustomColor(index, emissive: true)` on a painted `Piping` instance in a dark room produces a visible bloom halo; `Plans/GlowPaintProbe/` log lines captured the runtime material swap from `TextureArrayColorSwatch` (shader `Custom/StandardTextureArray`) to `ColorPurpleEmissive` (shader `StandardInstanced`) with `_EmissionColor=(1.051, 0, 2.290, 1)` and `_EMISSION=on`. Reverts cleanly on `emissive: false`. Full details in `../GameClasses/ColorSwatch.md` section "Vanilla swatch material naming (runtime)". F.1 is green-lit for the SprayPaintPlus glow-paint implementation.
 
 ## Open questions
