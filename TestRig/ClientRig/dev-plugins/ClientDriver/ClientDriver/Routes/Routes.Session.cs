@@ -134,6 +134,22 @@ namespace ClientDriver
                 if (client == null)
                     return Fail("no NetworkClient in the scene");
 
+                // Which local interface the JOINING side binds. Nothing used to set this, so the
+                // client socket took whatever a wildcard bind selected. On a machine with Hyper-V
+                // virtual adapters that is not loopback, and a join to a host bound on 127.0.0.1
+                // times out while netstat shows a perfectly healthy listener on both ends. Set it to
+                // the SAME address the host was given via /host localIpAddress.
+                //
+                // Direct field write, never the console 'settings' command: that command persists
+                // the whole settings blob to this instance's setting.xml, and a sticky
+                // LocalIpAddress is exactly the leftover that makes the NEXT test fail.
+                string localIp = Json.GetStr(body, "localIpAddress", null);
+                if (!string.IsNullOrEmpty(localIp))
+                {
+                    var sd = Settings.CurrentData;
+                    if (sd != null) sd.LocalIpAddress = localIp;
+                }
+
                 client.JoinClientFromMenu(address + ":" + port.ToString(CultureInfo.InvariantCulture));
 
                 // NetworkClient.OnJoinStart, called inside JoinClientFromMenu, arms a 10 second

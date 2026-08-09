@@ -69,6 +69,14 @@ namespace ClientDriver
                 string.IsNullOrEmpty(InstanceManifest.Name) ? "ClientDriver" : InstanceManifest.Name);
             string password = Json.GetStr(body, "password", "");
             int maxPlayers = Json.GetInt(body, "maxPlayers", 4);
+            // Which local interface the RakNet listener binds. Loopback is the right default for a
+            // rig on one machine, but it is NOT always reachable: on a host with Hyper-V virtual
+            // adapters the joining side's wildcard-bound socket has no reason to select loopback,
+            // and the join times out with a listener that netstat shows as perfectly healthy. Pass
+            // the machine's real LAN address (the same value the developer's own client uses in its
+            // hidden LocalIpAddress setting) when that happens. The joiner must be given the SAME
+            // address via /connect localIpAddress, or the two bind different interfaces.
+            string localIp = Json.GetStr(body, "localIpAddress", "127.0.0.1");
             bool wait = Json.GetBool(body, "wait", true);
             int timeoutMs = Json.GetInt(body, "timeoutMs", 300000);
             bool allowDuplicateIdentity = Json.GetBool(body, "allowDuplicateIdentity", false);
@@ -125,8 +133,9 @@ namespace ClientDriver
                 data.StartLocalHost = true;
                 // Without this, GetIPv4Address() filters the 127.x range out and binds the LAN
                 // address, so nothing is listening on loopback and a Direct Connect to 127.0.0.1
-                // finds nothing at all.
-                data.LocalIpAddress = "127.0.0.1";
+                // finds nothing at all. Overridable because loopback is not universally reachable;
+                // see the localIpAddress remarks where it is parsed.
+                data.LocalIpAddress = localIp;
                 // String-typed in the game; Convert.ToUInt16 reads it in NetworkServer.Host.
                 data.GamePort = port.ToString(CultureInfo.InvariantCulture);
                 data.ServerName = serverName;
