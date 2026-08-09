@@ -593,7 +593,11 @@ function Assert-GamePortFree {
     # test then passes or fails against a session nobody chose. That failure is invisible from
     # inside the game, so it has to be refused here, before anything is launched.
     param(
-        [Parameter(Mandatory)] $Registry,
+        # NOT Mandatory, and null is allowed on purpose. Read-Registry returns an
+        # empty collection on a rig with no data/rig.json yet, and PowerShell
+        # collapses that to $null on the way into a parameter, so Mandatory would
+        # reject the very first -Provision on a fresh rig.
+        [AllowNull()] [AllowEmptyCollection()] $Registry = @(),
         [Parameter(Mandatory)] [string] $InstanceName,
         [Parameter(Mandatory)] [int] $Candidate
     )
