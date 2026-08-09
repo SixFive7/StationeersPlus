@@ -4997,6 +4997,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="B. Shaders and emission on paintable objects">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#reading-the-emissive-state-back-off-a-live-thing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reading the emissive state back off a live Thing
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -8683,6 +8700,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="B. Shaders and emission on paintable objects">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#reading-the-emissive-state-back-off-a-live-thing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reading the emissive state back off a live Thing
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -8862,10 +8896,14 @@
       
         <p class="research-meta-verified">
           <strong>Verified</strong>
-           in game version <code>0.2.6228.27061</code>
-           on 2026-04-21.
+           in game version <code>0.2.6403.27689</code>
+           on 2026-08-09.
         </p>
       
+      
+        <p class="research-meta-created">
+          <strong>First written</strong> against game version <code>0.2.6228.27061</code>.
+        </p>
       
       
         <details class="research-meta-sources">
@@ -8958,6 +8996,31 @@
 </span></code></pre></div>
 <p>On every <code>SetCustomColor</code> call, the game drives the renderer with two independent signals: the material-swap (via <code>CustomColorMapping.SetEmissive(material)</code> on colors that have an <code>Emissive</code> variant) and the shader property write (<code>_EmissionColor</code> on every <code>ThingRenderer</code>). The property write happens unconditionally regardless of whether the swatch has an <code>Emissive</code> material.</p>
 <p>Mod code that wants to read the post-call renderer state goes through <code>ThingRenderer.Materials</code> / <code>sharedMaterials</code> / <code>GetMaterial()</code> on each entry in <code>Thing.Renderers</code>; see <code>../GameClasses/ThingRenderer.md</code> for the accessor shapes and null-safety caveats.</p>
+<h3 id="reading-the-emissive-state-back-off-a-live-thing">Reading the emissive state back off a live Thing<a class="headerlink" href="#reading-the-emissive-state-back-off-a-live-thing" title="Permanent link">&para;</a></h3>
+<!-- verified: 0.2.6403.27689 @ 2026-08-09 -->
+
+<p>There is a simpler read-back than walking the renderers. <code>Thing.EmissionColor</code> is a <strong>public instance field</strong>, declared <code>public UnityEngine.Color EmissionColor = UnityEngine.Color.white;</code>, and <code>Thing.SetCustomColor(int index, bool emissive)</code> assigns it <code>Color.white * (emissive ? 1f : 0f)</code> immediately before pushing it to every <code>ThingRenderer</code>. One field therefore answers "is this Thing currently rendered emissive on THIS machine":</p>
+<table>
+<thead>
+<tr>
+<th><code>EmissionColor</code></th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>(1, 1, 1, 1)</code></td>
+<td>the last <code>SetCustomColor</code> on this machine passed <code>emissive: true</code></td>
+</tr>
+<tr>
+<td><code>(0, 0, 0, 0)</code></td>
+<td>the last <code>SetCustomColor</code> on this machine passed <code>emissive: false</code></td>
+</tr>
+</tbody>
+</table>
+<p>Two things make it the right probe for a multiplayer glow test. It is per-machine, so the same Thing can be sampled on a host and on a joined client and the two answers compared. And it is an ordinary instance field, so InspectorPlus can dump it by type without any mod-side instrumentation, which matters because a mod's own glow bookkeeping is usually a <code>Dictionary</code> that a static-only reflection endpoint cannot render.</p>
+<p><strong>The initialiser is a trap.</strong> The field starts at <code>Color.white</code>, not at zero, so a Thing on which <code>SetCustomColor</code> has never run reads <code>(1, 1, 1, 1)</code> and looks glowing. Only read it on a Thing that has been painted at least once. Measured live on 0.2.6403.27689: a freshly spawned <code>ItemSprayGun</code> reported <code>(1, 1, 1, 1)</code> while never having been painted, and two freshly built pipes reported <code>(0, 0, 0, 0)</code> as soon as a spray can had touched them.</p>
+<p><code>Thing.DiffuseIndex</code> sits next to it and is assigned <code>index</code> on the same code path, so a single InspectorPlus request for <code>ReferenceId</code>, <code>DiffuseIndex</code> and <code>EmissionColor</code> reports colour and glow together.</p>
 <h2 id="c-how-existing-glowing-things-work-in-game">C. How existing glowing things work in-game<a class="headerlink" href="#c-how-existing-glowing-things-work-in-game" title="Permanent link">&para;</a></h2>
 <!-- verified: 0.2.6228.27061 @ 2026-04-21 -->
 
@@ -9037,6 +9100,7 @@
 <li>2026-04-21: corrected section C. Original claim "Every color has both Normal and Emissive materials" was not accurate; vanilla code contains <code>if (CustomColor.Emissive == null)</code> null-checks, so <code>Emissive</code> is optional per swatch. Page now links to <code>../GameClasses/ColorSwatch.md</code> which documents the class fully, and section F distinguishes the two glow paths (material swap vs. property write) based on whether <code>Emissive</code> is present. Also restamped section formatting to the <code>&lt;!-- verified: ... --&gt;</code> HTML-comment form required by <code>Research/CLAUDE.md</code>.</li>
 <li>2026-04-21: added runtime read accessor chain for bloom to section A (<code>CameraController.Instance.CameraEffects[0].Bloom</code> with <code>.enabled</code> check) and cross-references to the new <code>../GameClasses/CameraController.md</code> and <code>../GameClasses/ThingRenderer.md</code> pages. Section H updated to reference the <code>Plans/GlowPaintProbe/</code> probe plugin now that InspectorPlus is off-limits. Additive; no prior claim changed.</li>
 <li>2026-04-21: resolved the "fraction of swatches with non-null <code>Emissive</code>" open question via GlowPaintProbe plugin logs. All 12 shipping swatches in v0.2.6228.27061 carry non-null <code>Normal</code> and <code>Emissive</code> materials. Full inventory (names + presence) is documented in <code>../GameClasses/ColorSwatch.md</code> section "Vanilla swatch inventory (v0.2.6228.27061)". Approach F.1 is therefore viable for every vanilla paint color; approach F.2 only matters for mod-added swatches that leave <code>Emissive</code> null.</li>
+<li>2026-08-09: added the "Reading the emissive state back off a live Thing" subsection to section B, from the 0.2.6403.27689 decompile of <code>Assets.Scripts.Objects.Thing</code> (the <code>public UnityEngine.Color EmissionColor = UnityEngine.Color.white</code> field declaration and its assignment inside <code>SetCustomColor(int, bool)</code>), cross-checked live against two rig instances during the Spray Paint Plus glow playtest. Additive: no prior claim changed, and the <code>EmissionColor</code> code the section builds on was already quoted in section B. Page <code>verified_in</code> / <code>verified_at</code> moved to 0.2.6403.27689 / 2026-08-09 for the new subsection only; every other section keeps its 0.2.6228.27061 stamp and was not re-read this pass.</li>
 <li>2026-04-21: approach F.1 visually and programmatically confirmed via GlowPaintProbe. Calling <code>Thing.SetCustomColor(index, emissive: true)</code> on a painted <code>Piping</code> instance in a dark room produces a visible bloom halo; <code>Plans/GlowPaintProbe/</code> log lines captured the runtime material swap from <code>TextureArrayColorSwatch</code> (shader <code>Custom/StandardTextureArray</code>) to <code>ColorPurpleEmissive</code> (shader <code>StandardInstanced</code>) with <code>_EmissionColor=(1.051, 0, 2.290, 1)</code> and <code>_EMISSION=on</code>. Reverts cleanly on <code>emissive: false</code>. Full details in <code>../GameClasses/ColorSwatch.md</code> section "Vanilla swatch material naming (runtime)". F.1 is green-lit for the SprayPaintPlus glow-paint implementation.</li>
 </ul>
 <h2 id="open-questions">Open questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>
