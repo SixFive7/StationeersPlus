@@ -18,6 +18,8 @@ Nothing below is repeated from those files at length. Where they disagree with t
 - **Ordering runs the opposite way at each end.** The host must be IN ITS WORLD before any joiner connects, because `/connect` has nothing to reach until then. At teardown the host goes LAST: joiners disconnect first, then whoever holds the world saves, then the host quits. `-Stop` performs that ordering itself and refuses to take a host down while something attached to it is not part of the same teardown.
 - **Stop the instances before releasing the lock.** A running instance keeps the lock live with no timer to save you, so leaving one up holds the whole rig, dedicated server included. `-Unlock` refuses outright while a listen host is live.
 - **A provision hard-links about 1,050 files out of the developer's real install.** That install is read-only, always. Anything the game or a mod writes to is a real copy; never make one a link.
+- **The instances root is recorded at provision time, so `-InstancesRoot` is typed once.** Hard links cannot cross volumes, so the trees normally sit on the game install's drive rather than under `instances/` here; `-Provision` writes the resolved root into the registry entry and every later action (including the state reset) reads it back. Typing `-InstancesRoot` again overrides it and moves the tree. An instance provisioned before the root was recorded still works: it falls back to `-InstancesRoot`, then `$env:STATIONEERS_CLIENTRIG_ROOT`, then `instances/`, and prints one line naming `-Provision -Force` as the fix.
+- **`-Call` and `-Broadcast` derive their HTTP timeout from the request.** The endpoint's own `timeoutMs` plus a margin, floored at 120 s and at 300 s for `/host`, `/connect`, `/save`, `/load`, `/newworld` and `/waitfor`. `-CallTimeoutSeconds N` overrides it; do not reach for `-TimeoutSeconds` or `-WaitSeconds`, which mean other things on both launchers.
 - **Never focus, raise or activate a game window.** Instances run on a Win32 desktop that is created and never switched to. No `SetForegroundWindow`, no `AttachThreadInput`, no `ShowWindow`, no `SetWindowPos`, no `SwitchDesktop`. The read-only foreground queries in `Window/NativeWindow.cs` are the only exception and the only place `System.Runtime.InteropServices` belongs in the plugin.
 - **`-Remove` deletes the instance's save root** at `data/<instance>/userdata/` along with its tree. On a host that root IS the world every joiner was playing in.
 - **`POST /savepath force=true` reaches the developer's tier-1 save folder.** The refusal that stops it is plugin code, not a rule an agent reads first. Never pass `force=true` unless the user asked for exactly that.
@@ -30,6 +32,7 @@ Nothing below is repeated from those files at length. Where they disagree with t
 client-rig.ps1                    the launcher: provision, desktop, lifecycle, save, host-aware teardown, fan-out
 dev-plugins/ClientDriver/         the control plane inside each instance (never ships to the Workshop)
 data/<instance>/                  manifest, provision stamp, setting.xml, save root, logs, PID file (gitignored)
+data/rig.json                     the registry: one entry per instance, including the instances root its tree was built in
 instances/<instance>/             the hard-linked game tree, normally on the install's volume instead (gitignored)
 ```
 

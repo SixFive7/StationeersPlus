@@ -88,6 +88,7 @@ Rules an agent needs:
 - **Re-asserting a lock you already hold never resets.** Changing your purpose or TTL mid-test would otherwise wipe your own run.
 - **`-Lock -KeepState` skips it**, and prints exactly what it skipped. That is the escape hatch for a save, a config value or a scenario staged on purpose.
 - **The reset prints what it did, per instance.** A silent reset is indistinguishable from no reset when something later goes wrong.
+- **It finds each instance's tree through the `instancesRoot` recorded in `ClientRig/data/rig.json`**, because the trees normally sit on the game install's volume rather than inside `TestRig/`. It used to assume one configured root, so on a rig built with `-InstancesRoot` it found no `BepInEx/` tree and quietly did only half its work (no config re-copy, no `SavePathOverride` re-apply) while reporting nothing worse than "no instance tree". An entry from before that field existed falls back to the configured root and the report now names which of the two it used and what was skipped.
 - **It resets BETWEEN sessions only.** A session spans many start/stop cycles by design, so two unrelated tests run under ONE lock get no reset between them. Release the lock and take it again when the subject changes. Per-test hygiene would make the unit of hygiene smaller than the unit of ownership, which is a lock-model change and has not been done.
 
 **The shared per-user state is reported, never restored.** `PlayerCookie-v2.xml`, the PlayerPrefs key and `Blueprints\` cannot be isolated, and writing them back would itself be the write the save rules forbid. A cheap snapshot is taken at acquisition into `TestRig/session.state.json` (gitignored), and `-Unlock` / `-Stop -Release` print the delta. It fixes nothing; it turns state that was invisible until a later test failed into a line at the session boundary.
@@ -109,6 +110,8 @@ This pair used to be one flag with opposite risk on the two halves, which is exa
 - **`-WaitSeconds`** is how long a blocking wait waits. On the dedicated server that is `-Save` waiting for its log confirmation (default 30); on the client rig it is the `-Wait` readiness barrier (default 300).
 
 The client rig used to overload `-TimeoutSeconds` for its barrier. It does not any more; `-Wait -TimeoutSeconds 600` in an old note means `-Wait -WaitSeconds 600`.
+
+**`-CallTimeoutSeconds` is a third flag, client rig only, and it is separate on purpose.** It is how long one `-Call` or `-Broadcast` request may take, and it defaults to 0, meaning "derive it from the request": the endpoint's own `timeoutMs` plus a margin, floored at 120 s and at 300 s for the endpoints that block for minutes. A fixed transport timeout used to win over whatever the caller asked the endpoint for, so `-Call -Path /connect -Body '{"timeoutMs":300000}'` died client-side at 120 s and the plugin's answer, which is the only thing that explains a failed join or host attempt, was never read. Giving it either of the two names above would have made one flag mean two things, which is the mistake the barrier rename above already had to undo once.
 
 ## Saves
 

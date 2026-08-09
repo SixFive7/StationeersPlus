@@ -435,6 +435,15 @@ namespace ClientDriver
                     typeof(Input), nameof(Input.GetKey), new[] { typeof(KeyCode) })));
                 Log.LogInfo("Input.mouseScrollDelta patched: " + IsPatched(harmony, AccessTools.Method(
                     typeof(Input), "get_mouseScrollDelta")));
+
+                // Installed after PatchAll and separately from it, one hook at a time, so a bad
+                // target in the diagnostic can never take the console tap or the input chain down
+                // with it. An unpatched join trace produces an empty log that reads exactly like
+                // "nothing happened", which is the one answer a diagnostic must never give by
+                // accident, so the outcome is reported either way.
+                JoinTrace.Install(harmony);
+                Log.LogInfo("join trace patched: " + JoinTrace.PatchesApplied +
+                            " (" + string.Join("; ", JoinTrace.InstallReport.ToArray()) + ")");
             }
             catch (Exception ex)
             {
@@ -542,6 +551,12 @@ namespace ClientDriver
         internal static void Postfix()
         {
             try { MainThreadPump.PumpFromFrame(); }
+            catch { }
+            // Sample the join state while a connect is in flight. It has to run per frame from
+            // here rather than from the endpoint's own poll loop, because everything worth seeing
+            // (RakNet's connection state, the peer going away) happens and is undone between two
+            // polls. Rate-limited and no-op unless /connect armed it.
+            try { JoinTrace.Tick(); }
             catch { }
             // Re-assert the window size about once a second. The game applies its own video
             // settings twice during boot and a mod or an options panel can move the window later;

@@ -48,11 +48,16 @@
 #      rig-lock.ps1 uses. A live instance's game.pid must survive; a recycled id
 #      must not be trusted in either direction.
 #
-# NEVER OUTSIDE TestRig/
-#   Two reads leave the rig folder and both are read-only: copying BepInEx/config
-#   out of the source install, and the shared-state snapshot (PlayerCookie-v2.xml,
-#   the PlayerPrefs key, Blueprints/). Nothing outside TestRig/ is ever written.
-#   The developer's save folder is tier 1 and is not touched at all.
+# WHAT IT MAY TOUCH, AND WHAT IT MAY NOT
+#   Writes are confined to two places: the rig's own state under TestRig/, and the
+#   per-instance BepInEx tree of each provisioned client instance. That second one
+#   is normally NOT under TestRig/, because hard links cannot cross volumes and the
+#   trees therefore sit on the game install's drive; where each one went is read
+#   from the launcher's registry (Get-RigClientInstanceRootMap), never guessed.
+#   Two reads leave both places and both are read-only: copying BepInEx/config out
+#   of the source install, and the shared-state snapshot (PlayerCookie-v2.xml, the
+#   PlayerPrefs key, Blueprints/). The developer's save folder is tier 1 and is not
+#   touched at all.
 #
 # SHARED STATE IS REPORTED, NEVER RESTORED
 #   PlayerCookie-v2.xml, HKCU\Software\Rocketwerkz\rocketstation and Blueprints\
@@ -100,7 +105,10 @@ function Initialize-RigResetPaths {
 
     $script:RigResetHome = $RigHome
 
-    # Client half.
+    # Client half. The instance root here is the FALLBACK: each instance's own root is read from the
+    # launcher's registry (Get-RigClientInstanceRootMap), because -InstancesRoot is a launcher flag
+    # this library cannot see and instances routinely live on the game install's volume. This value
+    # is what an entry that records no root gets, and what the lock library's orphan scan watches.
     $script:RigResetClientData = Join-Path $RigHome 'ClientRig\data'
     $script:RigResetClientInstances =
         if     ($InstanceRoot)                   { $InstanceRoot }
@@ -314,6 +322,57 @@ function Get-RigResetInstanceNames {
              Sort-Object Name | ForEach-Object { $_.Name })
 }
 
+function Get-RigClientInstanceRootMap {
+    # instanceName -> the instances root recorded in ClientRig/data/rig.json when that instance was
+    # provisioned, for every entry that carries one.
+    #
+    # This is why it exists. The launcher takes -InstancesRoot, and instance trees normally live on
+    # the game install's volume rather than inside TestRig/, so the reset cannot assume one root and
+    # cannot see a launcher flag. It used to join ITS configured root to each instance name, which is
+    # right only when the two happen to agree: with the trees on another volume the reset found no
+    # BepInEx tree, reported "no instance tree" and silently skipped the config re-copy and the
+    # SavePathOverride re-apply, which is half of what the reset is for. The registry is the one
+    # place that records where each tree actually went, so it is read here rather than guessed.
+    #
+    # A missing, unreadable or half-written rig.json yields an empty map and every instance falls
+    # back to the configured root, which is the behaviour before the field existed.
+    $map = @{}
+    $registry = Join-Path $script:RigResetClientData 'rig.json'
+    if (-not (Test-Path -LiteralPath $registry)) { return $map }
+    try {
+        $entries = @((Get-Content -Raw -LiteralPath $registry -ErrorAction Stop) | ConvertFrom-Json -ErrorAction Stop)
+    }
+    catch { return $map }
+    foreach ($e in $entries) {
+        if ($null -eq $e) { continue }
+        if (-not $e.PSObject.Properties['instanceName'] -or -not $e.instanceName)   { continue }
+        if (-not $e.PSObject.Properties['instancesRoot'] -or -not $e.instancesRoot) { continue }
+        $map[[string]$e.instanceName] = [string]$e.instancesRoot
+    }
+    return $map
+}
+
+function Get-RigInstanceTree {
+    # Where this instance's hard-linked tree is, and where that answer came from. The source travels
+    # with the path so a "no tree" report can say whether it looked where the registry pointed or
+    # where the library defaults to, which is the difference between a genuinely unprovisioned
+    # instance and one the reset simply could not find.
+    param(
+        [Parameter(Mandatory)] [string] $Name,
+        $RootMap
+    )
+    if ($null -ne $RootMap -and $RootMap.ContainsKey($Name)) {
+        return [pscustomobject]@{
+            Path   = (Join-Path $RootMap[$Name] $Name)
+            Source = 'the instances root recorded in rig.json'
+        }
+    }
+    return [pscustomobject]@{
+        Path   = (Join-Path $script:RigResetClientInstances $Name)
+        Source = 'the configured instances root (this entry records none; -Provision -Force records it)'
+    }
+}
+
 function Get-RigInstanceRole {
     # Role from the manifest, degrading to 'unknown' rather than throwing. The
     # reset treats an unknown role as a host for the SavePathOverride refusal,
@@ -367,10 +426,14 @@ function Get-RigResetPlan {
     if ($baseline -and $baseline.PSObject.Properties['LastResetUtc']) { $lastReset = $baseline.LastResetUtc }
 
     # ---- client half, per provisioned instance ----
+    # Read once, used for every instance: the trees are wherever -Provision put them, which is
+    # normally the game install's volume rather than inside TestRig/.
+    $rootMap   = Get-RigClientInstanceRootMap
     $instances = Get-RigResetInstanceNames
     foreach ($name in $instances) {
         $data     = Join-Path $script:RigResetClientData $name
-        $tree     = Join-Path $script:RigResetClientInstances $name
+        $treeInfo = Get-RigInstanceTree -Name $name -RootMap $rootMap
+        $tree     = $treeInfo.Path
         $bepinex  = Join-Path $tree 'BepInEx'
         $userData = Join-Path $data 'userdata'
         $role     = Get-RigInstanceRole -DataDir $data
@@ -474,8 +537,12 @@ function Get-RigResetPlan {
             }
         }
         else {
-            $reports.Add((New-RigResetReport -Half 'client' -Instance $name -Kind 'NoTree' `
-                -Detail "no instance tree at $tree; only its data/ state was reset"))
+            # The path is named WITH its source, because "no tree" and "the reset looked in the
+            # wrong place" used to read identically. If this says the configured root while the
+            # instance was provisioned somewhere else, the fix is -Provision -Force, which records
+            # the root; the reset then finds the BepInEx config it is skipping here.
+            $reports.Add((New-RigResetReport -Half 'client' -Instance $name -Kind 'NoTree' -Warn `
+                -Detail "no instance tree at $tree (from $($treeInfo.Source)); only its data/ state was reset, so the BepInEx config was NOT re-copied and SavePathOverride was NOT re-applied"))
         }
 
         # PRESERVED, and reported instead: re-seeding needs the developer's
@@ -910,7 +977,8 @@ function Invoke-RigReset {
 function Invoke-RigResetAction {
     # One action. Every branch is deliberately narrow: nothing here takes a
     # wildcard from the caller, and every path came out of Get-RigResetPlan, which
-    # only ever builds paths under the rig home or the instance root.
+    # only ever builds paths under the rig home or under an instance tree the
+    # launcher itself recorded in rig.json.
     param([Parameter(Mandatory)] $Action)
     switch ($Action.Kind) {
         'DeleteFile' {

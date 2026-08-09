@@ -96,6 +96,7 @@ namespace ClientDriver
                     return HttpResponse.Json(new Json.Obj().Bit("ok", true).Bit("enabled", VirtualInput.Enabled).ToString());
                 case "/input/mouseposition": return InputMousePosition(body);
                 case "/diag/input": return Main(() => HttpResponse.Json(InputDiagnostics()));
+                case "/diag/join": return Main(() => HttpResponse.Json(JoinDiagnostics()));
 
                 // ---- player actions -----------------------------------------
                 case "/player/teleport": return Main(() => Teleport(body));

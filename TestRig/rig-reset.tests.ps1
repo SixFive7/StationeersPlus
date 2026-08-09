@@ -195,7 +195,9 @@ function New-TestHome {
 }
 
 function Reset-TestHome {
-    foreach ($p in @('ClientRig', 'DedicatedServer', '_userdata', '_locallow')) {
+    # _altroot stands in for an instances root on another volume (E:\StationeersRig on a real rig).
+    # It is wiped with everything else so a tree left there by one section cannot leak into the next.
+    foreach ($p in @('ClientRig', 'DedicatedServer', '_userdata', '_locallow', '_altroot')) {
         Remove-Item -Recurse -Force -ErrorAction SilentlyContinue (Join-Path $script:TempRoot $p)
     }
     Remove-Item -Force -ErrorAction SilentlyContinue (Join-Path $script:TempRoot 'session.lock')
@@ -218,21 +220,36 @@ function Get-InstanceDataDir { param([string] $Name) return (Join-Path $script:T
 function Get-InstanceTreeDir { param([string] $Name) return (Join-Path $script:TempRoot "ClientRig\instances\$Name") }
 function Get-InstanceBepInEx { param([string] $Name) return (Join-Path (Get-InstanceTreeDir $Name) 'BepInEx') }
 
+function Set-TestRegistry {
+    # ClientRig/data/rig.json, written the way client-rig.ps1 -Provision writes it. The reset reads
+    # the instances root out of this file, so a fixture that puts a tree somewhere other than the
+    # default root has to record it here too, exactly as a real provision would.
+    param([Parameter(Mandatory)] $Entries)
+    $file = Join-Path $script:TempRoot 'ClientRig\data\rig.json'
+    New-Item -ItemType Directory -Force -Path (Split-Path -Parent $file) | Out-Null
+    (,@($Entries) | ConvertTo-Json -Depth 6) | Set-Content -LiteralPath $file -Encoding utf8
+}
+
 function New-TestInstance {
     # A provisioned instance, dirty in every way the reset is supposed to clean,
     # laid out exactly as client-rig.ps1 lays one out.
+    #
+    # -TreeRoot puts the hard-linked tree somewhere other than ClientRig/instances/, which is the
+    # normal case on a real rig: hard links cannot cross volumes, so the trees sit on the game
+    # install's drive. data/<name>/ always stays beside the rig.
     param(
         [Parameter(Mandatory)] [string] $Name,
         [string] $Role = 'client',
         [string] $RawPid,
+        [string] $TreeRoot,
         [switch] $NoManifest,
         [switch] $BrokenManifest,
         [switch] $NoTree,
         [switch] $NoLaunchPadConfig
     )
     $data = Get-InstanceDataDir $Name
-    $tree = Get-InstanceTreeDir $Name
-    $bep  = Get-InstanceBepInEx $Name
+    $tree = if ($TreeRoot) { Join-Path $TreeRoot $Name } else { Get-InstanceTreeDir $Name }
+    $bep  = Join-Path $tree 'BepInEx'
     New-Item -ItemType Directory -Force -Path $data, (Join-Path $data 'logs'),
         (Join-Path $data 'userdata\saves\PreviousWorld'), (Join-Path $data 'userdata\mods\Local_Example') | Out-Null
 
@@ -481,6 +498,72 @@ function Test-ClientReset {
     # Reset twice in a row: idempotent, and no failures on an already-clean rig.
     $res = Invoke-Quiet { Invoke-RigReset }
     Assert-Equal 0 $res.Failures.Count 'resetting an already-clean instance does nothing and fails nothing'
+}
+
+function Test-InstancesRoot {
+    if (-not (Test-SectionSelected 'instancesroot')) { return }
+    Start-Section 'the instances root comes from the registry, not from an assumption'
+    Reset-TestHome
+
+    # A real rig looks like this: the trees are on the game install's volume (the launcher's
+    # -InstancesRoot / STATIONEERS_CLIENTRIG_ROOT), while data/ stays beside the rig. The reset used
+    # to join ITS configured root to the instance name, find nothing, and skip the config re-copy and
+    # the SavePathOverride re-apply while reporting only "no instance tree".
+    $alt = Join-Path $script:TempRoot '_altroot'
+    New-Item -ItemType Directory -Force -Path $alt | Out-Null
+    $data = New-TestInstance -Name 'hostie' -Role 'host' -TreeRoot $alt
+    $bep  = Join-Path $alt 'hostie\BepInEx'
+    Set-TestRegistry @([ordered]@{
+        instanceName = 'hostie'; index = 1; role = 'host'; port = 27701; gamePort = 27801
+        clientId = '900000000001'; username = 'hostie'; instancesRoot = $alt
+    })
+
+    $map = Get-RigClientInstanceRootMap
+    Assert-Equal $alt $map['hostie'] 'the instances root is read out of rig.json'
+    Assert-Equal (Join-Path $alt 'hostie') (Get-RigInstanceTree -Name 'hostie' -RootMap $map).Path 'the tree path is built from the recorded root'
+    Assert-Match (Get-RigInstanceTree -Name 'hostie' -RootMap $map).Source 'recorded in rig.json' 'and it says where that answer came from'
+
+    $plan = Invoke-Quiet { Get-RigResetPlan }
+    Assert-Equal 0 (@($plan.Reports | Where-Object { $_.Kind -eq 'NoTree' })).Count 'an instance whose tree is on another root is no longer reported as treeless'
+    $copy = @($plan.Actions | Where-Object { $_.Kind -eq 'CopyConfigTree' })
+    Assert-Equal 1 $copy.Count 'the config re-copy IS planned for a tree outside the default root'
+    Assert-Equal (Join-Path $bep 'config') $copy[0].Path 'and it targets the config folder inside the recorded tree'
+    $reapply = @($plan.Actions | Where-Object { $_.Kind -eq 'ReapplySavePathOverride' })
+    Assert-Equal 1 $reapply.Count 'so is the SavePathOverride re-apply'
+    Assert-True $reapply[0].AfterCopy 'and it is marked as following the copy, which is what makes a failed write fatal'
+
+    Assert-Match (Get-Content -Raw -LiteralPath (Join-Path $bep 'config\net.spraypaintplus.cfg')) 'Beam Width = 9\.99' 'fixture check: a previous test value is in place'
+    Invoke-Quiet { Invoke-RigReset } | Out-Null
+    Assert-Match (Get-Content -Raw -LiteralPath (Join-Path $bep 'config\net.spraypaintplus.cfg')) 'Beam Width = 0\.05' `
+        'THE FIX: the config re-copy reaches a tree on another root instead of being skipped'
+    Assert-Equal (Join-Path $data 'userdata') (Get-RigSavePathOverride -BepInExDir $bep) `
+        'and SavePathOverride is re-applied there, so the instance keeps its own save root'
+    Assert-FileGone (Join-Path $bep 'LogOutput.log') 'the BepInEx log in the recorded tree is cleared too'
+    Assert-FileGone (Join-Path $data 'setting.xml') 'and the data/ half is reset exactly as before'
+
+    # An entry from before the field existed: today's behaviour, said out loud.
+    Reset-TestHome
+    New-Item -ItemType Directory -Force -Path $alt | Out-Null
+    $data = New-TestInstance -Name 'legacy' -Role 'client' -TreeRoot $alt
+    Set-TestRegistry @([ordered]@{ instanceName = 'legacy'; index = 1; role = 'client'; port = 27701 })
+    $plan   = Invoke-Quiet { Get-RigResetPlan }
+    $noTree = @($plan.Reports | Where-Object { $_.Kind -eq 'NoTree' })
+    Assert-Equal 1 $noTree.Count 'an entry that records no root falls back to the configured one rather than throwing'
+    Assert-Match $noTree[0].Detail 'records none' 'and the report says the path came from the fallback, not from the registry'
+    Assert-Match $noTree[0].Detail 'NOT re-copied' 'the report names what was skipped, instead of only that a tree was missing'
+    Assert-NoThrow { Invoke-RigReset } 'the reset still runs for an entry with no recorded root'
+    Assert-FileGone (Join-Path $data 'setting.xml') 'and its data/ state is still reset'
+
+    # No registry at all, and a half-written one: an empty map, never a throw.
+    Reset-TestHome
+    New-TestInstance -Name 'client1' -Role 'client' | Out-Null
+    Assert-Equal 0 (Get-RigClientInstanceRootMap).Count 'a rig with no rig.json yields an empty root map'
+    Set-Content -LiteralPath (Join-Path $script:TempRoot 'ClientRig\data\rig.json') -Value '[{ not json' -Encoding utf8
+    Assert-NoThrow { Get-RigClientInstanceRootMap } 'a half-written rig.json does not throw'
+    Assert-Equal 0 (Get-RigClientInstanceRootMap).Count 'and yields an empty map, so every instance uses the configured root'
+    Assert-NoThrow { Invoke-RigReset } 'the reset still runs with an unreadable registry'
+    Assert-FileGone (Join-Path (Get-InstanceDataDir 'client1') 'setting.xml') 'and a default-rooted instance is reset as usual'
+    Assert-FileExists (Join-Path $script:TempRoot 'ClientRig\data\rig.json') 'the registry itself is still never touched by the reset'
 }
 
 function Test-SavePathOverride {
@@ -914,6 +997,7 @@ try {
     Test-Paths
     Test-Plan
     Test-ClientReset
+    Test-InstancesRoot
     Test-SavePathOverride
     Test-PidHandling
     Test-ServerReset

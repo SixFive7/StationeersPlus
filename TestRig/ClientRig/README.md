@@ -73,6 +73,8 @@ $env:STATIONEERS_CLIENTRIG_ROOT = '<drive of the game install>\StationeersRig'
 
 The launcher refuses with the exact command to fix it if this is wrong, rather than quietly making a 7 GB copy. Per-instance state (manifest, `setting.xml`, save root, logs, PID file) is ordinary files rather than links, so it stays under `data/` beside the script regardless.
 
+`-InstancesRoot <path>` does the same thing for one command. **The resolved root is recorded in the instance's registry entry, so it is typed once**: `-Start`, `-Stop`, `-Save`, `-Call`, `-Remove`, `-Status` and the state reset all read it back and find the tree. It used to be honoured only by `-Provision`, which is how a live run ended up with `-Start` reporting a provisioned instance as having no tree while the tree sat on another volume, and with the state reset skipping the BepInEx config re-copy for the same reason. Typing `-InstancesRoot` again overrides the recorded value, which is how a tree is moved (the old tree is left behind, and the launcher says so). An instance provisioned before the root was recorded falls back to the order above and prints one line naming `-Provision -Force` as the fix; `-Status` shows the resolved tree, whether it exists, and which source it came from.
+
 ### 2. Build the plugin
 
 ```powershell
@@ -166,16 +168,16 @@ Wait for `menu` before touching the menu or the ImGui overlay. `modsLoaded` alon
 | `-RefreshLock -As <id>` | refreshes | Bump the timer while actively driving a test. |
 | `-Unlock -As <id>` | releases | Give the rig back. Warns if instances are still running, and REFUSES while a listen host is live. |
 | `-Provision -Instance <n> [-Role client\|host] [-GamePort N] [-Force]` | needs | Build or rebuild an instance tree, write its save redirect, seed its mods, write its manifest and provision stamp. |
-| `-Start -Instance <n>\|-All` | needs | Launch on the isolated desktop, hosts first. Throws rather than skipping when an instance is already up. |
+| `-Start -Instance <n>\|-All` | needs | Launch on the isolated desktop, hosts first. Throws rather than skipping when an instance is already up. A pid file whose process is gone, or whose number now belongs to something that is not the game, is stale rather than "already up": it is named and replaced. |
 | `-Stop -Instance <n>\|-All [-Release]` | needs | Host-aware teardown: classify, refuse, disconnect joiners, save the world holder, `/quit`, kill after `-TimeoutSeconds` (default 30), then clear `StartLocalHost` from the stopped instance's `setting.xml`. |
 | `-Save -Instance <n>\|-All [-Name <s>]` | needs | Write the world through `POST /save` and wait for the game's own confirmation. Warns rather than claiming success on a timeout. |
 | `-Remove -Instance <n>` | needs | Delete the tree and the instance's save root. Refuses while it is running, and refuses to delete a host's world while a joiner is attached. |
-| `-Broadcast -All -Path <p> [-Body <json>]` | needs | One request to every instance. Throws on a partial result. |
-| `-Call -Instance <n> -Path <p> [-Body <json>]` | needs | One request to one instance. |
-| `-Status [-Instance <n>]` | free | The rig lock, then per instance: process, classified role, both ports, identity, phase, live role, hosting, host port, connected clients by name and id, foreground verdict, input gate, identity conflicts. |
+| `-Broadcast -All -Path <p> [-Body <json>]` | needs | One request to every instance. Throws on a partial result. Same derived timeout as `-Call`. |
+| `-Call -Instance <n> -Path <p> [-Body <json>]` | needs | One request to one instance. Its HTTP timeout comes from the request itself; see "Timeouts" below. |
+| `-Status [-Instance <n>]` | free | The rig lock, then per instance: process, classified role, both ports, identity, tree (with whether it exists and where the path came from), phase, live role, hosting, host port, connected clients by name and id, foreground verdict, input gate, identity conflicts. |
 | `-List` | free | The rig registry as a table, plus live role, hosting and client count for the instances that are running. |
 | `-Wait -All -Stage <s> [-WaitSeconds N]` | refreshes | Barrier, default 300 s. Fails loudly, per instance, with what each one was actually doing. |
-| `-Snapshot -All [-OutFile <f>]` | free | `/status` from every instance in one document. A relative `-OutFile` is rooted at the rig folder (which is gitignored deny-all), not at the shell's working directory. |
+| `-Snapshot -All [-OutFile <f>]` | free | `/status` from every instance in one document. A relative `-OutFile` is rooted at the rig folder (which is gitignored deny-all), not at the shell's working directory; one that climbs back out with `..`, or a drive-relative `C:name.json`, is refused. |
 | `-Logs -Instance <n> [-Tail N] [-Grep <re>]` | free | That instance's BepInEx log. |
 
 `-Broadcast` and `-Call` are gated even though they read like queries, because they drive a live client: `/quit` ends one, `/host` puts one into a world it serves, and `/savepath` retargets where one writes its saves. `-Wait` needs no lock but refreshes one you already hold, because a barrier can legitimately outlast the TTL.
@@ -258,6 +260,20 @@ Hosting an existing save instead of creating a world is `-Body '{"save":"HostGlo
 ---
 
 **Two flags mean exactly what they mean on `dedicated-server.ps1`, and one of them did not used to.** `-Force` is the routine override inside your own session (`-Provision -Force` rebuilds an instance you own); taking a lock off another session is `-BreakLock`, which is human-gated. They were the same flag with opposite risk across the two launchers, which is how a live test gets torn down by muscle memory. `-TimeoutSeconds` (default 30) is process-teardown grace for `-Stop` on both; the readiness barrier here is `-WaitSeconds` (default 300), which it did not used to be, so an older note reading `-Wait -TimeoutSeconds 600` means `-Wait -WaitSeconds 600`.
+
+### Timeouts
+
+Three flags, three separate jobs. The third is new and is deliberately not spelled as either of the other two.
+
+| Flag | Default | Means |
+|---|---|---|
+| `-TimeoutSeconds` | 30 | Process-teardown grace for `-Stop`: how long a client gets to quit cleanly before it is killed. Same on `dedicated-server.ps1`. |
+| `-WaitSeconds` | 300 | How long a blocking wait waits: the `-Wait` barrier, the `-Save` confirmation, and the `-Lock` queue (whose default is 0, meaning do not queue). |
+| `-CallTimeoutSeconds` | 0 | How long ONE `-Call` or `-Broadcast` request may take. 0 means "derive it from the request". |
+
+**`-Call` and `-Broadcast` take their timeout from the request itself.** The endpoint's own `timeoutMs`, from the body or the query string, plus 30 s, floored at 120 s and at 300 s for the endpoints that block for minutes (`/host`, `/connect`, `/save`, `/load`, `/newworld`, `/waitfor`). An absurd `timeoutMs` is capped at an hour, loudly.
+
+That margin is the point: the launcher has to outlive the plugin's own deadline, because the plugin's answer is the only thing that explains a failure. It used to be a fixed 120 s for `-Call` and 60 s for `-Broadcast`, which won over whatever the body asked for, so `-Call -Path /connect -Body '{"timeoutMs":300000}'` was cut off client-side at two minutes with nothing to read, and every long endpoint was effectively unusable through the launcher. Pass `-CallTimeoutSeconds N` only to override the derivation.
 
 ---
 

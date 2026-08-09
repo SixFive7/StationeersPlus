@@ -164,7 +164,10 @@
 .PARAMETER OutFile
     Write the -Snapshot result to this path instead of the console. A relative path is rooted at the
     rig folder, which is gitignored deny-all, not at the shell's working directory, which for an
-    agent is the repository root where nothing would catch a stray snapshot.
+    agent is the repository root where nothing would catch a stray snapshot. A relative path that
+    climbs back out of the rig folder with '..' is REFUSED rather than rooted, since it would land
+    somewhere no rule catches. An absolute path is the caller's explicit choice and is honoured,
+    with a warning when it falls outside the rig folder.
 
 .PARAMETER TimeoutSeconds
     Process-teardown grace for -Stop: how long a client gets to quit cleanly before it is killed.
@@ -177,6 +180,19 @@
     actions take it: -Wait (the readiness barrier, default 300), -Save (how long to wait for the
     save confirmation, default 300), and -Lock (how long to queue for a rig held by another session,
     default 0, meaning do not queue at all).
+
+.PARAMETER CallTimeoutSeconds
+    How long ONE -Call or -Broadcast request may take before the HTTP client gives up. This is a
+    third, separate flag on purpose: -TimeoutSeconds is process-teardown grace and -WaitSeconds is
+    how long a blocking wait waits, and overloading either one with a transport timeout is how a
+    flag name comes to mean two things.
+
+    Default 0, meaning "work it out from the request", which is what a caller wants nearly always:
+    the endpoint's own timeoutMs (from the body or the query string) plus a margin, floored at 120 s
+    and at 300 s for the endpoints that block for minutes (/host, /connect, /save, /load, /newworld,
+    /waitfor). Pass a number only to override that. The old fixed 120 s meant a body asking for
+    timeoutMs 300000 was cut off by the launcher at 120 s, so every long endpoint was unusable
+    through -Call and the plugin's own answer (its refusal, or its confirmation) was never seen.
 
 .PARAMETER Lock
     Acquire the RIG session lock for this whole test session. Requires -Purpose. Prints a short owner
@@ -229,9 +245,21 @@
 
 .PARAMETER InstancesRoot
     Where the hard-linked instance trees live. MUST be on the same NTFS volume as the game install,
-    because hard links cannot cross volumes. Defaults to the STATIONEERS_CLIENTRIG_ROOT environment
-    variable, then to instances/ beside this script. Set the environment variable in DEV.md when the
-    repository and the game install are on different drives, which is the common case.
+    because hard links cannot cross volumes. For a NEW instance the order is -InstancesRoot, then the
+    STATIONEERS_CLIENTRIG_ROOT environment variable, then instances/ beside this script. Set the
+    environment variable in DEV.md when the repository and the game install are on different drives,
+    which is the common case.
+
+    An instance that already exists uses the root RECORDED IN ITS REGISTRY ENTRY at provision time,
+    so the flag does not have to be re-passed on every later command. -InstancesRoot still overrides
+    that when it is typed, which is how a tree gets moved. Before the root was recorded, -Provision
+    honoured the flag and every later action silently fell back to instances/ beside this script:
+    -Start reported a provisioned instance as having no tree, and the state reset could not find the
+    instance's BepInEx config and skipped re-copying it (half of what the reset is for) while
+    reporting only that there was no tree.
+
+    An entry written before the field existed still works: it falls back to today's order and says
+    so once, naming -Provision -Force as the fix.
 
 .EXAMPLE
     A listen host plus one joiner, in the only order that works. The constraint runs the other way
@@ -302,6 +330,7 @@ param(
 
     [int]    $TimeoutSeconds = 30,
     [int]    $WaitSeconds    = 300,
+    [int]    $CallTimeoutSeconds = 0,
 
     [switch] $Logs,
     [int]    $Tail = 50,
@@ -359,21 +388,23 @@ if (-not (Test-Path $RigResetLib)) {
 # The instance trees are hard links into the game install, so they must sit on the install's
 # volume. The repository frequently does not, so this is relocatable and the volume check below
 # turns a wrong setting into a clear message rather than a 7 GB copy.
+#
+# This is the root a NEW instance is built in. An instance that already exists uses the root
+# recorded in its registry entry instead (Resolve-InstanceRoot), because -InstancesRoot used to be
+# honoured by -Provision and forgotten by everything after it: -Start reported a provisioned
+# instance as having no tree, and the state reset could not find its BepInEx config.
+$InstancesRootTyped = $ScriptBoundParams.ContainsKey('InstancesRoot') -and $InstancesRoot
 $InstancesDir  = if ($InstancesRoot) { $InstancesRoot }
                  elseif ($env:STATIONEERS_CLIENTRIG_ROOT) { $env:STATIONEERS_CLIENTRIG_ROOT }
                  else { Join-Path $RigRoot 'instances' }
+$InstancesDirSource = if ($InstancesRoot) { '-InstancesRoot' }
+                      elseif ($env:STATIONEERS_CLIENTRIG_ROOT) { '$env:STATIONEERS_CLIENTRIG_ROOT' }
+                      else { 'the default instances/ folder beside this script' }
 
 # Per-instance state (manifest, settings, save root, logs, PID file) is ordinary files, not links,
 # so it stays beside the script regardless of which volume the trees are on.
 $DataDir       = Join-Path $RigRoot 'data'
 $RigRegistry   = Join-Path $DataDir 'rig.json'
-
-# Both shared libraries default to the rig root, which is right for everything
-# except the instance tree location: -InstancesRoot is a launcher flag neither of
-# them can see. Re-point them here, once, so the reset deletes inside the tree
-# this invocation is actually using and the lock's orphan scan watches the same
-# one. Initialize-RigResetPaths re-points the lock library too.
-Initialize-RigResetPaths -RigHome $TestRigRoot -InstanceRoot $InstancesDir
 
 # Dev-plugin layout, identical to the dedicated server's: dev-plugins/<Name>/<Name>.sln beside
 # dev-plugins/<Name>/<Name>/ source. See TestRig/CLAUDE.md.
@@ -386,6 +417,27 @@ $PluginDll     = Join-Path $RigRoot 'dev-plugins\ClientDriver\ClientDriver\bin\R
 # defaults, and of this repository's dedicated server.
 $ControlPortBase = 27700
 $GamePortBase    = 27800
+
+# What Get-Process reports for a running instance (rocketstation.exe, minus the extension). Used to
+# tell a live instance from a pid file whose number was recycled; see Test-PidAlive. The lock library
+# and the state reset use the same name for the same check.
+$GameImageName   = 'rocketstation'
+
+# Control-plane HTTP timeouts for -Call and -Broadcast.
+#
+# Invoke-RestMethod defaults to 100 s and the launcher used to pin 120 s (-Call) and 60 s
+# (-Broadcast), which meant the CALLER's own timeoutMs was ignored: -Path /connect with
+# timeoutMs 300000 died at 120 s with a client-side timeout, and the plugin's answer, which is the
+# only thing that says WHY a join or a host attempt failed, was never read. So the timeout is
+# derived from the request instead, and these are the bounds it moves between.
+$ControlTimeoutFloorSeconds  = 120   # short endpoints: no shorter than the old fixed value
+$ControlTimeoutMarginSeconds = 30    # the launcher must outlive the plugin's own deadline, not race it
+$ControlTimeoutCeilingSeconds = 3600 # a typo in timeoutMs must not wedge the launcher for days
+# Endpoints that legitimately block for minutes. Their plugin-side default timeoutMs is 120000 to
+# 300000 (Routes.Session.cs, Routes.Host.cs), and a caller that names none gets the plugin's default
+# rather than the launcher's, so the floor here has to cover the LARGEST of them.
+$ControlLongPathSeconds = 300
+$ControlLongPaths = @('/host', '/connect', '/save', '/load', '/newworld', '/waitfor')
 
 # Ports a rig instance's game port must never take. A second RakNet socket on an already-bound
 # port does not fail: both bindings coexist and traffic is routed by destination address, so the
@@ -449,9 +501,17 @@ function Get-PidFromFile {
 }
 
 function Test-PidAlive {
+    # Is the process this pid file names really THIS instance's game client.
+    #
+    # The image name is checked, not just the number, and that is load bearing in both directions.
+    # Windows recycles process ids and these pid files outlive their processes on a force-kill, a
+    # crash or a reboot, so a bare Get-Process answers "alive" for whatever unrelated program
+    # inherited the number. Every caller here then draws the wrong conclusion: -Start THROWS rather
+    # than launching ("already running"), -Provision and -Remove refuse, and -Status reports a
+    # stopped instance as up. The same reasoning, and the same helper, as rig-lock.ps1 and the
+    # state reset, which is why this calls Get-RigLiveProcess rather than repeating it.
     param([Nullable[int]] $TargetPid)
-    if (-not $TargetPid) { return $false }
-    [bool](Get-Process -Id $TargetPid -ErrorAction SilentlyContinue)
+    return ($null -ne (Get-RigLiveProcess -TargetPid $TargetPid -ImageName $GameImageName))
 }
 
 # ---- session lock ---------------------------------------------------------
@@ -541,21 +601,105 @@ function Resolve-Targets {
     return $hits
 }
 
+$script:RootFallbackAnnounced = @{}
+
+function Resolve-InstanceRoot {
+    # Where THIS instance's tree lives, and where that answer came from.
+    #
+    # The recorded root is what makes -InstancesRoot stick. -Provision writes the resolved root into
+    # the registry entry, and every later action reads it back, so the flag is typed once rather than
+    # on every command. Before that, -Provision honoured the flag and -Start, -Stop, -Call and the
+    # state reset all fell back to instances/ beside this script: -Start reported a provisioned
+    # instance as having no tree at a path nothing had ever built, and the reset found no BepInEx
+    # config to re-copy and said only that there was no tree.
+    #
+    # Precedence, and why:
+    #   1. -InstancesRoot as TYPED on this command. An explicit flag has to win, or a tree could
+    #      never be moved.
+    #   2. The root recorded in the registry entry.
+    #   3. The launcher default (-InstancesRoot from a default, then the environment variable, then
+    #      instances/). This is the pre-existing behaviour and it is what an entry written before the
+    #      field existed gets, with a note rather than a throw: an old rig must keep working.
+    param(
+        [Parameter(Mandatory)] [string] $Name,
+        $Entry,
+        [switch] $NoEntryLookup
+    )
+    if ($InstancesRootTyped) {
+        return [pscustomobject]@{ Root = $InstancesDir; Source = '-InstancesRoot (typed on this command)' }
+    }
+    if (-not $PSBoundParameters.ContainsKey('Entry') -and -not $NoEntryLookup) {
+        $Entry = Get-InstanceEntry -Name $Name
+    }
+    $recorded = [string](Get-EntryValue $Entry 'instancesRoot' '')
+    if ($recorded) {
+        return [pscustomobject]@{ Root = $recorded; Source = 'recorded in the registry at provision time' }
+    }
+    if ($Entry -and -not $script:RootFallbackAnnounced.ContainsKey($Name)) {
+        $script:RootFallbackAnnounced[$Name] = $true
+        Write-Host "[Rig] Instance '$Name' was provisioned before the instances root was recorded; using $InstancesDirSource ($InstancesDir). Re-record it with: client-rig.ps1 -Provision -Force -As <id> -Instance $Name"
+    }
+    return [pscustomobject]@{ Root = $InstancesDir; Source = $InstancesDirSource }
+}
+
 function Get-InstancePaths {
-    param([Parameter(Mandatory)] [string] $Name)
+    # -Entry is an optimisation, not a second code path: pass the registry entry a caller already
+    # has and the root resolution does not re-read rig.json. -Root is the provisioning override,
+    # used once, when the entry does not exist yet.
+    param(
+        [Parameter(Mandatory)] [string] $Name,
+        $Entry,
+        [string] $Root
+    )
+    if ($Root) {
+        $resolved = [pscustomobject]@{ Root = $Root; Source = 'this provision' }
+    }
+    elseif ($PSBoundParameters.ContainsKey('Entry')) {
+        $resolved = Resolve-InstanceRoot -Name $Name -Entry $Entry
+    }
+    else {
+        $resolved = Resolve-InstanceRoot -Name $Name
+    }
+    $tree = Join-Path $resolved.Root $Name
     [pscustomobject]@{
-        Name     = $Name
-        Tree     = Join-Path $InstancesDir $Name
-        Exe      = Join-Path $InstancesDir "$Name\rocketstation.exe"
-        BepInEx  = Join-Path $InstancesDir "$Name\BepInEx"
-        Data     = Join-Path $DataDir $Name
-        Manifest = Join-Path $DataDir "$Name\instance.json"
-        PidFile  = Join-Path $DataDir "$Name\game.pid"
-        Settings = Join-Path $DataDir "$Name\setting.xml"
-        UserData = Join-Path $DataDir "$Name\userdata"
-        LogDir   = Join-Path $DataDir "$Name\logs"
+        Name       = $Name
+        Tree       = $tree
+        Exe        = Join-Path $tree 'rocketstation.exe'
+        BepInEx    = Join-Path $tree 'BepInEx'
+        Root       = $resolved.Root
+        RootSource = $resolved.Source
+        Data       = Join-Path $DataDir $Name
+        Manifest   = Join-Path $DataDir "$Name\instance.json"
+        PidFile    = Join-Path $DataDir "$Name\game.pid"
+        Settings   = Join-Path $DataDir "$Name\setting.xml"
+        UserData   = Join-Path $DataDir "$Name\userdata"
+        LogDir     = Join-Path $DataDir "$Name\logs"
     }
 }
+
+# Both shared libraries default to the rig root, which is right for everything except the instance
+# tree location: -InstancesRoot is a launcher flag neither of them can see. Re-point them here, once
+# the registry helpers above exist, so the reset looks inside the trees this rig actually has and the
+# lock's orphan scan watches the same ones. Initialize-RigResetPaths re-points the lock library too.
+#
+# A recorded root wins over the launcher default here, and only here: the shared libraries take ONE
+# root, and a rig whose instances were built under -InstancesRoot has its trees there whether or not
+# this shell happens to have the environment variable set. $InstancesDir itself is deliberately NOT
+# touched, so the launcher's own fallback for an entry that records nothing stays exactly what it was
+# and the note it prints names the real source rather than a sibling's root.
+#
+# The reset resolves each instance's tree from the registry itself, so a rig split across two roots
+# (only reachable by moving one instance with -InstancesRoot) still resets correctly; what the single
+# value costs there is the orphan scan missing a stray process out of the second root, which is a
+# reporting gap rather than a safety one.
+$LibInstanceRoot = $InstancesDir
+if (-not $InstancesRootTyped) {
+    $recordedRoots = @(Read-Registry |
+        ForEach-Object { [string](Get-EntryValue $_ 'instancesRoot' '') } |
+        Where-Object { $_ } | Select-Object -Unique)
+    if ($recordedRoots.Count -ge 1) { $LibInstanceRoot = $recordedRoots[0] }
+}
+Initialize-RigResetPaths -RigHome $TestRigRoot -InstanceRoot $LibInstanceRoot
 
 # ---- provisioning ---------------------------------------------------------
 
@@ -628,21 +772,34 @@ function Invoke-Provision {
 
     $source = Get-StationeersPath
 
-    $p = Get-InstancePaths -Name $Instance
-    if ((Test-Path $p.Tree) -and -not $Force) {
-        throw "Instance '$Instance' already exists at $($p.Tree). Pass -Force to rebuild it, or -Remove -Instance $Instance to delete it first."
-    }
-    if (Test-PidAlive (Get-PidFromFile $p.PidFile)) {
-        throw "Instance '$Instance' is running. Stop it first: client-rig.ps1 -Stop -Instance $Instance"
-    }
-
     # Index decides the defaults for port and identity, so provisioning three instances with no
-    # flags produces three distinct, non-colliding ones.
+    # flags produces three distinct, non-colliding ones. Read before the paths, because a rebuild
+    # takes its instances root from the existing entry.
     $registry = Read-Registry
     $existing = $registry | Where-Object { $_.instanceName -eq $Instance } | Select-Object -First 1
     $index = if ($existing) { [int]$existing.index } else {
         $used = @($registry | ForEach-Object { [int]$_.index })
         $i = 1; while ($used -contains $i) { $i++ }; $i
+    }
+
+    # THE root this instance is built in, and the value that goes into the registry entry so every
+    # later action finds the tree without the flag being typed again. A rebuild keeps the recorded
+    # root for the same reason it keeps -Role and -GamePort: -Provision -Force is the routine way to
+    # pick up a new plugin build, and relocating an instance in passing would be a trap.
+    $recordedRoot = [string](Get-EntryValue $existing 'instancesRoot' '')
+    $effRoot = if ($InstancesRootTyped) { $InstancesDir }
+               elseif ($recordedRoot)   { $recordedRoot }
+               else                     { $InstancesDir }
+    if ($InstancesRootTyped -and $recordedRoot -and $recordedRoot -ne $effRoot) {
+        Write-Warning "[Provision] '$Instance' was built under $recordedRoot and -InstancesRoot moves it to $effRoot. The old tree at $(Join-Path $recordedRoot $Instance) is NOT deleted (this launcher only ever removes the tree it is about to rebuild); delete it by hand once the rebuild succeeds."
+    }
+
+    $p = Get-InstancePaths -Name $Instance -Root $effRoot
+    if ((Test-Path $p.Tree) -and -not $Force) {
+        throw "Instance '$Instance' already exists at $($p.Tree). Pass -Force to rebuild it, or -Remove -Instance $Instance to delete it first."
+    }
+    if (Test-PidAlive (Get-PidFromFile $p.PidFile)) {
+        throw "Instance '$Instance' is running. Stop it first: client-rig.ps1 -Stop -Instance $Instance"
     }
 
     $effPort = if ($Port -gt 0) { $Port } else { $ControlPortBase + $index }
@@ -677,8 +834,9 @@ function Invoke-Provision {
     Assert-GamePortFree -Registry $registry -InstanceName $Instance -Candidate $effGamePort
 
     # Checked here, after the cheap identity and port guards, so a name clash is reported before a
-    # volume misconfiguration and the caller fixes one thing at a time.
-    Assert-SameVolume -A $source -B $InstancesDir
+    # volume misconfiguration and the caller fixes one thing at a time. It checks the root this
+    # provision will actually build in, which on a rebuild is the recorded one.
+    Assert-SameVolume -A $source -B $effRoot
 
     if (Test-Path $p.Tree) {
         Write-Host "[Provision] Removing existing tree $($p.Tree) ..."
@@ -744,6 +902,12 @@ function Invoke-Provision {
     if ($SeedMods) { Invoke-SeedMods -Paths $p }
 
     # Register before writing manifests, because every manifest carries the whole rig's port list.
+    #
+    # instancesRoot is what makes -InstancesRoot stick past this command. It is the RESOLVED root
+    # this tree was built in, so -Start, -Stop, -Call, -Remove and the state reset all find the tree
+    # without the flag being re-passed, and an instance built on another volume stops being reported
+    # as unprovisioned. Entries written before this field existed simply do not have it and fall
+    # back to the launcher's resolution order; see Resolve-InstanceRoot.
     $entry = [pscustomobject]@{
         instanceName = $Instance
         index        = $index
@@ -755,6 +919,7 @@ function Invoke-Provision {
         width        = $Width
         height       = $Height
         forceGameplayInput = [bool]$ForceGameplayInput
+        instancesRoot = $effRoot
         provisionedUtc = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss'Z'")
     }
     $registry = @($registry | Where-Object { $_.instanceName -ne $Instance }) + $entry
@@ -771,6 +936,7 @@ function Invoke-Provision {
     Write-Host "[Provision]   gamePort    : $effGamePort  (RakNet, UDP)"
     Write-Host "[Provision]   clientId    : $effId"
     Write-Host "[Provision]   username    : $effName"
+    Write-Host "[Provision]   tree        : $($p.Tree)  (root recorded in the registry; later commands need no -InstancesRoot)"
     Write-Host "[Provision]   saveRoot    : $($p.UserData)"
     Write-Host "[Provision]   manifest    : $($p.Manifest)"
     if ($effRole -eq 'host') {
@@ -877,6 +1043,9 @@ function Write-ProvisionStamp {
         role            = [string]$Entry.role
         port            = [int]$Entry.port
         gamePort        = [int]$Entry.gamePort
+        # Where the tree went. The registry entry is the authority every action reads; this copy is
+        # for a human diagnosing an instance whose tree is not where they expected.
+        tree            = [string]$Paths.Tree
         sourceInstall   = $SourceInstall
         sourceVersion   = (Get-SourceInstallVersion -SourceInstall $SourceInstall)
         pluginBuiltUtc  = $pluginBuilt
@@ -896,7 +1065,7 @@ function Write-AllManifests {
     $registry = Read-Registry
     $ports = @($registry | ForEach-Object { [int]$_.port })
     foreach ($e in $registry) {
-        $p = Get-InstancePaths -Name $e.instanceName
+        $p = Get-InstancePaths -Name $e.instanceName -Entry $e
         New-Item -ItemType Directory -Force -Path $p.Data | Out-Null
         $manifest = [ordered]@{
             instanceName  = $e.instanceName
@@ -1030,13 +1199,24 @@ function Invoke-Start {
     # against a rig that is not the one the caller asked for. dedicated-server.ps1 -Start throws on
     # an already-running server for exactly this reason; this half now agrees.
     foreach ($e in $targets) {
-        $p = Get-InstancePaths -Name $e.instanceName
+        $p = Get-InstancePaths -Name $e.instanceName -Entry $e
         if (-not (Test-Path $p.Exe)) {
-            throw "[Start] Instance '$($e.instanceName)' is in the registry but has no tree at $($p.Exe). Provision it first: client-rig.ps1 -Provision -As <id> -Instance $($e.instanceName)"
+            # The root is named along with WHERE IT CAME FROM, because the usual cause of this
+            # message is that the tree is somewhere else entirely: an instance built under
+            # -InstancesRoot used to be looked for under instances/ beside this script, and the
+            # message read as "unprovisioned" when the tree was sitting on another volume.
+            throw "[Start] Instance '$($e.instanceName)' is in the registry but has no tree at $($p.Exe). That location came from $($p.RootSource). Rebuild it there (client-rig.ps1 -Provision -Force -As <id> -Instance $($e.instanceName)), or name the root the tree actually has with -InstancesRoot <root>, which also records it for every later command."
         }
         $running = Get-PidFromFile $p.PidFile
         if (Test-PidAlive $running) {
             throw "[Start] Instance '$($e.instanceName)' is already running (PID $running). Nothing was started. Stop it first (client-rig.ps1 -Stop -As <id> -Instance $($e.instanceName)) or check -Status. A start that silently skipped would leave it in whatever world it is already in."
+        }
+        if ($null -ne $running) {
+            # A pid file whose process is gone, or whose number now belongs to something that is not
+            # the game. Test-PidAlive checks the process image for exactly this case: refusing to
+            # start over a recycled id would make a crashed instance unstartable until somebody
+            # deleted the file by hand.
+            Write-Host "[$($e.instanceName)] Stale game.pid ignored: PID $running is not a live game client. This start replaces it."
         }
     }
 
@@ -1054,7 +1234,7 @@ function Invoke-Start {
                @($targets | Where-Object { (Get-EntryValue $_ 'role' 'client') -ne 'host' })
 
     foreach ($e in $ordered) {
-        $p = Get-InstancePaths -Name $e.instanceName
+        $p = Get-InstancePaths -Name $e.instanceName -Entry $e
 
         New-Item -ItemType Directory -Force -Path $p.Data, $p.UserData, $p.LogDir | Out-Null
         Write-AllManifests
@@ -1191,7 +1371,7 @@ function Get-AttachedJoinerCount {
 function Get-InstanceRuntime {
     # Pass 1: process liveness plus one /status, with no interpretation beyond the live role.
     param([Parameter(Mandatory)] $Entry)
-    $paths  = Get-InstancePaths -Name $Entry.instanceName
+    $paths  = Get-InstancePaths -Name $Entry.instanceName -Entry $Entry
     $procId = Get-PidFromFile $paths.PidFile
     $alive  = Test-PidAlive $procId
     $status = $null
@@ -1709,6 +1889,59 @@ function Invoke-Control {
     return Invoke-RestMethod -Uri $uri -Method Get -TimeoutSec $TimeoutSec
 }
 
+function Get-RequestedTimeoutMs {
+    # The timeoutMs the CALLER asked the endpoint for, from the request body or from the query
+    # string (every body field can also be passed as a query parameter, and a Windows path has to
+    # be, so both are read). 0 when the request names none.
+    #
+    # Read with a regex rather than ConvertFrom-Json on purpose: this runs on a hand-typed -Body, and
+    # working out a timeout must never be the thing that throws on a body the plugin would have
+    # accepted, or refused with an explanation worth reading.
+    param([string] $Path, [string] $BodyJson)
+    $best = 0
+    foreach ($pair in @(
+        @{ Text = $Path;     Pattern = '[?&]timeoutMs=(\d+)' }
+        @{ Text = $BodyJson; Pattern = '"timeoutMs"\s*:\s*"?(\d+)' }
+    )) {
+        if (-not $pair.Text) { continue }
+        $m = [regex]::Match($pair.Text, $pair.Pattern, [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
+        if (-not $m.Success) { continue }
+        $parsed = 0
+        if ([int64]::TryParse($m.Groups[1].Value, [ref]$parsed) -and $parsed -gt $best) { $best = $parsed }
+    }
+    return $best
+}
+
+function Get-ControlTimeoutSeconds {
+    # How long ONE -Call or -Broadcast request gets before the HTTP client gives up.
+    #
+    # This used to be a constant (120 s for -Call, 60 s for -Broadcast) and the constant WON, so a
+    # request that told the endpoint to take up to five minutes was cut off by the launcher at two.
+    # Every long endpoint was therefore unusable through the launcher: /connect, /host and /save all
+    # died client-side, and the plugin's own answer, which is the only thing that says why a join or
+    # a host attempt failed, was thrown away with the connection.
+    #
+    # The rule now: the caller's own timeoutMs plus a margin, never below a floor. The margin is what
+    # makes the difference between "the plugin gave up and told us why" and "we gave up first".
+    param([string] $Path, [string] $BodyJson)
+    if ($CallTimeoutSeconds -gt 0) { return $CallTimeoutSeconds }
+
+    $bare  = ([string]$Path).Split('?')[0].TrimEnd('/')
+    $floor = if ($ControlLongPaths -contains $bare.ToLowerInvariant()) { $ControlLongPathSeconds }
+             else { $ControlTimeoutFloorSeconds }
+
+    $asked = Get-RequestedTimeoutMs -Path $Path -BodyJson $BodyJson
+    if ($asked -gt 0) {
+        $derived = [int][Math]::Min($ControlTimeoutCeilingSeconds,
+                                    [Math]::Ceiling($asked / 1000.0) + $ControlTimeoutMarginSeconds)
+        if ($derived -ge $ControlTimeoutCeilingSeconds) {
+            Write-Warning "[Call] The request asks for timeoutMs $asked; capping the launcher's HTTP timeout at ${ControlTimeoutCeilingSeconds}s. The instance may still be working when this returns."
+        }
+        if ($derived -gt $floor) { return $derived }
+    }
+    return $floor
+}
+
 function Test-InstanceStage {
     # Is this instance at or past the named readiness stage. The three stages are genuinely
     # different and conflating them is a real trap: loadedPluginCount alone is not "ready", because
@@ -1777,11 +2010,14 @@ function Invoke-Broadcast {
     # its saves (it only refuses the real user-data folder, and only without force=true).
     Assert-MutatingAllowed -Action 'Broadcast'
     $targets = Resolve-Targets
-    Write-Host "[Broadcast] $Path -> $($targets.Count) instance(s)"
+    # Same derived timeout as -Call, and for the same reason: the fixed 60 s here was even shorter
+    # than -Call's 120 s, so a fan-out of anything that blocks gave up on every instance at once.
+    $timeoutSec = Get-ControlTimeoutSeconds -Path $Path -BodyJson $Body
+    Write-Host "[Broadcast] $Path -> $($targets.Count) instance(s), up to ${timeoutSec}s each"
     $failed = 0
     foreach ($e in $targets) {
         try {
-            $r = Invoke-Control -Port ([int]$e.port) -Path $Path -BodyJson $Body -TimeoutSec 60
+            $r = Invoke-Control -Port ([int]$e.port) -Path $Path -BodyJson $Body -TimeoutSec $timeoutSec
             $ok = if ($null -ne $r.ok) { $r.ok } else { $true }
             if (-not $ok) { $failed++ }
             Write-Host "[$($e.instanceName)] ok=$ok"
@@ -1803,8 +2039,58 @@ function Invoke-Call {
     Assert-MutatingAllowed -Action 'Call'
     $e = Get-InstanceEntry -Name $Instance
     if (-not $e) { throw "Instance '$Instance' is not provisioned. Run -List." }
-    $r = Invoke-Control -Port ([int]$e.port) -Path $Path -BodyJson $Body -TimeoutSec 120
+    # Derived from the request rather than pinned, so -Path /connect -Body '{"timeoutMs":300000}'
+    # actually gets its five minutes. See Get-ControlTimeoutSeconds.
+    $timeoutSec = Get-ControlTimeoutSeconds -Path $Path -BodyJson $Body
+    Write-Host "[Call] $Instance $Path (up to ${timeoutSec}s)"
+    $r = Invoke-Control -Port ([int]$e.port) -Path $Path -BodyJson $Body -TimeoutSec $timeoutSec
     $r | ConvertTo-Json -Depth 10
+}
+
+function Test-PathFullyQualified {
+    # Fully qualified means the path names its own root: 'C:\x', 'C:/x' or a UNC '\\server\share'.
+    # It is NOT the same as rooted. [IO.Path]::IsPathRooted answers true for '\x.json' (rooted at the
+    # CURRENT drive) and for 'C:x.json' (drive-relative, resolved against a per-drive working
+    # directory), and both of those land wherever the shell happens to be pointing.
+    param([Parameter(Mandatory)] [string] $Value)
+    $m = [IO.Path].GetMethod('IsPathFullyQualified', [type[]]@([string]))
+    if ($m) { return [bool]$m.Invoke($null, @($Value)) }
+    # Windows PowerShell 5.1 runs on .NET Framework, which has no such API.
+    return ($Value -match '^([A-Za-z]:[\\/]|[\\/][\\/])')
+}
+
+function Resolve-RigOutFile {
+    # Where a -Snapshot -OutFile actually lands, with the rig folder as the floor for anything
+    # relative.
+    #
+    # A relative -OutFile used to resolve against the shell's working directory, which for an agent
+    # is the repository root; rooting it at the rig folder fixed the common case, because the rig
+    # folder is gitignored deny-all and a stray snapshot there cannot be committed by accident. It
+    # did NOT fix two paths that still walk out: '..\..\before.json' is relative, gets joined, and
+    # then climbs straight back out of the rig on the way to GetFullPath; and 'C:before.json' is
+    # "rooted" by IsPathRooted, so the old test let it through untouched and it resolved against
+    # whatever the current directory on C: happens to be. Both are refused here rather than written.
+    #
+    # A FULLY QUALIFIED path is the caller saying exactly where they want it, so it is honoured, with
+    # a warning when it leaves the rig folder: at that point keeping the file out of a commit is on
+    # the person who typed the path.
+    param([Parameter(Mandatory)] [string] $Value)
+    $qualified = Test-PathFullyQualified $Value
+    if (-not $qualified -and $Value.Contains(':')) {
+        throw "[Snapshot] -OutFile '$Value' is drive-relative: Windows resolves it against a per-drive working directory, so nothing here can say where it would land. Pass a path relative to the rig folder ($RigRoot), or a full path including the leading backslash."
+    }
+    $target  = if ($qualified) { $Value } else { Join-Path $RigRoot $Value }
+    $full    = [IO.Path]::GetFullPath($target)
+    $rigBase = [IO.Path]::GetFullPath($RigRoot).TrimEnd('\', '/') + '\'
+    $inside  = $full.StartsWith($rigBase, [StringComparison]::OrdinalIgnoreCase)
+
+    if (-not $qualified -and -not $inside) {
+        throw "[Snapshot] -OutFile '$Value' climbs out of the rig folder (it resolves to $full). A relative -OutFile is rooted at $RigRoot, which is gitignored deny-all, precisely so a stray snapshot cannot be committed by accident. Drop the '..' segments, or pass a full path if you really mean to write outside the rig."
+    }
+    if (-not $inside) {
+        Write-Warning "[Snapshot] $full is outside the rig folder, so the deny-all gitignore does not cover it. Make sure it is not somewhere that gets committed."
+    }
+    return $full
 }
 
 function Invoke-Snapshot {
@@ -1818,11 +2104,7 @@ function Invoke-Snapshot {
     }
     $json = ,@($rows) | ConvertTo-Json -Depth 12
     if ($OutFile) {
-        # A relative -OutFile used to resolve against the shell's working directory, which for an
-        # agent is the repository root. TestRig's deny-all gitignore only covers the two half-trees,
-        # so a stray 'before.json' landed somewhere no rule catches and was committable by accident.
-        # Relative paths are rooted at the rig folder instead, which IS deny-all.
-        $target = if ([IO.Path]::IsPathRooted($OutFile)) { $OutFile } else { Join-Path $RigRoot $OutFile }
+        $target = Resolve-RigOutFile -Value $OutFile
         $dir = Split-Path -Parent $target
         if ($dir -and -not (Test-Path $dir)) { New-Item -ItemType Directory -Force -Path $dir | Out-Null }
         Set-Content -Path $target -Value $json -Encoding utf8
@@ -1861,7 +2143,8 @@ function Invoke-Status {
         Write-Host "  role:       $($rt.Role) [$($rt.RoleSource)]"
         Write-Host "  ports:      $($e.port) control plane (TCP), $($rt.GamePort) game (UDP)"
         Write-Host "  identity:   $($e.username) ($($e.clientId))"
-        Write-Host "  tree:       $($rt.Paths.Tree)"
+        $treeState = if (Test-Path $rt.Paths.Tree) { '' } else { '  MISSING' }
+        Write-Host "  tree:       $($rt.Paths.Tree)$treeState  [$($rt.Paths.RootSource)]"
 
         if ($rt.Alive -and $rt.Answered) {
             $s = $rt.Status
@@ -2063,6 +2346,11 @@ Instance trees are hard links into the game install, so they must be on the inst
 Set this once per shell (or record it in DEV.md) when the repository is on a different drive:
     `$env:STATIONEERS_CLIENTRIG_ROOT = '<drive of the game install>\StationeersRig'
 Current instances root: $InstancesDir
+    ($InstancesDirSource)
+    -Provision records the resolved root in the registry entry, so -InstancesRoot is typed once and
+    every later command finds the tree without it. Typing it again overrides the recorded value,
+    which is how a tree is moved. An instance provisioned before the root was recorded falls back to
+    the order above and says so; -Provision -Force records it.
 
 Build the plugin first (the instances get whatever is in bin/Release):
     dotnet build $PluginSln -c Release
@@ -2107,10 +2395,15 @@ Fan-out:
     client-rig.ps1 -Snapshot -All -OutFile before.json
     client-rig.ps1 -Wait -All -Stage inWorld -WaitSeconds 600
 
-Timeouts (same meaning as on dedicated-server.ps1):
+Timeouts (the first two mean exactly what they mean on dedicated-server.ps1):
     -WaitSeconds N     how long a blocking wait waits: the -Wait barrier (default 300), the -Save
                        confirmation (default 300), the -Lock queue (default 0, meaning no queue).
     -TimeoutSeconds N  process-teardown grace for -Stop before a kill. Default 30.
+    -CallTimeoutSeconds N  how long ONE -Call or -Broadcast request may take. Default 0, meaning
+                       derive it from the request: its own timeoutMs (body or query) plus $ControlTimeoutMarginSeconds s,
+                       floored at $ControlTimeoutFloorSeconds s and at $ControlLongPathSeconds s for $($ControlLongPaths -join ', ').
+                       It was a fixed $ControlTimeoutFloorSeconds s, which cut off every long endpoint before the
+                       instance could answer, so -Path /host and -Path /connect were unusable here.
 
 Diagnosis:
     client-rig.ps1 -Call -As <id> -Instance client1 -Path /diag/input
@@ -2124,5 +2417,12 @@ Traps this script already handles for you, documented in README.md:
       never come up writing into the developer's own save folder. A host refuses to provision at all
       without it; a client warns, and that warning is a stop rather than a note.
     A relative -Snapshot -OutFile is rooted at the rig folder, which is gitignored deny-all, rather
-      than at the shell's working directory, which for an agent is the repository root.
+      than at the shell's working directory, which for an agent is the repository root. One that
+      climbs back out with '..', or a drive-relative 'C:name.json', is refused rather than written.
+    -Call and -Broadcast take their HTTP timeout from the request's own timeoutMs, so a long
+      endpoint is no longer cut off by the launcher before the instance can answer.
+    -InstancesRoot is recorded at provision time, so -Start, -Stop, -Call and the state reset find
+      an instance built on another volume instead of reporting it as unprovisioned.
+    A pid file whose process is dead, or whose number now belongs to something that is not the game,
+      does not make -Start refuse: the process image is checked, not just the number.
 "@

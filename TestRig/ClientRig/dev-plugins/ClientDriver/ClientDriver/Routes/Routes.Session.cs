@@ -150,6 +150,11 @@ namespace ClientDriver
                     if (sd != null) sd.LocalIpAddress = localIp;
                 }
 
+                // Start recording BEFORE the call, so t=0 is the moment the game was asked to
+                // join. Everything this endpoint can observe afterwards has already been undone
+                // by its own cleanup; see JoinTrace.
+                JoinTrace.Arm(address + ":" + port.ToString(CultureInfo.InvariantCulture));
+
                 client.JoinClientFromMenu(address + ":" + port.ToString(CultureInfo.InvariantCulture));
 
                 // NetworkClient.OnJoinStart, called inside JoinClientFromMenu, arms a 10 second
@@ -174,6 +179,24 @@ namespace ClientDriver
             string modalText = poll.ModalJson;
             string result = poll.Result == "running" ? "connected" : poll.Result;
 
+            // Read the failing state BEFORE cleaning anything up. The ordering is the whole point.
+            // Cancel() below reaches NetworkManager.EndConnection and ShutDownRaknet, which put
+            // NetworkRole back to None and NetworkState back to Offline, and dispose the RakNet
+            // peer with its UDP socket. Anything read afterwards, by this endpoint or by netstat
+            // once the call has returned, describes the CLEANUP and not the failure. Two live runs
+            // were spent chasing a joiner that "never opened a UDP socket" and was only ever this
+            // teardown having already happened.
+            string stateAtFailure = null;
+            string peerAtFailure = null;
+            string statusAtFailure = null;
+            if (result != "connected")
+            {
+                stateAtFailure = SafeMain(() => JoinTrace.StateLine(), null);
+                peerAtFailure = SafeMain(() => JoinTrace.ProbePeer().ToJson(), null);
+                try { statusAtFailure = MainThreadPump.RunValue(() => StateReporter.Status(), 5000); }
+                catch { }
+            }
+
             // With the game's own timer suppressed a dead server leaves the client parked in Joining
             // forever, so clean up after our own timeout.
             if (result == null)
@@ -182,10 +205,22 @@ namespace ClientDriver
                 catch { }
             }
 
+            // After the cleanup, so the trace carries the teardown too: which method tore RakNet
+            // down, at what millisecond, and from where.
+            string trace = JoinTrace.DescribeJson();
+            JoinTrace.Disarm();
+
             var o = new Json.Obj().Bit("ok", result == "connected")
                 .Str("target", address + ":" + port)
                 .Str("result", result ?? "timeout");
             if (modalText != null) o.Raw("dialog", modalText);
+            if (result != "connected")
+            {
+                o.Str("stateAtFailure", stateAtFailure);
+                o.Raw("peerAtFailure", peerAtFailure);
+                o.Raw("statusAtFailure", statusAtFailure);
+                o.Raw("joinTrace", trace);
+            }
             // Observed twice: the first connect after a server restart returns 409 and the second
             // succeeds, because the client is still settling from the previous disconnect. Say so
             // rather than leaving a caller to rediscover it.
@@ -296,6 +331,86 @@ namespace ClientDriver
             var all = Resources.FindObjectsOfTypeAll<NetworkClient>();
             if (all != null && all.Length > 0) return all[0];
             return null;
+        }
+
+        /// <summary>
+        ///     Why a join did or did not land. The join-path counterpart to <c>/diag/input</c>, and
+        ///     the answer to a question <c>/status</c> structurally cannot answer.
+        ///
+        ///     <c>/status</c> reports what is true NOW. A failed join is defined by things that were
+        ///     true and are not any more: <c>NetworkRole</c> was Client and is None again,
+        ///     <c>NetworkState</c> was WaitingForConnection and is Offline, a RakNet peer existed
+        ///     with a bound UDP socket and has been disposed. So this endpoint reports the RECORDING
+        ///     that <see cref="JoinTrace"/> made while the attempt was live, plus a probe of the peer
+        ///     as it stands.
+        ///
+        ///     Read it in this order:
+        ///
+        ///     <list type="number">
+        ///       <item><c>joinTrace.patched</c>. False means the recorder never installed and every
+        ///             other field below is worthless.</item>
+        ///       <item>The <c>startClient.returned</c> event. <c>result=True</c> means the client DID
+        ///             get a socket and DID start a connection attempt, so nothing about a missing
+        ///             socket is the explanation. <c>result=False</c> means it refused, and the
+        ///             console line beside it names which of the two RakNet calls failed.</item>
+        ///       <item>The <c>state</c> events, which carry <c>peer=</c>. <c>active</c> is RakNet's
+        ///             own "a socket is bound right now". A slot reading <c>IsConnecting</c> that
+        ///             disappears about six seconds in is RakNet abandoning the attempt after its 12
+        ///             sends at 500 ms, which the game handles nowhere: ReceiveEvents has no case for
+        ///             ConnectionAttemptFailed, so it is dropped in silence.</item>
+        ///       <item><c>clientConnected</c>. Present means the RakNet handshake completed and the
+        ///             failure is above the transport, in the game's own join handshake.</item>
+        ///       <item><c>shutDownRaknet</c> and <c>endConnection</c>, with their callers. These say
+        ///             who ended it and when, which is the one thing no later inspection recovers.</item>
+        ///     </list>
+        /// </summary>
+        private static string JoinDiagnostics()
+        {
+            var o = new Json.Obj().Bit("ok", true);
+            o.Str("state", JoinTrace.StateLine());
+            o.Raw("peer", JoinTrace.ProbePeer().ToJson());
+
+            // The three settings that decide which join path runs and which interface it uses.
+            // UseSteamP2P is here because it is the one that LOOKS relevant and is not: /connect
+            // always sends "address:port", and JoinClientFromMenu only takes the Steam branch for a
+            // single 17-character token, so a joiner left on the default true still joins over
+            // RakNet. What it does still do is arm ProcessP2PSessionRequest, which can promote an
+            // idle process to NetworkRole.Server and make every later join impossible.
+            try
+            {
+                var data = Settings.CurrentData;
+                if (data != null)
+                {
+                    o.Bit("useSteamP2P", data.UseSteamP2P);
+                    o.Str("localIpAddress", data.LocalIpAddress);
+                    o.Str("gamePort", data.GamePort);
+                }
+            }
+            catch { }
+
+            // CanBecome's only unconditional refusal. Everything else it checks is NetworkRole,
+            // which the state line above already carries.
+            try { o.Bit("isNewTutorial", GameManager.IsNewTutorial); } catch { }
+
+            // Written at exactly one place in the whole assembly, on StartClient's success path
+            // immediately before NetworkRole is set. Non-null here is therefore evidence that some
+            // StartClient call in this process reached that line, and nothing clears it afterwards,
+            // so it survives a teardown that resets everything else.
+            try
+            {
+                o.Str("serverAddress", NetworkClient.Address);
+                o.Str("serverPort", NetworkClient.Port);
+                o.Str("connectionMethod", NetworkClient.ConnectionMethod.ToString());
+            }
+            catch { }
+
+            o.Raw("joinTrace", JoinTrace.DescribeJson());
+            o.Str("note", "peer.active is RakNet's own answer to 'is a UDP socket bound right now'. " +
+                          "It is the value netstat cannot supply, because a blocking /connect only " +
+                          "returns after its own cleanup has disposed the peer. serverAddress being " +
+                          "set while networkRole reads None means StartClient succeeded and the " +
+                          "teardown ran, not that the join never started.");
+            return o.ToString();
         }
 
         private static HttpResponse Disconnect(IDictionary body)
