@@ -35,8 +35,17 @@
 #   The mutex is never held across anything slow. Process teardown, the busy
 #   probe and every Write-Host happen outside it.
 #
+# STATE HYGIENE HANGS OFF ACQUISITION
+#   A NEW lock is a session boundary, so New-RigLock calls Invoke-RigReset
+#   (TestRig/rig-reset.ps1) to clear what the previous session left behind. The
+#   lock is the only mandatory choke point that already exists, which is why the
+#   reset lives here rather than in a rule somebody has to remember. Re-asserting
+#   a lock you already hold does NOT reset; -KeepState opts out loudly.
+#
 # Tests: TestRig/rig-lock.tests.ps1 (offline, no game, no network, runs against a
 # temp directory through Initialize-RigLockPaths). Run it after any change here.
+# The reset has its own suite at TestRig/rig-reset.tests.ps1; this file's suite
+# does not dot-source rig-reset.ps1, so the lock tests never reset anything.
 # =============================================================================
 
 # ---- paths ----------------------------------------------------------------
@@ -735,6 +744,9 @@ function New-RigLock {
     # limitation is stated rather than papered over: there is no ordering
     # fairness, so three waiters do not get the rig in the order they arrived.
     # Default 0 keeps the historical fail-fast behaviour.
+    #
+    # A NEW lock also resets the rig's between-session state (see the call to
+    # Invoke-RigReset at the bottom). -KeepState opts out, loudly.
     param(
         [Parameter(Mandatory)] [string] $Purpose,
         [string] $CallerId,
@@ -743,7 +755,8 @@ function New-RigLock {
         [Parameter(Mandatory)] [string] $Tool,
         [scriptblock] $OnReclaim,
         [int] $WaitSeconds = 0,
-        [int] $PollSeconds = 5
+        [int] $PollSeconds = 5,
+        [switch] $KeepState
     )
     if ($PollSeconds -lt 1) { $PollSeconds = 1 }
     $deadline  = (Get-Date).AddSeconds([Math]::Max(0, $WaitSeconds))
@@ -815,7 +828,12 @@ function New-RigLock {
         # tens of seconds. The lock is already ours by this point, so the reclaim
         # runs under our own reservation instead of blocking every other agent.
         if ($outcome.Result -eq 'Reasserted') {
+            # NO state reset on this branch, and that is load bearing. Re-asserting
+            # a lock you already hold is what an agent does mid-test to change the
+            # purpose or the TTL; resetting here would wipe the run that is in
+            # progress. Only a genuinely new acquisition is a session boundary.
             Write-Host "[Lock] Re-asserted the rig session lock (owner $($outcome.Owner)). Pass -As $($outcome.Owner) on mutating commands."
+            Write-Host "[Lock]   state was NOT reset: this is the same session, not a new one."
             return $outcome.Owner
         }
         if ($outcome.State.State -eq 'LiveForeign') {
@@ -829,6 +847,24 @@ function New-RigLock {
         Write-Host "[Lock]   purpose : $Purpose"
         Write-Host "[Lock]   ttl     : $TtlMinutes min (refresh with -RefreshLock -As $($outcome.Owner) while actively testing)"
         Write-Host "[Lock] Rules: TestRig/session.lock.template."
+
+        # STATE HYGIENE, at the one choke point an agent cannot route around.
+        # A new lock is a session boundary, so the rig is cleaned of what the last
+        # session left behind (TestRig/rig-reset.ps1). Deliberately placed AFTER
+        # the owner id is printed: if the reset throws, the caller still knows the
+        # id it needs to unlock with.
+        #
+        # Guarded on the function existing so rig-lock.ps1 stays usable, and
+        # testable, on its own. The launchers dot-source both files.
+        if (Get-Command Invoke-RigReset -ErrorAction SilentlyContinue) {
+            try {
+                Invoke-RigReset -KeepState:$KeepState -Reason 'lock acquisition' | Out-Null
+            }
+            catch {
+                Write-Warning "[Lock] The rig state reset FAILED. You DO hold the lock (owner $($outcome.Owner)), but the rig may be half reset and is not safe to test on. Fix the cause, then release and re-take the lock: $Tool -Unlock -As $($outcome.Owner) followed by $Tool -Lock -Purpose `"...`". Re-asserting the lock you already hold does NOT reset."
+                throw
+            }
+        }
         return $outcome.Owner
     }
 }

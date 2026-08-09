@@ -145,6 +145,18 @@
     Default 10. A busy rig (a player connected to the running server, or a live
     client-rig instance) keeps the lock live regardless of the timer.
 
+.PARAMETER KeepState
+    With -Lock: do NOT reset the rig's between-session state on acquisition.
+    Taking a NEW lock normally clears what the last session left behind on both
+    halves (the ScenarioRunner scenario selection, stray drop files, InspectorPlus
+    requests and snapshots, the server's setting.xml, stale pid files, and each
+    client instance's settings, worlds, logs and BepInEx config) so a test cannot
+    fail on an unrelated test's leftovers. Pass this only when something was
+    staged on purpose; it is loud and prints exactly what it skipped. Note the
+    limit either way: the reset is BETWEEN sessions, and a session spans many
+    start/stop cycles, so two unrelated tests under one lock get no reset between
+    them. Release and re-take the lock when the subject changes.
+
 .PARAMETER Release
     With -Stop: also release the session lock after stopping (when it is yours,
     already dead, or you were authorized to -Force).
@@ -199,6 +211,7 @@ param(
     [switch] $BreakLock,
     [switch] $Force,
     [int]    $TtlMinutes = 10,
+    [switch] $KeepState,
 
     [switch] $HostMode
 )
@@ -235,6 +248,16 @@ if (-not (Test-Path $RigLockLib)) {
     throw "Shared rig-lock implementation not found at $RigLockLib. It is committed alongside this launcher; restore it before driving the rig."
 }
 . $RigLockLib
+
+# State hygiene, dot-sourced AFTER the lock library because it extends it: taking
+# a NEW lock clears what the previous session left behind on both halves, so a
+# test cannot fail on another test's leftovers. Rules and limits:
+# TestRig/rig-reset.ps1 and TestRig/session.lock.template.
+$RigResetLib = Join-Path $TestRigRoot 'rig-reset.ps1'
+if (-not (Test-Path $RigResetLib)) {
+    throw "Shared rig-reset implementation not found at $RigResetLib. It is committed alongside this launcher; restore it before driving the rig."
+}
+. $RigResetLib
 
 # ---- environment helpers --------------------------------------------------
 
@@ -888,6 +911,9 @@ function Invoke-Stop {
         elseif (Test-RigLockReleasableOnStop -Lock $lock -CallerId $As -BreakLock:$BreakLock) {
             Remove-Item -Force -ErrorAction SilentlyContinue (Get-RigLockFilePath)
             Write-Host "[Stop] Rig session lock released."
+            # -Stop -Release is a session end too, so it gets the same shared-state
+            # drift report -Unlock prints.
+            Write-RigSharedStateDrift
         }
         else {
             Write-Warning "[Stop] -Release ignored: lock held by '$($lock['owner'])', not you. Use -Unlock -As <id>, or get user authorization for -BreakLock."
@@ -909,8 +935,11 @@ function Invoke-Lock {
     # the one dedi-specific step; everything else is the shared implementation.
     # The reclaim runs AFTER the lock is minted, so the teardown happens under our
     # own reservation rather than inside the acquisition critical section.
+    # -KeepState is forwarded because a NEW lock resets the rig's between-session
+    # state (TestRig/rig-reset.ps1). Opting out is loud on purpose: staging a save
+    # or a scenario deliberately has to stay possible without being the default.
     New-RigLock -Purpose $Purpose -CallerId $As -TtlMinutes $TtlMinutes -BreakLock:$BreakLock `
-        -WaitSeconds $lockWait -Tool 'dedicated-server.ps1' -OnReclaim {
+        -KeepState:$KeepState -WaitSeconds $lockWait -Tool 'dedicated-server.ps1' -OnReclaim {
             if (Test-PidAlive (Get-PidFromFile $ServerPidFile)) {
                 Write-Warning "[Lock] Reclaimed an expired lock; stopping its orphaned server."
                 Stop-ServerProcesses
@@ -926,6 +955,12 @@ function Invoke-RefreshLock {
 
 function Invoke-Unlock {
     Remove-RigLock -CallerId $As -BreakLock:$BreakLock -Force:$Force
+    # Only after a SUCCESSFUL release: Remove-RigLock throws on a refusal, and a
+    # drift report on a lock that is still held would be reporting on a session
+    # that is not over. The shared per-user state (PlayerCookie-v2.xml,
+    # PlayerPrefs, Blueprints) cannot be isolated and is never restored, so naming
+    # what moved at the session boundary is all this can honestly do.
+    Write-RigSharedStateDrift
 }
 
 # ---- status & logs --------------------------------------------------------
@@ -1114,6 +1149,23 @@ ONE lock covers BOTH halves, so this id is also what client-rig.ps1 expects:
   one refusal and nothing else.
   Breaking another session's LIVE lock (-BreakLock) is human-gated: only on the user's say-so.
   -BreakLock is NOT -Force. -Force never breaks a lock on either launcher.
+
+State hygiene: taking a NEW lock RESETS what the previous session left behind on BOTH halves, so a
+test cannot fail on an unrelated test's leftovers. Here that is the ScenarioRunner Scenario value
+(blanked, the rest of the file untouched), the scenariorunner requests/ and give/ drop files, the
+InspectorPlus requests/ and snapshots/, data/setting.xml and any stale server.pid / host.pid /
+control.cmd. KEPT: data/saves (count and size are reported), data/mods, install/modconfig.xml, the
+deployed plugin DLLs and every other BepInEx config (ones that changed since the last reset are
+reported, not reset).
+  -Lock -KeepState   skip the reset, loudly, when something was staged on purpose.
+  The reset is refused while the rig is in use, and never happens when you re-assert a lock you
+  already hold, so an agent refreshing mid-test cannot wipe its own run.
+  IT RESETS BETWEEN SESSIONS ONLY. A session spans many start/stop cycles by design, so two
+  unrelated tests under ONE lock get no reset between them. Release and re-take the lock when the
+  subject changes.
+  -Unlock and -Stop -Release print what moved in the shared per-user Unity state
+  (PlayerCookie-v2.xml, PlayerPrefs, Blueprints). That is a REPORT: none of it can be isolated and
+  none of it is ever restored.
 
 Setup (mutating; needs the lock):
   TestRig/DedicatedServer/dedicated-server.ps1 -Bootstrap -As <id>

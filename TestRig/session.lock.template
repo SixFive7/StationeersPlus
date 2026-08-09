@@ -64,6 +64,68 @@
 #     blocks you. An expired lock with an idle rig is dead and is reclaimed
 #     automatically.
 #
+# STATE HYGIENE HANGS OFF ACQUISITION (this is why it is here and not in a rule)
+#   Taking a NEW lock RESETS the rig's between-session state, so a test cannot
+#   fail because of what an unrelated test left behind. The lock is the only
+#   mandatory choke point that already exists and is already enforced in code
+#   (Assert-RigLockHeld refuses every mutating action without it), so an agent
+#   cannot get the rig without getting it clean and cannot route around it. A
+#   rule in a document is a rule an agent skips.
+#
+#   WHAT IT RESETS. Per client instance: setting.xml (it carries StartLocalHost,
+#   and an instance that silently comes up hosting when the test believes it is a
+#   joiner is the worst failure available here), data/<n>/userdata/saves/, the
+#   Unity logs, imgui.ini, a STALE game.pid, the instance's BepInEx config
+#   (re-copied from the source install, because POST /config/set persists by
+#   default), LogOutput.log, the assembly cache, and the InspectorPlus requests/
+#   and snapshots/ folders. On the dedicated server: the ScenarioRunner Scenario
+#   value (blanked, file otherwise untouched), the scenariorunner requests/ and
+#   give/ drop files, the InspectorPlus requests/ and snapshots/, data/setting.xml,
+#   and stale server.pid / host.pid / control.cmd.
+#
+#   WHAT IT KEEPS. data/rig.json, every instance.json and provision.stamp, each
+#   instance's seeded userdata/mods (a mod older than its source is REPORTED, and
+#   the fix is -Provision -Force, not a delete), the dedicated server's saves and
+#   mods and modconfig.xml, its other BepInEx configs (ones that moved since the
+#   last reset are reported), and the ~1,050 hard links per instance.
+#
+#   SAFETY RULES ON THE RESET.
+#     - It is REFUSED while the rig is in use: any live client instance, a live
+#       dedicated server process, or an untracked game process. The lock is still
+#       acquired and its owner id still printed, with a loud warning saying the
+#       reset was skipped and why. An unclean rig must not become an unlockable
+#       one.
+#     - Re-asserting a lock you ALREADY hold never resets. An agent changing its
+#       purpose or TTL mid-test would otherwise wipe its own run.
+#     - -Lock -KeepState skips it on purpose, and prints exactly what it skipped.
+#       Use it when a save, a config value or a scenario was staged deliberately.
+#     - A failed reset is loud and names the instance, then throws. You hold the
+#       lock; -Unlock and take it again to retry.
+#
+#   THE LIMIT, PLAINLY. This resets BETWEEN sessions, and a session deliberately
+#   spans many start/stop cycles, so two unrelated tests run under ONE lock get
+#   NO reset between them. If the next thing you test is unrelated to the last,
+#   release the lock and take it again. Per-test hygiene would make the unit of
+#   hygiene smaller than the unit of ownership, which is a lock-model change and
+#   its own piece of work.
+#
+#   SHARED PER-USER STATE IS REPORTED, NEVER RESTORED. PlayerCookie-v2.xml, the
+#   HKCU\Software\Rocketwerkz\rocketstation PlayerPrefs key and Blueprints\ cannot
+#   be isolated (persistentDataPath is fixed inside globalgamemanagers), and
+#   writing them back would itself be the write the save rules forbid. A cheap
+#   snapshot is taken at acquisition into TestRig/session.state.json (gitignored),
+#   and -Unlock / -Stop -Release print the delta. That converts "invisible until a
+#   test fails" into "named at the session boundary", which is all it can honestly
+#   do.
+#
+#   Implementation: TestRig/rig-reset.ps1, dot-sourced by both launchers next to
+#   rig-lock.ps1. It also owns Set-RigSavePathOverride, which -Provision calls:
+#   the config re-copy WIPES SavePathOverride, and an instance without it writes
+#   its worlds into the developer's tier-1 save folder, so provision and reset
+#   write that one setting through a single implementation.
+#   Tests: TestRig/rig-reset.tests.ps1 (offline, temp directory, never the real
+#   rig). Run it after any change there.
+#
 # QUEUEING FOR THE RIG (opt-in, bounded)
 #   - By default, hitting another session's live lock FAILS IMMEDIATELY. That is
 #     usually what you want: you find out at once and can tell the user.
@@ -182,9 +244,13 @@
 #   real session.lock. It covers the state machine, the timer (including every
 #   fail-closed case), ownership, -BreakLock, the busy signal, the file format,
 #   the release ordering, and real concurrent processes racing for one lock.
-#   Run it after ANY change to TestRig/rig-lock.ps1:
+#   TestRig/rig-reset.tests.ps1 does the same for the state reset: every reset
+#   target, every preserved one, the SavePathOverride re-apply, the pid rules,
+#   the busy refusal, the re-assert exemption, -KeepState and the drift report.
+#   Run BOTH after ANY change to rig-lock.ps1 or rig-reset.ps1:
 #       pwsh -NoProfile -File TestRig/rig-lock.tests.ps1
-#   It exits non-zero on the first failure and prints a pass/fail summary.
+#       pwsh -NoProfile -File TestRig/rig-reset.tests.ps1
+#   Each exits non-zero on failure and prints a pass/fail summary.
 # =============================================================================
 
 # Example values only. The real session.lock is written by the launchers via

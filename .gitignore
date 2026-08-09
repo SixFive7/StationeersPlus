@@ -81,7 +81,7 @@ playwright/persistent/profile/*
 !playwright/persistent/profile/.gitkeep
 
 # Ephemeral modes use isolated (in-memory) profiles and should never write to
-# their profile/ dir — but ignore any contents defensively so that if isolation
+# their profile/ dir, but ignore any contents defensively so that if isolation
 # ever regresses, captured cookies/credentials can't be committed. The
 # placeholder README.md in each stays tracked.
 playwright/headless/profile/*
@@ -110,12 +110,15 @@ Web/_staging/
 ## The rig ROOT is deny-all too, for the same reason the halves are: a -Snapshot
 ## -OutFile with a relative path resolves against the shell CWD, and a run from
 ## the rig root would land the artifact here where an ignore-a-few-things list
-## would wave it straight through. The allowlist is the shared lock machinery,
-## its test suite and the two docs. The active session.lock is never tracked.
+## would wave it straight through. The allowlist is the shared lock and state-reset
+## machinery, their test suites and the two docs. The active session.lock and the
+## session.state.json shared-state baseline are never tracked.
 /TestRig/*
 !/TestRig/CLAUDE.md
 !/TestRig/rig-lock.ps1
 !/TestRig/rig-lock.tests.ps1
+!/TestRig/rig-reset.ps1
+!/TestRig/rig-reset.tests.ps1
 !/TestRig/session.lock.template
 !/TestRig/DedicatedServer/
 !/TestRig/ClientRig/

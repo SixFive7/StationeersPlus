@@ -206,6 +206,15 @@
     With -Lock / -RefreshLock: inactivity window before the lock timer lapses. Default 10. A running
     client instance keeps the lock live regardless of the timer, so stop the rig before releasing.
 
+.PARAMETER KeepState
+    With -Lock: do NOT reset the rig's between-session state on acquisition. Taking a NEW lock
+    normally clears what the last session left behind (per-instance settings, worlds, logs, BepInEx
+    config, InspectorPlus request and snapshot files, stale pid files) so a test cannot fail on an
+    unrelated test's leftovers. Pass this only when something was staged on purpose. It is loud: the
+    launcher prints exactly what it skipped. Note the limit either way, the reset is BETWEEN
+    sessions, and a session spans many start/stop cycles, so two unrelated tests under one lock get
+    no reset between them. Release and re-take the lock when the subject changes.
+
 .PARAMETER Release
     With -Stop: also release the rig session lock after stopping.
 
@@ -307,7 +316,8 @@ param(
     [string] $As,
     [switch] $BreakLock,
     [int]    $TtlMinutes = 10,
-    [switch] $Release
+    [switch] $Release,
+    [switch] $KeepState
 )
 
 $ErrorActionPreference = 'Stop'
@@ -334,6 +344,18 @@ if (-not (Test-Path $RigLockLib)) {
 }
 . $RigLockLib
 
+# State hygiene, dot-sourced AFTER the lock library because it extends it: a new
+# lock resets what the previous session left behind. It also owns
+# Set-RigSavePathOverride, which this launcher calls from -Provision. That
+# function is not duplicated here on purpose: it writes the one setting standing
+# between a driven instance and the developer's tier-1 save folder, and two
+# copies of a safety write is how one of them stops matching the other.
+$RigResetLib = Join-Path $TestRigRoot 'rig-reset.ps1'
+if (-not (Test-Path $RigResetLib)) {
+    throw "Shared rig-reset implementation not found at $RigResetLib. It is committed alongside this launcher and carries the SavePathOverride write that keeps a driven instance out of the developer's saves; restore it before driving the rig."
+}
+. $RigResetLib
+
 # The instance trees are hard links into the game install, so they must sit on the install's
 # volume. The repository frequently does not, so this is relocatable and the volume check below
 # turns a wrong setting into a clear message rather than a 7 GB copy.
@@ -345,6 +367,13 @@ $InstancesDir  = if ($InstancesRoot) { $InstancesRoot }
 # so it stays beside the script regardless of which volume the trees are on.
 $DataDir       = Join-Path $RigRoot 'data'
 $RigRegistry   = Join-Path $DataDir 'rig.json'
+
+# Both shared libraries default to the rig root, which is right for everything
+# except the instance tree location: -InstancesRoot is a launcher flag neither of
+# them can see. Re-point them here, once, so the reset deletes inside the tree
+# this invocation is actually using and the lock's orphan scan watches the same
+# one. Initialize-RigResetPaths re-points the lock library too.
+Initialize-RigResetPaths -RigHome $TestRigRoot -InstanceRoot $InstancesDir
 
 # Dev-plugin layout, identical to the dedicated server's: dev-plugins/<Name>/<Name>.sln beside
 # dev-plugins/<Name>/<Name>/ source. See TestRig/CLAUDE.md.
@@ -705,7 +734,8 @@ function Invoke-Provision {
     # developer's tier-1 user-data folder, behind a warning whose text only mentioned mods. The
     # redirect is what keeps a driven session out of the developer's saves; it has nothing to do
     # with mods and must not be able to be skipped by anything mod-related.
-    Set-SavePathOverride -Paths $p -InstanceRole $effRole | Out-Null
+    Set-RigSavePathOverride -BepInExDir $p.BepInEx -UserDataDir $p.UserData `
+        -InstanceRole $effRole -InstanceName $p.Name -Context 'Provision' | Out-Null
 
     if ($SeedMods) { Invoke-SeedMods -Paths $p }
 
@@ -792,48 +822,12 @@ function Invoke-SeedMods {
     }
 }
 
-function Set-SavePathOverride {
-    # Points the instance at its OWN user-data root, which is the single thing standing between a
-    # driven session and the developer's tier-1 save folder. Called unconditionally from
-    # Invoke-Provision, never from the mod seed: it is not a mod concern, and when it lived inside
-    # the seed a developer with no modconfig.xml got an instance with no redirect at all.
-    #
-    # SavePathOverride moves StationSaveUtils.DefaultPath itself, which is the only lever that
-    # separates modconfig.xml.
-    #
-    # DO NOT reach for the launch flag "-settings SavePath" instead. It moves the save tree but
-    # NOT DefaultPath, so StationeersLaunchPad scans an empty <SavePath>\mods\, finds nothing, and
-    # rewrites the DEVELOPER'S SHARED modconfig.xml with every <Local> entry deleted. Observed on a
-    # first boot: five local mod entries silently removed from the developer's own config, and
-    # nothing warned. That flag is never passed by this script.
-    #
-    # A failure to write it is fatal for a host and merely loud for a client. That asymmetry is the
-    # whole point: a joining client reads a world the server owns and writes none of its own, while
-    # a host CREATES a world, and a host with no redirect creates it inside the developer's saves.
-    param(
-        [Parameter(Mandatory)] $Paths,
-        [Parameter(Mandatory)] [string] $InstanceRole
-    )
-    $lpCfg = Join-Path $Paths.BepInEx 'config\stationeers.launchpad.cfg'
-    if (-not (Test-Path $lpCfg)) {
-        $why = "[$($Paths.Name)] stationeers.launchpad.cfg not found at $lpCfg, so SavePathOverride could not be written and this instance has NO separate save root: everything it writes lands in the developer's own user-data folder, which is tier 1 and off-limits. Launch the instance once to generate the config, then re-run -Provision -Force."
-        if ($InstanceRole -eq 'host') {
-            throw "$why`nRefusing to provision a host without the redirect: a host creates a world, and that world would be created inside the developer's saves."
-        }
-        Write-Warning "$why`nTreat this as a stop, not a note: do not start this instance until the redirect is in place."
-        return $false
-    }
-    $line = "SavePathOverride = " + $Paths.UserData
-    $content = Get-Content $lpCfg
-    if ($content -match '^SavePathOverride\s*=') {
-        $content = $content -replace '^SavePathOverride\s*=.*$', $line
-    } else {
-        $content += $line
-    }
-    Set-Content -Path $lpCfg -Value $content -Encoding utf8
-    Write-Host "[Provision] SavePathOverride -> $($Paths.UserData)"
-    return $true
-}
+# NOTE: Set-SavePathOverride used to live here. It is now Set-RigSavePathOverride in the shared
+# TestRig/rig-reset.ps1, because a second caller needs it: the between-session state reset re-copies
+# BepInEx/config from the source install, which WIPES SavePathOverride, and has to write it back
+# through the same implementation. Two copies of the one setting that keeps a driven instance out of
+# the developer's tier-1 save folder is exactly the drift that ends with somebody's saves overwritten.
+# Do not re-add a local copy here.
 
 function Get-SourceInstallVersion {
     # The game version the instance was linked from. version.txt is the same string the repository
@@ -1615,6 +1609,9 @@ function Invoke-Stop {
         elseif (($As -and $lock['owner'] -eq $As) -or $BreakLock -or (Test-RigLockTimerExpired $lock)) {
             Remove-Item -Force -ErrorAction SilentlyContinue (Get-RigLockFilePath)
             Write-Host "[Stop] Rig session lock released."
+            # -Stop -Release is a session end too, so it gets the same shared-state
+            # drift report -Unlock prints.
+            Write-RigSharedStateDrift
         }
         else {
             Write-Warning "[Stop] -Release ignored: lock held by '$($lock['owner'])', not you. Use -Unlock -As <id>, or get user authorization for -BreakLock."
@@ -1948,11 +1945,15 @@ function Invoke-Lock {
     }
     # No -OnReclaim: a running instance keeps the lock LIVE, so a lock can never be reclaimable while
     # this half still has processes up. Reclaiming here therefore never has an orphan to clean.
+    # -KeepState is forwarded because a NEW lock resets the rig's between-session state
+    # (TestRig/rig-reset.ps1). Opting out is loud on purpose: staging a save or a config value
+    # deliberately has to stay possible without becoming the silent default.
     $lockArgs = @{
         Purpose    = $Purpose
         CallerId   = $As
         TtlMinutes = $TtlMinutes
         BreakLock  = [bool]$BreakLock
+        KeepState  = [bool]$KeepState
         Tool       = 'client-rig.ps1'
     }
     if ($ScriptBoundParams.ContainsKey('WaitSeconds')) {
@@ -1994,6 +1995,13 @@ function Invoke-Unlock {
     # overridden from THIS launcher too. Without it the refusal was only
     # escapable from dedicated-server.ps1, which is the half that has no hosts.
     Remove-RigLock -CallerId $As -BreakLock:$BreakLock -Force:$Force
+
+    # Only after a SUCCESSFUL release, because Remove-RigLock throws on a refusal
+    # and a drift report on a lock that is still held would be reporting on a
+    # session that is not over. The shared per-user state (PlayerCookie-v2.xml,
+    # PlayerPrefs, Blueprints) cannot be isolated and is never restored, so naming
+    # what moved at the session boundary is all this can honestly do.
+    Write-RigSharedStateDrift
 }
 
 # ---- dispatch -------------------------------------------------------------
@@ -2033,6 +2041,19 @@ ONE lock covers BOTH TestRig halves, so this id is also what dedicated-server.ps
     which is today's immediate refusal. It is a queue, not a reservation: no fairness is promised.
     Breaking another session's LIVE lock (-BreakLock) is human-gated: only on the user's say-so.
     -BreakLock is NOT -Force. -Force overrides refusals inside your own session and never a lock.
+
+State hygiene: taking a NEW lock RESETS what the previous session left behind, so a test cannot
+fail on an unrelated test's leftovers. Per instance that is setting.xml (it carries StartLocalHost),
+data/<instance>/userdata/saves/, the logs, imgui.ini, a stale game.pid, BepInEx config (re-copied
+from the source install, with SavePathOverride re-applied), LogOutput.log, the assembly cache and
+the InspectorPlus request and snapshot folders. Kept: rig.json, instance.json, provision.stamp,
+userdata/mods (staleness is REPORTED, the fix is -Provision -Force) and the hard links.
+    -Lock -KeepState   skip the reset, loudly, when something was staged on purpose.
+    The reset is refused while the rig is in use, and never happens when you re-assert a lock you
+    already hold, so an agent refreshing mid-test cannot wipe its own run.
+    IT RESETS BETWEEN SESSIONS ONLY. A session spans many start/stop cycles by design, so two
+    unrelated tests under ONE lock get no reset between them. Release and re-take the lock when
+    the subject changes.
 
 Instance trees are hard links into the game install, so they must be on the install's volume.
 Set this once per shell (or record it in DEV.md) when the repository is on a different drive:

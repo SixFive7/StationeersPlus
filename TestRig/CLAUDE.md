@@ -51,6 +51,7 @@ That shared per-Windows-user state is why there is one lock rather than two.
 **The single source of truth for the rules is `TestRig/session.lock.template`. Read it before driving either half.** The implementation is `TestRig/rig-lock.ps1`, dot-sourced by both launchers so the timer, ownership, break-lock gate and release semantics cannot drift between them. The essentials:
 
 - **Acquire once, from either launcher, before any mutating command.** `-Lock -Purpose "<what you are testing>"` prints a short owner id; pass `-As <id>` on every mutating command afterwards, on **both** launchers. Acquisition is serialised across processes by a named system mutex, so two agents that both find the rig free cannot both walk away believing they own it.
+- **A NEW lock also resets the rig's between-session state**, so you start on a clean rig rather than on the last session's leftovers. See "State hygiene" below; the short version is that it is refused while the rig is in use, never fires when you re-assert a lock you already hold, and `-KeepState` opts out loudly.
 - **Mutating on the dedicated server:** `-Bootstrap`, `-DeployMods`, `-SyncMods`, `-Start`, `-Save`, `-SendCommand`, `-Stop`. Free: `-Status`, `-Logs`.
 - **Mutating on the client rig:** `-Provision`, `-Start`, `-Stop`, `-Save`, `-Remove`, `-Broadcast`, `-Call`. Free: `-Status`, `-List`, `-Logs`, `-Snapshot`, `-Wait` (which refreshes a lock you already hold, since a barrier can outlast the TTL).
 - **Hitting another session's live lock fails immediately by default.** `-Lock -Purpose "..." -WaitSeconds N` queues for up to N seconds instead, printing the holder's purpose while it waits. It is a queue, not a reservation: no ordering fairness is promised, and there is no unbounded wait.
@@ -63,11 +64,35 @@ That shared per-Windows-user state is why there is one lock rather than two.
 - **On resume after any gap, re-check ownership first:** `-Status -As <id>` on either launcher.
 - **Breaking another session's live lock is `-BreakLock`, and it is human-gated.** Never use it without the user's explicit say-so.
 
-`TestRig/rig-lock.tests.ps1` exercises all of the above offline against a temp directory: the state machine, the timer's fail-closed cases, ownership, `-BreakLock`, the busy signal, the file format, the release ordering, and real concurrent processes racing for one lock. Run it after any change to `TestRig/rig-lock.ps1`:
+`TestRig/rig-lock.tests.ps1` exercises all of the above offline against a temp directory: the state machine, the timer's fail-closed cases, ownership, `-BreakLock`, the busy signal, the file format, the release ordering, and real concurrent processes racing for one lock. `TestRig/rig-reset.tests.ps1` does the same for the state reset described below. Run both after any change to `TestRig/rig-lock.ps1` or `TestRig/rig-reset.ps1`:
 
 ```powershell
 pwsh -NoProfile -File TestRig/rig-lock.tests.ps1
+pwsh -NoProfile -File TestRig/rig-reset.tests.ps1
 ```
+
+## State hygiene: a new lock gets you a clean rig
+
+**Taking a NEW lock RESETS the rig's between-session state.** The point is that a playtest cannot suddenly run badly because of garbage an unrelated playtest left behind, and that the guarantee holds by construction rather than by a rule somebody remembers. The lock is the only mandatory choke point that already exists and is already enforced in code, so an agent cannot get the rig without getting it clean and cannot route around it. Implementation: `TestRig/rig-reset.ps1`, dot-sourced by both launchers next to `rig-lock.ps1`. Full rules: `TestRig/session.lock.template`.
+
+| Half | Reset | Kept |
+|---|---|---|
+| Client, per instance | `data/<n>/setting.xml` (it carries `StartLocalHost`), `data/<n>/userdata/saves/`, the Unity logs, `imgui.ini`, a STALE `game.pid`, the instance's `BepInEx/config` (re-copied from the source install, then `SavePathOverride` re-applied), `LogOutput.log*`, `BepInEx/cache/`, `BepInEx/inspector/requests/` and `snapshots/` | `data/rig.json`, `instance.json`, `provision.stamp`, `userdata/mods/` and `modconfig.xml`, the deployed `ClientDriver`, the hard links |
+| Dedicated server | the ScenarioRunner `Scenario` value (blanked, the rest of the file untouched), `install/BepInEx/scenariorunner/requests/` and `give/`, `install/BepInEx/inspector/requests/` and `snapshots/`, `data/setting.xml`, stale `server.pid` / `host.pid` / `control.cmd` | `data/saves/`, `data/mods/`, `install/modconfig.xml`, the deployed plugin DLLs, every other `install/BepInEx/config/*.cfg` |
+
+Three things it reports instead of touching, because deleting them would be worse than leaving them: a seeded mod older than its source tree (the fix is `-Provision -Force`, not a delete), the dedicated server's retained save count and total size (there is no retention policy anywhere), and any server config that changed since the last reset (the rig-owned versus mod-owned split is undecided).
+
+Rules an agent needs:
+
+- **It is refused while the rig is in use** (any live client instance, a live dedicated server process, or an untracked game process). The lock is still acquired and its owner id still printed, with a loud warning naming what is running. An unclean rig must not become an unlockable one.
+- **Re-asserting a lock you already hold never resets.** Changing your purpose or TTL mid-test would otherwise wipe your own run.
+- **`-Lock -KeepState` skips it**, and prints exactly what it skipped. That is the escape hatch for a save, a config value or a scenario staged on purpose.
+- **The reset prints what it did, per instance.** A silent reset is indistinguishable from no reset when something later goes wrong.
+- **It resets BETWEEN sessions only.** A session spans many start/stop cycles by design, so two unrelated tests run under ONE lock get no reset between them. Release the lock and take it again when the subject changes. Per-test hygiene would make the unit of hygiene smaller than the unit of ownership, which is a lock-model change and has not been done.
+
+**The shared per-user state is reported, never restored.** `PlayerCookie-v2.xml`, the PlayerPrefs key and `Blueprints\` cannot be isolated, and writing them back would itself be the write the save rules forbid. A cheap snapshot is taken at acquisition into `TestRig/session.state.json` (gitignored), and `-Unlock` / `-Stop -Release` print the delta. It fixes nothing; it turns state that was invisible until a later test failed into a line at the session boundary.
+
+`Set-RigSavePathOverride` lives in `rig-reset.ps1` and `client-rig.ps1 -Provision` calls it. That is deliberate: the config re-copy WIPES `SavePathOverride`, and an instance without it writes its worlds into the developer's tier-1 save folder, so provisioning and resetting write that one setting through a single implementation. Do not add a second copy anywhere.
 
 ### `-Force` and `-BreakLock` are different things, on both launchers
 
@@ -130,7 +155,7 @@ Both halves are **deny-all with a named allowlist**, not "ignored apart from scr
 |---|---|---|
 | `TestRig/DedicatedServer/` | `CLAUDE.md`, `dedicated-server.ps1`, `dev-plugins/` source | ignored, including `install/`, `data/` |
 | `TestRig/ClientRig/` | `CLAUDE.md`, `README.md`, `RESEARCH.md`, `client-rig.ps1`, `dev-plugins/` source | ignored, including `instances/`, `data/` (a host's worlds land under `data/<instance>/userdata/saves/`, so nothing a host writes is committable) |
-| `TestRig/` itself | `CLAUDE.md`, `rig-lock.ps1`, `rig-lock.tests.ps1`, `session.lock.template` | the active `session.lock` is ignored |
+| `TestRig/` itself | `CLAUDE.md`, `rig-lock.ps1`, `rig-lock.tests.ps1`, `rig-reset.ps1`, `rig-reset.tests.ps1`, `session.lock.template` | the active `session.lock` and the `session.state.json` shared-state baseline are ignored |
 
 `dev-plugins/**/bin/` and `dev-plugins/**/obj/` stay ignored under both. `git add -f` would bypass all of this; do not bypass it.
 
