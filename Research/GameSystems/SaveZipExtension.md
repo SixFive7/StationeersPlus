@@ -2,8 +2,8 @@
 title: Side-car file persistence in save ZIPs
 type: GameSystems
 created_in: 0.2.6228.27061
-verified_in: 0.2.6228.27061
-verified_at: 2026-05-21
+verified_in: 0.2.6403.27689
+verified_at: 2026-08-09
 sources:
   - rocketstation_Data/Managed/Assembly-CSharp.dll :: Util.Commands.LoadGameCommand.LoadGame
   - rocketstation_Data/Managed/Assembly-CSharp.dll :: Assets.Scripts.Serialization.SaveLoadConstants
@@ -66,11 +66,98 @@ The private worker is where the `ZipOutputStream` write happens, so that is the 
 Use the string literal `"Save"` because `nameof(SaveHelper.Save)` resolves via the publicly visible member (the `(string, CancellationToken)` overload); the private overload is what callers actually want to patch for ZIP-write interception.
 
 ## ZIP write path (private SaveHelper.Save)
+<!-- verified: 0.2.6403.27689 @ 2026-08-09 -->
+
+**The write path changed between 0.2.6228.27061 and 0.2.6403.27689.** Both forms are recorded below; the current one first. The behavior a mod depends on is different in each, so check which build you are targeting.
+
+### Current: direct write on a dedicated save thread (0.2.6403.27689)
+<!-- verified: 0.2.6403.27689 @ 2026-08-09 -->
+
+The private `Save(DirectoryInfo, string, bool, CancellationToken)` worker opens the **destination path directly** with `FileMode.Create` and streams the ZIP into it. There is no temp file, no `CopyToAsync` and no `tempFile.Delete()`. Unknown entries in any pre-existing save at the destination are still never read or copied, because `FileMode.Create` truncates.
+
+`world_meta.xml` and `world.xml` now stream straight in through `PutNextEntry` plus `Serializers.*.Serialize`, rather than being built into a `MemoryStream` and passed to `AddZipFile`. Terrain serialization also moved inside the save delegate. `AddZipFile` survives for terrain, preview and screenshot.
+
+```csharp
+// Assets.Scripts.Serialization.SaveHelper :: private Save(DirectoryInfo, string, bool, CancellationToken)
+// .work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs:265004-265032
+
+_stopwatch.Restart();
+string savePath = $"{saveDirectory}/{saveFileName}";
+try
+{
+    await RunOnSaveThread(delegate
+    {
+        using ZipOutputStream zipOutputStream = new ZipOutputStream(File.Open(savePath, FileMode.Create, FileAccess.Write));
+        zipOutputStream.SetLevel(SaveLoadConstants.ZipCompressionLevel);
+        zipOutputStream.PutNextEntry(new ZipEntry(SaveLoadConstants.MetaFileName));
+        Serializers.WorldMetaData.Serialize(zipOutputStream, metaData);
+        zipOutputStream.CloseEntry();
+        zipOutputStream.PutNextEntry(new ZipEntry(SaveLoadConstants.WorldFileName));
+        Serializers.WorldData.Serialize(zipOutputStream, worldData);
+        zipOutputStream.CloseEntry();
+        VoxelTerrain.Serialize(terrainMs);
+        AddZipFile(zipOutputStream, terrainMs, SaveLoadConstants.TerrainFileName);
+        if (!GameManager.IsBatchMode)
+        {
+            AddZipFile(zipOutputStream, previewMs, SaveLoadConstants.PreviewFileName);
+            AddZipFile(zipOutputStream, screenShotMs, SaveLoadConstants.ScreenshotFileName);
+        }
+        zipOutputStream.Finish();
+    });
+}
+catch (System.Exception arg)
+{
+    _stopwatch.Stop();
+    return SaveResult.Fail($"Failed to write save file at path {savePath} : {arg}");
+}
+```
+
+The write runs on an explicitly constructed thread, not the thread pool and not `UniTask.SwitchToThreadPool()`:
+
+```csharp
+// .work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs:265060-265080
+
+private static UniTask RunOnSaveThread(Action work)
+{
+    UniTaskCompletionSource completionSource = new UniTaskCompletionSource();
+    Thread thread = new Thread((ThreadStart)delegate
+    {
+        try
+        {
+            work();
+            completionSource.TrySetResult();
+        }
+        catch (System.Exception exception)
+        {
+            completionSource.TrySetException(exception);
+        }
+    });
+    thread.IsBackground = true;
+    thread.Priority = System.Threading.ThreadPriority.BelowNormal;
+    thread.Name = "Stationeers Save Writer";
+    thread.Start();
+    return completionSource.Task;
+}
+```
+
+Consequences for a mod, all established from the code above:
+
+- **Single seal point is still `zipOutputStream.Finish()`**, now inside the delegate. Any side-car entry must be added before it.
+- **When the returned task completes successfully, the file is complete and closed.** The ordering is strict: the `using` scope ends before `work()` returns, `TrySetResult()` runs only after `work()` returns, and the outer state machine then does `await UniTask.SwitchToMainThread(); return SaveResult.Succeed;`. Nothing is still streaming at completion.
+- **The write is not cancellable.** `cancellationToken` is never passed into `RunOnSaveThread`, and there is no `await` inside the delegate, so there is no state in which the task has completed while the thread is still writing.
+- **Continuations resume on the main thread**, because `SwitchToMainThread()` is the last step before the return. A continuation that re-opens the ZIP therefore does synchronous disk IO on the Unity main thread.
+- **A failed write leaves a truncated file on disk.** `FileMode.Create` truncates before writing, and the failure path returns `SaveResult.Fail` with the partial file present. Gate on `result.Success`.
+- `File.Open(savePath, FileMode.Create, FileAccess.Write)` uses `FileShare.None`, so a mod re-opening the file while the writer holds it fails loudly rather than corrupting anything.
+- There is no `Flush(true)` or fsync anywhere in the path. Content is visible to any reader once disposal returns, but survival across a power loss at that instant is not guaranteed by this code.
+
+`ZipOutputStream.IsStreamOwner` is not set here, so it takes the library default. The strong in-file evidence that the default is `true` (and therefore that the `FileStream` is released on disposal) is the Workshop-upload path at :268223-268226, which explicitly writes `new ZipOutputStream(zipMs) { IsStreamOwner = false }` to keep its `MemoryStream` alive. `ICSharpCode.SharpZipLib` is not in the decompile, so this is inference rather than a direct read.
+
+### Superseded: temp file plus copy (0.2.6228.27061)
 <!-- verified: 0.2.6228.27061 @ 2026-04-21 -->
 
-The private `Save(DirectoryInfo, string, bool, CancellationToken)` worker creates a temporary file, writes all known entries to a `ZipOutputStream`, then atomically moves it to the final location. Unknown entries in any pre-existing save at the destination are never read or copied.
+Retained because it is correct for that build. In this form the worker created a temporary file, wrote all known entries to a `ZipOutputStream`, then copied it to the final location and deleted the temp file.
 
-Uses `ZipOutputStream` from ICSharpCode.SharpZipLib (not `System.IO.Compression.ZipArchive`). Only writes five known entries: `world_meta.xml`, `world.xml`, `terrain.dat`, `preview.png`, `screenshot.png`. No archive open or re-open in `ZipArchiveMode.Update` — completely fresh write to temp file.
+Uses `ZipOutputStream` from ICSharpCode.SharpZipLib (not `System.IO.Compression.ZipArchive`). Only writes five known entries: `world_meta.xml`, `world.xml`, `terrain.dat`, `preview.png`, `screenshot.png`. No archive open or re-open in `ZipArchiveMode.Update`, a completely fresh write to temp file.
 
 Verbatim excerpt (relevant portion):
 
@@ -265,7 +352,7 @@ public static void UpdateThingsOnGameStart()
 ## Auto-save trigger and multiplayer guard
 <!-- verified: 0.2.6228.27061 @ 2026-04-21 -->
 
-Auto-save is triggered by `GameManager.AutoSaveNow()` with a strict multiplayer guard:
+Auto-save is triggered by `AutoSaveNow()` with a strict multiplayer guard. **The declaring type moved:** at 0.2.6228.27061 it was `GameManager.AutoSaveNow`; at 0.2.6403.27689 it is `StationAutoSave.AutoSaveNow` (Assembly-CSharp.decompiled.cs:267612), which `StationAutoSave.md` documents. The body below is the 0.2.6228.27061 form and the guard logic is unchanged; re-verify against `StationAutoSave` before patching on the current build. Note also that there are two autosave drivers at the current version, the timer-driven one here and `NetworkBase.AutoSaveOnLastClientLeave` (:39256), and neither emits a save-confirmation console line (see `SaveConsoleProtocol.md`).
 
 ```csharp
 // Assets.Scripts.GameManager :: AutoSaveNow
@@ -374,7 +461,9 @@ public class SaveHelperSaveSideCarPatch
 }
 ```
 
-Why the earlier "open the temp file" idea does not work: the temp file is `await tempFile.Delete()`'d at the end of `SaveHelper.Save`'s async body, BEFORE the returned task completes. By the time any continuation runs, the temp file is gone. Only the final destination file (`$"{saveDirectory}/{saveFileName}"`) is available post-completion.
+Why the earlier "open the temp file" idea does not work, and note that the reason changed with the game. **At 0.2.6403.27689 there is no temp file at all**: the writer opens `$"{saveDirectory}/{saveFileName}"` directly (see "Current: direct write on a dedicated save thread"). At 0.2.6228.27061 a temp file existed but was `tempFile.Delete()`'d at the end of `SaveHelper.Save`'s async body, before the returned task completed, so a continuation always found it gone. Either way the conclusion is the same and the recipe below is unaffected: only the final destination file is available post-completion.
+
+What the current write path does improve is the guarantee at that moment. Because the `using ZipOutputStream` scope closes before `work()` returns, and `TrySetResult()` runs only after `work()` returns, a continuation on the returned task sees a complete, closed file rather than one that might still be streaming. The write is also not cancellable (`cancellationToken` never reaches `RunOnSaveThread`), so there is no completed-but-still-writing state to race. Two caveats: the continuation resumes on the Unity main thread, so re-opening the ZIP there is synchronous main-thread disk IO; and a failed write leaves a truncated file behind because `FileMode.Create` truncates first, so gate on `result.Success`.
 
 Why the public Save overload is not a valid target: it dispatches through `SaveGame` -> `DoSave` -> private `Save`. Patching the public entry misses autosave, quicksave, new-save, and save-as flows. The private worker is the single funnel (see "SaveHelper.Save overload disambiguation" section).
 
@@ -446,6 +535,7 @@ Practical implications:
 - 2026-04-21: full verification pass against Assembly-CSharp.dll v0.2.6228.27061. Decompiled SaveHelper.Save (ZipOutputStream write path with 5 known entries), XmlSaveLoad.LoadWorld (no ZIP enumeration), Thing.OnFinishedLoad, GameManager.UpdateThingsOnGameStartAction (caller), GameManager.AutoSaveNow (multiplayer guard), and SaveHelper.CopyToHeadSave (file copy, not rebuild). Decompiled LaunchPadBooster.dll and confirmed no save/load extension hooks. Resolved: (A) confirmed ZipOutputStream-based complete rebuild with single seal point at Finish(), (B) confirmed save-copy via binary file copy (unknown entries already absent), (C) no user warning needed for optional side-car data. Recommended Postfix on SaveHelper.Save as concrete Harmony pattern.
 - 2026-04-21: added "SaveHelper.Save overload disambiguation" section after a live in-game test surfaced `HarmonyException: Ambiguous match for ... methodname=Save` at `PatchAll` time. Decompile verified `SaveHelper` declares two `Save` methods (public `(string, CancellationToken)` and private `(DirectoryInfo, string, bool, CancellationToken)`); every save path funnels through the private worker via `SaveGame` -> `Do*Save` dispatch. Documented the routing table and the required argument-type array in the `[HarmonyPatch]` attribute. Consequence of the bug: `PatchAll` throws on first ambiguous overload, so the ENTIRE mod's Harmony patches fail to apply, not just the ambiguous one.
 - 2026-04-21: conflict on "how the game reads save ZIPs at load time". Previous claim: "LoadWorld uses `ZipArchive.GetEntry(name)` for known filenames only; unknown entries remain in the archive untouched." New finding: the game does NOT open a ZipArchive at LoadWorld time. `LoadHelper.LoadGameTask` calls `ExtractToTemp(path)` first, which uses `ZipInputStream.GetNextEntry()` to extract every entry (known and unknown) to a temp directory as loose files. `CurrentWorldSave.World.FullName` is `<tempDir>/world.xml`, not a path into a ZIP. Fresh validator verdict: B is correct (the new finding). Result: added a "Load-time ZIP extraction (LoadHelper.ExtractToTemp)" section with the full decompile of `LoadHelper.LoadGameTask` and `ExtractToTemp`, rewrote the "ZIP read path (LoadWorld)" section to clarify that `LoadWorld` reads loose files not a ZIP, and updated the "Harmony interception strategy" section to replace the (wrong) "open the temp file in Update mode" recipe with the verified wrapped-UniTask pattern shipped in SprayPaintPlus v1.6.0. The side-car-on-load recipe was also corrected: consume `<tempDir>/<entry-name>` as a loose file in the `XmlSaveLoad.LoadWorld` postfix; attempting to reopen the save ZIP produces `End of Central Directory record could not be found` because the original ZIP was closed by `ExtractToTemp`.
+- 2026-08-09: conflict on "does the private SaveHelper.Save write to a temp file and copy, or write to the destination directly". Previous claim: the writer builds the ZIP into `Path.GetTempPath()` after `await UniTask.SwitchToThreadPool()`, copies it with `CopyToAsync`, then calls `tempFile.Delete()`; failure string `Failed to write to temp file at path {tempFile} : {arg}`. New finding: at 0.2.6403.27689 the writer opens `$"{saveDirectory}/{saveFileName}"` directly with `FileMode.Create` inside a `RunOnSaveThread` delegate (a dedicated background thread named "Stationeers Save Writer" at BelowNormal priority), with no temp file, no `CopyToAsync` and no delete; failure string `Failed to write save file at path {savePath} : {arg}`. Fresh validator verdict: the new finding is correct, quoting Assembly-CSharp.decompiled.cs:265004-265032 and :265060-265080. The validator also judged this a genuine game change between versions rather than an error in the original pass, since the older form is internally coherent and matches its own verification note. Result: the "ZIP write path" section now carries both forms, current first, with the superseded one retained and still stamped at 0.2.6228.27061 per the lossless principle. Added what the new path guarantees a Harmony continuation (complete and closed file at task completion, non-cancellable write, main-thread resumption, truncated file on failure). Corrected the obsolete "the temp file is deleted before the task completes" rationale in "Harmony interception strategy"; the recipe itself is unaffected. Also noted that `AutoSaveNow` moved from `GameManager` to `StationAutoSave` and that a second autosave driver exists on `NetworkBase`. Page restamped to 0.2.6403.27689; sections not re-read in this pass keep their older stamps.
 - 2026-05-21: added "Save folder layout and the `load` command's resolution" section. Sourced from `Util.Commands.LoadGameCommand.LoadGame` (decompile lines 96534-96562) and `SaveLoadConstants.SaveFileExtension` / `SaveFileSearchPattern` (lines 248112-248114). Additive (no existing claim contradicted): documents that the `load` command resolves a save folder to exactly one `*.save` file via `GetFiles("*.save", TopDirectoryOnly)`, so a dedicated-server save must be seeded as the `<name>.save` ZIP inside `data/saves/<name>/`, not as extracted loose files. Found while seeding the Lunar save for a Power Grid Plus passthrough test.
 
 ## Open questions
