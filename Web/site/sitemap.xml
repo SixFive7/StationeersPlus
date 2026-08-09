@@ -577,6 +577,10 @@
          <lastmod>2026-08-09</lastmod>
     </url>
     <url>
+         <loc>https://stationeers.huisman.io/research/GameSystems/SaveConsoleProtocol/</loc>
+         <lastmod>2026-08-09</lastmod>
+    </url>
+    <url>
          <loc>https://stationeers.huisman.io/research/GameSystems/SaveDataRegistration/</loc>
          <lastmod>2026-08-09</lastmod>
     </url>
@@ -590,6 +594,10 @@
     </url>
     <url>
          <loc>https://stationeers.huisman.io/research/GameSystems/ScrollInputHandling/</loc>
+         <lastmod>2026-08-09</lastmod>
+    </url>
+    <url>
+         <loc>https://stationeers.huisman.io/research/GameSystems/SettingsPersistence/</loc>
          <lastmod>2026-08-09</lastmod>
     </url>
     <url>

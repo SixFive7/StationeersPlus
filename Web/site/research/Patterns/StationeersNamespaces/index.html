@@ -3656,6 +3656,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -4994,6 +4998,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../GameSystems/SaveConsoleProtocol/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Save console protocol
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../GameSystems/SaveDataRegistration/" class="md-nav__link">
         
   
@@ -5086,6 +5118,34 @@
     
   
     Scroll Input Handling
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/SettingsPersistence/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Settings persistence
   
 
     
@@ -7001,6 +7061,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#save-settings-and-networking-types" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Save, settings and networking types
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#when-to-consult-this" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -8530,6 +8601,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#save-settings-and-networking-types" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Save, settings and networking types
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#when-to-consult-this" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -8662,28 +8744,65 @@
       
         <p class="research-meta-verified">
           <strong>Verified</strong>
-           in game version <code>0.2.6228.27061</code>
-           on 2026-04-20.
+           in game version <code>0.2.6403.27689</code>
+           on 2026-08-09.
         </p>
       
       
+        <p class="research-meta-created">
+          <strong>First written</strong> against game version <code>0.2.6228.27061</code>.
+        </p>
+      
       
         <details class="research-meta-sources">
-          <summary><strong>Sources</strong> (2)</summary>
+          <summary><strong>Sources</strong> (3)</summary>
           <ul>
             
               <li><code>Mods/PowerTransmitterPlus/RESEARCH.md:613-619 (F0049, primary)</code></li>
             
               <li><code>Mods/SprayPaintPlus/SprayPaintPlus/ConsumableSyncPatch.cs:6 (F0388)</code></li>
             
+              <li><code>{'.work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs :': 'type declarations at 39197, 48571, 95793, 212198, 212509, 213543, 264502, 264704, 264713, 264734, 265200, 265338, 267663, 272554'}</code></li>
+            
           </ul>
         </details>
       
+      
+        <details class="research-meta-related">
+          <summary><strong>Related pages</strong> (3)</summary>
+          <ul>
+            
+              <li><code>../GameClasses/Client.md</code></li>
+            
+              <li><code>../GameSystems/SettingsPersistence.md</code></li>
+            
+              <li><code>../GameSystems/SaveConsoleProtocol.md</code></li>
+            
+          </ul>
+        </details>
       
     </aside>
   
   
                   
+
+  <nav class="md-tags" >
+    
+      
+      
+      
+      
+        <span class="md-tag">network</span>
+      
+    
+      
+      
+      
+      
+        <span class="md-tag">save-load</span>
+      
+    
+  </nav>
 
 
 
@@ -8738,6 +8857,90 @@
 <ul>
 <li><code>Consumable</code> (used for spray cans, fuel canisters, welding torches) resides in <code>Assets.Scripts.Objects.Items</code>.</li>
 </ul>
+<h2 id="save-settings-and-networking-types">Save, settings and networking types<a class="headerlink" href="#save-settings-and-networking-types" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-08-09 -->
+
+<p>The save/settings cluster splits across two namespaces and the global namespace, which is the trap: three types a caller usually touches together are not reachable from one <code>using</code>.</p>
+<table>
+<thead>
+<tr>
+<th>Type</th>
+<th>Namespace</th>
+<th>Decompile line</th>
+<th>Common mistake</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Settings</code> (and nested <code>Settings.SettingData</code>)</td>
+<td><code>Assets.Scripts.Serialization</code></td>
+<td>265338</td>
+<td>Not <code>Assets.Scripts</code>.</td>
+</tr>
+<tr>
+<td><code>SaveHelper</code></td>
+<td><code>Assets.Scripts.Serialization</code></td>
+<td>264734</td>
+<td></td>
+</tr>
+<tr>
+<td><code>SaveResult</code>, <code>SaveMethod</code></td>
+<td><code>Assets.Scripts.Serialization</code></td>
+<td>264713, 264704</td>
+<td></td>
+</tr>
+<tr>
+<td><code>SaveLoadConstants</code></td>
+<td><code>Assets.Scripts.Serialization</code></td>
+<td>265200</td>
+<td></td>
+</tr>
+<tr>
+<td><code>LoadHelper</code></td>
+<td><code>Assets.Scripts.Serialization</code></td>
+<td>264502</td>
+<td></td>
+</tr>
+<tr>
+<td><code>XmlSaveLoad</code></td>
+<td><code>Assets.Scripts.Serialization</code></td>
+<td>267663</td>
+<td></td>
+</tr>
+<tr>
+<td><code>StationSaveUtils</code></td>
+<td><strong>global namespace</strong></td>
+<td>48571</td>
+<td>NOT <code>Assets.Scripts.Serialization</code>, despite sitting between <code>SaveHelper</code> and <code>Settings</code> in every call chain.</td>
+</tr>
+<tr>
+<td><code>NetworkBase</code></td>
+<td><strong>global namespace</strong></td>
+<td>39197</td>
+<td>NOT <code>Assets.Scripts.Networking</code>, even though <code>NetworkManager</code> is.</td>
+</tr>
+<tr>
+<td><code>Client</code>, <code>FragmentHandler</code>, <code>NetworkServer</code></td>
+<td><code>Assets.Scripts</code></td>
+<td>212198, 212509, 213543</td>
+<td>Not <code>Assets.Scripts.Networking</code>.</td>
+</tr>
+<tr>
+<td><code>NetworkChannel</code></td>
+<td><code>Assets.Scripts.Networking</code></td>
+<td>272554</td>
+<td></td>
+</tr>
+<tr>
+<td>Every <code>*Command</code> class (<code>SaveCommand</code>, <code>SettingsCommand</code>, <code>CommandBase</code>, <code>CommandScope</code>, ...)</td>
+<td><code>Util.Commands</code></td>
+<td>95793 (namespace)</td>
+<td>Not under <code>Assets.Scripts</code> at all.</td>
+</tr>
+</tbody>
+</table>
+<p>C# gotcha that this table exists to pre-empt: <code>using Assets.Scripts;</code> does NOT make types in the nested <code>Assets.Scripts.Serialization</code> namespace addressable by their short name. C# namespace lookup does not descend into child namespaces, so <code>Settings</code> and <code>SaveHelper</code> each need their own <code>using Assets.Scripts.Serialization;</code> (or full qualification) even in a file that already has <code>using Assets.Scripts;</code> for <code>Client</code> and <code>NetworkServer</code>.</p>
+<p>The <code>Client</code> / <code>NetworkServer</code> / <code>NetworkBase</code> / <code>NetworkChannel</code> rows restate what the <a href="../../GameClasses/Client/">Client</a> page established on 2026-07-27; they are repeated here so a namespace question resolves in one lookup.</p>
 <h2 id="when-to-consult-this">When to consult this<a class="headerlink" href="#when-to-consult-this" title="Permanent link">&para;</a></h2>
 <!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
 
@@ -8756,6 +8959,7 @@
 </ul>
 <h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
 <ul>
+<li>2026-08-09: added the "Save, settings and networking types" section, stamped 0.2.6403.27689. Every declaration line in it was read directly from <code>.work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs</code> in that pass. Additive: the original F0049 / F0388 table and its 0.2.6228.27061 stamp are untouched and were not re-verified. Two entries are the point of the section: <code>StationSaveUtils</code> (48571) is in the global namespace rather than <code>Assets.Scripts.Serialization</code> alongside <code>SaveHelper</code> and <code>Settings</code>, and <code>NetworkBase</code> (39197) is in the global namespace rather than <code>Assets.Scripts.Networking</code> alongside <code>NetworkManager</code>. Frontmatter <code>verified_in</code> / <code>verified_at</code> bumped to reflect the new section, per the "most recent section verification" semantics in <code>Research/CLAUDE.md</code>.</li>
 <li>2026-07-14: added the GameState enum row (Assets.Scripts.GridSystem, decompile 290777; hit while a new file using GameManager.GameState failed to resolve GameState with only the Assets.Scripts using). Additive.</li>
 </ul>
 <!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
