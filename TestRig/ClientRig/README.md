@@ -11,6 +11,8 @@ It is the client-side counterpart to `ScenarioRunner` (which probes the dedicate
 
 **Not a player-facing mod, and it must never ship.** It is a remote control plane for the game. `WorkshopHandle` is 0 and stays 0.
 
+**Read `TestRig/CLAUDE.md` first.** It carries the rules this rig shares with the dedicated server half: the one session lock that covers both, what the rig touches outside its own folder, the save tiers, the `dev-plugins/` layout, and the launcher-flag conventions. Every mutating action here needs the lock.
+
 ---
 
 ## Design note: where the boundary sits
@@ -29,6 +31,19 @@ There is no third category, and the two halves never overlap. Two consequences f
 
 ## Setup
 
+### 0. Take the rig session lock
+
+Every mutating action refuses without it. One lock covers this rig and the dedicated server, because the two share the developer's game install and per-Windows-user Unity state that nothing separates.
+
+```powershell
+.\client-rig.ps1 -Lock -Purpose "Two-client paint check for SprayPaintPlus"
+# prints an owner id; pass -As <id> on every mutating command, on either launcher
+```
+
+Gated: `-Provision`, `-Start`, `-Stop`, `-Remove`, `-Broadcast`, `-Call`. Free: `-Status`, `-List`, `-Logs`, `-Snapshot`, `-Wait`. Release with `-Unlock -As <id>` or `-Stop -All -As <id> -Release`. Full rules: `TestRig/session.lock.template`.
+
+Two things worth knowing before you go idle. A running instance keeps the lock live with no timer to save you, so leaving instances up holds the whole rig including the dedicated server; always stop them before releasing. And `-BreakLock` (not `-Force`) is what takes a lock off another session, and it is human-gated.
+
 ### 1. Pick a location for the instance trees
 
 An instance is a **hard-linked** copy of the real install, so it costs a few megabytes instead of seven gigabytes. Hard links cannot cross NTFS volumes, so the instance trees must be on the same drive as the game install. The repository often is not.
@@ -43,16 +58,16 @@ The launcher refuses with the exact command to fix it if this is wrong, rather t
 ### 2. Build the plugin
 
 ```powershell
-dotnet build TestRig/ClientRig/ClientDriver.sln -c Release
+dotnet build TestRig/ClientRig/dev-plugins/ClientDriver/ClientDriver.sln -c Release
 ```
 
-Provisioning copies whatever is in `bin/Release` into the instance. After a plugin change, rebuild and re-provision with `-Force`.
+Provisioning copies whatever is in `bin/Release` into the instance. After a plugin change, rebuild and re-provision with `-Force`. That `-Force` is the routine kind: it rebuilds an instance you already own and never touches the rig lock.
 
 ### 3. Provision instances
 
 ```powershell
-.\client-rig.ps1 -Provision -Instance client1
-.\client-rig.ps1 -Provision -Instance client2
+.\client-rig.ps1 -Provision -As <id> -Instance client1
+.\client-rig.ps1 -Provision -As <id> -Instance client2
 ```
 
 Port and identity default off the instance index, so two instances with no flags get 27701/27702 and ClientIds 900000000001/900000000002 with no collision. Override with `-Port`, `-ClientId`, `-Username`, `-Width`, `-Height`.
@@ -77,16 +92,16 @@ The source install is read-only throughout. `-Remove` deletes only links and per
 ## Run
 
 ```powershell
-.\client-rig.ps1 -Start -All             # on the isolated desktop; never takes your foreground
-.\client-rig.ps1 -Wait  -All -Stage menu # barrier across the rig; roughly 100 s from cold
-.\client-rig.ps1 -Status -All
+.\client-rig.ps1 -Start -As <id> -All     # on the isolated desktop; never takes your foreground
+.\client-rig.ps1 -Wait  -All -Stage menu  # barrier across the rig; roughly 100 s from cold
+.\client-rig.ps1 -Status -As <id> -All
 ```
 
 Then drive them:
 
 ```powershell
-.\client-rig.ps1 -Call -Instance client1 -Path /connect -Body '{"address":"127.0.0.1","port":28016}'
-.\client-rig.ps1 -Wait -All -Stage inWorld -TimeoutSeconds 600
+.\client-rig.ps1 -Call -As <id> -Instance client1 -Path /connect -Body '{"address":"127.0.0.1","port":28016}'
+.\client-rig.ps1 -Wait -All -Stage inWorld -WaitSeconds 600
 .\client-rig.ps1 -Snapshot -All -OutFile before.json
 ```
 
@@ -100,8 +115,8 @@ Invoke-RestMethod http://127.0.0.1:27701/help
 Teardown:
 
 ```powershell
-.\client-rig.ps1 -Stop -All
-.\client-rig.ps1 -Remove -Instance client1
+.\client-rig.ps1 -Stop -As <id> -All -Release   # -Release also frees the rig lock
+.\client-rig.ps1 -Remove -As <id> -Instance client1
 ```
 
 ### Readiness has three distinct stages and they are not interchangeable
@@ -117,21 +132,28 @@ Wait for `menu` before touching the menu or the ImGui overlay. `modsLoaded` alon
 
 ### The launcher actions
 
-| Action | Does |
-|---|---|
-| `-Provision -Instance <n> [-Force]` | Build or rebuild an instance tree, seed its mods, write its manifest. |
-| `-Start -Instance <n>\|-All` | Launch on the isolated desktop. |
-| `-Stop -Instance <n>\|-All` | Ask through `/quit`, then kill after `-TimeoutSeconds` (default 30). |
-| `-Status [-Instance <n>]` | Process, port, identity, phase, foreground verdict, input gate, identity conflicts. |
-| `-List` | The rig registry as a table. |
-| `-Remove -Instance <n>` | Delete the tree. Refuses while it is running. |
-| `-Wait -All -Stage <s>` | Barrier. Fails loudly, per instance, with what each one was actually doing. |
-| `-Broadcast -All -Path <p> [-Body <json>]` | One request to every instance. Throws on a partial result. |
-| `-Call -Instance <n> -Path <p> [-Body <json>]` | One request to one instance. |
-| `-Snapshot -All [-OutFile <f>]` | `/status` from every instance in one document. |
-| `-Logs -Instance <n> [-Tail N] [-Grep <re>]` | That instance's BepInEx log. |
+| Action | Lock | Does |
+|---|---|---|
+| `-Lock -Purpose <s> [-TtlMinutes N]` | acquires | Take the rig session lock. Prints the owner id for `-As`. |
+| `-RefreshLock -As <id>` | refreshes | Bump the timer while actively driving a test. |
+| `-Unlock -As <id>` | releases | Give the rig back. Warns if instances are still running. |
+| `-Provision -Instance <n> [-Force]` | needs | Build or rebuild an instance tree, seed its mods, write its manifest. |
+| `-Start -Instance <n>\|-All` | needs | Launch on the isolated desktop. |
+| `-Stop -Instance <n>\|-All [-Release]` | needs | Ask through `/quit`, then kill after `-TimeoutSeconds` (default 30). |
+| `-Remove -Instance <n>` | needs | Delete the tree and the instance's save root. Refuses while it is running. |
+| `-Broadcast -All -Path <p> [-Body <json>]` | needs | One request to every instance. Throws on a partial result. |
+| `-Call -Instance <n> -Path <p> [-Body <json>]` | needs | One request to one instance. |
+| `-Status [-Instance <n>]` | free | The rig lock, then per instance: process, port, identity, phase, foreground verdict, input gate, identity conflicts. |
+| `-List` | free | The rig registry as a table. |
+| `-Wait -All -Stage <s> [-WaitSeconds N]` | refreshes | Barrier, default 300 s. Fails loudly, per instance, with what each one was actually doing. |
+| `-Snapshot -All [-OutFile <f>]` | free | `/status` from every instance in one document. |
+| `-Logs -Instance <n> [-Tail N] [-Grep <re>]` | free | That instance's BepInEx log. |
+
+`-Broadcast` and `-Call` are gated even though they read like queries, because they drive a live client: `/quit` ends one, and `/savepath` retargets where one writes its saves. `-Wait` needs no lock but refreshes one you already hold, because a barrier can legitimately outlast the TTL.
 
 `-Broadcast` throws when any instance failed, deliberately. A partial broadcast leaves the rig in mixed state, and "both clients agree on X except for this one difference" is the shape of nearly every paired check, so half-applying it silently is how a test comes out wrong.
+
+**Two flags mean exactly what they mean on `dedicated-server.ps1`, and one of them did not used to.** `-Force` is the routine override inside your own session (`-Provision -Force` rebuilds an instance you own); taking a lock off another session is `-BreakLock`, which is human-gated. They were the same flag with opposite risk across the two launchers, which is how a live test gets torn down by muscle memory. `-TimeoutSeconds` (default 30) is process-teardown grace for `-Stop` on both; the readiness barrier here is `-WaitSeconds` (default 300), which it did not used to be, so an older note reading `-Wait -TimeoutSeconds 600` means `-Wait -WaitSeconds 600`.
 
 ---
 
@@ -299,15 +321,19 @@ Every body field can also be passed as a query parameter, so anything is reachab
 
 ## Keeping a driven session out of the real save folder
 
+Each provisioned instance gets its own save root at `data/<instance>/userdata/` through StationeersLaunchPad's `SavePathOverride`. That root is tier 3 under the repository save-tier rule (root `CLAUDE.md`, "Workflow: save file access tiers"): agent-managed, free to edit, and deleted by `-Remove` along with the tree. The developer's own save folder stays tier 1 and is never touched.
+
 `POST /savepath {"path": "..."}` points `Settings.CurrentData.SavePath` at a scratch directory. Every save resolves through `StationSaveUtils.GetSavePath()` on each call, so worlds created after the redirect land there. The change is in memory; the game persists settings on a clean exit, so put it back at the end or exit with `POST /quit {"hard":true}`.
 
-Provisioned instances already have their own save root through StationeersLaunchPad's `SavePathOverride`, so this endpoint is for one-off redirects rather than routine rig use.
+Because instances already have their own save root, this endpoint is for one-off redirects rather than routine rig use. **It retargets a client that is already running**, which is why `-Call` and `-Broadcast` are lock-gated.
+
+If a provision could not write `SavePathOverride` (no `stationeers.launchpad.cfg` yet, which the launcher warns about), that instance has NO separate save root and is writing into the developer's user-data folder. Treat that warning as a stop: launch once to generate the config, then re-provision with `-Force`.
 
 Three things it does that a plain setter would not, all because the failure mode here is not recoverable by retrying:
 
 - It echoes both the path as received and the path as resolved, so you can verify what landed.
 - It **refuses** a path containing a control character rather than using it. The JSON reader now preserves a backslash that is not part of a recognised escape, so a path like `"C:\Rig\Scratch"` round-trips correctly where it used to lose both backslashes. What that cannot fix is the escapes JSON genuinely defines: `\b`, `\f`, `\n`, `\r` and `\t` still decode, so `"C:\builds"` and `"C:\files"` cannot survive a request body intact. Send such a path as a query parameter, or double every backslash.
-- It **refuses** a path inside the game's own default user-data folder unless you pass `force=true`, since redirecting away from that folder is the entire point.
+- It **refuses** a path inside the game's own default user-data folder unless you pass `force=true`, since redirecting away from that folder is the entire point. That refusal is the only thing standing between this endpoint and the developer's tier-1 save folder, and it lives in plugin code rather than in any rule an agent reads first. **Never pass `force=true` here unless the user asked for exactly that.**
 
 ---
 
@@ -359,47 +385,53 @@ Everything below was hit for real on 0.2.6403.27689 with StationeersLaunchPad 0.
 
 The rig lives at `TestRig/ClientRig/`, a peer of `TestRig/DedicatedServer/`. It drives game clients, not the server.
 
+The plugin sits under `dev-plugins/<Name>/<Name>.sln` with its source in `dev-plugins/<Name>/<Name>/`, which is the same layout `ScenarioRunner` uses on the server half. Folder, solution, project, assembly and namespace therefore all read `ClientDriver`, and a second client-side dev-plugin slots in beside this one with nothing to rename. The rule is in `TestRig/CLAUDE.md`.
+
 ```
 client-rig.ps1            the launcher: provision, desktop, lifecycle, fan-out
 README.md                 this file
 RESEARCH.md               durable internals
-ClientDriver.sln
-ClientDriver/
-  Plugin.cs               entry, config binding, manifest folding, patch application, server lifecycle, frame pumps
-  Instance/
-    InstanceManifest.cs   the per-instance manifest, and which source each value came from
-    Identity.cs           ClientId and Username injection, PlayerCookie.Save suppression
-    PeerProbe.cs          duplicate-ClientId detection across sibling control planes
-  Transport/
-    HttpServer.cs         TcpListener HTTP/1.1
-    Json.cs               minimal JSON reader and writer
-    MainThreadPump.cs     background thread to Unity main thread, synchronously
-  Routes/
-    Router.cs             the dispatch table and shared helpers
-    Routes.Console.cs     tee, game ring, command submission
-    Routes.Session.cs     connect, disconnect, saves, savepath, identity, instance
-    Routes.Input.cs       the input read-back contract, and /diag/input
-    Routes.Player.cs      teleport, look, use, swap hands
-    Routes.Spawn.cs       hand, world, structure, prefab catalogue
-    Routes.Ui.cs          cursor forcing, screenshots
-    Help.cs               the runtime endpoint catalogue
-  Input/
-    VirtualInput.cs       synthetic keyboard, mouse and wheel at the UnityEngine.Input layer, plus the delivery record
-    GameplayGate.cs       opens the Cursor.visible gate, scoped to a loaded world
-    ChainProbe.cs         enter/exit counters on the per-frame input chain
-  Window/
-    WindowMode.cs         forces windowed mode by correcting Settings.CurrentData before the game applies it
-    NativeWindow.cs       read-only foreground and desktop queries, the only user32 imports in the plugin
-  Observe/
-    StateReporter.cs      live state to JSON
-    ConsoleTap.cs         bounded tee of ConsoleWindow.Print plus a BepInEx log listener
-    ConfigAccess.cs       live ConfigEntry read and write, plugin discovery, reflection
-    Screenshot.cs         backbuffer capture and downscale
-    ModSettingsPanel.cs   forces a StationeersLaunchPad mod settings panel on screen
-    Modal.cs              reads and dismisses confirmation dialogs
-  About/About.xml
+dev-plugins/
+  ClientDriver/
+    ClientDriver.sln
+    ClientDriver/
+      Plugin.cs               entry, config binding, manifest folding, patch application, server lifecycle, frame pumps
+      Instance/
+        InstanceManifest.cs   the per-instance manifest, and which source each value came from
+        Identity.cs           ClientId and Username injection, PlayerCookie.Save suppression
+        PeerProbe.cs          duplicate-ClientId detection across sibling control planes
+      Transport/
+        HttpServer.cs         TcpListener HTTP/1.1
+        Json.cs               minimal JSON reader and writer
+        MainThreadPump.cs     background thread to Unity main thread, synchronously
+      Routes/
+        Router.cs             the dispatch table and shared helpers
+        Routes.Console.cs     tee, game ring, command submission
+        Routes.Session.cs     connect, disconnect, saves, savepath, identity, instance
+        Routes.Input.cs       the input read-back contract, and /diag/input
+        Routes.Player.cs      teleport, look, use, swap hands
+        Routes.Spawn.cs       hand, world, structure, prefab catalogue
+        Routes.Ui.cs          cursor forcing, screenshots
+        Help.cs               the runtime endpoint catalogue
+      Input/
+        VirtualInput.cs       synthetic keyboard, mouse and wheel at the UnityEngine.Input layer, plus the delivery record
+        GameplayGate.cs       opens the Cursor.visible gate, scoped to a loaded world
+        ChainProbe.cs         enter/exit counters on the per-frame input chain
+      Window/
+        WindowMode.cs         forces windowed mode by correcting Settings.CurrentData before the game applies it
+        NativeWindow.cs       read-only foreground and desktop queries, the only user32 imports in the plugin
+      Observe/
+        StateReporter.cs      live state to JSON
+        ConsoleTap.cs         bounded tee of ConsoleWindow.Print plus a BepInEx log listener
+        ConfigAccess.cs       live ConfigEntry read and write, plugin discovery, reflection
+        Screenshot.cs         backbuffer capture and downscale
+        ModSettingsPanel.cs   forces a StationeersLaunchPad mod settings panel on screen
+        Modal.cs              reads and dismisses confirmation dialogs
+      About/About.xml
 ```
 
 The C# namespace is flat (`ClientDriver`) regardless of folder. The folders are for a reader, not for the compiler, and a nested namespace would churn every file for no gain.
 
-Gitignored, created on demand: `data/` (registry, manifests, per-instance settings, save roots, logs, PID files) and `instances/` (the hard-linked trees, which normally live on the game install's volume instead). `.gitignore` carries the two as `/TestRig/ClientRig/data/` and `/TestRig/ClientRig/instances/`.
+**This folder is gitignored deny-all**, like the dedicated server half. `.gitignore` carries `/TestRig/ClientRig/*` plus a named allowlist for `client-rig.ps1`, `README.md`, `RESEARCH.md` and `dev-plugins/` (whose `bin/` and `obj/` are ignored again). Everything else is local-only: `data/` (registry, manifests, per-instance settings, save roots, logs, PID files) and `instances/` (the hard-linked trees, which normally live on the game install's volume instead), both created on demand.
+
+Deny-all rather than a short ignore list, because routine actions drop artifacts straight into this folder: `-Snapshot -All -OutFile before.json` writes here, and `/screenshot?path=shot.png` resolves relative to the instance working directory. Under an ignore-a-few-things list every one of those was committable by accident.

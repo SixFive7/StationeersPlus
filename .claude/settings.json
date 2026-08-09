@@ -131,28 +131,48 @@
         "hooks": [
           {
             "type": "command",
-            "if": "Bash(*DedicatedServer*)",
-            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/dedi-lock-hook.ps1"
+            "if": "Bash(*TestRig*)",
+            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/rig-lock-hook.ps1"
           },
           {
             "type": "command",
-            "if": "PowerShell(*DedicatedServer*)",
-            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/dedi-lock-hook.ps1"
+            "if": "Bash(*dedicated-server.ps1*)",
+            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/rig-lock-hook.ps1"
           },
           {
             "type": "command",
-            "if": "Read(*DedicatedServer*)",
-            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/dedi-lock-hook.ps1"
+            "if": "Bash(*client-rig.ps1*)",
+            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/rig-lock-hook.ps1"
           },
           {
             "type": "command",
-            "if": "Edit(*DedicatedServer*)",
-            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/dedi-lock-hook.ps1"
+            "if": "PowerShell(*TestRig*)",
+            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/rig-lock-hook.ps1"
           },
           {
             "type": "command",
-            "if": "Write(*DedicatedServer*)",
-            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/dedi-lock-hook.ps1"
+            "if": "PowerShell(*dedicated-server.ps1*)",
+            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/rig-lock-hook.ps1"
+          },
+          {
+            "type": "command",
+            "if": "PowerShell(*client-rig.ps1*)",
+            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/rig-lock-hook.ps1"
+          },
+          {
+            "type": "command",
+            "if": "Read(*TestRig*)",
+            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/rig-lock-hook.ps1"
+          },
+          {
+            "type": "command",
+            "if": "Edit(*TestRig*)",
+            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/rig-lock-hook.ps1"
+          },
+          {
+            "type": "command",
+            "if": "Write(*TestRig*)",
+            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/rig-lock-hook.ps1"
           }
         ]
       }

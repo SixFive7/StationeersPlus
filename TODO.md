@@ -47,12 +47,6 @@ Cross-mod and repo-wide tasks. Per-mod tasks live in each mod's own `TODO.md`.
 
 - **Extract shared multiplayer-startup sync logic to a common library**: the host-to-joining-client config push pattern is now duplicated across mods. `PowerTransmitterPlus` ships an `IJoinSuffixSerializer` implementation that delivers host config to joining clients (commits `130fae8`, `d031ccd`); `EquipmentPlus` will need the same scaffolding for item E (multiplayer slot-logic write) and for any future server-authoritative setting. Pull the shared pieces (join-validator / join-suffix-serializer wiring, message registration glue, the `PlayerConnected` rebroadcast pattern used by `DistanceConfigMessage` / `BeamVisualConfigMessage`, and any common envelope around `MOD.Networking.RegisterMessage<>`) into a shared assembly under `tools/` or a new `Shared/` project that every mod references, and migrate `PowerTransmitterPlus` and `EquipmentPlus` to consume it. Goal: a new mod's `Plugin.cs` declares which config entries are server-authoritative and gets the host push, the join-time delivery, and the rebroadcast for free, with no copy-pasted plumbing. Coordinate with the LaunchPadBooster issue #6 entry under "Long-term" below: if the upstream wrapper covers hot-swap values, our shared library focuses on the boot-time-gate handshake path that the wrapper does not solve.
 
-## Test tooling
-
-- **`ClientDriver`'s console tee is unbounded**: carried over from the 2026-07-27 run and confirmed still present on 2026-07-29. The client hard-hung once at a 12.75 GB working set with a frozen pump after the tee ingested over 500,000 lines. Cap the ring buffer. The exception storm that used to fill it in seconds is gone now that `/cursor/force` cannot wedge the client, so this is no longer urgent, but a long session still grows the tee without limit.
-
-- **`ClientDriver`'s `/savepath` mangles backslashes in a JSON body**: passing the path in the JSON body silently eats them, so `C:\Source\...` round-trips as `C:Source...`. A URL-encoded query parameter works. Fix the JSON reader before another session relies on the redirect for safety. Found in the 2026-07-27 run and still unfixed.
-
 ## Research housekeeping
 
 - Research/Unsorted: classify Research/Unsorted/PowerGridPlusCrossModCompat.md (originally from Mods/PowerGridPlus/TODO.md eighth verification task, 2026-05-22). Candidate categories: a new `Compat/` category if cross-mod compat pages become a recurring pattern, or fold into `Mods/PowerGridPlus/RESEARCH.md` Appendix B as a live-test addendum.

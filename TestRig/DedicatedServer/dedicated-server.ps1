@@ -103,15 +103,16 @@
     %USERPROFILE%\Documents\My Games\Stationeers\modconfig.xml.
 
 .PARAMETER Lock
-    Acquire the session lock for this whole test session (it spans many
-    start/stop cycles). Requires -Purpose. Prints a short owner id to reuse via
-    -As. Rules: TestRig/DedicatedServer/session.lock.template.
+    Acquire the RIG session lock for this whole test session (it spans many
+    start/stop cycles). One lock covers both TestRig halves, so the owner id it
+    prints is also the id client-rig.ps1 expects. Requires -Purpose. Rules:
+    TestRig/session.lock.template.
 
 .PARAMETER RefreshLock
     Bump the lock timer while actively driving a test. Requires -As.
 
 .PARAMETER Unlock
-    Release the session lock. Requires -As, or human-authorized -Force.
+    Release the rig session lock. Requires -As, or human-authorized -BreakLock.
 
 .PARAMETER Purpose
     With -Lock: short human-readable reason, e.g. "Playtesting network paint for
@@ -121,14 +122,16 @@
     The owner id printed by -Lock. Pass it on every mutating command so the
     launcher knows the command comes from the lock holder.
 
-.PARAMETER Force
+.PARAMETER BreakLock
     Break a LIVE lock held by another session (with -Lock / -Unlock / -Stop).
-    Agents may use this ONLY when the user explicitly authorizes it.
+    Agents may use this ONLY when the user explicitly authorizes it. Deliberately
+    not called -Force: on client-rig.ps1 -Force is the routine "rebuild my own
+    instance" override, and one flag name cannot mean both.
 
 .PARAMETER TtlMinutes
     With -Lock / -RefreshLock: inactivity window before the lock timer lapses.
-    Default 10. A running server with a connected player keeps the lock live
-    regardless of the timer.
+    Default 10. A busy rig (a player connected to the running server, or a live
+    client-rig instance) keeps the lock live regardless of the timer.
 
 .PARAMETER Release
     With -Stop: also release the session lock after stopping (when it is yours,
@@ -181,7 +184,7 @@ param(
     [switch] $Unlock,
     [string] $Purpose,
     [string] $As,
-    [switch] $Force,
+    [switch] $BreakLock,
     [int]    $TtlMinutes = 10,
 
     [switch] $HostMode
@@ -203,8 +206,14 @@ $ControlFile   = Join-Path $DataDir 'control.cmd'
 $ServerPidFile = Join-Path $DataDir 'server.pid'
 $HostPidFile   = Join-Path $DataDir 'host.pid'
 
-$LockFile       = Join-Path $ServerRoot 'session.lock'
-$LockTemplate   = Join-Path $ServerRoot 'session.lock.template'
+# The session lock is rig-wide (it covers TestRig/ClientRig/ too) and its whole
+# mechanism lives in one shared file, so the two halves cannot drift apart on
+# the timer, ownership or force-break rules. Rules: TestRig/session.lock.template.
+$RigLockLib = Join-Path $TestRigRoot 'rig-lock.ps1'
+if (-not (Test-Path $RigLockLib)) {
+    throw "Shared rig-lock implementation not found at $RigLockLib. It is committed alongside this launcher; restore it before driving the rig."
+}
+. $RigLockLib
 
 # ---- environment helpers --------------------------------------------------
 
@@ -252,151 +261,32 @@ function Test-PidAlive {
 }
 
 # ---- session lock ---------------------------------------------------------
-# Mechanism and rules: session.lock.template (single source of truth). The lock
-# spans a whole test session (many start/stop cycles) so a second agent cannot
-# stomp the shared install. Liveness = timer fresh OR a player connected.
+# Mechanism and rules: TestRig/session.lock.template (single source of truth);
+# implementation: TestRig/rig-lock.ps1, dot-sourced above and shared with
+# client-rig.ps1. The lock is RIG-WIDE: it spans a whole test session (many
+# start/stop cycles) and covers the client rig too, so a second agent cannot
+# stomp the shared install or the shared per-user Unity state. Liveness = timer
+# fresh OR the rig is busy (a player connected here, or a live client instance).
+#
+# Only the dedi-specific adapters live here. Everything else (Read-RigLock,
+# Write-RigLock, the timer, ownership, the break-lock gate) is in the library.
 
-function Get-NowUtc {
-    [DateTime]::UtcNow.ToString("yyyy-MM-ddTHH:mm:ss'Z'")
-}
-
-function Read-Lock {
-    # Returns an ordered hashtable of lock fields, or $null if no usable lock.
-    if (-not (Test-Path $LockFile)) { return $null }
-    $fields = [ordered]@{}
-    foreach ($line in (Get-Content -ErrorAction SilentlyContinue $LockFile)) {
-        $t = $line.Trim()
-        if (-not $t -or $t.StartsWith('#')) { continue }
-        $eq = $t.IndexOf('=')
-        if ($eq -lt 1) { continue }
-        $fields[$t.Substring(0, $eq).Trim()] = $t.Substring($eq + 1).Trim()
-    }
-    if (-not $fields.Contains('owner')) { return $null }
-    return $fields
-}
-
-function Write-Lock {
-    param([Parameter(Mandatory)] $Fields)
-    $sb = [System.Text.StringBuilder]::new()
-    [void]$sb.AppendLine('# Stationeers Dedicated Server - ACTIVE session lock (auto-managed; do not hand-edit).')
-    [void]$sb.AppendLine('# Mechanism and rules: session.lock.template (single source of truth).')
-    foreach ($k in $Fields.Keys) {
-        [void]$sb.AppendLine("$k=$($Fields[$k])")
-    }
-    $tmp = "$LockFile.tmp"
-    Set-Content -Path $tmp -Value $sb.ToString() -Encoding utf8 -NoNewline
-    Move-Item -Path $tmp -Destination $LockFile -Force
-}
-
-function Test-LockTimerExpired {
-    param([Parameter(Mandatory)] $Lock)
-    $ttl = 10
-    if ($Lock.Contains('ttl_minutes')) { [void][int]::TryParse($Lock['ttl_minutes'], [ref]$ttl) }
-    if (-not $Lock.Contains('refreshed_at')) { return $true }
-    try {
-        $r = [DateTime]::Parse($Lock['refreshed_at'],
-            [System.Globalization.CultureInfo]::InvariantCulture,
-            [System.Globalization.DateTimeStyles]::AssumeUniversal -bor [System.Globalization.DateTimeStyles]::AdjustToUniversal)
-    } catch { return $true }
-    return (([DateTime]::UtcNow - $r).TotalMinutes -gt $ttl)
-}
-
-function Get-LockAgeText {
-    param([Parameter(Mandatory)] $Lock)
-    try {
-        $r = [DateTime]::Parse($Lock['refreshed_at'],
-            [System.Globalization.CultureInfo]::InvariantCulture,
-            [System.Globalization.DateTimeStyles]::AssumeUniversal -bor [System.Globalization.DateTimeStyles]::AdjustToUniversal)
-        return "$([int](([DateTime]::UtcNow - $r).TotalMinutes)) min ago"
-    } catch { return 'unknown' }
-}
-
-function Measure-PlayersInLog {
-    # Pure helper: net connected-client count from a server.log-format file.
-    # Each completed join logs "Client <name> (<id>) is ready"; each leave logs
-    # "Client disconnected: ...". server.log truncates per launch, so the whole
-    # file is the current run; net = (ready events) - (disconnected events).
-    # Side-effect-free and takes an explicit path, so it can be unit-tested
-    # offline against synthetic logs without a running server or a real client.
-    param([Parameter(Mandatory)] [string] $Path)
-    if (-not (Test-Path $Path)) { return 0 }
-    $ready = 0
-    $disc  = 0
-    foreach ($line in (Get-Content -ErrorAction SilentlyContinue $Path)) {
-        if ($line -match 'Client .*\) is ready') { $ready++ }
-        elseif ($line -match 'Client disconnected:') { $disc++ }
-    }
-    $net = $ready - $disc
-    if ($net -lt 0) { return 0 }
-    return $net
+function Assert-MutatingAllowed {
+    # Gate for every mutating action except -Stop (which has its own gate).
+    param([Parameter(Mandatory)] [string] $Action)
+    Assert-RigLockHeld -Action $Action -CallerId $As -Tool 'dedicated-server.ps1'
 }
 
 function Get-ConnectedPlayerCount {
     # Currently-connected client count for the live server. The 'clients' /
     # 'status' console commands write to the in-game console, not the Unity
     # -logFile, so they cannot be scraped; the connection lifecycle IS logged,
-    # so we scan server.log via Measure-PlayersInLog. Reads the log directly: no
-    # stdin round-trip, no dependence on the host wrapper, unaffected by the
-    # no-client simulation pause. Returns 0 when the server is not running
-    # (favours freeing the dedi, per session.lock.template).
+    # so we scan server.log via Measure-PlayersInLog (library). Reads the log
+    # directly: no stdin round-trip, no dependence on the host wrapper,
+    # unaffected by the no-client simulation pause. Returns 0 when the server is
+    # not running (favours freeing the rig, per session.lock.template).
     if (-not (Test-PidAlive (Get-PidFromFile $ServerPidFile))) { return 0 }
     return (Measure-PlayersInLog $LogFile)
-}
-
-function Get-LockState {
-    # States: None, Mine, LiveForeign, DeadForeign.
-    param([string] $CallerId)
-    $lock = Read-Lock
-    if (-not $lock) { return [pscustomobject]@{ State = 'None'; Lock = $null; Players = $null } }
-    if ($CallerId -and $lock['owner'] -eq $CallerId) {
-        return [pscustomobject]@{ State = 'Mine'; Lock = $lock; Players = $null }
-    }
-    if (-not (Test-LockTimerExpired $lock)) {
-        return [pscustomobject]@{ State = 'LiveForeign'; Lock = $lock; Players = $null }
-    }
-    # Timer expired. Player-aware tie-break only if a server is still running.
-    if (-not (Test-PidAlive (Get-PidFromFile $ServerPidFile))) {
-        return [pscustomobject]@{ State = 'DeadForeign'; Lock = $lock; Players = 0 }
-    }
-    $players = Get-ConnectedPlayerCount
-    if ($players -ge 1) {
-        # A player is connected: an active session self-renews so a brief
-        # disconnect still gets a full TTL grace.
-        $lock['refreshed_at'] = Get-NowUtc
-        Write-Lock $lock
-        return [pscustomobject]@{ State = 'LiveForeign'; Lock = $lock; Players = $players }
-    }
-    return [pscustomobject]@{ State = 'DeadForeign'; Lock = $lock; Players = 0 }
-}
-
-function Format-ForeignLock {
-    param([Parameter(Mandatory)] $State)
-    $lk = $State.Lock
-    $players = if ($State.Players) { "; $($State.Players) player(s) connected" } else { '' }
-    return "    purpose : $($lk['purpose'])`n    owner   : $($lk['owner'])`n    active  : $(Get-LockAgeText $lk)$players"
-}
-
-function Assert-MutatingAllowed {
-    # Gate for every mutating action except -Stop (which has its own gate).
-    param([Parameter(Mandatory)] [string] $Action)
-    $st = Get-LockState -CallerId $As
-    switch ($st.State) {
-        'Mine' {
-            $lk = $st.Lock
-            $lk['refreshed_at'] = Get-NowUtc
-            Write-Lock $lk
-            return
-        }
-        'None' {
-            throw "[$Action] No session lock is held. Acquire one first:`n    dedicated-server.ps1 -Lock -Purpose `"<what you are testing>`"`nthen pass -As <id> on every mutating command. See session.lock.template."
-        }
-        'DeadForeign' {
-            throw "[$Action] No live session lock is held (a previous lock expired). Re-acquire:`n    dedicated-server.ps1 -Lock -Purpose `"<what you are testing>`"`nSee session.lock.template."
-        }
-        'LiveForeign' {
-            throw "[$Action] The dedicated server is locked by another session.`n$(Format-ForeignLock $st)`nDo NOT proceed. Report this purpose to the user and let the user decide. Only the user may authorize -Force. See session.lock.template."
-        }
-    }
 }
 
 # ---- bootstrap ------------------------------------------------------------
@@ -918,13 +808,14 @@ function Stop-ServerProcesses {
 function Invoke-Stop {
     # -Stop is allowed unless a LIVE foreign lock exists (so orphan / expired
     # cleanup needs no ceremony). It does not require -As. -Release also frees
-    # the lock when it is yours, already dead, or you were authorized to -Force.
-    $st = Get-LockState -CallerId $As
+    # the lock when it is yours, already dead, or you were authorized to
+    # -BreakLock.
+    $st = Get-RigLockState -CallerId $As
     if ($st.State -eq 'LiveForeign') {
-        if (-not $Force) {
-            throw "[Stop] Refusing to stop a server held by another live session.`n$(Format-ForeignLock $st)`nReport to the user. Only the user may authorize -Force. See session.lock.template."
+        if (-not $BreakLock) {
+            throw "[Stop] Refusing to stop a server held by another live session.`n$(Format-ForeignRigLock $st)`nReport to the user. Only the user may authorize -BreakLock. See TestRig/session.lock.template."
         }
-        Write-Warning "[Stop] -Force: stopping a server held by another live session ('$($st.Lock['purpose'])')."
+        Write-Warning "[Stop] -BreakLock: stopping a server held by another live session ('$($st.Lock['purpose'])')."
     }
 
     $serverAlive = Test-PidAlive (Get-PidFromFile $ServerPidFile)
@@ -957,16 +848,16 @@ function Invoke-Stop {
     }
 
     if ($Release) {
-        $lock = Read-Lock
+        $lock = Read-RigLock
         if (-not $lock) {
-            Write-Host "[Stop] No session lock to release."
+            Write-Host "[Stop] No rig session lock to release."
         }
-        elseif (($As -and $lock['owner'] -eq $As) -or $Force -or (Test-LockTimerExpired $lock)) {
-            Remove-Item -Force -ErrorAction SilentlyContinue $LockFile
-            Write-Host "[Stop] Session lock released."
+        elseif (($As -and $lock['owner'] -eq $As) -or $BreakLock -or (Test-RigLockTimerExpired $lock)) {
+            Remove-Item -Force -ErrorAction SilentlyContinue (Get-RigLockFilePath)
+            Write-Host "[Stop] Rig session lock released."
         }
         else {
-            Write-Warning "[Stop] -Release ignored: lock held by '$($lock['owner'])', not you. Use -Unlock -As <id>, or get user authorization for -Force."
+            Write-Warning "[Stop] -Release ignored: lock held by '$($lock['owner'])', not you. Use -Unlock -As <id>, or get user authorization for -BreakLock."
         }
     }
     Write-Host "[Stop] Done."
@@ -976,67 +867,27 @@ function Invoke-Stop {
 
 function Invoke-Lock {
     if (-not $Purpose) {
-        throw "-Lock requires -Purpose `"<short reason>`", e.g. -Purpose `"Playtesting network paint for SprayPaintPlus`". See session.lock.template."
+        throw "-Lock requires -Purpose `"<short reason>`", e.g. -Purpose `"Playtesting network paint for SprayPaintPlus`". See TestRig/session.lock.template."
     }
-    $st = Get-LockState -CallerId $As
-    switch ($st.State) {
-        'Mine' {
-            $owner = $st.Lock['owner']
-            Write-Lock ([ordered]@{
-                owner = $owner; purpose = $Purpose
-                acquired_at = $st.Lock['acquired_at']; refreshed_at = (Get-NowUtc)
-                ttl_minutes = $TtlMinutes; host = $env:COMPUTERNAME
-            })
-            Write-Host "[Lock] Re-asserted session lock (owner $owner). Pass -As $owner on mutating commands."
-            return
-        }
-        'LiveForeign' {
-            if (-not $Force) {
-                throw "Cannot acquire: the dedicated server is locked by another session.`n$(Format-ForeignLock $st)`nReport this purpose to the user. Only the user may authorize -Force. See session.lock.template."
-            }
-            Write-Warning "[Lock] -Force: breaking a live lock held by '$($st.Lock['purpose'])' (owner $($st.Lock['owner']))."
-        }
-        'DeadForeign' {
+    # Reclaiming a DEAD lock while this half still has an orphaned server up is
+    # the one dedi-specific step; everything else is the shared implementation.
+    New-RigLock -Purpose $Purpose -CallerId $As -TtlMinutes $TtlMinutes -BreakLock:$BreakLock `
+        -Tool 'dedicated-server.ps1' -OnReclaim {
             if (Test-PidAlive (Get-PidFromFile $ServerPidFile)) {
                 Write-Warning "[Lock] Reclaiming an expired lock; stopping its orphaned server first."
                 Stop-ServerProcesses
             }
-        }
-    }
-    $owner = [guid]::NewGuid().ToString('N').Substring(0, 8)
-    Write-Lock ([ordered]@{
-        owner = $owner; purpose = $Purpose
-        acquired_at = (Get-NowUtc); refreshed_at = (Get-NowUtc)
-        ttl_minutes = $TtlMinutes; host = $env:COMPUTERNAME
-    })
-    Write-Host "[Lock] Acquired session lock."
-    Write-Host "[Lock]   owner   : $owner   (pass -As $owner on every mutating command)"
-    Write-Host "[Lock]   purpose : $Purpose"
-    Write-Host "[Lock]   ttl     : $TtlMinutes min (refresh with -RefreshLock -As $owner while actively testing)"
-    Write-Host "[Lock] Rules: session.lock.template."
+        } | Out-Null
 }
 
 function Invoke-RefreshLock {
     if (-not $As) { throw "-RefreshLock requires -As <id> (the owner id printed by -Lock)." }
-    $lock = Read-Lock
-    if (-not $lock) { throw "No session lock to refresh. Acquire one: -Lock -Purpose `"<reason>`"." }
-    if ($lock['owner'] -ne $As) {
-        throw "Refresh refused: the lock is held by owner '$($lock['owner'])' (purpose: $($lock['purpose'])), not '$As'. Your reservation has lapsed. Report to the user; do not touch the server. See session.lock.template."
-    }
-    $lock['refreshed_at'] = Get-NowUtc
-    if ($PSBoundParameters.ContainsKey('TtlMinutes')) { $lock['ttl_minutes'] = $TtlMinutes }
-    Write-Lock $lock
-    Write-Host "[RefreshLock] Refreshed (owner $As, ttl $($lock['ttl_minutes']) min)."
+    if ($PSBoundParameters.ContainsKey('TtlMinutes')) { Update-RigLock -CallerId $As -TtlMinutes $TtlMinutes }
+    else                                              { Update-RigLock -CallerId $As }
 }
 
 function Invoke-Unlock {
-    $lock = Read-Lock
-    if (-not $lock) { Write-Host "[Unlock] No session lock present."; return }
-    if (-not ($As -and $lock['owner'] -eq $As) -and -not $Force) {
-        throw "Unlock refused: the lock is held by owner '$($lock['owner'])' (purpose: $($lock['purpose'])), not '$As'. Report to the user. Only the user may authorize -Force. See session.lock.template."
-    }
-    Remove-Item -Force -ErrorAction SilentlyContinue $LockFile
-    Write-Host "[Unlock] Session lock released (was owner $($lock['owner']))."
+    Remove-RigLock -CallerId $As -BreakLock:$BreakLock
 }
 
 # ---- status & logs --------------------------------------------------------
@@ -1067,26 +918,12 @@ function Invoke-Status {
         Write-Host "pending cmd:  $pending"
     }
 
-    $lock = Read-Lock
-    if (-not $lock) {
-        Write-Host "session lock: none"
+    if ($serverAlive) {
+        Write-Host "players:      $(Get-ConnectedPlayerCount) connected"
     }
-    else {
-        $expired = Test-LockTimerExpired $lock
-        $own = if ($As -and $lock['owner'] -eq $As) { 'YOURS' }
-               elseif ($As) { "held by another session ($($lock['owner']))" }
-               else { "owner $($lock['owner'])" }
-        Write-Host "session lock: $own"
-        Write-Host "  purpose:    $($lock['purpose'])"
-        Write-Host "  timer:      $(if ($expired) { 'expired' } else { 'fresh' }); ttl $($lock['ttl_minutes']) min; refreshed $(Get-LockAgeText $lock)"
-        if ($serverAlive) {
-            $players = Get-ConnectedPlayerCount
-            $note = if ($expired) {
-                if ($players -ge 1) { '  (lock still LIVE: player connected)' } else { '  (timer expired, no player; reclaimable)' }
-            } else { '' }
-            Write-Host "  players:    $players connected$note"
-        }
-    }
+    # The lock is rig-wide, so this block is the shared one; client-rig.ps1
+    # -Status prints exactly the same thing.
+    Write-RigLockStatus -CallerId $As
 
     if ($serverAlive -and -not $hostAlive) {
         Write-Warning "Server is alive but host wrapper is gone. Use -Stop to terminate the orphan."
@@ -1224,14 +1061,17 @@ if ($Logs)        { Invoke-Logs;        return }
 Write-Host @"
 Stationeers Dedicated Server launcher.
 
+Rig conventions:    TestRig/CLAUDE.md
 Operations manual:  TestRig/DedicatedServer/CLAUDE.md
-Session-lock rules: TestRig/DedicatedServer/session.lock.template (READ FIRST)
+Session-lock rules: TestRig/session.lock.template (READ FIRST)
 
-Session lock (acquire before ANY mutating command; pass -As <id> thereafter):
+Session lock (acquire before ANY mutating command; pass -As <id> thereafter).
+ONE lock covers BOTH halves, so this id is also what client-rig.ps1 expects:
   TestRig/DedicatedServer/dedicated-server.ps1 -Lock -Purpose "<what you are testing>" [-TtlMinutes 10]
   TestRig/DedicatedServer/dedicated-server.ps1 -RefreshLock -As <id>      (while actively testing)
   TestRig/DedicatedServer/dedicated-server.ps1 -Unlock -As <id>           (release when done)
-  Breaking another session's LIVE lock (-Force) is human-gated: only on the user's say-so.
+  Breaking another session's LIVE lock (-BreakLock) is human-gated: only on the user's say-so.
+  -BreakLock is NOT -Force. -Force never breaks a lock on either launcher.
 
 Setup (mutating; needs the lock):
   TestRig/DedicatedServer/dedicated-server.ps1 -Bootstrap -As <id>

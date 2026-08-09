@@ -280,9 +280,11 @@ Project-specific / technical-depth preferences that layer on top of the global `
 
 ---
 
-## Dedicated server (multiplayer test rig)
+## Test rig: dedicated server half
 
-A self-contained Stationeers Dedicated Server install lives at `<REPO_CLONE_PATH>/TestRig/DedicatedServer/`. The directory tree is gitignored except for `TestRig/DedicatedServer/CLAUDE.md`, which holds the bootstrap, deploy, launch, and shutdown procedures and the exact CLI flag set the launcher applies. Read it before running any dedicated-server step.
+The test rig lives at `<REPO_CLONE_PATH>/TestRig/` and has two halves that a full multiplayer test uses together. This section covers the dedicated server; the client rig is the section below. Shared rules for both (the one session lock, what the rig touches outside its own folder, the save tiers, the `dev-plugins/` layout) are in `TestRig/CLAUDE.md`.
+
+A self-contained Stationeers Dedicated Server install lives at `<REPO_CLONE_PATH>/TestRig/DedicatedServer/`. The directory tree is gitignored deny-all except for `TestRig/DedicatedServer/CLAUDE.md` (which holds the bootstrap, deploy, launch, and shutdown procedures and the exact CLI flag set the launcher applies), the launcher itself, and source under `dev-plugins/`. Read the CLAUDE.md before running any dedicated-server step.
 
 The launcher script is `TestRig/DedicatedServer/dedicated-server.ps1`. It depends on two externally-rooted paths, both of which it expects the developer (this file) to provide:
 
@@ -295,9 +297,47 @@ The launcher script is `TestRig/DedicatedServer/dedicated-server.ps1`. It depend
 The dedicated server, even with its install rooted inside the repo, shares two user-account-scoped artifacts with the client. Neither contains world data; both are documented here so the developer knows what is and is not isolated:
 
 - `%USERPROFILE%\AppData\LocalLow\Rocketwerkz\rocketstation\PlayerCookie-v2.xml` is read and may be written by the dedicated server. Carries player ID, dismissed-popup flags. Shared with the client.
-- `HKCU\Software\Rocketwerkz Limited\rocketstation` is the Unity PlayerPrefs registry key. Shared with the client. Cosmetic state.
+- `HKCU\Software\Rocketwerkz\rocketstation` is the Unity PlayerPrefs registry key. Shared with the client. Cosmetic state.
 
-Save data is fully isolated. The dedicated server reads and writes only `TestRig/DedicatedServer/data/saves/`. The client's save folder at `<USER_DOCUMENTS>\My Games\Stationeers\saves\` is never touched by the dedicated server. By repository-wide policy (see root `CLAUDE.md`, "Workflow: never touch save files"), agents must never copy, move, rename, delete, or modify save files in either folder; the developer manages saves manually.
+The client rig shares both of these too, which is why one lock covers the whole rig.
+
+Save data is isolated per half. The dedicated server reads and writes only `TestRig/DedicatedServer/data/saves/`. The client's save folder at `<USER_DOCUMENTS>\My Games\Stationeers\saves\` is never touched by either half. The repository-wide policy is in root `CLAUDE.md`, "Workflow: save file access tiers": that client save folder is tier 1 and agents must never touch it, while both rig save roots (`TestRig/DedicatedServer/data/saves/` and `TestRig/ClientRig/data/<instance>/userdata/`) are tier 3 and agent-managed, owned by whoever holds the rig session lock.
+
+---
+
+## Test rig: client rig half
+
+`<REPO_CLONE_PATH>/TestRig/ClientRig/` provisions and drives N isolated Stationeers game clients on this machine, so an agent can run a real multiplayer test with nobody at the keyboard. Operating manual: `TestRig/ClientRig/README.md`. Durable internals: `TestRig/ClientRig/RESEARCH.md`. The launcher is `TestRig/ClientRig/client-rig.ps1`; the in-process control plane is the `ClientDriver` plugin at `TestRig/ClientRig/dev-plugins/ClientDriver/`.
+
+### `STATIONEERS_CLIENTRIG_ROOT` (instance-tree location)
+
+An instance is a **hard-linked** copy of the real game install, so it costs a few megabytes instead of about seven gigabytes. **Hard links cannot cross NTFS volumes**, so the instance trees must sit on the same drive as the game install. The repository frequently does not, which makes this variable load-bearing rather than optional: without it the launcher refuses (it will not silently make a 7 GB real copy).
+
+Concrete value on this machine:
+
+```
+<DRIVE>:\StationeersRig\
+  client1\                        <- one hard-linked game tree per instance
+  client2\
+```
+
+Set it as a User environment variable so every shell and every agent sees it:
+
+```powershell
+[Environment]::SetEnvironmentVariable('STATIONEERS_CLIENTRIG_ROOT', '<DRIVE>:\StationeersRig', 'User')
+```
+
+Resolution order in `client-rig.ps1`: the `-InstancesRoot` parameter, then `$env:STATIONEERS_CLIENTRIG_ROOT`, then `instances/` beside the script. The last fallback is only correct when the repository and the game install happen to share a volume; the launcher checks the volumes and throws with the exact command to fix it when they differ.
+
+Per-instance state that is ordinary files rather than links (the rig registry, manifests, `setting.xml`, save roots, logs, PID files) stays under `TestRig/ClientRig/data/` regardless, on whatever volume the repository is on.
+
+### What the client rig touches outside its own folder
+
+- The **Stationeers client install** (`$(StationeersPath)`): read-only source for the hard links, about 1,050 per instance. Never written.
+- `%USERPROFILE%\AppData\LocalLow\Rocketwerkz\rocketstation\`: `PlayerCookie-v2.xml`, `Player.log`, `Blueprints\`. Shared with the dedicated server AND with the developer's own client; Unity's `persistentDataPath` cannot be separated per instance. `ClientDriver` suppresses `PlayerCookie.Save()` to protect the cookie, and the launcher always passes a unique `-logFile` so two instances cannot destroy `Player-prev.log`.
+- `HKCU\Software\Rocketwerkz\rocketstation`: Unity PlayerPrefs, shared the same way.
+- `<USER_DOCUMENTS>\My Games\Stationeers\`: read-only source for `modconfig.xml` and `mods/` during `-Provision -SeedMods`. Never written. The launcher never passes `-settings SavePath`, because StationeersLaunchPad then rewrites that shared `modconfig.xml` with every `<Local>` entry deleted.
+- `<USER_DOCUMENTS>\My Games\Stationeers\saves\`: never touched. Tier 1.
 
 ---
 

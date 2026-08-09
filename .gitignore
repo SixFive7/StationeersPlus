@@ -100,25 +100,38 @@ playwright/persistent/state/
 ## Web publish staging (intermediate dir assembled by tools/publish-web/build.ps1; Web/site/ IS tracked)
 Web/_staging/
 
-## Dedicated server tree (see TestRig/DedicatedServer/CLAUDE.md)
-## Everything inside TestRig/DedicatedServer/ is local-only except CLAUDE.md, the
-## launcher script, the session-lock rules template, and source code under
-## dev-plugins/. The active session.lock and the dev-plugins build outputs stay
-## ignored.
+## Test rig (see TestRig/CLAUDE.md)
+## Both halves are DENY-ALL with a named allowlist, deliberately. Everything these
+## tools produce is local-only, and several normal actions drop artifacts straight
+## into the folder (-Snapshot -OutFile before.json, /screenshot?path=shot.png,
+## scratch dumps). Deny-all means a stray artifact cannot be committed by accident;
+## an ignore-a-few-things list would let every one of those through.
+##
+## The rig root itself only carries the shared lock machinery, so the active
+## session.lock is the one thing ignored there.
+/TestRig/session.lock
+
+## Dedicated server half: local-only except CLAUDE.md, the launcher, and source
+## code under dev-plugins/. install/ and data/ are ignored wholesale.
 /TestRig/DedicatedServer/*
 !/TestRig/DedicatedServer/CLAUDE.md
 !/TestRig/DedicatedServer/dedicated-server.ps1
-!/TestRig/DedicatedServer/session.lock.template
 !/TestRig/DedicatedServer/dev-plugins/
 /TestRig/DedicatedServer/dev-plugins/**/bin/
 /TestRig/DedicatedServer/dev-plugins/**/obj/
 
-## Client rig local state (see TestRig/ClientRig/README.md).
-## instances/ holds hard-linked copies of the game install and normally lives on the
-## install's volume, not here; data/ holds the rig registry, per-instance manifests,
-## settings, save roots, logs and PID files. Both are created on demand.
-/TestRig/ClientRig/instances/
-/TestRig/ClientRig/data/
+## Client rig half: local-only except the launcher, its two docs, and source code
+## under dev-plugins/. instances/ holds hard-linked copies of the game install and
+## normally lives on the install's volume, not here; data/ holds the rig registry,
+## per-instance manifests, settings, save roots, logs and PID files. Both are
+## created on demand and both are covered by the deny-all above.
+/TestRig/ClientRig/*
+!/TestRig/ClientRig/README.md
+!/TestRig/ClientRig/RESEARCH.md
+!/TestRig/ClientRig/client-rig.ps1
+!/TestRig/ClientRig/dev-plugins/
+/TestRig/ClientRig/dev-plugins/**/bin/
+/TestRig/ClientRig/dev-plugins/**/obj/
 
 ## Test / benchmark / coverage output
 TestResults/

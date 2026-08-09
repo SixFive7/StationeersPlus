@@ -20,6 +20,22 @@ That boundary is not a filing convention; it falls out of two hard constraints.
 
 ---
 
+## Why the session lock is rig-wide, and why it is shared code
+
+The launcher has no business gating anything a single agent does to its own instances. The lock exists because more than one agent runs on this machine, and three of this launcher's actions are destructive to somebody else's work in a way that leaves no evidence:
+
+- `-Stop -All` ends every instance in the registry, including instances another session started. A killed client cannot report afterwards that its run was interrupted, so the interrupted test does not fail, it just produces a wrong answer.
+- `-Remove` deletes an instance's tree and its save root.
+- Two concurrent `-Provision` calls both read the registry before either writes it, both compute the same lowest free index, and therefore both derive the same default ClientId. That is precisely the collision `Invoke-Provision` already refuses within a single call, and for the reason stated there: the server keys a player's body on ClientId, `Brain.RegisterBrain` overwrites silently, and two clients sharing an id resolve onto one character with nothing warning. A test that believes it has two players and has one produces results that look plausible and mean nothing. The single-call guard cannot see a racing sibling; the lock can.
+
+**One lock for both halves, not one per half.** The two halves are not independent resources. They hard-link and mirror out of the same game install, and they share per-Windows-user Unity state that nothing separates: `PlayerCookie-v2.xml` under `persistentDataPath` (which cannot be redirected, see "What is not separable") and the `HKCU\Software\Rocketwerkz\rocketstation` PlayerPrefs key. The developer's own client shares them too. On top of that, the common case is a multiplayer test that drives both at once, which under two locks would mean acquiring two in some order, and an agent acquiring them in the other order deadlocks against it.
+
+**One implementation, dot-sourced by both launchers** (`TestRig/rig-lock.ps1`). A second copy of the timer, the ownership check and the break-lock gate would drift, and the half that drifted would be the half with the weaker guarantee. Sharing the code is what makes "the client rig has the same guarantees as the dedicated server" true by construction rather than by review.
+
+**Liveness differs per half, deliberately.** The server counts as busy only when a player is connected, so an abandoned server with nobody on it can be reclaimed. The client rig counts as busy when any instance process is alive, which is a lower bar. That asymmetry is correct: on the server a running process with no player is genuinely idle, whereas here the running processes are the test, there being no human to connect. The cost is that leaving instances up holds the whole rig with no timer to save you, which is why `-Unlock` warns when the rig is still busy and the release discipline is stated in `session.lock.template`.
+
+---
+
 ## The cursor gate
 
 This is the single most expensive thing in the rig's history: it cost a session, and it produced a confidently wrong acceptance-test result before it was found.
@@ -395,4 +411,5 @@ The JSON reader is hand-rolled because the game ships no JSON library a BepInEx 
 
 ## Corrections owed elsewhere
 
-- `TestRig/DedicatedServer/CLAUDE.md` (two places) and the repo-root `CLAUDE.md` name the PlayerPrefs key as `HKCU\Software\Rocketwerkz Limited\rocketstation`. That key **does not exist**. The real one is `HKCU\Software\Rocketwerkz\rocketstation`; `Rocketwerkz Limited` is only an `AssemblyCompany` string.
+- `Research/Workflows/StationeersLaunchPadDedicatedServer.md` (option D, "Two separate client instances on one machine") names the PlayerPrefs key as `HKCU\Software\Rocketwerkz Limited\rocketstation`. That key **does not exist**. The real one is `HKCU\Software\Rocketwerkz\rocketstation`; `Rocketwerkz Limited` is only an `AssemblyCompany` string. Re-verified against the live registry on 2026-08-09: `Test-Path 'HKCU:\Software\Rocketwerkz Limited'` is false, `HKCU:\Software\Rocketwerkz\rocketstation` is true, and `HKCU:\Software` has exactly one `Rocketwerkz*` child. The same page's wider claim (that two client instances need two Steam logins) is also stale: this rig runs two on one login, because identity comes from the manifest rather than from Steam. Correcting a central `Research/` page needs the fresh-validator protocol in `Research/WORKFLOW.md`, which is why it is still owed rather than done.
+- The rig's own docs no longer carry the wrong key. `TestRig/CLAUDE.md`, `TestRig/DedicatedServer/CLAUDE.md`, `TestRig/session.lock.template`, `TestRig/rig-lock.ps1`, the repo-root `CLAUDE.md` and `DEV.md.template` were all corrected on 2026-08-09.

@@ -7,7 +7,7 @@ verified_at: 2026-07-29
 sources:
   - .work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs
   - .work/decomp/0.2.6403.27689/Assembly-CSharp.GameManager.decompiled.cs
-  - TestRig/ClientRig/ClientDriver/Routes/Router.cs
+  - TestRig/ClientRig/dev-plugins/ClientDriver/ClientDriver/Routes/Router.cs
 related:
   - ../Workflows/DrivingTheGameClientProgrammatically.md
   - ../Patterns/ThingEnumerationOffMainThread.md

@@ -2,7 +2,9 @@
 
 This folder holds a self-contained Stationeers Dedicated Server install used to test the mods in this monorepo against multiplayer code paths. It is isolated from the developer's client install and from any client save folder.
 
-The folder is gitignored except for this file, the launcher `dedicated-server.ps1`, `session.lock.template`, and source code under `dev-plugins/`. Anything that lands in `install/` or `data/` is local-only and never committed.
+The folder is gitignored deny-all except for this file, the launcher `dedicated-server.ps1`, and source code under `dev-plugins/`. Anything that lands in `install/` or `data/` is local-only and never committed.
+
+This is one half of `TestRig/`. **`TestRig/CLAUDE.md` carries the rules shared with the other half** (the one session lock covering both, what the rig touches outside its own folder, the save tiers, the `dev-plugins/` layout, the launcher-flag conventions) and auto-loads alongside this file. The client rig is `TestRig/ClientRig/`.
 
 ## Layout
 
@@ -49,14 +51,16 @@ The server's `BepInEx/` tree, including StationeersLaunchPad and its sibling plu
 
 ## Session lock (acquire before anything)
 
-One dedicated-server install is shared by every agent on this machine, and a test is many start/stop cycles. "Is a server process running" is therefore not enough to tell whether a session is in progress: between a `-Stop` and the next `-Start` nothing runs, yet the session is still active. The session lock marks "a session owns the dedi" across those gaps so a second agent does not stomp the saves, the deployed mods, or the world.
+One rig is shared by every agent on this machine, and a test is many start/stop cycles. "Is a server process running" is therefore not enough to tell whether a session is in progress: between a `-Stop` and the next `-Start` nothing runs, yet the session is still active. The session lock marks "a session owns the rig" across those gaps so a second agent does not stomp the saves, the deployed mods, or the world.
 
-**The single source of truth for the lock rules is `TestRig/DedicatedServer/session.lock.template`. Read it before driving the server.** The active lock is `TestRig/DedicatedServer/session.lock` (gitignored), managed by the launcher. The essentials:
+**The lock is rig-wide: one lock covers this half AND `TestRig/ClientRig/`.** The two share the developer's one game install and per-Windows-user Unity state that nothing separates (`PlayerCookie-v2.xml`, the PlayerPrefs key), and a multiplayer test drives both at once. Acquire from either launcher; the owner id works on both.
 
-- **Acquire once, before any mutating command:** `dedicated-server.ps1 -Lock -Purpose "Playtesting <what> for <mod>"`. It prints a short owner id; pass `-As <id>` on every mutating command after that (`-Bootstrap`, `-DeployMods`, `-SyncMods`, `-Start`, `-Save`, `-SendCommand`, `-Stop`). Read-only `-Status` / `-Logs` never need it.
-- **The purpose is for the user.** Keep it short and generic. When you hit a lock you do not own, do not proceed: show its purpose to the user and let the user decide. Never use `-Force` on your own; it is human-gated.
-- **It expires on a timer (default 10 min) so an idle agent frees the dedi.** Refresh (`-RefreshLock -As <id>`, or any mutating command) about once a minute ONLY while actively driving a test. Never refresh just to hold the server for an absent human, and never spawn a background refresher; either one starves other agents.
-- **A connected player keeps the lock live regardless of the timer.** An active playtest is protected; a server left idle with nobody connected frees up when the timer lapses.
+**The single source of truth for the lock rules is `TestRig/session.lock.template`. Read it before driving either half.** The active lock is `TestRig/session.lock` (gitignored); the shared implementation both launchers dot-source is `TestRig/rig-lock.ps1`. The essentials:
+
+- **Acquire once, before any mutating command:** `dedicated-server.ps1 -Lock -Purpose "Playtesting <what> for <mod>"`. It prints a short owner id; pass `-As <id>` on every mutating command after that (`-Bootstrap`, `-DeployMods`, `-SyncMods`, `-Start`, `-Save`, `-SendCommand`, `-Stop`), and on the client rig's mutating commands too. Read-only `-Status` / `-Logs` never need it.
+- **The purpose is for the user.** Keep it short and generic. When you hit a lock you do not own, do not proceed: show its purpose to the user and let the user decide. Never use `-BreakLock` on your own; it is human-gated. It is spelled `-BreakLock`, not `-Force`: `-Force` is the routine same-session override on both launchers and never breaks a lock.
+- **It expires on a timer (default 10 min) so an idle agent frees the rig.** Refresh (`-RefreshLock -As <id>`, or any mutating command) about once a minute ONLY while actively driving a test. Never refresh just to hold the server for an absent human, and never spawn a background refresher; either one starves other agents.
+- **A busy rig keeps the lock live regardless of the timer.** Busy means a player connected here, or any client-rig instance process alive. An active playtest is protected; a rig left idle frees up when the timer lapses. Note the client-side consequence: instances left running hold this half too, so stop them before releasing.
 - **Waiting for the developer to join:** tell them the reservation window in plain terms, set `-TtlMinutes` to a sensible join window, then go idle. Do not poll-refresh.
 - **On resume after any gap, re-check ownership first:** `dedicated-server.ps1 -Status -As <id>`. If another session holds it, stop, tell the user what took it (the reported purpose), and re-acquire only on their go-ahead.
 - **Release when done:** `-Unlock -As <id>`, or `-Stop -As <id> -Release`.
@@ -237,7 +241,7 @@ No `ServerPassword` is set. The server is loopback-only by design (LocalIpAddres
 - `Mods/<ModName>/<ModName>/bin/<Configuration>/<ModName>.dll`: read-only source for `-DeployMods`.
 - The SteamCMD executable (path in `DEV.md`, `STEAMCMD_PATH`): invoked during `-Bootstrap`. SteamCMD writes to its own state directories; nothing here.
 - The Unity per-user persistent data folder for `Rocketwerkz/rocketstation` (path in `DEV.md`): `PlayerCookie-v2.xml` is read and may be written by the dedicated server itself. Shared with the client. Carries player ID and dismissed-popup flags. Not save data.
-- The `HKCU\Software\Rocketwerkz Limited\rocketstation` registry key: Unity PlayerPrefs, shared with the client. Not save data.
+- The `HKCU\Software\Rocketwerkz\rocketstation` registry key: Unity PlayerPrefs, shared with the client. Not save data.
 - The client's save folder (path in `DEV.md`): NEVER read or written.
 
 ## Manual cleanup
@@ -251,7 +255,7 @@ There is no `-Clean` action. Cleaning is the developer's call:
 ## Notes for agents
 
 - This file auto-loads when you touch any path inside `TestRig/DedicatedServer/`. If your work involves only `TestRig/DedicatedServer/dedicated-server.ps1` and never reads or writes inside this folder, read this file explicitly.
-- Never commit anything in this folder other than this `CLAUDE.md`, the launcher `dedicated-server.ps1`, `session.lock.template`, and source code under `dev-plugins/`. The `.gitignore` rule (`/TestRig/DedicatedServer/*` plus `!` exceptions for those four targets) makes this automatic for `git add`, but `git add -f` would bypass it; do not bypass it. The active `session.lock`, the entire `install/` tree, the entire `data/` tree, and the `dev-plugins/<X>/<X>/bin/` and `obj/` build outputs all stay gitignored.
+- Never commit anything in this folder other than this `CLAUDE.md`, the launcher `dedicated-server.ps1`, and source code under `dev-plugins/`. The `.gitignore` rule (`/TestRig/DedicatedServer/*` plus `!` exceptions for those three targets) makes this automatic for `git add`, but `git add -f` would bypass it; do not bypass it. The entire `install/` tree, the entire `data/` tree, and the `dev-plugins/<X>/<X>/bin/` and `obj/` build outputs all stay gitignored. The lock rules and the active lock now live one level up at `TestRig/session.lock.template` and `TestRig/session.lock` (the latter ignored), because the lock covers both halves.
 - All InspectorPlus snapshot conventions apply on the server too. Drop request files in `install/BepInEx/inspector/requests/` and read `install/BepInEx/inspector/snapshots/`. With no client connected the server simulation is paused and request files are not processed; for autonomous snapshots, enable InspectorPlus's `Force Unpause Without Client` setting (off by default) under `[Server - Headless]` in `install/BepInEx/config/net.inspectorplus.cfg`. See `Research/Workflows/InspectorPlusUsage.md`. Caveat (observed 0.2.6228.27061): this force-unpause is a one-shot in a `GameManager.StartGame` postfix and does not reliably survive a world load. It held through one fresh load (requests processed) but a reload left the world re-paused, so dropped requests then sit unprocessed. If a request is not consumed within seconds of a loaded world, the sim has re-paused: restart and snapshot during the early post-load window, or connect a client (a connected player un-pauses the sim deterministically).
 - **`ScenarioRunner` is the in-server probe tool for this dedi.** It lives at `TestRig/DedicatedServer/dev-plugins/ScenarioRunner/`, loads as a BepInEx plugin via StationeersLaunchPad, and runs scenario-driven read-and-log or reflection-driven probes from a Harmony postfix on `ElectricityManager.ElectricityTick`. Use it when an InspectorPlus snapshot is the wrong shape, for example when you need state evolution across many ticks or you need to stimulate a method (`Battery.ReceivePower`, `PowerGridTick.TestBurnCable`) rather than just read. Full manual: `TestRig/DedicatedServer/dev-plugins/ScenarioRunner/README.md`. Scenario catalogue, pump details, and the threading constraints on what the postfix can read all live there. The Path B section below has the operational walkthrough.
 - **Stdin console commands can be a no-op in batch mode (observed 0.2.6228.27061).** This session `-SendCommand`, `-Save`, and the graceful path of `-Stop` (which sends `quit`) had no observable effect: a console `save "probe"` created no save folder, and `quit` never exited, so `-Stop` force-killed after its 30s timeout. The host wrapper still queues and forwards the command; the batch-mode server simply did not act on it. So treat `-Stop` as a reliable force-kill, do not depend on `-Save` or `-SendCommand` to drive a running server, and persist state via AutoSave (which fires normally) or an offline Path D save-edit rather than a console `save`. Whether this is version- or environment-specific was not pinned down this session.
@@ -288,7 +292,7 @@ What Path D does badly (use Path B instead):
 
 Use Path B for changes to LIVE simulation state and for RUNTIME OBSERVATION at a known simulation tick. `ScenarioRunner` is a developer BepInEx plugin that lives at `TestRig/DedicatedServer/dev-plugins/ScenarioRunner/`, next to this CLAUDE.md and the launcher. It loads via StationeersLaunchPad, runs a scenario picked by a config string, and logs structured `[ScenarioRunner] ...` lines to `install/BepInEx/LogOutput.log`. An agent greps the log instead of staging InspectorPlus request files.
 
-It is intentionally NOT in `Mods/` or `Plans/`: it never ships to the Workshop, never graduates to a release mod, and only makes sense paired with the dedi launcher. `dev-plugins/` is the home for that category, server-side tooling only; the client-driving rig lives outside this tree at `TestRig/ClientRig/`. New dev-plugins follow the same shape (`<Name>/<Name>.sln` + `<Name>/<Name>/` source folder + `About/`) and slot in next to `ScenarioRunner/`, the only one there today.
+It is intentionally NOT in `Mods/` or `Plans/`: it never ships to the Workshop, never graduates to a release mod, and only makes sense paired with a rig launcher. `dev-plugins/` is the home for that category. This half's `dev-plugins/` is server-side tooling only; the client half has its own at `TestRig/ClientRig/dev-plugins/`, where `ClientDriver` lives. Both halves use the same shape (`dev-plugins/<Name>/<Name>.sln` + `dev-plugins/<Name>/<Name>/` source folder + `About/`), so a new dev-plugin on either side slots in next to the existing one with nothing to rename. The rule is stated once, for both halves, in `TestRig/CLAUDE.md`.
 
 Build and deploy:
 
@@ -329,7 +333,7 @@ Save edit always finishes before `-Start`. Scenario logs always come from after 
 
 ### Standard test loop (agent owns lifecycle)
 
-1. Acquire the session lock: `TestRig/DedicatedServer/dedicated-server.ps1 -Lock -Purpose "Playtesting <what> for <mod>"`. Note the printed owner id and pass `-As <id>` on every mutating command below. Rules: `session.lock.template`.
+1. Acquire the rig session lock: `TestRig/DedicatedServer/dedicated-server.ps1 -Lock -Purpose "Playtesting <what> for <mod>"`. Note the printed owner id and pass `-As <id>` on every mutating command below, and on the client rig's if the test uses it. Rules: `TestRig/session.lock.template`.
 2. If a previous run is still alive (`-Status` shows host or server PID up), `-Stop -As <id>` first. Required before any rebuild + redeploy: the Mono runtime holds an exclusive file lock on every loaded plugin DLL, so `-DeployMods` on a running server fails or corrupts the DLL in place. The launcher enforces this check, but the test loop should never hit it.
 3. Build the mod(s) under test via the developer's build flow (see `DEV.md`).
 4. `TestRig/DedicatedServer/dedicated-server.ps1 -DeployMods -As <id> -Mod <X>` (or all mods, no `-Mod` flag).

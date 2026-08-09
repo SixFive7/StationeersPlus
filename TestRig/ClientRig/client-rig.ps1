@@ -23,8 +23,15 @@
 
     The source install is treated as strictly read-only.
 
+    Every mutating action needs the RIG SESSION LOCK. One lock at TestRig/session.lock covers this
+    half and the dedicated server together, because the two share the developer's one game install
+    and per-Windows-user Unity state that nothing separates (PlayerCookie-v2.xml, the PlayerPrefs
+    registry key). Acquire once with -Lock, then pass -As <id> on every mutating command, on either
+    launcher. Rules: TestRig/session.lock.template.
+
     Operating manual: README.md next to this script.
     Durable internals:  RESEARCH.md next to this script.
+    Rig conventions: TestRig/CLAUDE.md.
     Repository conventions: CLAUDE.md (root).
     Developer environment: DEV.md.
 
@@ -60,7 +67,9 @@
     copy. On by default; the instance loads no local mods without it.
 
 .PARAMETER Force
-    Rebuild an instance that already exists, or override a refusal that is safe to override.
+    Rebuild an instance that already exists, or override a refusal that is safe to override inside
+    your own session. It is routine and it NEVER touches the rig lock: taking a lock off another
+    session is -BreakLock, which is human-gated. Both launchers agree on both meanings.
 
 .PARAMETER All
     Apply the action to every provisioned instance.
@@ -109,7 +118,43 @@
     Write the -Snapshot result to this path instead of the console.
 
 .PARAMETER TimeoutSeconds
-    Timeout for -Wait and for process teardown. Default 300 for -Wait, 30 for -Stop.
+    Process-teardown grace for -Stop: how long a client gets to quit cleanly before it is killed.
+    Default 30, the same meaning and the same default as on dedicated-server.ps1. It used to double
+    as the -Wait barrier timeout, which made one flag name mean two different things across the two
+    launchers; the barrier is -WaitSeconds now.
+
+.PARAMETER WaitSeconds
+    How long -Wait blocks for the readiness barrier. Default 300. Same meaning as -WaitSeconds on
+    dedicated-server.ps1 (there: how long -Save waits for its log confirmation).
+
+.PARAMETER Lock
+    Acquire the RIG session lock for this whole test session. Requires -Purpose. Prints a short owner
+    id to reuse via -As. The lock covers TestRig/DedicatedServer/ too, so the id works on both
+    launchers. Rules: TestRig/session.lock.template.
+
+.PARAMETER RefreshLock
+    Bump the lock timer while actively driving a test. Requires -As.
+
+.PARAMETER Unlock
+    Release the rig session lock. Requires -As, or human-authorized -BreakLock.
+
+.PARAMETER Purpose
+    With -Lock: short human-readable reason, e.g. "Two-client paint check for SprayPaintPlus". Shown
+    to the user when another session is blocked.
+
+.PARAMETER As
+    The owner id printed by -Lock. Pass it on every mutating command.
+
+.PARAMETER BreakLock
+    Break a LIVE lock held by another session (with -Lock / -Unlock / -Stop). Agents may use this
+    ONLY when the user explicitly authorizes it. Deliberately not spelled -Force.
+
+.PARAMETER TtlMinutes
+    With -Lock / -RefreshLock: inactivity window before the lock timer lapses. Default 10. A running
+    client instance keeps the lock live regardless of the timer, so stop the rig before releasing.
+
+.PARAMETER Release
+    With -Stop: also release the rig session lock after stopping.
 
 .PARAMETER Logs
     Tail the instance's BepInEx log.
@@ -162,21 +207,41 @@ param(
     [switch] $Snapshot,
     [string] $OutFile,
 
-    [int]    $TimeoutSeconds = 0,
+    [int]    $TimeoutSeconds = 30,
+    [int]    $WaitSeconds    = 300,
 
     [switch] $Logs,
     [int]    $Tail = 50,
     [string] $Grep,
 
-    [string] $InstancesRoot
+    [string] $InstancesRoot,
+
+    [switch] $Lock,
+    [switch] $RefreshLock,
+    [switch] $Unlock,
+    [string] $Purpose,
+    [string] $As,
+    [switch] $BreakLock,
+    [int]    $TtlMinutes = 10,
+    [switch] $Release
 )
 
 $ErrorActionPreference = 'Stop'
 
 $RigRoot       = $PSScriptRoot
-# <repo>/TestRig/ClientRig -> <repo>
-$RepoRoot      = (Resolve-Path (Join-Path $RigRoot '..\..')).Path
+# <repo>/TestRig/ClientRig -> <repo>/TestRig -> <repo>
+$TestRigRoot   = Split-Path -Parent $RigRoot
+$RepoRoot      = Split-Path -Parent $TestRigRoot
 $BuildPropsXml = Join-Path $RepoRoot 'Directory.Build.props'
+
+# The session lock is rig-wide (it covers TestRig/DedicatedServer/ too) and its whole mechanism lives
+# in one shared file, so the two halves cannot drift apart on the timer, ownership or break-lock
+# rules. Rules: TestRig/session.lock.template.
+$RigLockLib = Join-Path $TestRigRoot 'rig-lock.ps1'
+if (-not (Test-Path $RigLockLib)) {
+    throw "Shared rig-lock implementation not found at $RigLockLib. It is committed alongside this launcher; restore it before driving the rig."
+}
+. $RigLockLib
 
 # The instance trees are hard links into the game install, so they must sit on the install's
 # volume. The repository frequently does not, so this is relocatable and the volume check below
@@ -190,7 +255,10 @@ $InstancesDir  = if ($InstancesRoot) { $InstancesRoot }
 $DataDir       = Join-Path $RigRoot 'data'
 $RigRegistry   = Join-Path $DataDir 'rig.json'
 
-$PluginDll     = Join-Path $RigRoot 'ClientDriver\bin\Release\ClientDriver.dll'
+# Dev-plugin layout, identical to the dedicated server's: dev-plugins/<Name>/<Name>.sln beside
+# dev-plugins/<Name>/<Name>/ source. See TestRig/CLAUDE.md.
+$PluginSln     = Join-Path $RigRoot 'dev-plugins\ClientDriver\ClientDriver.sln'
+$PluginDll     = Join-Path $RigRoot 'dev-plugins\ClientDriver\ClientDriver\bin\Release\ClientDriver.dll'
 
 # ---- environment helpers --------------------------------------------------
 
@@ -246,6 +314,24 @@ function Test-PidAlive {
     param([Nullable[int]] $TargetPid)
     if (-not $TargetPid) { return $false }
     [bool](Get-Process -Id $TargetPid -ErrorAction SilentlyContinue)
+}
+
+# ---- session lock ---------------------------------------------------------
+#
+# Rules: TestRig/session.lock.template. Implementation: TestRig/rig-lock.ps1,
+# dot-sourced above and shared with dedicated-server.ps1.
+#
+# Every action that changes rig state goes through this gate, for the same reason the dedicated
+# server has one. Without it, -Stop -All tears down another agent's live test with no trace, -Remove
+# deletes an instance's save root out from under a run, and two concurrent -Provision calls read the
+# registry before either writes it, pick the same free index, and hand two instances one ClientId.
+# That last one is the failure this script already refuses to allow within a single call, and for
+# the same stated reason: the server keys a player's body on ClientId, so a test that believes it
+# has two players actually has one, and the results look plausible and mean nothing.
+
+function Assert-MutatingAllowed {
+    param([Parameter(Mandatory)] [string] $Action)
+    Assert-RigLockHeld -Action $Action -CallerId $As -Tool 'client-rig.ps1'
 }
 
 # ---- the rig registry -----------------------------------------------------
@@ -350,6 +436,9 @@ function Copy-LinkedTree {
 function Invoke-Provision {
     if (-not $Instance) { throw "-Provision requires -Instance <name>." }
     if ($Instance.Contains(',')) { throw "-Provision takes one instance at a time." }
+    # Held across the whole read-modify-write of the registry below, which is what stops two
+    # concurrent provisions from selecting the same index and therefore the same ClientId.
+    Assert-MutatingAllowed -Action 'Provision'
 
     $source = Get-StationeersPath
 
@@ -478,7 +567,7 @@ function Invoke-Provision {
 function Invoke-DeployPlugin {
     param([Parameter(Mandatory)] $Paths)
     if (-not (Test-Path $PluginDll)) {
-        Write-Warning "[$($Paths.Name)] ClientDriver.dll not found at $PluginDll. Build it first: dotnet build ClientDriver.sln -c Release. The instance will run without a control plane."
+        Write-Warning "[$($Paths.Name)] ClientDriver.dll not found at $PluginDll. Build it first: dotnet build $PluginSln -c Release. The instance will run without a control plane."
         return
     }
     $dst = Join-Path $Paths.BepInEx 'plugins\ClientDriver'
@@ -667,6 +756,7 @@ function Format-Arg {
 }
 
 function Invoke-Start {
+    Assert-MutatingAllowed -Action 'Start'
     Add-LauncherType
     $targets = Resolve-Targets
 
@@ -737,8 +827,19 @@ function Invoke-Start {
 # ---- stopping -------------------------------------------------------------
 
 function Invoke-Stop {
+    # -Stop is gated exactly like the rest. It is the single most destructive action here: -Stop -All
+    # ends every instance in the rig, and a torn-down client cannot report afterwards that its run
+    # was interrupted, so the results of the interrupted test simply look wrong.
+    $st = Get-RigLockState -CallerId $As
+    if ($st.State -eq 'LiveForeign') {
+        if (-not $BreakLock) {
+            throw "[Stop] Refusing to stop clients held by another live session.`n$(Format-ForeignRigLock $st)`nReport to the user. Only the user may authorize -BreakLock. See TestRig/session.lock.template."
+        }
+        Write-Warning "[Stop] -BreakLock: stopping clients held by another live session ('$($st.Lock['purpose'])')."
+    }
+
     $targets = Resolve-Targets
-    $timeout = if ($TimeoutSeconds -gt 0) { $TimeoutSeconds } else { 30 }
+    $timeout = $TimeoutSeconds
 
     foreach ($e in $targets) {
         $p = Get-InstancePaths -Name $e.instanceName
@@ -770,10 +871,27 @@ function Invoke-Stop {
         Remove-Item -Force -ErrorAction SilentlyContinue $p.PidFile
         Write-Host "[$($e.instanceName)] Stopped."
     }
+
+    if ($Release) {
+        $lock = Read-RigLock
+        if (-not $lock) {
+            Write-Host "[Stop] No rig session lock to release."
+        }
+        elseif (($As -and $lock['owner'] -eq $As) -or $BreakLock -or (Test-RigLockTimerExpired $lock)) {
+            Remove-Item -Force -ErrorAction SilentlyContinue (Get-RigLockFilePath)
+            Write-Host "[Stop] Rig session lock released."
+        }
+        else {
+            Write-Warning "[Stop] -Release ignored: lock held by '$($lock['owner'])', not you. Use -Unlock -As <id>, or get user authorization for -BreakLock."
+        }
+    }
 }
 
 function Invoke-Remove {
     if (-not $Instance) { throw "-Remove requires -Instance <name>." }
+    # -Remove deletes the instance's own save root under data/<name>/userdata/ along with the tree.
+    # That is tier 3 (agent-managed) by design, but it belongs to whoever holds the lock.
+    Assert-MutatingAllowed -Action 'Remove'
     $p = Get-InstancePaths -Name $Instance
     if (Test-PidAlive (Get-PidFromFile $p.PidFile)) {
         throw "Instance '$Instance' is running. Stop it first: client-rig.ps1 -Stop -Instance $Instance"
@@ -825,7 +943,11 @@ function Test-InstanceStage {
 
 function Invoke-Wait {
     $targets = Resolve-Targets
-    $timeout = if ($TimeoutSeconds -gt 0) { $TimeoutSeconds } else { 300 }
+    # Read-only, so it is not gated. It does refresh a lock you already hold, because a barrier can
+    # legitimately run longer than the TTL (600 s for inWorld against a 10 min default) and losing
+    # the rig halfway through a wait would be absurd. Silent no-op when you hold nothing.
+    Update-RigLockIfMine -CallerId $As
+    $timeout = $WaitSeconds
     $deadline = (Get-Date).AddSeconds($timeout)
 
     Write-Host "[Wait] Barrier: $($targets.Count) instance(s) must reach stage '$Stage' within ${timeout}s."
@@ -841,6 +963,7 @@ function Invoke-Wait {
         }
         if ($pending.Count -eq 0) { break }
         Start-Sleep -Seconds 2
+        Update-RigLockIfMine -CallerId $As
     }
 
     if ($pending.Count -gt 0) {
@@ -861,6 +984,9 @@ function Invoke-Wait {
 
 function Invoke-Broadcast {
     if (-not $Path) { throw "-Broadcast requires -Path <control-plane path>, for example -Path /config/set." }
+    # Gated because it drives LIVE clients. /quit ends one, and /savepath retargets where one writes
+    # its saves (it only refuses the real user-data folder, and only without force=true).
+    Assert-MutatingAllowed -Action 'Broadcast'
     $targets = Resolve-Targets
     Write-Host "[Broadcast] $Path -> $($targets.Count) instance(s)"
     $failed = 0
@@ -885,6 +1011,7 @@ function Invoke-Broadcast {
 function Invoke-Call {
     if (-not $Path) { throw "-Call requires -Path <control-plane path>." }
     if (-not $Instance) { throw "-Call requires -Instance <name>." }
+    Assert-MutatingAllowed -Action 'Call'
     $e = Get-InstanceEntry -Name $Instance
     if (-not $e) { throw "Instance '$Instance' is not provisioned. Run -List." }
     $r = Invoke-Control -Port ([int]$e.port) -Path $Path -BodyJson $Body -TimeoutSec 120
@@ -912,6 +1039,10 @@ function Invoke-Snapshot {
 # ---- status and logs ------------------------------------------------------
 
 function Invoke-Status {
+    # The lock is rig-wide, so this is the same block dedicated-server.ps1 -Status prints.
+    Write-RigLockStatus -CallerId $As
+    Write-Host ""
+
     $registry = Read-Registry
     if ($registry.Count -eq 0) {
         Write-Host "No instances are provisioned. Create one: client-rig.ps1 -Provision -Instance client1"
@@ -969,25 +1100,69 @@ function Invoke-Logs {
     else       { Get-Content -Tail $Tail $log }
 }
 
+# ---- session lock actions -------------------------------------------------
+
+function Invoke-Lock {
+    if (-not $Purpose) {
+        throw "-Lock requires -Purpose `"<short reason>`", e.g. -Purpose `"Two-client paint check for SprayPaintPlus`". See TestRig/session.lock.template."
+    }
+    # No -OnReclaim: a running instance keeps the lock LIVE, so a lock can never be reclaimable while
+    # this half still has processes up. Reclaiming here therefore never has an orphan to clean.
+    New-RigLock -Purpose $Purpose -CallerId $As -TtlMinutes $TtlMinutes -BreakLock:$BreakLock `
+        -Tool 'client-rig.ps1' | Out-Null
+}
+
+function Invoke-RefreshLock {
+    if (-not $As) { throw "-RefreshLock requires -As <id> (the owner id printed by -Lock)." }
+    if ($PSBoundParameters.ContainsKey('TtlMinutes')) { Update-RigLock -CallerId $As -TtlMinutes $TtlMinutes }
+    else                                              { Update-RigLock -CallerId $As }
+}
+
+function Invoke-Unlock {
+    $lock = Read-RigLock
+    if ($lock -and ($As -and $lock['owner'] -eq $As)) {
+        $busy = Get-RigBusySignal
+        if ($busy.Busy) {
+            Write-Warning "[Unlock] Releasing while the rig is still busy ($($busy.Detail)). Stop it first: client-rig.ps1 -Stop -All -As $As"
+        }
+    }
+    Remove-RigLock -CallerId $As -BreakLock:$BreakLock
+}
+
 # ---- dispatch -------------------------------------------------------------
 
-if ($Provision) { Invoke-Provision; return }
-if ($Start)     { Invoke-Start;     return }
-if ($Stop)      { Invoke-Stop;      return }
-if ($Remove)    { Invoke-Remove;    return }
-if ($Wait)      { Invoke-Wait;      return }
-if ($Broadcast) { Invoke-Broadcast; return }
-if ($Call)      { Invoke-Call;      return }
-if ($Snapshot)  { Invoke-Snapshot;  return }
-if ($Status)    { Invoke-Status;    return }
-if ($List)      { Invoke-List;      return }
-if ($Logs)      { Invoke-Logs;      return }
+if ($Lock)        { Invoke-Lock;        return }
+if ($RefreshLock) { Invoke-RefreshLock; return }
+if ($Unlock)      { Invoke-Unlock;      return }
+if ($Provision)   { Invoke-Provision;   return }
+if ($Start)       { Invoke-Start;       return }
+if ($Stop)        { Invoke-Stop;        return }
+if ($Remove)      { Invoke-Remove;      return }
+if ($Wait)        { Invoke-Wait;        return }
+if ($Broadcast)   { Invoke-Broadcast;   return }
+if ($Call)        { Invoke-Call;        return }
+if ($Snapshot)    { Invoke-Snapshot;    return }
+if ($Status)      { Invoke-Status;      return }
+if ($List)        { Invoke-List;        return }
+if ($Logs)        { Invoke-Logs;        return }
 
 @"
 Stationeers client rig. Provisions and drives N isolated game clients.
 
-Operating manual:  $(Join-Path $RigRoot 'README.md')
-Durable internals: $(Join-Path $RigRoot 'RESEARCH.md')
+Rig conventions:    $(Join-Path $TestRigRoot 'CLAUDE.md')
+Operating manual:   $(Join-Path $RigRoot 'README.md')
+Durable internals:  $(Join-Path $RigRoot 'RESEARCH.md')
+Session-lock rules: $(Join-Path $TestRigRoot 'session.lock.template') (READ FIRST)
+
+Session lock (acquire before ANY mutating command; pass -As <id> thereafter).
+ONE lock covers BOTH TestRig halves, so this id is also what dedicated-server.ps1 expects:
+    client-rig.ps1 -Lock -Purpose "<what you are testing>" [-TtlMinutes 10]
+    client-rig.ps1 -RefreshLock -As <id>                        (while actively testing)
+    client-rig.ps1 -Unlock -As <id>                             (release when done)
+    Gated: -Provision, -Start, -Stop, -Remove, -Broadcast, -Call.
+    Free:  -Status, -List, -Logs, -Snapshot, -Wait.
+    Breaking another session's LIVE lock (-BreakLock) is human-gated: only on the user's say-so.
+    -BreakLock is NOT -Force. -Force here just rebuilds an instance you already own.
 
 Instance trees are hard links into the game install, so they must be on the install's volume.
 Set this once per shell (or record it in DEV.md) when the repository is on a different drive:
@@ -995,28 +1170,32 @@ Set this once per shell (or record it in DEV.md) when the repository is on a dif
 Current instances root: $InstancesDir
 
 Build the plugin first (the instances get whatever is in bin/Release):
-    dotnet build $(Join-Path $RigRoot 'ClientDriver.sln') -c Release
+    dotnet build $PluginSln -c Release
 
 Provision (once per instance; port and identity default off the instance index):
-    client-rig.ps1 -Provision -Instance client1
-    client-rig.ps1 -Provision -Instance client2
-    client-rig.ps1 -Provision -Instance client1 -Force          (rebuild, picks up a new plugin build)
+    client-rig.ps1 -Provision -As <id> -Instance client1
+    client-rig.ps1 -Provision -As <id> -Instance client2
+    client-rig.ps1 -Provision -As <id> -Instance client1 -Force  (rebuild, picks up a new plugin build)
 
 Lifecycle:
-    client-rig.ps1 -Start  -All                                 (isolated desktop, never takes focus)
-    client-rig.ps1 -Wait   -All -Stage menu                     (barrier; roughly 100 s from cold)
-    client-rig.ps1 -Status -All
-    client-rig.ps1 -Stop   -All
-    client-rig.ps1 -Remove -Instance client1
+    client-rig.ps1 -Start  -As <id> -All                         (isolated desktop, never takes focus)
+    client-rig.ps1 -Wait   -All -Stage menu                      (barrier; roughly 100 s from cold)
+    client-rig.ps1 -Status -As <id> -All
+    client-rig.ps1 -Stop   -As <id> -All [-Release]
+    client-rig.ps1 -Remove -As <id> -Instance client1
 
 Fan-out:
-    client-rig.ps1 -Broadcast -All -Path /config/set -Body '{"guid":"net.example","section":"S","key":"K","value":"true"}'
-    client-rig.ps1 -Call -Instance client1 -Path /input/scroll -Body '{"notches":1}'
+    client-rig.ps1 -Broadcast -As <id> -All -Path /config/set -Body '{"guid":"net.example","section":"S","key":"K","value":"true"}'
+    client-rig.ps1 -Call -As <id> -Instance client1 -Path /input/scroll -Body '{"notches":1}'
     client-rig.ps1 -Snapshot -All -OutFile before.json
-    client-rig.ps1 -Wait -All -Stage inWorld -TimeoutSeconds 600
+    client-rig.ps1 -Wait -All -Stage inWorld -WaitSeconds 600
+
+Timeouts (same meaning as on dedicated-server.ps1):
+    -WaitSeconds N     how long -Wait blocks for the barrier. Default 300.
+    -TimeoutSeconds N  process-teardown grace for -Stop before a kill. Default 30.
 
 Diagnosis:
-    client-rig.ps1 -Call -Instance client1 -Path /diag/input
+    client-rig.ps1 -Call -As <id> -Instance client1 -Path /diag/input
     client-rig.ps1 -Logs -Instance client1 -Grep 'ClientDriver'
 
 Traps this script already handles for you, documented in README.md:

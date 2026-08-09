@@ -1,0 +1,135 @@
+# =============================================================================
+# Stationeers TestRig - SESSION LOCK (single source of truth)
+# =============================================================================
+# This .template file is committed and is the authoritative description of the
+# session-lock mechanism. The ACTIVE lock is the sibling file `session.lock`
+# (gitignored), created and maintained by either launcher through the shared
+# implementation in `TestRig/rig-lock.ps1`. Every other reference (root
+# CLAUDE.md, TestRig/CLAUDE.md, TestRig/DedicatedServer/CLAUDE.md,
+# TestRig/ClientRig/README.md, both launchers' help text, the rig-lock reminder
+# hook) points here. Change the rules here, nowhere else.
+#
+# ONE LOCK, BOTH HALVES
+#   There is a single lock for the whole rig, held at TestRig/session.lock, and
+#   it covers TestRig/DedicatedServer/ AND TestRig/ClientRig/ together. The two
+#   halves are not independent resources:
+#     - They share the developer's one Stationeers install (the client rig hard-
+#       links out of it; the dedicated server mirrors BepInEx out of it).
+#     - They share per-Windows-user Unity state that no setting separates:
+#       %USERPROFILE%\AppData\LocalLow\Rocketwerkz\rocketstation\PlayerCookie-v2.xml
+#       and the HKCU\Software\Rocketwerkz\rocketstation PlayerPrefs key.
+#       The developer's own client shares them too.
+#     - A multiplayer test uses both at once: the dedicated server hosts the
+#       world, the client rig joins it.
+#   Two separate locks would let one agent's client rig walk into another
+#   agent's server session, and would make a multiplayer test acquire two locks
+#   in an order that can deadlock against an agent taking them the other way.
+#
+#   Acquire from either launcher; the owner id works on both.
+#       TestRig/DedicatedServer/dedicated-server.ps1 -Lock -Purpose "..."
+#       TestRig/ClientRig/client-rig.ps1             -Lock -Purpose "..."
+#
+# WHY THIS EXISTS
+#   One rig is shared by every agent on this machine. A test is many start/stop
+#   cycles, so "is a process running" is not a good enough signal: between a
+#   -Stop and the next -Start nothing runs, yet the session is still in
+#   progress. This lock marks "a session owns the rig" across those gaps so a
+#   second agent does not walk in and stomp the saves, the deployed mods, the
+#   running world, or a provisioned client instance.
+#
+# HOW IT WORKS
+#   - Acquire ONCE per session, before any mutating command:
+#       <launcher> -Lock -Purpose "Playtesting <what> for <mod>"
+#     It prints a short owner id. Pass that id as -As <id> on every mutating
+#     command for the rest of the session, on EITHER launcher.
+#   - Mutating actions on the dedicated server: -Bootstrap, -DeployMods,
+#     -SyncMods, -Start, -Save, -SendCommand, -Stop. Read-only -Status and
+#     -Logs never need it.
+#   - Mutating actions on the client rig: -Provision, -Start, -Stop, -Remove,
+#     -Broadcast, -Call. Read-only -Status, -List, -Logs and -Snapshot never
+#     need it. -Wait is read-only but refreshes the lock when you already hold
+#     it, because a barrier can run longer than the TTL.
+#     -Broadcast and -Call are gated because they drive a LIVE client: /quit
+#     ends it, and /savepath retargets where that client writes saves.
+#   - Liveness: the lock is LIVE while the timer is fresh
+#     (now - refreshed_at <= ttl_minutes) OR the rig is actually busy. Busy
+#     means a player is connected to the running dedicated server, or at least
+#     one client-rig instance process is alive. A live lock you do not own
+#     blocks you. An expired lock with an idle rig is dead and is reclaimed
+#     automatically.
+#
+# THE PURPOSE STRING
+#   Keep it short and generic: "Playtesting network paint for SprayPaintPlus",
+#   "Reproducing the auto-aim bug for PowerTransmitterPlus". It exists so the
+#   user, when told another session holds the lock, can decide whether to wait,
+#   take it, or leave it alone. Write it for that reader.
+#
+# REFRESH DISCIPLINE (this is what stops agents starving each other)
+#   - The lock EXPIRES on a timer (ttl_minutes, default 10). That is deliberate:
+#     an idle or finished agent must lose the lock so others can use the rig.
+#   - Refresh ONLY while you are actively driving a test that needs the rig:
+#       <launcher> -RefreshLock -As <id>
+#     Every mutating command also refreshes it. A ~1 minute cadence during an
+#     active loop is comfortable against a 10-minute TTL.
+#   - NEVER refresh just to hold the rig for an absent human, and NEVER spawn
+#     a background process whose only job is to refresh. Either one keeps the
+#     lock alive after you are gone and starves every other agent. The refresh
+#     must come from your own foreground actions.
+#
+# RELEASE WHEN DONE (client-rig sessions especially)
+#   - Release explicitly: `-Unlock -As <id>`, or `-Stop -As <id> -Release`.
+#   - A running client instance keeps the lock live on its own, with no timer to
+#     save you. Leaving instances up after a test therefore holds the WHOLE rig,
+#     dedicated server included, until somebody stops them. Always
+#     `client-rig.ps1 -Stop -All -As <id>` before you release. `-Status` on
+#     either launcher shows who holds the lock and why it is still live.
+#
+# WAITING FOR A HUMAN (e.g. "join and play, tell me when done")
+#   - You are about to go idle, so you will NOT be refreshing. Tell the user the
+#     reservation in plain terms, for example: "Rig reserved for about N
+#     minutes. If you join, it stays held for as long as you are connected. If
+#     nobody joins, it frees for other agents." Set -TtlMinutes to a sensible
+#     join window when you hand off.
+#   - While a player is actually connected the lock stays live on its own, no
+#     refresh needed. If nobody joins, the timer lapses and the rig frees. That
+#     is intended: an agent waiting on a sleeping user must not block the others.
+#
+# RESUMING AFTER A GAP (mandatory)
+#   Time may have passed and your lock may be gone. BEFORE issuing any mutating
+#   command on resume, run:
+#       <launcher> -Status -As <id>
+#   - Still yours -> -RefreshLock -As <id> and continue.
+#   - Held by another session -> STOP. Do not touch the rig. Tell the user
+#     what took it (the reported purpose) and that your reservation lapsed.
+#     Re-acquire only on the user's go-ahead.
+#
+# BREAKING A LOCK IS HUMAN-GATED, AND HAS ITS OWN FLAG
+#   -BreakLock breaks a LIVE lock held by another session (with -Lock /
+#   -Unlock / -Stop). An agent may use it ONLY when the user explicitly
+#   authorizes it in the conversation. Reclaiming an already-dead (expired,
+#   rig idle) lock is automatic and is NOT a break.
+#
+#   It is NOT called -Force, on either launcher, and -Force never breaks a lock.
+#   -Force means the same routine thing on both: override a refusal inside your
+#   own session (client rig: `-Provision -Force` rebuilds an instance you
+#   already own). The two operations had opposite risk under one flag name,
+#   which is exactly the kind of collision that gets a live test torn down by
+#   muscle memory. The dangerous one now has a name nobody types by accident.
+#
+# FIELDS (the active session.lock holds exactly these keys, one per line)
+#   owner         short id printed by -Lock; echo it back with -As
+#   purpose       short human-readable reason (see THE PURPOSE STRING)
+#   acquired_at   ISO 8601 UTC, when first acquired
+#   refreshed_at  ISO 8601 UTC, last refresh (drives the TTL)
+#   ttl_minutes   inactivity window before the timer lapses (default 10)
+#   host          machine name, for diagnostics
+# =============================================================================
+
+# Example values only. The real session.lock is written by the launchers via
+# TestRig/rig-lock.ps1; do not hand-create it from this template.
+owner=EXAMPLE0
+purpose=Playtesting network paint for SprayPaintPlus
+acquired_at=2026-01-01T00:00:00Z
+refreshed_at=2026-01-01T00:00:00Z
+ttl_minutes=10
+host=EXAMPLE-PC
