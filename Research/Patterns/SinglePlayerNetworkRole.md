@@ -75,6 +75,7 @@ Rule of thumb when writing any network-aware guard:
 
 - 2026-04-20: page created from the Research migration; F0029g primary, F0324 confirming with a regression narrative.
 - 2026-04-20: removed derivative NetworkRole matrix that had drifted (said multiplayer host IsClient=false; authoritative F0017 says true). Replaced with link to GameSystems/NetworkRoles.md per Phase 6 Pass B flag.
+- 2026-08-09: the 2026-04-20 entry above deleted the CORRECT value. A listen host reports `IsClient == false`; the removed matrix was right and F0017 was wrong. Established against 0.2.6403.27689 by a fresh validator (see the Verification History of GameSystems/NetworkRoles.md): the three properties are mutually exclusive views of one `NetworkRole` enum with no `Host` value, so `IsServer` and `IsClient` can never both be true. No change to this page's guidance, which never depended on the host row: `IsActive && !IsServer` for remote-client-only and `IsServer || !IsActive` for authoritative are both still correct. Recorded here so the earlier entry is not read as endorsing the wrong claim.
 
 ## Open questions
 
