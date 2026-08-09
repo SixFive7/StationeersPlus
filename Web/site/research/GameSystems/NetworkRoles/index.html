@@ -3656,6 +3656,8 @@
       
         
       
+        
+      
     
     
     
@@ -4378,6 +4380,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../ListenHost/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Listen Host
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../Localization/" class="md-nav__link">
         
   
@@ -4610,6 +4640,17 @@
     <span class="md-ellipsis">
       
         Role flag matrix
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-three-flags-are-one-enum-not-three-booleans" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The three flags are one enum, not three booleans
       
     </span>
   </a>
@@ -8478,6 +8519,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#the-three-flags-are-one-enum-not-three-booleans" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The three flags are one enum, not three booleans
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#verification-history" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -8588,27 +8640,35 @@
       
         <p class="research-meta-verified">
           <strong>Verified</strong>
-           in game version <code>0.2.6228.27061</code>
-           on 2026-04-20.
+           in game version <code>0.2.6403.27689</code>
+           on 2026-08-09.
         </p>
       
       
+        <p class="research-meta-created">
+          <strong>First written</strong> against game version <code>0.2.6228.27061</code>.
+        </p>
+      
       
         <details class="research-meta-sources">
-          <summary><strong>Sources</strong> (1)</summary>
+          <summary><strong>Sources</strong> (2)</summary>
           <ul>
             
               <li><code>Mods/SprayPaintPlus/RESEARCH.md:128-137</code></li>
+            
+              <li><code>.work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs (NetworkManager, NetworkRole, NetworkServer, GameManager)</code></li>
             
           </ul>
         </details>
       
       
         <details class="research-meta-related">
-          <summary><strong>Related pages</strong> (1)</summary>
+          <summary><strong>Related pages</strong> (2)</summary>
           <ul>
             
               <li><code>../Patterns/SinglePlayerNetworkRole.md</code></li>
+            
+              <li><code>./ListenHost.md</code></li>
             
           </ul>
         </details>
@@ -8634,7 +8694,7 @@
 <h1 id="networkroles">NetworkRoles<a class="headerlink" href="#networkroles" title="Permanent link">&para;</a></h1>
 <p>How <code>NetworkManager.IsActive</code>, <code>IsServer</code>, and <code>IsClient</code> combine across single-player, multiplayer host, multiplayer client, and dedicated server modes, and why the <code>IsActive &amp;&amp; !IsServer</code> guard is the correct remote-client check.</p>
 <h2 id="role-flag-matrix">Role flag matrix<a class="headerlink" href="#role-flag-matrix" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
+<!-- verified: 0.2.6403.27689 @ 2026-08-09 -->
 
 <table>
 <thead>
@@ -8653,10 +8713,10 @@
 <td>false</td>
 </tr>
 <tr>
-<td>Multiplayer host</td>
+<td>Multiplayer host (listen host)</td>
 <td>true</td>
 <td>true</td>
-<td>true</td>
+<td><strong>false</strong></td>
 </tr>
 <tr>
 <td>Multiplayer client</td>
@@ -8673,14 +8733,36 @@
 </tbody>
 </table>
 <p>The <code>IsActive &amp;&amp; !IsServer</code> guard correctly identifies remote clients without catching single-player.</p>
+<p><strong>A listen host and a dedicated server are indistinguishable by these three flags.</strong> Both reach <code>NetworkManager.StartServer</code> through the same <code>GameManager.StartGame</code> branch (<code>if (Settings.CurrentData.StartLocalHost || IsBatchMode)</code>, Assembly-CSharp.decompiled.cs:204603), so the two rows cannot differ. To tell them apart, read <code>GameManager.IsBatchMode</code>, or <code>NetworkManager.LocalClientId</code> (0 on a dedicated server, because <code>Cookie</code> is only loaded when not in batch mode, :273983). See <code>ListenHost.md</code>.</p>
+<h2 id="the-three-flags-are-one-enum-not-three-booleans">The three flags are one enum, not three booleans<a class="headerlink" href="#the-three-flags-are-one-enum-not-three-booleans" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-08-09 -->
+
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="k">public</span><span class="w"> </span><span class="k">enum</span><span class="w"> </span><span class="n">NetworkRole</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="p">{</span>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">    </span><span class="n">None</span><span class="p">,</span>
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">    </span><span class="n">Server</span><span class="p">,</span>
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="w">    </span><span class="n">Client</span>
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>(:272571-272576)</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="n">NetworkRole</span><span class="w"> </span><span class="n">NetworkRole</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">NetworkRole</span><span class="p">.</span><span class="n">None</span><span class="p">;</span><span class="w">   </span><span class="c1">// :272668</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">IsActive</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">NetworkRole</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">NetworkRole</span><span class="p">.</span><span class="n">None</span><span class="p">;</span><span class="w">   </span><span class="c1">// :272706-272710</span>
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">IsClient</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">NetworkRole</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">NetworkRole</span><span class="p">.</span><span class="n">Client</span><span class="p">;</span>
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">IsServer</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">NetworkRole</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">NetworkRole</span><span class="p">.</span><span class="n">Server</span><span class="p">;</span>
+</span></code></pre></div>
+<p>There is no <code>Host</code> value, and <code>IsServer</code> and <code>IsClient</code> are mutually exclusive by construction. <strong>No process can ever report both.</strong> Beyond the representation, <code>CanBecome</code> (:273434-273451) returns <code>NetworkRole == NetworkRole.None</code> for both the <code>Server</code> and <code>Client</code> cases, so a process that is already one cannot become the other without first resetting to <code>None</code> (:272777).</p>
+<p>Every write to <code>NetworkRole</code> across every decompiled assembly (Assembly-CSharp, StationeersLaunchPad, LaunchPadBooster, BlueprintMod) lives inside <code>NetworkManager</code>, five in total: <code>= None</code> at :272777 (network reset), <code>= Server</code> at :273120 (<code>ProcessP2PSessionRequest</code>) and :273274 (<code>StartServer</code>), <code>= Client</code> at :273402 and :273423 (the two <code>StartClient</code> overloads). No third-party assembly writes it.</p>
+<p><code>NetworkManager.HostClient</code> and the <code>Client</code> record with <code>IsHost = true</code> created by <code>NetworkServer.PopulateHostClient()</code> (:213672) describe the host player in the roster. They are not role flags and do not affect <code>IsClient</code>.</p>
 <h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
+<!-- verified: 0.2.6403.27689 @ 2026-08-09 -->
 
 <ul>
 <li>2026-04-20: page created from the Research migration; verbatim content lifted from F0017 (Mods/SprayPaintPlus/RESEARCH.md:128-137).</li>
+<li>2026-08-09: conflict on "IsClient on a multiplayer host". Previous claim: a multiplayer host reports <code>IsActive/IsServer/IsClient</code> as true/true/true. New finding: a listen host reports true/true/false, because the three properties are mutually exclusive views of one <code>NetworkRole</code> enum that has no <code>Host</code> value. Fresh validator verdict: the new finding is correct, quoting the enum declaration at Assembly-CSharp.decompiled.cs:272571-272576 and the property definitions at :272706-272710. Result: the host row's <code>IsClient</code> column corrected to false; a new section added recording the single-enum representation, the five write sites, and <code>CanBecome</code>'s refusal; note added that a listen host and a dedicated server cannot be distinguished by these flags; page restamped to 0.2.6403.27689.</li>
 </ul>
 <h2 id="open-questions">Open questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>
-<p>None at creation.</p>
+<p>None.</p>
 
 
 

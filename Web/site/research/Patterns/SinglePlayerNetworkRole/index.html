@@ -3654,6 +3654,8 @@
       
         
       
+        
+      
     
     
     
@@ -4356,6 +4358,34 @@
     
   
     LightSources
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/ListenHost/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Listen Host
   
 
     
@@ -8728,6 +8758,7 @@
 <ul>
 <li>2026-04-20: page created from the Research migration; F0029g primary, F0324 confirming with a regression narrative.</li>
 <li>2026-04-20: removed derivative NetworkRole matrix that had drifted (said multiplayer host IsClient=false; authoritative F0017 says true). Replaced with link to GameSystems/NetworkRoles.md per Phase 6 Pass B flag.</li>
+<li>2026-08-09: the 2026-04-20 entry above deleted the CORRECT value. A listen host reports <code>IsClient == false</code>; the removed matrix was right and F0017 was wrong. Established against 0.2.6403.27689 by a fresh validator (see the Verification History of GameSystems/NetworkRoles.md): the three properties are mutually exclusive views of one <code>NetworkRole</code> enum with no <code>Host</code> value, so <code>IsServer</code> and <code>IsClient</code> can never both be true. No change to this page's guidance, which never depended on the host row: <code>IsActive &amp;&amp; !IsServer</code> for remote-client-only and <code>IsServer || !IsActive</code> for authoritative are both still correct. Recorded here so the earlier entry is not read as endorsing the wrong claim.</li>
 </ul>
 <h2 id="open-questions">Open questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>
 <p>None at creation.</p>
