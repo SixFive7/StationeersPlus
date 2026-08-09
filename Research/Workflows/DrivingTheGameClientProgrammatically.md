@@ -561,6 +561,19 @@ fails, every later access rethrows `TypeInitializationException`, and it rethrow
 at the main menu and in world alike. It floods the console ring hard enough to evict thousands of
 lines. Disabling both mods removes the exception but does not by itself fix a stalled join.
 
+**It is observationally log spam, not a functional break.** Field evidence from the developer:
+they host a session with both mods enabled and a second player joins normally, with the exception
+firing throughout. That settles it, and it is worth recording because the mechanism invites a
+stronger conclusion than the evidence supports. `GameManager.Update` does iterate its managers
+with no try/catch, and `NetworkManager.ManagerUpdate` is the client's only network receive pump,
+so a throwing manager ordered before it WOULD stop all packet processing. But `Managers` is a
+`public List<ManagerBase>` populated by Unity serialization, not by code, so **the order is not in
+the decompile at all** and the "throws before the pump" step was never established. Do not assert
+it without evidence. Copying `System.Collections.Immutable.dll` into `BepInEx/core/` was tried once
+and a stalled join succeeded afterwards, but that is a single correlated observation and the
+transient StationeersLaunchPad Workshop hang documented above is an equally good explanation for
+the same pair of events.
+
 Attribution was checked properly rather than assumed, because a driving plugin patching
 `UnityEngine.Input` is an obvious suspect for a fault on the input path. Counting occurrences in
 `BepInEx/LogOutput.log` is misleading: BepInEx collapses the repeats there, so the file shows single
@@ -595,6 +608,14 @@ Lunar world's display name being "Moon: Great Mare".
 
 ## Verification history
 
+- 2026-08-09: corrected the framing of the `System.Collections.Immutable` exception. It is
+  observationally log spam: the developer hosts with both mods enabled and a second player joins
+  normally while it fires. The mechanism invites a stronger conclusion, and the missing step is
+  that `GameManager.Managers` is Unity-serialized rather than built in code, so the manager order
+  is not in the decompile and "throws before the network pump" was never established. The
+  single correlated observation that a stalled join succeeded after adding the assembly to
+  `BepInEx/core/` is not evidence of cause; the transient StationeersLaunchPad Workshop hang
+  explains the same pair of events. The assembly has been removed from the developer's install.
 - 2026-07-27: page created from the ClientDriver build-out. Every section exercised against a live
   client on 0.2.6403.27689 with StationeersLaunchPad 0.5.0 and 35 Workshop mods loaded: console
   capture, console command execution, synthetic keys (F3 toggling the console, observed through
