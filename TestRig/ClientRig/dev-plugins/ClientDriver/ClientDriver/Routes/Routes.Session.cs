@@ -18,6 +18,14 @@ namespace ClientDriver
     /// </summary>
     internal static partial class Router
     {
+        /// <summary>
+        ///     Named here rather than inline because <c>/newworld</c> and <c>/host</c> both hand it
+        ///     back, and it is the single most common way a world request fails.
+        /// </summary>
+        internal const string WorldIdHint =
+            "world ids are Lunar, Mars2, Europa3, MimasHerschel, Venus, Vulcan2. " +
+            "'Moon' is not one of them, despite the Lunar world being called Moon: Great Mare.";
+
         // ---- instance identity ---------------------------------------------
 
         /// <summary>
@@ -106,22 +114,8 @@ namespace ClientDriver
             bool suppressTimeout = Json.GetBool(body, "suppressTimeout", true);
             bool allowDuplicateIdentity = Json.GetBool(body, "allowDuplicateIdentity", false);
 
-            // Duplicate identity is checked HERE and nowhere else, because the join is where the
-            // damage happens: the server keys a player's body on ClientId, RegisterBrain overwrites
-            // silently, and the second joiner takes over the first joiner's character with nothing
-            // anywhere warning. A test that believes it has two players and has one produces
-            // results that look plausible and mean nothing.
-            if (!allowDuplicateIdentity && InstanceManifest.PeerPorts.Count > 0)
-            {
-                PeerProbe.Scan();
-                if (PeerProbe.ConflictDetected)
-                    return HttpResponse.Json(new Json.Obj()
-                        .Bit("ok", false)
-                        .Str("error", "refusing to join: " + PeerProbe.ConflictSummary)
-                        .Raw("peers", PeerProbe.DescribeJson())
-                        .Str("override", "pass allowDuplicateIdentity=true to join anyway")
-                        .ToString(), 409);
-            }
+            var clash = IdentityConflictRefusal(allowDuplicateIdentity, "join");
+            if (clash != null) return clash;
 
             // The NetworkClient component only becomes findable some way into boot, so wait for it
             // rather than failing the request outright.
@@ -160,25 +154,9 @@ namespace ClientDriver
             if (pre.Status != 200) return pre;
             if (!wait) return pre;
 
-            // On expiry the game pops a ConfirmationPanel that a human would have to click. Dismiss
-            // it here so an unattended run gets a clean "failed" rather than a wedged client.
-            string modalText = null;
-            var result = PollUntil(timeoutMs, () =>
-            {
-                string state = MainThreadPump.RunValue(() => GameManager.GameState.ToString(), 5000);
-                if (state == "Running") return "connected";
-
-                string modal = MainThreadPump.RunValue(() => Modal.Describe(), 5000);
-                if (modal != null && modal.IndexOf("\"visible\":true", StringComparison.Ordinal) >= 0)
-                {
-                    modalText = modal;
-                    MainThreadPump.RunValue(() => Modal.Click(1), 5000);
-                    return "failed";
-                }
-
-                if (state == "None") return "failed";
-                return null;
-            });
+            var poll = PollForRunning(timeoutMs, watchModal: true, failAtMenu: true);
+            string modalText = poll.ModalJson;
+            string result = poll.Result == "running" ? "connected" : poll.Result;
 
             // With the game's own timer suppressed a dead server leaves the client parked in Joining
             // forever, so clean up after our own timeout.
@@ -204,6 +182,89 @@ namespace ClientDriver
             }
             catch { }
             return HttpResponse.Json(o.ToString(), result == "connected" ? 200 : 409);
+        }
+
+        /// <summary>
+        ///     Refuses an action that would put this instance's ClientId on the wire while a sibling
+        ///     is already claiming it. Returns the 409 to send, or null when the way is clear.
+        ///
+        ///     Enforced at exactly the two moments an id reaches a server, and nowhere else, because
+        ///     those are the two moments the damage happens: the server keys a player's body on
+        ///     ClientId, <c>Brain.RegisterBrain</c> overwrites silently, and the loser resolves onto
+        ///     the winner's character with nothing anywhere warning. A test that believes it has two
+        ///     players and has one produces results that look plausible and mean nothing. Hosting
+        ///     matters more than joining here, not less: the host consumes a ClientId of its own and
+        ///     it exists FIRST, so a joiner that collides with the host takes over the host's body.
+        ///
+        ///     <c>PeerProbe.Scan</c> is safe from any thread except the Unity main thread, and this
+        ///     runs on the HTTP accept thread before any main-thread hop.
+        /// </summary>
+        private static HttpResponse IdentityConflictRefusal(bool allowDuplicateIdentity, string action)
+        {
+            if (allowDuplicateIdentity || InstanceManifest.PeerPorts.Count == 0) return null;
+
+            PeerProbe.Scan();
+            if (!PeerProbe.ConflictDetected) return null;
+
+            return HttpResponse.Json(new Json.Obj()
+                .Bit("ok", false)
+                .Str("error", "refusing to " + action + ": " + PeerProbe.ConflictSummary)
+                .Raw("peers", PeerProbe.DescribeJson())
+                .Str("override", "pass allowDuplicateIdentity=true to " + action + " anyway")
+                .ToString(), 409);
+        }
+
+        /// <summary>
+        ///     The answer from <see cref="PollForRunning"/>. A class rather than an out parameter
+        ///     because the poll body is a lambda and a lambda cannot assign one.
+        /// </summary>
+        private sealed class RunningPoll
+        {
+            /// <summary>"running", "failed", or null on timeout.</summary>
+            internal string Result;
+
+            /// <summary>The dialog that was found and dismissed, as <c>/modal</c> reports it.</summary>
+            internal string ModalJson;
+        }
+
+        /// <summary>
+        ///     Waits for the client to reach <c>GameState.Running</c>. One helper for every endpoint
+        ///     that puts this process into a world: <c>/connect</c>, <c>/load</c>, <c>/newworld</c>
+        ///     and <c>/host</c> all used to carry their own copy of this loop, and the copies had
+        ///     drifted.
+        ///
+        ///     <paramref name="watchModal"/> handles the case that makes an unattended run hang: on
+        ///     failure the game pops a ConfirmationPanel a human would have to click, and nothing
+        ///     clears it on its own. Reading it and clicking OK turns a wedged client into a clean
+        ///     "failed" that carries the dialog text.
+        ///
+        ///     <paramref name="failAtMenu"/> is for the joining case only. A join that falls back to
+        ///     <c>GameState.None</c> has failed, whereas <c>/load</c>, <c>/newworld</c> and
+        ///     <c>/host</c> all START at None, so the same test would trip instantly for them.
+        /// </summary>
+        private static RunningPoll PollForRunning(int timeoutMs, bool watchModal, bool failAtMenu)
+        {
+            var poll = new RunningPoll();
+            poll.Result = PollUntil(timeoutMs, () =>
+            {
+                string state = MainThreadPump.RunValue(() => GameManager.GameState.ToString(), 5000);
+                if (state == "Running") return "running";
+
+                if (watchModal)
+                {
+                    string modal = MainThreadPump.RunValue(() => Modal.Describe(), 5000);
+                    if (modal != null && modal.IndexOf("\"visible\":true", StringComparison.Ordinal) >= 0)
+                    {
+                        poll.ModalJson = modal;
+                        MainThreadPump.RunValue(() => Modal.Click(1), 5000);
+                        return "failed";
+                    }
+                }
+
+                if (failAtMenu && state == "None") return "failed";
+                return null;
+            });
+            return poll;
         }
 
         /// <summary>
@@ -307,8 +368,15 @@ namespace ClientDriver
         ///     <c>&lt;SavePath&gt;/saves</c>, resolved on each call to
         ///     <c>StationSaveUtils.GetSavePath()</c>, so pointing this at a scratch directory before
         ///     creating a world keeps a driven test session out of the developer's real save folder.
-        ///     The change is in memory; the game persists settings on a clean exit, so put it back
-        ///     at the end of a session or exit hard.
+        ///
+        ///     The change is in memory only. Nothing writes settings on exit at 0.2.6403.27689:
+        ///     <c>GameManager.QuitGame()</c> is Close, GameState = None, Process.Kill, and
+        ///     <c>WorldManager.OnApplicationQuit</c> only cancels the auto-save timer. What DOES
+        ///     persist it is any later <c>settings &lt;name&gt; &lt;value&gt;</c> console command,
+        ///     because <c>SettingsCommand.OnValueChanged</c> calls <c>Settings.SaveSettings()</c>,
+        ///     which serialises the WHOLE <c>SettingData</c>, this redirect included. Closing the
+        ///     in-game settings panel does the same. So a hard exit is not the hygiene measure it
+        ///     looks like, and a <c>/console/exec</c> of a settings command is not the harmless one.
         ///
         ///     THIS ENDPOINT IS SAFETY CRITICAL and is written defensively on three counts, because
         ///     the failure mode is "a driven session writes worlds into the developer's real save
@@ -322,9 +390,10 @@ namespace ClientDriver
         ///        JSON really does define, so <c>C:\builds</c> and <c>C:\files</c> still decode to
         ///        something with a control character in it. Refusing is the only honest answer,
         ///        with the two ways to send it correctly named in the error.
-        ///     3. Redirecting INTO the game's own default user-data folder is refused unless the
+        ///     3. Redirecting INTO the developer's REAL user-data folder is refused unless the
         ///        caller passes <c>force=true</c>, since that is the exact outcome the endpoint
-        ///        exists to prevent.
+        ///        exists to prevent. The comparand is <see cref="RealUserDataPath"/>, computed
+        ///        without asking the game, for the reason spelled out on that method.
         /// </summary>
         private static HttpResponse SavePath(IDictionary body)
         {
@@ -332,12 +401,24 @@ namespace ClientDriver
             if (data == null) return Fail("Settings.CurrentData is null");
 
             string current = data.SavePath;
+            string realUserData = RealUserDataPath();
+            string reportedDefault = ReportedDefaultPath();
+
             string wanted = Json.GetStr(body, "path");
             if (string.IsNullOrEmpty(wanted))
                 return HttpResponse.Json(new Json.Obj()
                     .Bit("ok", true)
                     .Str("savePath", current)
-                    .Str("defaultPath", DefaultUserDataPath())
+                    .Str("realUserDataPath", realUserData)
+                    .Str("reportedDefaultPath", reportedDefault)
+                    .Bit("defaultPathRedirected",
+                        !string.IsNullOrEmpty(reportedDefault) && !IsInside(reportedDefault, realUserData))
+                    .Bit("insideRealUserData",
+                        IsInside(string.IsNullOrEmpty(current) ? reportedDefault : current, realUserData))
+                    .Str("note", "realUserDataPath is the tier-1 folder this endpoint refuses to write " +
+                                 "into. reportedDefaultPath is StationSaveUtils.DefaultPath as this process " +
+                                 "sees it, which StationeersLaunchPad moves when SavePathOverride is set; " +
+                                 "it is reported for visibility and is NOT what the refusal compares against.")
                     .ToString());
 
             foreach (char c in wanted)
@@ -355,13 +436,23 @@ namespace ClientDriver
             try { resolved = Path.GetFullPath(wanted); }
             catch (Exception ex) { return HttpResponse.Error("'" + wanted + "' is not a usable path: " + ex.Message, 400); }
 
-            string defaultPath = DefaultUserDataPath();
-            if (!Json.GetBool(body, "force", false) && IsInside(resolved, defaultPath))
-                return HttpResponse.Error(
-                    "refusing to point the save path at '" + resolved + "', which is inside the game's " +
-                    "default user-data folder '" + defaultPath + "'. Redirecting a driven session AWAY " +
-                    "from that folder is the entire purpose of this endpoint. Pass force=true if this " +
-                    "is genuinely what you want. Nothing was changed.", 409);
+            if (!Json.GetBool(body, "force", false))
+            {
+                // Fail closed. If the real folder cannot be computed there is no way to tell whether
+                // this redirect lands in it, and guessing wrong writes a driven session's worlds into
+                // the developer's own save tree.
+                if (string.IsNullOrEmpty(realUserData))
+                    return HttpResponse.Error(
+                        "refusing to change the save path: the developer's real user-data folder could " +
+                        "not be resolved, so the tier-1 check cannot run. Nothing was changed.", 409);
+
+                if (IsInside(resolved, realUserData))
+                    return HttpResponse.Error(
+                        "refusing to point the save path at '" + resolved + "', which is inside the " +
+                        "developer's real user-data folder '" + realUserData + "'. Redirecting a driven " +
+                        "session AWAY from that folder is the entire purpose of this endpoint. Pass " +
+                        "force=true if this is genuinely what you want. Nothing was changed.", 409);
+            }
 
             try
             {
@@ -378,17 +469,59 @@ namespace ClientDriver
                 .Str("previous", current)
                 .Str("requestedPath", wanted)
                 .Str("savePath", data.SavePath)
-                .Str("defaultPath", defaultPath)
-                .Str("note", "in memory only; the game persists settings on a clean exit, so restore " +
-                             "it at the end of the session or exit with POST /quit {\"hard\":true}")
+                .Str("realUserDataPath", realUserData)
+                .Str("reportedDefaultPath", reportedDefault)
+                .Str("note", "in memory only. Nothing writes settings on exit at this game version, " +
+                             "so quitting does not persist this. What does persist it is any later " +
+                             "'settings <name> <value>' console command or closing the in-game " +
+                             "settings panel: both call Settings.SaveSettings(), which serialises the " +
+                             "whole SettingData including this path. /status.settingsPath names the " +
+                             "file that would be written.")
                 .ToString());
         }
 
         /// <summary>
-        ///     <c>StationSaveUtils.DefaultPath</c>, read reflectively so a rename degrades to "the
-        ///     safety check cannot run" rather than to a plugin that will not load.
+        ///     The developer's REAL user-data folder, computed here rather than read from the game.
+        ///
+        ///     This is the tier-1 folder every save-writing endpoint refuses to touch, and it is the
+        ///     one value in this file that must not route through anything a mod can move.
+        ///     <c>StationSaveUtils.DefaultPath</c> looks like the obvious source and is the wrong
+        ///     one: StationeersLaunchPad prefixes that getter and returns its own
+        ///     <c>SavePathOverride</c> instead, which on a provisioned instance is the instance's own
+        ///     <c>data/&lt;instance&gt;/userdata</c>. Comparing against the patched value inverted
+        ///     both answers. Pointing a running instance at the developer's real save folder was not
+        ///     refused at all and needed no <c>force=true</c>, while a legitimate redirect inside the
+        ///     instance's own save root WAS refused.
+        ///
+        ///     The formula is the game's own unpatched one (<c>StationSaveUtils.DefaultPath</c> for a
+        ///     non-batch build) and the same one <c>client-rig.ps1 Get-UserDataPath</c> computes, so
+        ///     the launcher and the plugin agree on which folder is off limits. Resolved from the
+        ///     Windows shell folder rather than hardcoded, so it carries no developer-specific path.
+        ///
+        ///     Returns null only if the shell folder cannot be read. Callers treat null as "refuse",
+        ///     never as "allow".
         /// </summary>
-        private static string DefaultUserDataPath()
+        internal static string RealUserDataPath()
+        {
+            try
+            {
+                string documents = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+                if (string.IsNullOrEmpty(documents)) return null;
+                return Path.Combine(Path.Combine(documents, "My Games"), "Stationeers");
+            }
+            catch { return null; }
+        }
+
+        /// <summary>
+        ///     <c>StationSaveUtils.DefaultPath</c> as this process sees it, read reflectively so a
+        ///     rename degrades to "not reported" rather than to a plugin that will not load.
+        ///
+        ///     REPORTING ONLY. It is whatever StationeersLaunchPad's <c>SavePathOverride</c> prefix
+        ///     decides, so it answers "where does this instance think the default is", which is a
+        ///     useful thing to see next to the real folder and a useless thing to gate on. The gate
+        ///     is <see cref="RealUserDataPath"/>.
+        /// </summary>
+        private static string ReportedDefaultPath()
         {
             try
             {
@@ -401,6 +534,33 @@ namespace ClientDriver
                 return f == null ? null : f.GetValue(null) as string;
             }
             catch { return null; }
+        }
+
+        /// <summary>
+        ///     Where this process will actually write a world right now, without the directory
+        ///     creation <c>StationSaveUtils.GetSavePath()</c> performs as a side effect. Same rule
+        ///     the game uses: the configured save path, falling back to the default when it is empty.
+        /// </summary>
+        internal static string EffectiveSaveRoot()
+        {
+            try
+            {
+                var data = Settings.CurrentData;
+                string configured = data == null ? null : data.SavePath;
+                return string.IsNullOrEmpty(configured) ? ReportedDefaultPath() : configured;
+            }
+            catch { return null; }
+        }
+
+        /// <summary>
+        ///     True when the given save root is safely outside the developer's real user-data folder.
+        ///     Fails closed: an unresolvable real folder, or an unresolvable root, is NOT isolated.
+        /// </summary>
+        internal static bool IsIsolatedSaveRoot(string root)
+        {
+            string real = RealUserDataPath();
+            if (string.IsNullOrEmpty(real) || string.IsNullOrEmpty(root)) return false;
+            return !IsInside(root, real);
         }
 
         private static bool IsInside(string candidate, string root)
@@ -433,14 +593,11 @@ namespace ClientDriver
             if (pre.Status != 200) return pre;
             if (!wait) return pre;
 
-            var result = PollUntil(timeoutMs, () =>
-            {
-                string state = MainThreadPump.RunValue(() => GameManager.GameState.ToString(), 5000);
-                return state == "Running" ? "loaded" : null;
-            });
+            string result = PollForRunning(timeoutMs, watchModal: false, failAtMenu: false).Result;
             return HttpResponse.Json(new Json.Obj()
-                .Bit("ok", result == "loaded").Str("save", name).Str("result", result ?? "timeout").ToString(),
-                result == "loaded" ? 200 : 409);
+                .Bit("ok", result == "running").Str("save", name)
+                .Str("result", result == "running" ? "loaded" : "timeout").ToString(),
+                result == "running" ? 200 : 409);
         }
 
         private static HttpResponse NewWorld(IDictionary body)
@@ -459,18 +616,13 @@ namespace ClientDriver
             if (pre.Status != 200) return pre;
             if (!wait) return pre;
 
-            var result = PollUntil(timeoutMs, () =>
-            {
-                string state = MainThreadPump.RunValue(() => GameManager.GameState.ToString(), 5000);
-                return state == "Running" ? "loaded" : null;
-            });
+            string result = PollForRunning(timeoutMs, watchModal: false, failAtMenu: false).Result;
             return HttpResponse.Json(new Json.Obj()
-                .Bit("ok", result == "loaded").Str("world", world).Str("result", result ?? "timeout")
-                .Str("note", result == "loaded" ? null :
-                    "world ids are Lunar, Mars2, Europa3, MimasHerschel, Venus, Vulcan2. " +
-                    "'Moon' is not one of them, despite the Lunar world being called Moon: Great Mare.")
+                .Bit("ok", result == "running").Str("world", world)
+                .Str("result", result == "running" ? "loaded" : "timeout")
+                .Str("note", result == "running" ? null : WorldIdHint)
                 .ToString(),
-                result == "loaded" ? 200 : 409);
+                result == "running" ? 200 : 409);
         }
 
         /// <summary>

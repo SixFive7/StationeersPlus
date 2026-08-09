@@ -4,14 +4,16 @@ Developer tooling. Provisions and drives N isolated Stationeers **game clients**
 
 Two pieces:
 
-- **`ClientDriver`**, a BepInEx plugin, is the control plane inside each instance. It exposes a loopback HTTP API for reading the in-game console, connecting to a server, inspecting state, injecting input, spawning, screenshots, and reading and writing mod config.
-- **`client-rig.ps1`** is the launcher. It provisions instances (hard-linked from the real install), creates the isolated Win32 desktop, starts and stops them, and fans one command out across the rig.
+- **`ClientDriver`**, a BepInEx plugin, is the control plane inside each instance. It exposes a loopback HTTP API for reading the in-game console, connecting to a server, hosting a session, saving the world, inspecting state, injecting input, spawning, screenshots, and reading and writing mod config.
+- **`client-rig.ps1`** is the launcher. It provisions instances (hard-linked from the real install), creates the isolated Win32 desktop, starts and stops them in the right order, saves their worlds, and fans one command out across the rig.
+
+One instance can **host**: `-Role host` plus `POST /host` makes it a listen host, a single process that runs the simulation, accepts joiners over loopback RakNet, and plays a character. The dedicated server cannot do the last part, so anything needing a host who plays lives here. See "Hosting a world" below, and `Research/GameSystems/ListenHost.md` for the game internals.
 
 It is the client-side counterpart to `ScenarioRunner` (which probes the dedicated server) and `InspectorPlus` (which dumps scene state to JSON on request). Where those two answer "what is the simulation doing", this answers "make these clients do a thing, then tell me what actually happened".
 
 **Not a player-facing mod, and it must never ship.** It is a remote control plane for the game. `WorkshopHandle` is 0 and stays 0.
 
-**Read `TestRig/CLAUDE.md` first.** It carries the rules this rig shares with the dedicated server half: the one session lock that covers both, what the rig touches outside its own folder, the save tiers, the `dev-plugins/` layout, and the launcher-flag conventions. Every mutating action here needs the lock.
+**Read `CLAUDE.md` next to this file, and `TestRig/CLAUDE.md` above it.** The first is the short version of the rules below; the second carries what this rig shares with the dedicated server half (the one session lock covering both, what the rig touches outside its own folder, the save tiers, the `dev-plugins/` layout, the launcher-flag conventions). Every mutating action here needs the lock.
 
 ---
 
@@ -40,9 +42,11 @@ Every mutating action refuses without it. One lock covers this rig and the dedic
 # prints an owner id; pass -As <id> on every mutating command, on either launcher
 ```
 
-Gated: `-Provision`, `-Start`, `-Stop`, `-Remove`, `-Broadcast`, `-Call`. Free: `-Status`, `-List`, `-Logs`, `-Snapshot`, `-Wait`. Release with `-Unlock -As <id>` or `-Stop -All -As <id> -Release`. Full rules: `TestRig/session.lock.template`.
+Gated: `-Provision`, `-Start`, `-Stop`, `-Save`, `-Remove`, `-Broadcast`, `-Call`. Free: `-Status`, `-List`, `-Logs`, `-Snapshot`, `-Wait`. Release with `-Unlock -As <id>` or `-Stop -All -As <id> -Release`. Full rules: `TestRig/session.lock.template`.
 
-Two things worth knowing before you go idle. A running instance keeps the lock live with no timer to save you, so leaving instances up holds the whole rig including the dedicated server; always stop them before releasing. And `-BreakLock` (not `-Force`) is what takes a lock off another session, and it is human-gated.
+Add `-WaitSeconds N` to queue for up to N seconds when another session holds the rig; the default of 0 keeps the immediate refusal. It is a queue, not a reservation, and promises no ordering fairness.
+
+Three things worth knowing before you go idle. A running instance keeps the lock live with no timer to save you, so leaving instances up holds the whole rig including the dedicated server; always stop them before releasing. `-Unlock` refuses outright while a listen host is still live, because releasing hands the rig to an agent whose `-Stop -All` would end the world mid-test. And `-BreakLock` (not `-Force`) is what takes a lock off another session, and it is human-gated.
 
 ### 1. Pick a location for the instance trees
 
@@ -68,11 +72,17 @@ Provisioning copies whatever is in `bin/Release` into the instance. After a plug
 ```powershell
 .\client-rig.ps1 -Provision -As <id> -Instance client1
 .\client-rig.ps1 -Provision -As <id> -Instance client2
+.\client-rig.ps1 -Provision -As <id> -Instance host1 -Role host    # a listen host
 ```
 
-Port and identity default off the instance index, so two instances with no flags get 27701/27702 and ClientIds 900000000001/900000000002 with no collision. Override with `-Port`, `-ClientId`, `-Username`, `-Width`, `-Height`.
+Every per-instance value defaults off the instance index, so instances provisioned with no flags never collide: control plane on TCP 27700+index, game port on UDP 27800+index, ClientId 900000000000+index. Override with `-Port`, `-GamePort`, `-ClientId`, `-Username`, `-Width`, `-Height`. `-Role` is `client` (the default) or `host`; on a rebuild both `-Role` and `-GamePort` are kept unless typed again, so `-Provision -Force` to pick up a new plugin build never silently demotes a host or moves its port.
 
-Provisioning refuses a duplicate ClientId or port up front. That is not fussiness: the server keys a player's body on ClientId, `Brain.RegisterBrain` overwrites silently, and two clients sharing an id resolve onto **one character** with nothing anywhere warning. A test that believes it has two players and has one produces results that look plausible and mean nothing.
+Provisioning refuses a duplicate ClientId, control-plane port, or game port up front. That is not fussiness in either case:
+
+- **ClientId.** The server keys a player's body on it, `Brain.RegisterBrain` overwrites silently, and two clients sharing an id resolve onto **one character** with nothing anywhere warning. A test that believes it has two players and has one produces results that look plausible and mean nothing. A listen host consumes a ClientId of its own, and it exists first, so a joiner that collides takes over the host's body.
+- **Game port.** Two RakNet sockets on one UDP port do not conflict; both bindings coexist and a datagram goes to whichever matches its destination address. Nothing errors, so the joiner reaches something and the test is wrong silently. Ports 27015/27016 (the game client's own defaults) and 28015/28016 (this repository's dedicated server) are refused for the same reason.
+
+`data/<instance>/provision.stamp` records when the instance was built and out of what: the provision time, the role, both ports, the source install and its `version.txt`, and the plugin DLL's build time. It is the only way to answer "is this instance stale" after a game update or a plugin rebuild.
 
 What each instance gets:
 
@@ -119,6 +129,8 @@ Teardown:
 .\client-rig.ps1 -Remove -As <id> -Instance client1
 ```
 
+`-Stop` is host-aware and orders the teardown itself; see "Hosting a world" below before stopping anything that holds a world.
+
 ### Readiness has three distinct stages and they are not interchangeable
 
 | `-Stage` | Means |
@@ -130,28 +142,106 @@ Teardown:
 
 Wait for `menu` before touching the menu or the ImGui overlay. `modsLoaded` alone is not enough: the splash screen is still drawing at that point and it suppresses the in-game ImGui windows.
 
+`inWorld` is **not** a readiness stage for a host. A world can be up with hosting silently not happening, because `NetworkServer.Host()` gives up quietly after three failed binds. The host's post-condition is `/status.hosting == true` with `/status.role == "listenHost"`, which `POST /host` asserts for you before it answers 200.
+
 ### The launcher actions
 
 | Action | Lock | Does |
 |---|---|---|
-| `-Lock -Purpose <s> [-TtlMinutes N]` | acquires | Take the rig session lock. Prints the owner id for `-As`. |
+| `-Lock -Purpose <s> [-TtlMinutes N] [-WaitSeconds N]` | acquires | Take the rig session lock. Prints the owner id for `-As`. `-WaitSeconds` queues instead of failing at once. |
 | `-RefreshLock -As <id>` | refreshes | Bump the timer while actively driving a test. |
-| `-Unlock -As <id>` | releases | Give the rig back. Warns if instances are still running. |
-| `-Provision -Instance <n> [-Force]` | needs | Build or rebuild an instance tree, seed its mods, write its manifest. |
-| `-Start -Instance <n>\|-All` | needs | Launch on the isolated desktop. |
-| `-Stop -Instance <n>\|-All [-Release]` | needs | Ask through `/quit`, then kill after `-TimeoutSeconds` (default 30). |
-| `-Remove -Instance <n>` | needs | Delete the tree and the instance's save root. Refuses while it is running. |
+| `-Unlock -As <id>` | releases | Give the rig back. Warns if instances are still running, and REFUSES while a listen host is live. |
+| `-Provision -Instance <n> [-Role client\|host] [-GamePort N] [-Force]` | needs | Build or rebuild an instance tree, write its save redirect, seed its mods, write its manifest and provision stamp. |
+| `-Start -Instance <n>\|-All` | needs | Launch on the isolated desktop, hosts first. Throws rather than skipping when an instance is already up. |
+| `-Stop -Instance <n>\|-All [-Release]` | needs | Host-aware teardown: classify, refuse, disconnect joiners, save the world holder, `/quit`, kill after `-TimeoutSeconds` (default 30), then clear `StartLocalHost` from the stopped instance's `setting.xml`. |
+| `-Save -Instance <n>\|-All [-Name <s>]` | needs | Write the world through `POST /save` and wait for the game's own confirmation. Warns rather than claiming success on a timeout. |
+| `-Remove -Instance <n>` | needs | Delete the tree and the instance's save root. Refuses while it is running, and refuses to delete a host's world while a joiner is attached. |
 | `-Broadcast -All -Path <p> [-Body <json>]` | needs | One request to every instance. Throws on a partial result. |
 | `-Call -Instance <n> -Path <p> [-Body <json>]` | needs | One request to one instance. |
-| `-Status [-Instance <n>]` | free | The rig lock, then per instance: process, port, identity, phase, foreground verdict, input gate, identity conflicts. |
-| `-List` | free | The rig registry as a table. |
+| `-Status [-Instance <n>]` | free | The rig lock, then per instance: process, classified role, both ports, identity, phase, live role, hosting, host port, connected clients by name and id, foreground verdict, input gate, identity conflicts. |
+| `-List` | free | The rig registry as a table, plus live role, hosting and client count for the instances that are running. |
 | `-Wait -All -Stage <s> [-WaitSeconds N]` | refreshes | Barrier, default 300 s. Fails loudly, per instance, with what each one was actually doing. |
-| `-Snapshot -All [-OutFile <f>]` | free | `/status` from every instance in one document. |
+| `-Snapshot -All [-OutFile <f>]` | free | `/status` from every instance in one document. A relative `-OutFile` is rooted at the rig folder (which is gitignored deny-all), not at the shell's working directory. |
 | `-Logs -Instance <n> [-Tail N] [-Grep <re>]` | free | That instance's BepInEx log. |
 
-`-Broadcast` and `-Call` are gated even though they read like queries, because they drive a live client: `/quit` ends one, and `/savepath` retargets where one writes its saves. `-Wait` needs no lock but refreshes one you already hold, because a barrier can legitimately outlast the TTL.
+`-Broadcast` and `-Call` are gated even though they read like queries, because they drive a live client: `/quit` ends one, `/host` puts one into a world it serves, and `/savepath` retargets where one writes its saves. `-Wait` needs no lock but refreshes one you already hold, because a barrier can legitimately outlast the TTL.
 
 `-Broadcast` throws when any instance failed, deliberately. A partial broadcast leaves the rig in mixed state, and "both clients agree on X except for this one difference" is the shape of nearly every paired check, so half-applying it silently is how a test comes out wrong.
+
+---
+
+## Hosting a world
+
+A driven instance can be a **listen host**: one process that runs the simulation, accepts joiners over loopback RakNet, and plays a character. That last part is what the dedicated server cannot do, so a test whose host has to hold an item, paint something, or apply their own client-half setting belongs here. The game internals are in `Research/GameSystems/ListenHost.md`; the short version is that a listen host is `NetworkRole.Server` exactly like the dedicated server and differs from it by `GameManager.IsBatchMode` alone.
+
+### The order is the whole trick, and it runs opposite at each end
+
+**Startup: the host must be IN ITS WORLD before any joiner connects.** `/connect` has nothing to reach until the host is hosting, and a join issued against a host that is still loading fails in a way that reads like a bad address.
+
+**Teardown: the host goes LAST.** Joiners disconnect first and confirm it, then whoever holds the world saves and confirms it, then the host quits. `-Stop` does that ordering itself, so `-Stop -All` is safe; what is not safe is killing a host by hand while joiners are in it.
+
+### End to end
+
+```powershell
+# 0. one lock for the whole session, on either launcher
+.\client-rig.ps1 -Lock -Purpose "Host-side glow check for SprayPaintPlus"
+
+# 1. two instances: one host, one joiner
+.\client-rig.ps1 -Provision -As <id> -Instance host1   -Role host
+.\client-rig.ps1 -Provision -As <id> -Instance client1 -Role client
+
+# 2. the host, all the way into its world
+.\client-rig.ps1 -Start -As <id> -Instance host1
+.\client-rig.ps1 -Wait  -Instance host1 -Stage menu
+.\client-rig.ps1 -Call  -As <id> -Instance host1 -Path /host -Body '{"world":"Lunar"}'
+#    /host answers 200 only once NetworkServer.IsHosting is true. Its body carries
+#    hostPort, the resolved savePath, localClientId, the client roster and a full /status.
+
+# 3. only now the joiner, at the host's game port (-Status prints it)
+.\client-rig.ps1 -Start -As <id> -Instance client1
+.\client-rig.ps1 -Wait  -Instance client1 -Stage menu
+.\client-rig.ps1 -Call  -As <id> -Instance client1 -Path /connect -Body '{"address":"127.0.0.1","port":27801}'
+.\client-rig.ps1 -Wait  -Instance client1 -Stage inWorld -WaitSeconds 600
+
+# 4. confirm from the HOST that the joiner actually arrived
+.\client-rig.ps1 -Status -As <id> -All
+#    under host1:
+#      network:    liveRole=listenHost hosting=True hostPort=27801 connectedClients=1
+#      client:     <username> (<clientId>)        one line per joiner
+
+# ... run the test ...
+
+# 5. persist the world if the next session needs it
+.\client-rig.ps1 -Save -As <id> -Instance host1 -Name HostGlowCheck
+
+# 6. teardown in the order above, then release
+.\client-rig.ps1 -Stop -As <id> -All -Release
+```
+
+Hosting an existing save instead of creating a world is `-Body '{"save":"HostGlowCheck"}'`. Exactly one of `save` or `world` is allowed. World ids are `Lunar`, `Mars2`, `Europa3`, `MimasHerschel`, `Venus`, `Vulcan2`, not `Moon`.
+
+### What to assert on, and what not to
+
+- **`/status.role`** is the one computed answer to "what is this process": `menu`, `singlePlayer`, `joinedClient`, `listenHost`, `dedicated`. Read it; never re-derive from `isClient` / `isServer`. A listen host reports `isServer` true and `isClient` **false**, which is the opposite of the intuition that a hosting player is a client that also serves.
+- **`/status.hosting`** is `NetworkServer.IsHosting`. "The call returned" proves nothing: `NetworkServer.Host()` no-ops from the main menu and gives up quietly after three failed binds.
+- **`/status.connectedClients`** is the server-side roster, `{clientId, username, state, isHost, connectionId}` per row. It is what makes "did the second instance actually arrive" assertable from the host without asking the joiner. It is empty on anything that is not a server, and the host appears in its own roster, so subtract one when counting joiners (the launcher already does).
+- **`/status.startLocalHostPersisted`** is read from the instance's `setting.xml` on disk, not from memory. See the gotcha below: an instance carrying `true` there comes up hosting on its next launch whether or not the test wants it to.
+
+### Refusals you may hit, and what each means
+
+| Answer | Means |
+|---|---|
+| `409 cannot host from gameState=Running` | `/host` loads or creates the world itself and has to start from the menu, because `StartLocalHost` is only read at world entry. `POST /disconnect` first. |
+| `409 ... already reports role=<x> at the main menu` | This process's `NetworkRole` is not `None`, so a clean host is impossible. The known cause is an inbound Steam P2P request promoting an idle process to server. Restart the instance. |
+| `409 save path not isolated` | The instance would write its world inside the developer's real user-data folder. Re-provision so `SavePathOverride` points at its own save root. The `requireIsolatedSavePath=false` escape writes a world into the developer's saves; never pass it. |
+| `409 duplicate ClientId` | A sibling claims this instance's id. The host's id exists first, so a colliding joiner takes over the host's body. |
+| `409 the world is up but NetworkServer.IsHosting is false` | Hosting silently did not happen, almost always the port. The response carries the console tail and the requested port. |
+| `[Stop] ... is hosting and something ... is still attached` | A joiner outside this teardown is connected. Take it down too, or accept the loss with `-Force`. |
+| `[Stop] ... cannot be classified` | A live instance whose control plane does not answer cannot be ruled out as a host, and cannot be asked to save. Wait for it to boot (about 100 s) or accept the loss with `-Force`. |
+
+**Two hosts at once is possible but rarely what you want.** Each needs its own game port, which `-Provision` already guarantees by index. What it cannot guarantee is that a joiner reaches the one you meant, so name the port explicitly in `/connect` and confirm from the host's roster.
+
+---
 
 **Two flags mean exactly what they mean on `dedicated-server.ps1`, and one of them did not used to.** `-Force` is the routine override inside your own session (`-Provision -Force` rebuilds an instance you own); taking a lock off another session is `-BreakLock`, which is human-gated. They were the same flag with opposite risk across the two launchers, which is how a live test gets torn down by muscle memory. `-TimeoutSeconds` (default 30) is process-teardown grace for `-Stop` on both; the readiness barrier here is `-WaitSeconds` (default 300), which it did not used to be, so an older note reading `-Wait -TimeoutSeconds 600` means `-Wait -WaitSeconds 600`.
 
@@ -208,6 +298,13 @@ Section `Client - Window`:
 | `Window Width` | `800` | |
 | `Window Height` | `600` | |
 
+Section `Client - Hosting`:
+
+| Key | Default | What it does |
+|---|---|---|
+| `Role` | `client` | What this instance is provisioned for, `client` or `host`. **Advisory:** it gates nothing, `POST /host` works on any instance, and the live answer is `/status.role`. It exists so a reader, and the launcher's teardown ordering, can tell what an instance was MEANT to be when its control plane is not answering. |
+| `Game Port` | `27016` | The RakNet port `POST /host` binds when the request names none. 27016 is the game's own client default; the launcher provisions 27800 plus the instance index instead. Every concurrent host needs a distinct value, clear of the dedicated server (28015/28016) and of every other instance. |
+
 Section `Client - Gameplay Input`:
 
 | Key | Default | What it does |
@@ -226,12 +323,26 @@ Every body field can also be passed as a query parameter, so anything is reachab
 | Endpoint | Notes |
 |---|---|
 | `GET /ping` | Liveness plus frame counter. Never touches the main thread, so it answers even if the game is wedged. |
-| `GET /instance` | Name, port, identity, manifest path, which source each value came from, sibling ports, and the duplicate-ClientId verdict. `rescan=true` forces a fresh peer probe. |
-| `GET /status` | Everything: instance, game state, network role, world, player, foreground, input gate, driver counters. |
+| `GET /instance` | Name, port, provisioned role, game port, identity, manifest path, which source each value came from, sibling ports, and the duplicate-ClientId verdict. `rescan=true` forces a fresh peer probe. |
+| `GET /status` | Everything: instance, game state, network role, hosting, world, player, foreground, input gate, save hygiene, driver counters. The fields that matter for a multiplayer test are below. |
 | `GET /player` | Player block only. |
 | `GET /colors` | `GameManager.CustomColors` catalogue with swatch indices. |
 | `GET /plugins` | Every plugin found by assembly scan, with its assembly path. |
 | `GET /nearby?radius=&filter=&limit=` | Things around the player. |
+
+**The `/status` fields a multiplayer test reads.** The first four answer "what is this process and who is on it"; the last five answer "where does it write, and will it host again next boot".
+
+| Field | Means |
+|---|---|
+| `role` | `menu \| singlePlayer \| joinedClient \| listenHost \| dedicated`, computed in one place. **Read this rather than `isClient` / `isServer`**, which are three views of one enum and read backwards for a listen host. |
+| `hosting` | `NetworkServer.IsHosting`. The only honest post-condition for a host attempt. |
+| `hostPort` | `NetworkServer.HostPort`, or 0 when not hosting. |
+| `connectedClients` | Server-side roster: `{clientId, username, state, isHost, connectionId}`. Empty on anything that is not a server. The host is in its own roster. |
+| `settingsPath` | The `setting.xml` this instance would write, which the launcher points at `data/<instance>/`. |
+| `savePathResolved` | Where this process would write a world right now. |
+| `saveRootIsolated` | Whether that root is safely outside the developer's real user-data folder. Fails closed: unresolvable is not isolated. |
+| `startLocalHostPersisted` | `StartLocalHost` as it stands **on disk**, so `true` means this instance hosts again on its next launch. `null` when the file or the element is absent. |
+| `startLocalHostInMemory` | The live value. It disagreeing with the persisted one is normal and is the point of reporting both. |
 
 ### Console
 
@@ -249,9 +360,11 @@ Every body field can also be passed as a query parameter, so anything is reachab
 | Endpoint | Notes |
 |---|---|
 | `POST /connect` | `{address, port, wait, timeoutMs, suppressTimeout, allowDuplicateIdentity}`. Direct Connect. Refuses a join into a known ClientId clash. |
+| `POST /host` | `{save\|world, difficulty, start, port, serverName, password, maxPlayers, wait, timeoutMs, allowDuplicateIdentity, requireIsolatedSavePath}`. Become a listen host: load or create the world **and** serve it on `127.0.0.1:<port>`. Must start from the menu. Defaults: `port` = the manifest's game port, `maxPlayers` 4, `difficulty` Normal, `timeoutMs` 300000, `requireIsolatedSavePath` **true**. 200 only once `NetworkServer.IsHosting` is true; see the refusal table under "Hosting a world". |
 | `POST /disconnect` | `{wait, timeoutMs}`. Leave to the main menu. |
 | `POST /quit` | `{hard}`. `Application.Quit()`, or `GameManager.QuitGame()` (a `Process.Kill`) when `hard`. |
 | `GET /saves` | Local save list. |
+| `POST /save` | `{name, wait, timeoutMs}`. Persist the world and wait for the game's own confirmation line. Omit `name` to save under the current station name. Host or single player only: the game's `save` command is scoped `HostOrSinglePlayer`. **200 only on a confirmed save**; a save that was asked for but not confirmed answers 409 with `requested:true` and a `warning`, so "accepted" can never be mistaken for "on disk". `timeoutMs` defaults to 180000; a big world can outlast it and still be running. |
 | `POST /load` | `{save, wait, timeoutMs}`. Load a save by name. |
 | `POST /newworld` | `{world, difficulty, start, wait, timeoutMs}`. World ids are `Lunar`, `Mars2`, `Europa3`, `MimasHerschel`, `Venus`, `Vulcan2`. Not `Moon`. |
 | `POST /waitfor` | `{phase=menu\|joining\|loading\|inWorld, timeoutMs}`. |
@@ -323,23 +436,39 @@ Every body field can also be passed as a query parameter, so anything is reachab
 
 Each provisioned instance gets its own save root at `data/<instance>/userdata/` through StationeersLaunchPad's `SavePathOverride`. That root is tier 3 under the repository save-tier rule (root `CLAUDE.md`, "Workflow: save file access tiers"): agent-managed, free to edit, and deleted by `-Remove` along with the tree. The developer's own save folder stays tier 1 and is never touched.
 
+**This got sharper when an instance became able to host.** A joining client reads a world the server owns and writes none of its own; a host CREATES one. So the redirect is written on every provision, unconditionally and ahead of the mod seed, and a failure to write it is a hard throw for `-Role host` and a warning for `-Role client`. It used to sit at the end of the mod seed, behind that function's early return for a developer with no `modconfig.xml`, which meant an instance provisioned on such a machine (or with `-SeedMods:$false`) got no redirect at all and wrote into the developer's tier-1 folder behind a warning whose text only mentioned mods.
+
 `POST /savepath {"path": "..."}` points `Settings.CurrentData.SavePath` at a scratch directory. Every save resolves through `StationSaveUtils.GetSavePath()` on each call, so worlds created after the redirect land there. The change is in memory; the game persists settings on a clean exit, so put it back at the end or exit with `POST /quit {"hard":true}`.
 
 Because instances already have their own save root, this endpoint is for one-off redirects rather than routine rig use. **It retargets a client that is already running**, which is why `-Call` and `-Broadcast` are lock-gated.
 
-If a provision could not write `SavePathOverride` (no `stationeers.launchpad.cfg` yet, which the launcher warns about), that instance has NO separate save root and is writing into the developer's user-data folder. Treat that warning as a stop: launch once to generate the config, then re-provision with `-Force`.
+If a provision could not write `SavePathOverride` (no `stationeers.launchpad.cfg` yet), a `-Role client` instance is provisioned with a warning and has NO separate save root, so it would write into the developer's user-data folder. Treat that warning as a stop: launch once to generate the config, then re-provision with `-Force`. A `-Role host` provision throws instead of warning, because a host creates a world and that world would be created inside the developer's saves.
+
+`POST /host` applies the same rule at the other end of the chain: it refuses to start unless the resolved save root is outside the developer's real folder. `requireIsolatedSavePath=false` is the documented override and there is no correct reason to pass it.
 
 Three things it does that a plain setter would not, all because the failure mode here is not recoverable by retrying:
 
 - It echoes both the path as received and the path as resolved, so you can verify what landed.
 - It **refuses** a path containing a control character rather than using it. The JSON reader now preserves a backslash that is not part of a recognised escape, so a path like `"C:\Rig\Scratch"` round-trips correctly where it used to lose both backslashes. What that cannot fix is the escapes JSON genuinely defines: `\b`, `\f`, `\n`, `\r` and `\t` still decode, so `"C:\builds"` and `"C:\files"` cannot survive a request body intact. Send such a path as a query parameter, or double every backslash.
-- It **refuses** a path inside the game's own default user-data folder unless you pass `force=true`, since redirecting away from that folder is the entire point. That refusal is the only thing standing between this endpoint and the developer's tier-1 save folder, and it lives in plugin code rather than in any rule an agent reads first. **Never pass `force=true` here unless the user asked for exactly that.**
+- It **refuses** a path inside the developer's real user-data folder unless you pass `force=true`, since redirecting away from that folder is the entire point. That refusal is the only thing standing between this endpoint and the developer's tier-1 save folder, and it lives in plugin code rather than in any rule an agent reads first. **Never pass `force=true` here unless the user asked for exactly that.** It also fails closed: if the real folder cannot be resolved at all, the redirect is refused rather than allowed.
+
+  The comparand is computed independently (`MyDocuments\My Games\Stationeers`, the same value the launcher computes) and deliberately does not go through `StationSaveUtils.DefaultPath`. That getter looks like the obvious source and is the wrong one: StationeersLaunchPad prefixes it to return `SavePathOverride`, so on a provisioned instance it names the instance's own folder. Comparing against it inverted both answers, refusing a legitimate redirect inside the instance's save root and allowing a redirect into the developer's real one with no `force=true`. `GET /savepath` reports `realUserDataPath` (the gate) and `reportedDefaultPath` (what this process thinks the default is) side by side so the distinction is visible rather than assumed.
 
 ---
 
 ## Gotchas
 
-Everything below was hit for real on 0.2.6403.27689 with StationeersLaunchPad 0.5.0.
+Everything below was hit for real on 0.2.6403.27689 with StationeersLaunchPad 0.5.0, except the hosting group, which is read off the game's own code and is marked as such.
+
+**`StartLocalHost` can outlive the run that set it (from the code, not yet observed here).** `/host` writes `Settings.CurrentData.StartLocalHost` as a direct field assignment and never saves, deliberately: the `settings <name> <value>` console command would have been the obvious route and is a trap, because `SettingsCommand.OnValueChanged` calls `Settings.SaveSettings()`, which serialises the WHOLE `SettingData` to `setting.xml`. Closing the in-game settings panel does the same. Any of those turns "this instance hosted once" into "this instance hosts every launch", and a joiner that silently came up as a host is a test that is confidently wrong. Three defences: the direct write, `/status.startLocalHostPersisted` reading the flag back off disk, and `-Stop` clearing it from `setting.xml` after the process is gone. Note that `-Provision -Force` rebuilds the instance TREE and does NOT reset `data/<instance>/`, so `setting.xml` survives a rebuild.
+
+**Two RakNet sockets on one UDP port do not conflict (from the code).** Both bindings coexist and a datagram is routed by destination address, so a colliding game port produces a joiner that connects to something and a test that is wrong with nothing logged anywhere. `-Provision` refuses a game port that collides with another instance, with 28015/28016, or with 27015/27016. Nothing outside the rig is checked.
+
+**Hosting can fail silently (from the code).** `NetworkServer.Host()` returns early with only a console line when called from the main menu (`GameState == None` fails its guard), and after a failed bind it retries three times a second apart and then gives up quietly. Never treat "the call returned" as success; assert `hosting == true` and `role == "listenHost"`. `/host` does that for you and hands back the console tail when it does not happen.
+
+**A host consumes a ClientId, and it exists first (from the code).** `NetworkManager.TotalPlayersInGame` on a host is `Clients.Count + 1`, the host appears in its own `connectedClients` roster, and a joiner that shares the host's id takes over the host's body via `Brain.RegisterBrain`'s silent overwrite. Count the host as one of the rig's identities.
+
+**A joined client cannot save the world.** The game's `save` command is scoped `HostOrSinglePlayer`, so `/save` refuses on a joiner rather than pretending. Save on the instance whose `/status.role` is `listenHost`.
 
 **`-settings SavePath` silently vandalises the developer's `modconfig.xml`.** StationeersLaunchPad scans `<SavePath>\mods\`, finds it empty, and rewrites the shared `modconfig.xml` (which lives at `StationSaveUtils.DefaultPath` and which `-settingspath` does not move) with every `<Local>` entry deleted. Five local mods were silently stripped from the developer's own config on a first boot, and nothing warned. The launcher never passes that flag; it uses StationeersLaunchPad's own `SavePathOverride`, which moves `DefaultPath` itself. Do not add it back.
 
@@ -388,7 +517,8 @@ The rig lives at `TestRig/ClientRig/`, a peer of `TestRig/DedicatedServer/`. It 
 The plugin sits under `dev-plugins/<Name>/<Name>.sln` with its source in `dev-plugins/<Name>/<Name>/`, which is the same layout `ScenarioRunner` uses on the server half. Folder, solution, project, assembly and namespace therefore all read `ClientDriver`, and a second client-side dev-plugin slots in beside this one with nothing to rename. The rule is in `TestRig/CLAUDE.md`.
 
 ```
-client-rig.ps1            the launcher: provision, desktop, lifecycle, fan-out
+client-rig.ps1            the launcher: provision, desktop, lifecycle, save, host-aware teardown, fan-out
+CLAUDE.md                 the short rules, which auto-load; points here
 README.md                 this file
 RESEARCH.md               durable internals
 dev-plugins/
@@ -407,7 +537,8 @@ dev-plugins/
       Routes/
         Router.cs             the dispatch table and shared helpers
         Routes.Console.cs     tee, game ring, command submission
-        Routes.Session.cs     connect, disconnect, saves, savepath, identity, instance
+        Routes.Session.cs     connect, disconnect, saves, savepath, identity, instance, the shared world-entry poll
+        Routes.Host.cs        /host and /save: become a listen host, persist a world, and prove both
         Routes.Input.cs       the input read-back contract, and /diag/input
         Routes.Player.cs      teleport, look, use, swap hands
         Routes.Spawn.cs       hand, world, structure, prefab catalogue
@@ -432,6 +563,6 @@ dev-plugins/
 
 The C# namespace is flat (`ClientDriver`) regardless of folder. The folders are for a reader, not for the compiler, and a nested namespace would churn every file for no gain.
 
-**This folder is gitignored deny-all**, like the dedicated server half. `.gitignore` carries `/TestRig/ClientRig/*` plus a named allowlist for `client-rig.ps1`, `README.md`, `RESEARCH.md` and `dev-plugins/` (whose `bin/` and `obj/` are ignored again). Everything else is local-only: `data/` (registry, manifests, per-instance settings, save roots, logs, PID files) and `instances/` (the hard-linked trees, which normally live on the game install's volume instead), both created on demand.
+**This folder is gitignored deny-all**, like the dedicated server half. `.gitignore` carries `/TestRig/ClientRig/*` plus a named allowlist for `client-rig.ps1`, `CLAUDE.md`, `README.md`, `RESEARCH.md` and `dev-plugins/` (whose `bin/` and `obj/` are ignored again). Everything else is local-only: `data/` (registry, manifests, provision stamps, per-instance settings, save roots, logs, PID files) and `instances/` (the hard-linked trees, which normally live on the game install's volume instead), both created on demand. A host's worlds land under `data/<instance>/userdata/saves/`, so nothing a host writes is committable either.
 
 Deny-all rather than a short ignore list, because routine actions drop artifacts straight into this folder: `-Snapshot -All -OutFile before.json` writes here, and `/screenshot?path=shot.png` resolves relative to the instance working directory. Under an ignore-a-few-things list every one of those was committable by accident.

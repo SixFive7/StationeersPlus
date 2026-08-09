@@ -65,12 +65,27 @@ namespace ClientDriver
         internal static ConfigEntry<int> ConsoleTeeMaxLineChars;
         internal static ConfigEntry<int> ConsoleTeeMaxChars;
 
+        internal static ConfigEntry<string> InstanceRole;
+        internal static ConfigEntry<int> GamePort;
+
         /// <summary>
         ///     The port actually bound, after the manifest has had its say. Every response that
         ///     names a port names this one, so a caller never has to work out whether the config or
         ///     the manifest won.
         /// </summary>
         internal static int EffectivePort = 27700;
+
+        /// <summary>
+        ///     The RakNet port <c>/host</c> binds when the caller names none. 27016 is the game's
+        ///     own client default (<c>Settings.SettingData.GamePort</c>).
+        /// </summary>
+        internal static int EffectiveGamePort = 27016;
+
+        /// <summary>
+        ///     What the launcher provisioned this instance for, "client" or "host". Advisory; see
+        ///     <see cref="InstanceManifest.Role"/>. The live answer is <c>/status.role</c>.
+        /// </summary>
+        internal static string EffectiveRole = "client";
 
         // Static, and deliberately never torn down from OnDestroy.
         //
@@ -269,6 +284,29 @@ namespace ClientDriver
                     "through the HTTP endpoints.",
                     null,
                     new KeyValuePair<string, int>("Order", 20)));
+
+            // Hosting. Only meaningful for an instance that will run POST /host: a listen host binds
+            // a real RakNet socket, and two of them on one port is a joiner that connects to
+            // something and a test that is confidently wrong.
+            InstanceRole = Config.Bind(
+                "Client - Hosting", "Role", "client",
+                new ConfigDescription(
+                    "(Client-local) What this instance is provisioned for: 'client' or 'host'. " +
+                    "Advisory only. It gates nothing, because POST /host works on any instance and " +
+                    "the live answer is /status.role. It is here so a reader can tell what the " +
+                    "instance was meant to be. An instance manifest overrides this.",
+                    null,
+                    new KeyValuePair<string, int>("Order", 10)));
+
+            GamePort = Config.Bind(
+                "Client - Hosting", "Game Port", 27016,
+                new ConfigDescription(
+                    "(Client-local) The RakNet port POST /host binds when the request names none. " +
+                    "27016 is the game's own client default. Every concurrent host needs a distinct " +
+                    "value, clear of the dedicated server (28015/28016) and of any other instance. " +
+                    "An instance manifest overrides this.",
+                    null,
+                    new KeyValuePair<string, int>("Order", 20)));
         }
 
         /// <summary>
@@ -289,6 +327,23 @@ namespace ClientDriver
             // The manifest's peer list should always contain this instance, so a rig provisioned
             // with one entry per instance needs no special case here.
             if (InstanceManifest.PeerPorts.Count == 0) InstanceManifest.PeerPorts.Add(EffectivePort);
+
+            // ---- hosting ----
+            EffectiveRole = string.IsNullOrEmpty(InstanceRole.Value) ? "client" : InstanceRole.Value.Trim();
+            InstanceManifest.RecordSource("role", "config");
+            if (!string.IsNullOrEmpty(InstanceManifest.Role))
+            {
+                EffectiveRole = InstanceManifest.Role.Trim();
+                InstanceManifest.RecordSource("role", "manifest");
+            }
+
+            EffectiveGamePort = GamePort.Value > 0 ? GamePort.Value : 27016;
+            InstanceManifest.RecordSource("gamePort", "config");
+            if (InstanceManifest.GamePort > 0)
+            {
+                EffectiveGamePort = InstanceManifest.GamePort;
+                InstanceManifest.RecordSource("gamePort", "manifest");
+            }
 
             // ---- console tee caps ----
             ConsoleTap.ApplyLimits(ConsoleTeeLines.Value, ConsoleTeeMaxLineChars.Value, ConsoleTeeMaxChars.Value);

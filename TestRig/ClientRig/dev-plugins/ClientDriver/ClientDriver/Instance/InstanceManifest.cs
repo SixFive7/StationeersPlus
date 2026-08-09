@@ -50,6 +50,23 @@ namespace ClientDriver
         internal static ulong ClientId;
         internal static string Username;
 
+        /// <summary>
+        ///     What the launcher provisioned this instance FOR: "host" or "client". Advisory. It
+        ///     changes nothing about how the plugin behaves; <c>/host</c> works on any instance and
+        ///     the truth about what a process is doing is <c>/status.role</c>, which reads the live
+        ///     engine. This exists so a reader of <c>/instance</c>, and the launcher's own teardown
+        ///     ordering, can tell what the instance was MEANT to be when the control plane is not
+        ///     answering.
+        /// </summary>
+        internal static string Role;
+
+        /// <summary>
+        ///     The port a listen host on this instance binds RakNet to. Load-bearing, unlike
+        ///     <see cref="Role"/>: two hosts on one port produce a joiner that connects to something
+        ///     and a test that is confidently wrong.
+        /// </summary>
+        internal static int GamePort;
+
         internal static bool HasWindow;
         internal static bool ForceWindowed;
         internal static int WindowWidth;
@@ -126,6 +143,14 @@ namespace ClientDriver
                 }
 
                 Username = Json.GetStr(root, "username");
+                Role = Json.GetStr(root, "role");
+                GamePort = Json.GetInt(root, "gamePort", 0);
+
+                // Parsed and reported, applied by nothing. The instance's save root is moved by
+                // StationeersLaunchPad's SavePathOverride at provision time, which is a different
+                // file and a different mechanism; writing this value into Settings.CurrentData at
+                // Awake would fight it. It stays here as a record of what the launcher intended.
+                // Do not mistake it for a lever.
                 SavePath = Json.GetStr(root, "savePath");
                 Desktop = Json.GetStr(root, "desktop");
                 RigRoot = Json.GetStr(root, "rigRoot");
@@ -205,6 +230,8 @@ namespace ClientDriver
             var o = new Json.Obj();
             o.Str("name", string.IsNullOrEmpty(Name) ? "(unnamed)" : Name);
             o.Int("port", Plugin.EffectivePort);
+            o.Str("role", Plugin.EffectiveRole);
+            o.Int("gamePort", Plugin.EffectiveGamePort);
             o.Str("clientId", Identity.OverrideClientId == 0 ? null : Identity.OverrideClientId.ToString(CultureInfo.InvariantCulture));
             o.Str("username", string.IsNullOrEmpty(Identity.OverrideUsername) ? null : Identity.OverrideUsername);
             o.Bit("manifestLoaded", Loaded);

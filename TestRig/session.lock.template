@@ -42,11 +42,17 @@
 #       <launcher> -Lock -Purpose "Playtesting <what> for <mod>"
 #     It prints a short owner id. Pass that id as -As <id> on every mutating
 #     command for the rest of the session, on EITHER launcher.
+#   - Acquisition is SERIALISED across processes. Every read-modify-write of this
+#     file runs inside a named system mutex, so two agents that both find the rig
+#     free cannot both walk away believing they own it. Without that, the loser
+#     would only discover it on its next mutating command, minutes and one full
+#     provision later. The mutex is an implementation detail of
+#     TestRig/rig-lock.ps1; nothing you type refers to it.
 #   - Mutating actions on the dedicated server: -Bootstrap, -DeployMods,
 #     -SyncMods, -Start, -Save, -SendCommand, -Stop. Read-only -Status and
 #     -Logs never need it.
-#   - Mutating actions on the client rig: -Provision, -Start, -Stop, -Remove,
-#     -Broadcast, -Call. Read-only -Status, -List, -Logs and -Snapshot never
+#   - Mutating actions on the client rig: -Provision, -Start, -Stop, -Save,
+#     -Remove, -Broadcast, -Call. Read-only -Status, -List, -Logs and -Snapshot never
 #     need it. -Wait is read-only but refreshes the lock when you already hold
 #     it, because a barrier can run longer than the TTL.
 #     -Broadcast and -Call are gated because they drive a LIVE client: /quit
@@ -57,6 +63,37 @@
 #     one client-rig instance process is alive. A live lock you do not own
 #     blocks you. An expired lock with an idle rig is dead and is reclaimed
 #     automatically.
+#
+# QUEUEING FOR THE RIG (opt-in, bounded)
+#   - By default, hitting another session's live lock FAILS IMMEDIATELY. That is
+#     usually what you want: you find out at once and can tell the user.
+#   - To wait instead:
+#       <launcher> -Lock -Purpose "..." -WaitSeconds N
+#     It polls until the rig frees up or N seconds elapse, printing the holder's
+#     purpose while it waits, and then fails with the usual message.
+#   - It is a QUEUE, not a reservation. No ordering fairness is promised: three
+#     waiters do not get the rig in the order they arrived. Waiting is never
+#     unbounded, and there is no way to make it unbounded.
+#
+# WHAT "BUSY" REPORTS, AND WHY THE WORDING MATTERS
+#   The busy reason is what a human reads when deciding whether to authorize a
+#   -BreakLock, so it names what is actually happening rather than a process
+#   count: how many client instances are running, which one is HOSTING, and how
+#   many clients are connected to that host. "2 client instance(s) running"
+#   cannot tell a live hosted test at minute 40 from two instances somebody
+#   forgot to stop; the current wording can.
+#     - A pid file alone is NOT proof the rig is busy. Windows recycles process
+#       ids and these pid files outlive their processes on a force-kill or a
+#       reboot, so the launcher checks that the process really is the game before
+#       counting it. Otherwise a recycled id would report busy forever and no
+#       timer could ever reclaim the rig.
+#     - An instance provisioned before the manifest carried a role is reported as
+#       "role unknown". It still counts as busy; only the description degrades.
+#     - UNTRACKED game processes (an orphan from a killed launcher or a crashed
+#       test, claimed by no pid file) are reported loudly by -Status and in the
+#       busy reason, but are deliberately NOT counted as busy. Nothing the
+#       launchers do can stop an orphan, so counting it would pin the lock live
+#       with no way out except -BreakLock. Kill them by pid instead.
 #
 # THE PURPOSE STRING
 #   Keep it short and generic: "Playtesting network paint for SprayPaintPlus",
@@ -83,6 +120,18 @@
 #     dedicated server included, until somebody stops them. Always
 #     `client-rig.ps1 -Stop -All -As <id>` before you release. `-Status` on
 #     either launcher shows who holds the lock and why it is still live.
+#   - TEAR THE HOST DOWN BEFORE YOU RELEASE. `-Unlock` REFUSES while a listen-host
+#     instance is still live, because releasing hands the rig to the next agent
+#     while a world is up and connected, and that agent's `-Stop -All` ends the
+#     test with nothing left to say it happened. Stop the instances, then unlock.
+#     `-Unlock -Force` overrides that one refusal when you really do mean to leave
+#     a host running. `-Force` is NOT a lock breaker (see below): it cannot take
+#     the lock off another session, only wave away a refusal inside your own.
+#   - `-Stop -Release` frees the lock when it is yours, when you were authorized
+#     to -BreakLock, or when it was already dead. The order of those two steps is
+#     load bearing: -Stop asks for the lock STATE first, and that check is what
+#     stops an unrelated -Stop -Release from freeing a busy session's expired
+#     lock. Do not reorder them.
 #
 # WAITING FOR A HUMAN (e.g. "join and play, tell me when done")
 #   - You are about to go idle, so you will NOT be refreshing. Tell the user the
@@ -112,7 +161,10 @@
 #   It is NOT called -Force, on either launcher, and -Force never breaks a lock.
 #   -Force means the same routine thing on both: override a refusal inside your
 #   own session (client rig: `-Provision -Force` rebuilds an instance you
-#   already own). The two operations had opposite risk under one flag name,
+#   already own; either launcher: `-Unlock -Force` releases while one of your own
+#   host instances is still up). Ownership is checked before any -Force refusal,
+#   so -Force can never reach another session's lock. The two operations had
+#   opposite risk under one flag name,
 #   which is exactly the kind of collision that gets a live test torn down by
 #   muscle memory. The dangerous one now has a name nobody types by accident.
 #
@@ -123,6 +175,16 @@
 #   refreshed_at  ISO 8601 UTC, last refresh (drives the TTL)
 #   ttl_minutes   inactivity window before the timer lapses (default 10)
 #   host          machine name, for diagnostics
+#
+# TESTS
+#   TestRig/rig-lock.tests.ps1 exercises all of the above offline: no game, no
+#   instances, no network, against a temp directory, and it never touches the
+#   real session.lock. It covers the state machine, the timer (including every
+#   fail-closed case), ownership, -BreakLock, the busy signal, the file format,
+#   the release ordering, and real concurrent processes racing for one lock.
+#   Run it after ANY change to TestRig/rig-lock.ps1:
+#       pwsh -NoProfile -File TestRig/rig-lock.tests.ps1
+#   It exits non-zero on the first failure and prints a pass/fail summary.
 # =============================================================================
 
 # Example values only. The real session.lock is written by the launchers via

@@ -75,7 +75,11 @@
     Save name for -Save.
 
 .PARAMETER WaitSeconds
-    With -Save: how long to wait for the save confirmation. Default 30.
+    How long a blocking wait waits. With -Save: how long to wait for the save
+    confirmation (default 30). With -Lock: how long to QUEUE for the rig when
+    another session holds it (default 0, meaning fail immediately). The two
+    defaults differ, so the value is only applied to the action you actually
+    passed it with.
 
 .PARAMETER Status
     Report whether the host wrapper and server are running, PIDs, uptime,
@@ -105,14 +109,22 @@
 .PARAMETER Lock
     Acquire the RIG session lock for this whole test session (it spans many
     start/stop cycles). One lock covers both TestRig halves, so the owner id it
-    prints is also the id client-rig.ps1 expects. Requires -Purpose. Rules:
-    TestRig/session.lock.template.
+    prints is also the id client-rig.ps1 expects. Requires -Purpose. Pair with
+    -WaitSeconds N to queue instead of failing when another session holds it.
+    Rules: TestRig/session.lock.template.
 
 .PARAMETER RefreshLock
     Bump the lock timer while actively driving a test. Requires -As.
 
 .PARAMETER Unlock
     Release the rig session lock. Requires -As, or human-authorized -BreakLock.
+    Refuses while a client-rig listen-host instance is still live; -Force
+    overrides that one refusal.
+
+.PARAMETER Force
+    Override a refusal inside your OWN session. Today that is exactly one thing:
+    -Unlock -Force releases while a listen-host instance is still running.
+    -Force never breaks another session's lock; that is -BreakLock.
 
 .PARAMETER Purpose
     With -Lock: short human-readable reason, e.g. "Playtesting network paint for
@@ -185,12 +197,21 @@ param(
     [string] $Purpose,
     [string] $As,
     [switch] $BreakLock,
+    [switch] $Force,
     [int]    $TtlMinutes = 10,
 
     [switch] $HostMode
 )
 
 $ErrorActionPreference = 'Stop'
+
+# A function's own $PSBoundParameters is its own, and it is EMPTY for a function
+# declared without a param block: it does not fall through to the script's. So
+# "was this switch actually passed, or is it sitting at its default" has to be
+# captured here, at script scope, under a name a function can read. Getting this
+# wrong is silent: -RefreshLock -TtlMinutes 20 used to test the function's empty
+# dictionary and never applied the new TTL at all.
+$InvokedWith = $PSBoundParameters
 
 $ServerRoot    = $PSScriptRoot
 # <repo>/TestRig/DedicatedServer -> <repo>/TestRig -> <repo>
@@ -810,6 +831,16 @@ function Invoke-Stop {
     # cleanup needs no ceremony). It does not require -As. -Release also frees
     # the lock when it is yours, already dead, or you were authorized to
     # -BreakLock.
+    #
+    # ORDERING DEPENDENCY, DO NOT REORDER. This Get-RigLockState call MUST come
+    # before the -Release block at the bottom of this function.
+    # Test-RigLockReleasableOnStop has no busy term, so on its own it would
+    # release a foreign lock the moment its timer lapsed, even with a test in
+    # full flight. What makes that safe is exactly this call happening first: its
+    # expired-and-busy branch self-renews the lock and reports LiveForeign, so we
+    # throw below and never reach the release. Swap the two and an unrelated
+    # -Stop -Release tears the rig out from under a live session.
+    # TestRig/rig-lock.tests.ps1 pins both halves of this.
     $st = Get-RigLockState -CallerId $As
     if ($st.State -eq 'LiveForeign') {
         if (-not $BreakLock) {
@@ -848,11 +879,13 @@ function Invoke-Stop {
     }
 
     if ($Release) {
+        # Safe only because of the Get-RigLockState guard at the top of this
+        # function; see the ORDERING DEPENDENCY note there before touching this.
         $lock = Read-RigLock
         if (-not $lock) {
             Write-Host "[Stop] No rig session lock to release."
         }
-        elseif (($As -and $lock['owner'] -eq $As) -or $BreakLock -or (Test-RigLockTimerExpired $lock)) {
+        elseif (Test-RigLockReleasableOnStop -Lock $lock -CallerId $As -BreakLock:$BreakLock) {
             Remove-Item -Force -ErrorAction SilentlyContinue (Get-RigLockFilePath)
             Write-Host "[Stop] Rig session lock released."
         }
@@ -869,12 +902,17 @@ function Invoke-Lock {
     if (-not $Purpose) {
         throw "-Lock requires -Purpose `"<short reason>`", e.g. -Purpose `"Playtesting network paint for SprayPaintPlus`". See TestRig/session.lock.template."
     }
+    # -WaitSeconds means something different per action on this launcher (-Save
+    # defaults to 30), so -Lock only queues when the caller actually passed it.
+    $lockWait = if ($InvokedWith.ContainsKey('WaitSeconds')) { $WaitSeconds } else { 0 }
     # Reclaiming a DEAD lock while this half still has an orphaned server up is
     # the one dedi-specific step; everything else is the shared implementation.
+    # The reclaim runs AFTER the lock is minted, so the teardown happens under our
+    # own reservation rather than inside the acquisition critical section.
     New-RigLock -Purpose $Purpose -CallerId $As -TtlMinutes $TtlMinutes -BreakLock:$BreakLock `
-        -Tool 'dedicated-server.ps1' -OnReclaim {
+        -WaitSeconds $lockWait -Tool 'dedicated-server.ps1' -OnReclaim {
             if (Test-PidAlive (Get-PidFromFile $ServerPidFile)) {
-                Write-Warning "[Lock] Reclaiming an expired lock; stopping its orphaned server first."
+                Write-Warning "[Lock] Reclaimed an expired lock; stopping its orphaned server."
                 Stop-ServerProcesses
             }
         } | Out-Null
@@ -882,12 +920,12 @@ function Invoke-Lock {
 
 function Invoke-RefreshLock {
     if (-not $As) { throw "-RefreshLock requires -As <id> (the owner id printed by -Lock)." }
-    if ($PSBoundParameters.ContainsKey('TtlMinutes')) { Update-RigLock -CallerId $As -TtlMinutes $TtlMinutes }
-    else                                              { Update-RigLock -CallerId $As }
+    if ($InvokedWith.ContainsKey('TtlMinutes')) { Update-RigLock -CallerId $As -TtlMinutes $TtlMinutes }
+    else                                        { Update-RigLock -CallerId $As }
 }
 
 function Invoke-Unlock {
-    Remove-RigLock -CallerId $As -BreakLock:$BreakLock
+    Remove-RigLock -CallerId $As -BreakLock:$BreakLock -Force:$Force
 }
 
 # ---- status & logs --------------------------------------------------------
@@ -1067,9 +1105,13 @@ Session-lock rules: TestRig/session.lock.template (READ FIRST)
 
 Session lock (acquire before ANY mutating command; pass -As <id> thereafter).
 ONE lock covers BOTH halves, so this id is also what client-rig.ps1 expects:
-  TestRig/DedicatedServer/dedicated-server.ps1 -Lock -Purpose "<what you are testing>" [-TtlMinutes 10]
+  TestRig/DedicatedServer/dedicated-server.ps1 -Lock -Purpose "<what you are testing>" [-TtlMinutes 10] [-WaitSeconds 0]
   TestRig/DedicatedServer/dedicated-server.ps1 -RefreshLock -As <id>      (while actively testing)
-  TestRig/DedicatedServer/dedicated-server.ps1 -Unlock -As <id>           (release when done)
+  TestRig/DedicatedServer/dedicated-server.ps1 -Unlock -As <id> [-Force]  (release when done)
+  -Lock -WaitSeconds N queues for up to N seconds instead of failing at once when another
+  session holds the rig. It is a queue, not a reservation: no ordering fairness is promised.
+  -Unlock refuses while a client-rig listen-host instance is live; -Force overrides that
+  one refusal and nothing else.
   Breaking another session's LIVE lock (-BreakLock) is human-gated: only on the user's say-so.
   -BreakLock is NOT -Force. -Force never breaks a lock on either launcher.
 

@@ -6,6 +6,16 @@ The folder is gitignored deny-all except for this file, the launcher `dedicated-
 
 This is one half of `TestRig/`. **`TestRig/CLAUDE.md` carries the rules shared with the other half** (the one session lock covering both, what the rig touches outside its own folder, the save tiers, the `dev-plugins/` layout, the launcher-flag conventions) and auto-loads alongside this file. The client rig is `TestRig/ClientRig/`.
 
+## "Host a world" no longer means this half
+
+A client-rig instance provisioned with `-Role host` and driven through `POST /host` becomes a **listen host**: one process that runs the simulation, accepts joiners over loopback RakNet, and plays a character. It is the same `NetworkRole.Server` this server is, one boolean apart (`GameManager.IsBatchMode`). So a multiplayer test now has two possible hosts, and picking the wrong one wastes a session.
+
+**Use this half** when the test wants a server that is not a player: long soak runs, `ScenarioRunner` probes and the scenario catalogue below, save-edit round trips through Path D, `AutoPauseServer` behaviour, anything where a host's own client half would be noise, and anything already written against `-Load` / `-Save` / `-SendCommand`.
+
+**Use a listen host** when the test needs a host who plays: a host holding an item, a host painting something, a host's own client-half setting, or any assertion of the form "the host does X and the joiner sees Y". That was simply unreachable here, because a dedicated server has no player character (`CreateCharacterAndTakeControl` is skipped under `IsBatchMode`, and `LocalClientId` is 0).
+
+Driving it: `TestRig/ClientRig/CLAUDE.md` for the rules, `TestRig/ClientRig/README.md` "Hosting a world" for the end-to-end sequence, `Research/GameSystems/ListenHost.md` for the game internals. Three things carry straight over from this half and are worth knowing before you go looking: the same one session lock covers it, the joiner still reaches it by Direct Connect to `127.0.0.1:<port>`, and its game port is a real UDP bind on this machine, so it must not collide with this server's 28015/28016 (the client rig refuses that collision at provision time).
+
 ## Layout
 
 - `install/` (gitignored): the SteamCMD-managed binary install (`rocketstation_DedicatedServer.exe` plus `rocketstation_DedicatedServer_Data/`), the BepInEx loader (`winhttp.dll`, `doorstop_config.ini`, `.doorstop_version`), and the `BepInEx/` tree mirrored from the developer's client install (BepInEx core plus StationeersLaunchPad and its sibling plugins).
@@ -60,10 +70,11 @@ One rig is shared by every agent on this machine, and a test is many start/stop 
 - **Acquire once, before any mutating command:** `dedicated-server.ps1 -Lock -Purpose "Playtesting <what> for <mod>"`. It prints a short owner id; pass `-As <id>` on every mutating command after that (`-Bootstrap`, `-DeployMods`, `-SyncMods`, `-Start`, `-Save`, `-SendCommand`, `-Stop`), and on the client rig's mutating commands too. Read-only `-Status` / `-Logs` never need it.
 - **The purpose is for the user.** Keep it short and generic. When you hit a lock you do not own, do not proceed: show its purpose to the user and let the user decide. Never use `-BreakLock` on your own; it is human-gated. It is spelled `-BreakLock`, not `-Force`: `-Force` is the routine same-session override on both launchers and never breaks a lock.
 - **It expires on a timer (default 10 min) so an idle agent frees the rig.** Refresh (`-RefreshLock -As <id>`, or any mutating command) about once a minute ONLY while actively driving a test. Never refresh just to hold the server for an absent human, and never spawn a background refresher; either one starves other agents.
-- **A busy rig keeps the lock live regardless of the timer.** Busy means a player connected here, or any client-rig instance process alive. An active playtest is protected; a rig left idle frees up when the timer lapses. Note the client-side consequence: instances left running hold this half too, so stop them before releasing.
+- **A busy rig keeps the lock live regardless of the timer.** Busy means a player connected here, or any client-rig instance process alive. An active playtest is protected; a rig left idle frees up when the timer lapses. The reported reason names which client instance is hosting and how many clients are attached to it, because that text is what a human reads when deciding whether to authorise a `-BreakLock`. Note the client-side consequence: instances left running hold this half too, so stop them before releasing.
+- **Queue instead of failing** with `-Lock -Purpose "..." -WaitSeconds N`. Default 0 keeps the immediate refusal. It is a queue, not a reservation: no ordering fairness is promised.
 - **Waiting for the developer to join:** tell them the reservation window in plain terms, set `-TtlMinutes` to a sensible join window, then go idle. Do not poll-refresh.
 - **On resume after any gap, re-check ownership first:** `dedicated-server.ps1 -Status -As <id>`. If another session holds it, stop, tell the user what took it (the reported purpose), and re-acquire only on their go-ahead.
-- **Release when done:** `-Unlock -As <id>`, or `-Stop -As <id> -Release`.
+- **Release when done:** `-Unlock -As <id>`, or `-Stop -As <id> -Release`. `-Unlock` REFUSES while a client-rig listen host is still live, even though that is the other half: releasing hands the rig to the next agent while a world is up and connected. Stop the instances first, or `-Unlock -Force` to release anyway. `-Force` is still not a lock breaker.
 
 ## Operations
 

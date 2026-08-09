@@ -107,9 +107,18 @@ Web/_staging/
 ## scratch dumps). Deny-all means a stray artifact cannot be committed by accident;
 ## an ignore-a-few-things list would let every one of those through.
 ##
-## The rig root itself only carries the shared lock machinery, so the active
-## session.lock is the one thing ignored there.
-/TestRig/session.lock
+## The rig ROOT is deny-all too, for the same reason the halves are: a -Snapshot
+## -OutFile with a relative path resolves against the shell CWD, and a run from
+## the rig root would land the artifact here where an ignore-a-few-things list
+## would wave it straight through. The allowlist is the shared lock machinery,
+## its test suite and the two docs. The active session.lock is never tracked.
+/TestRig/*
+!/TestRig/CLAUDE.md
+!/TestRig/rig-lock.ps1
+!/TestRig/rig-lock.tests.ps1
+!/TestRig/session.lock.template
+!/TestRig/DedicatedServer/
+!/TestRig/ClientRig/
 
 ## Dedicated server half: local-only except CLAUDE.md, the launcher, and source
 ## code under dev-plugins/. install/ and data/ are ignored wholesale.
@@ -120,12 +129,15 @@ Web/_staging/
 /TestRig/DedicatedServer/dev-plugins/**/bin/
 /TestRig/DedicatedServer/dev-plugins/**/obj/
 
-## Client rig half: local-only except the launcher, its two docs, and source code
+## Client rig half: local-only except the launcher, its three docs, and source code
 ## under dev-plugins/. instances/ holds hard-linked copies of the game install and
 ## normally lives on the install's volume, not here; data/ holds the rig registry,
 ## per-instance manifests, settings, save roots, logs and PID files. Both are
-## created on demand and both are covered by the deny-all above.
+## created on demand and both are covered by the deny-all above. A host instance
+## writes its worlds under data/<instance>/userdata/saves/, which the deny-all
+## already covers; nothing a host produces is ever committable.
 /TestRig/ClientRig/*
+!/TestRig/ClientRig/CLAUDE.md
 !/TestRig/ClientRig/README.md
 !/TestRig/ClientRig/RESEARCH.md
 !/TestRig/ClientRig/client-rig.ps1

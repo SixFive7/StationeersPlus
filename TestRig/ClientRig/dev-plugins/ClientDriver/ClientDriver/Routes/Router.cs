@@ -68,10 +68,16 @@ namespace ClientDriver
                     Json.GetStr(body, "contains"))));
 
                 // ---- session -----------------------------------------------
+                // /connect, /host, /load, /newworld and /save are NOT wrapped in Main(...): each
+                // one waits on the game for far longer than the 20 s main-thread budget, so they
+                // hop to the main thread per step and poll in between. Wrapping one of them would
+                // answer 504 while the work was still going fine.
                 case "/connect": return Connect(body);
+                case "/host": return HostWorld(body);
                 case "/disconnect": return Disconnect(body);
                 case "/quit": return Quit(body);
                 case "/saves": return Main(() => HttpResponse.Json(Saves()));
+                case "/save": return SaveWorld(body);
                 case "/savepath": return Main(() => SavePath(body));
                 case "/load": return LoadSave(body);
                 case "/newworld": return NewWorld(body);

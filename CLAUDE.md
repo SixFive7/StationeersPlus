@@ -310,7 +310,7 @@ Save files fall into three tiers with different access rules:
 **Tier 3: Test rig saves, FREE TO EDIT.** Both rig save roots:
 
 - `TestRig/DedicatedServer/data/saves/`, the dedicated server's world tree.
-- `TestRig/ClientRig/data/<instance>/userdata/`, the per-instance save root each provisioned client gets through StationeersLaunchPad's `SavePathOverride`. `client-rig.ps1 -Remove` deletes it along with the instance tree, by design.
+- `TestRig/ClientRig/data/<instance>/userdata/`, the per-instance save root each provisioned client gets through StationeersLaunchPad's `SavePathOverride`. A client instance can now be a listen host, so this root holds real worlds under `saves/`, written by `client-rig.ps1 -Save` (which waits for the game's own confirmation and warns rather than claiming success). `client-rig.ps1 -Remove` deletes the whole root along with the instance tree, by design, which for a host is the world every joiner was in.
 
 The whole point of the rig folders is autonomous test driving, so agents may copy in, overwrite, rename, delete, or hand-edit save folders here as freely as any other working file. Restoring a save under test means: copy from a tier-2 source over the corresponding tier-3 folder, optionally pruning stale `autosave/manualsave/quicksave/` siblings first.
 
@@ -318,7 +318,11 @@ Tier 3 is free to edit but not unowned: it belongs to whoever holds the rig sess
 
 `TestRig/DedicatedServer/dedicated-server.ps1` does not currently have a `-CopyInSave` or `-WipeSave` action; copy save trees in directly with the standard file tools. Starting a fresh world via `-Start -New <Map>` remains the way to get a brand-new save when no source is provided.
 
-**Two client-rig hazards that sit on the tier-1 boundary.** `ClientDriver`'s `POST /savepath` retargets `Settings.CurrentData.SavePath` on a **running** client. It refuses a path inside the game's own default user-data folder, but only while the caller omits `force=true`. That refusal lives in plugin code, not in any rule an agent reads, so an agent that passes `force=true` points a live client's saves straight back at the tier-1 folder. Never pass `force=true` on `/savepath` unless the user asked for exactly that. Separately, a provision whose `SavePathOverride` could not be written (no `stationeers.launchpad.cfg` yet) leaves an instance sharing the developer's user-data folder; the launcher warns, and that warning is a stop, not a note.
+**Three client-rig hazards sit on the tier-1 boundary, and an instance that can create a world sharpens all of them.**
+
+- `ClientDriver`'s `POST /savepath` retargets `Settings.CurrentData.SavePath` on a **running** client. It refuses a path inside the developer's real user-data folder, but only while the caller omits `force=true`. That refusal lives in plugin code, not in any rule an agent reads, so an agent that passes `force=true` points a live client's saves straight back at the tier-1 folder. Never pass `force=true` on `/savepath` unless the user asked for exactly that. (Until this session the refusal did not work on a provisioned instance at all: it compared against `StationSaveUtils.DefaultPath`, which StationeersLaunchPad has already patched to the instance's own folder, so it allowed the dangerous redirect and refused the safe one. It now computes the real folder independently and fails closed. Any older note describing that check is wrong.)
+- `POST /host` refuses to create a world when the instance's save root is not isolated from the developer's folder. The override is `requireIsolatedSavePath=false` and there is no correct reason to pass it.
+- A provision whose `SavePathOverride` could not be written (no `stationeers.launchpad.cfg` yet) leaves an instance sharing the developer's user-data folder. That is now a hard failure for a `-Role host` provision and a warning for a `-Role client` one, because a host creates a world and a client only reads one. Treat the warning as a stop, not a note.
 
 Reading a save's contents for diagnostic purposes is always acceptable for tier 2 and tier 3 (the developer providing it implies consent), and never acceptable for tier 1.
 
@@ -371,10 +375,12 @@ Rule of thumb: if a human modder would naturally write the same sentence because
 
 ## Tool: TestRig for driving the game
 
-`TestRig/` at the repo root holds the two tools that drive Stationeers for testing. They are peers, and a full multiplayer test uses both: the dedicated server hosts the world, the client rig joins it.
+`TestRig/` at the repo root holds the two tools that drive Stationeers for testing. They are peers, and a multiplayer test uses one or both.
 
 - `TestRig/DedicatedServer/` runs a headless dedicated server. Operating manual: `TestRig/DedicatedServer/CLAUDE.md`. Detail in "Tool: DedicatedServer for multiplayer testing" below.
-- `TestRig/ClientRig/` drives one or more game clients over HTTP through the `ClientDriver` BepInEx plugin, launched and provisioned by `TestRig/ClientRig/client-rig.ps1`. Operating manual: `TestRig/ClientRig/README.md`; durable internals in `TestRig/ClientRig/RESEARCH.md`.
+- `TestRig/ClientRig/` drives one or more game clients over HTTP through the `ClientDriver` BepInEx plugin, launched and provisioned by `TestRig/ClientRig/client-rig.ps1`. Short rules that auto-load: `TestRig/ClientRig/CLAUDE.md`; operating manual: `TestRig/ClientRig/README.md`; durable internals in `TestRig/ClientRig/RESEARCH.md`.
+
+**Either half can host a world, and picking the wrong one wastes a session.** A client-rig instance provisioned `-Role host` and driven with `POST /host` becomes a listen host: one process that runs the simulation, accepts joiners over loopback RakNet, and plays a character. Use the dedicated server when the test wants a server that is not a player (soak runs, `ScenarioRunner` probes, save-edit round trips). Use a listen host when the test needs a host who plays, which the dedicated server cannot provide at all because it has no player character. Game internals: `Research/GameSystems/ListenHost.md`. It is still one rig and one lock either way.
 
 **`TestRig/CLAUDE.md` holds the rules that apply to both halves and auto-loads for work in either one. Read it before running anything under `TestRig/`.** It covers the shared session lock, what the rig touches outside its own folder, the save tiers for both rig save roots, the `dev-plugins/` layout, and the launcher-flag conventions. The two halves are not independent tools: they share the developer's one game install and per-Windows-user Unity state (`PlayerCookie-v2.xml`, the `HKCU\Software\Rocketwerkz\rocketstation` PlayerPrefs key) with each other and with the developer's own client, which is why there is one lock and one shared conventions file rather than two of each.
 
@@ -385,6 +391,8 @@ Both halves keep their developer plugins under `dev-plugins/<Name>/<Name>.sln` w
 ## Tool: DedicatedServer for multiplayer testing
 
 `TestRig/DedicatedServer/` holds a self-contained Stationeers Dedicated Server install used for multiplayer playtests of these mods. The directory is gitignored deny-all except for `TestRig/DedicatedServer/CLAUDE.md` (the operating manual: bootstrap, mod deploy, launch, the exact CLI flag set), `TestRig/DedicatedServer/dedicated-server.ps1` (the launcher script itself), and source code under `TestRig/DedicatedServer/dev-plugins/`.
+
+It is no longer the only way to host a world; see the choosing rule in the section above. It remains the right choice for everything that does not need the host to be a player.
 
 Read `TestRig/DedicatedServer/CLAUDE.md` before running, modifying, or proposing changes that touch the dedicated server, and `TestRig/CLAUDE.md` for the rules it shares with the client rig. Both auto-load when you touch a path inside their folder.
 

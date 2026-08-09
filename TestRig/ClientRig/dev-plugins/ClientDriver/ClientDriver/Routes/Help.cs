@@ -14,8 +14,8 @@ namespace ClientDriver
             var endpoints = new List<string>
             {
                 "GET  /ping                       liveness plus frame counter, never touches the main thread",
-                "GET  /instance                   which instance this is: name, port, identity, peer ports, duplicate-identity check",
-                "GET  /status                     full client state: instance, gameState, network role, world, player, driver counters",
+                "GET  /instance                   which instance this is: name, port, role, gamePort, identity, peer ports, duplicate-identity check",
+                "GET  /status                     full client state: instance, gameState, role, hosting, hostPort, connectedClients, save hygiene, world, player, driver counters",
                 "GET  /player                     player block only",
                 "GET  /colors                     GameManager.CustomColors catalogue with swatch indices",
                 "GET  /plugins                    every loaded BepInEx plugin with GUID and version",
@@ -29,10 +29,16 @@ namespace ClientDriver
                 "GET  /console/commands?contains= registered console command names",
                 "",
                 "POST /connect                    {address, port, wait, timeoutMs, allowDuplicateIdentity} Direct Connect; refuses a known ClientId clash",
+                "POST /host                       {save|world, difficulty, start, port, serverName, password, maxPlayers, wait, timeoutMs, allowDuplicateIdentity, requireIsolatedSavePath}",
+                "                                 become a listen host: load or create the world AND serve it on 127.0.0.1:<port>. Must start from the menu.",
+                "                                 Asserts NetworkServer.IsHosting, never 'the call returned'. Refuses a ClientId clash and a non-isolated save path.",
                 "POST /disconnect                 {wait, timeoutMs} leave to the main menu",
                 "POST /quit                       {hard} exit the process",
                 "GET  /saves                      local save list",
-                "POST /savepath                   {path, force} redirect the user-data root; refuses control characters and the default folder; GET reads it",
+                "POST /save                       {name, wait, timeoutMs} persist the world and WAIT for the game to confirm it.",
+                "                                 200 only on a confirmed save; 409 with requested:true and a warning when it was asked for but not confirmed.",
+                "                                 Host or single player only: the game's save command is scoped HostOrSinglePlayer.",
+                "POST /savepath                   {path, force} redirect the user-data root; refuses control characters and the developer's real user-data folder; GET reads it",
                 "POST /identity                   {clientId, username} presented player identity; GET reads it plus the duplicate check",
                 "POST /load                       {save, wait, timeoutMs} load a save by name",
                 "POST /newworld                   {world, difficulty, start, wait, timeoutMs}; ids are Lunar, Mars2, Europa3, MimasHerschel, Venus, Vulcan2 (not 'Moon')",
@@ -85,6 +91,10 @@ namespace ClientDriver
                                       "the synthetic value AND the per-frame consumer was running. " +
                                       "requireConsumed defaults to true, so an unconsumed input answers 409. " +
                                       "'settled' only means the frames elapsed; never assert on it.")
+                .Str("roleContract", "/status.role is the one computed answer to 'what is this process': " +
+                                     "menu, singlePlayer, joinedClient, listenHost or dedicated. Read it " +
+                                     "rather than re-deriving from isClient/isServer, because a listen host " +
+                                     "is NetworkRole.Server and so reports isClient=false.")
                 .StrArray("endpoints", endpoints)
                 .ToString();
         }

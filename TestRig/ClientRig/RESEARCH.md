@@ -32,7 +32,78 @@ The launcher has no business gating anything a single agent does to its own inst
 
 **One implementation, dot-sourced by both launchers** (`TestRig/rig-lock.ps1`). A second copy of the timer, the ownership check and the break-lock gate would drift, and the half that drifted would be the half with the weaker guarantee. Sharing the code is what makes "the client rig has the same guarantees as the dedicated server" true by construction rather than by review.
 
-**Liveness differs per half, deliberately.** The server counts as busy only when a player is connected, so an abandoned server with nobody on it can be reclaimed. The client rig counts as busy when any instance process is alive, which is a lower bar. That asymmetry is correct: on the server a running process with no player is genuinely idle, whereas here the running processes are the test, there being no human to connect. The cost is that leaving instances up holds the whole rig with no timer to save you, which is why `-Unlock` warns when the rig is still busy and the release discipline is stated in `session.lock.template`.
+**Liveness differs per half, deliberately.** The server counts as busy only when a player is connected, so an abandoned server with nobody on it can be reclaimed. The client rig counts as busy when any instance process is alive, which is a lower bar. That asymmetry is correct: on the server a running process with no player is genuinely idle, whereas here the running processes are the test, there being no human to connect. The cost is that leaving instances up holds the whole rig with no timer to save you, which is why the release discipline is stated in `session.lock.template`.
+
+**A host changes what liveness has to say, though not what it decides.** Liveness itself is unchanged: an alive instance process is busy whatever role it has. What a host changes is the argument for the two things built on top of it.
+
+The first is the reason TEXT. `"2 client instance(s) running"` cannot distinguish a live hosted two-client test at minute 40 from two instances somebody forgot to stop, and that string is exactly what a human reads when deciding whether to authorise a `-BreakLock`. The busy signal now names which instance is hosting and how many clients are connected to it, read from the host's own Unity log with the same `Measure-PlayersInLog` the dedicated server uses. The role comes from the instance manifest, and it degrades: an instance provisioned before the manifest carried a role reports "role unknown" and still counts as busy, so liveness never depends on a field being present. The whole probe is filesystem-only, no HTTP, because it runs on the path of every gated command and a control-plane call to an instance mid-world-load can block for seconds. A lock check that hangs is worse than one that is slightly less precise.
+
+The second is `-Unlock`. It used to warn and release anyway. With a live host that is how a world gets torn down by an unrelated agent: releasing hands the rig to whoever asks next, and their `-Stop -All` ends a session that has no record it ever happened. `-Unlock` now refuses outright while a host instance is live, overridable with `-Force`, which is the routine same-session override and still cannot touch another session's lock (ownership is checked first).
+
+Two related decisions in the same area, both deliberate:
+
+- **A pid file is not proof of life.** Windows recycles process ids and these files outlive their processes on a force-kill or a reboot, so the process image is checked before an instance counts. Without that, one recycled id would report busy forever and no timer could ever reclaim the rig.
+- **An orphan is reported but is NOT busy.** A game process the rig is running that no pid file claims (a killed launcher, a crashed test) cannot be stopped by any launcher action, so counting it as busy would pin the lock live with no way out except the human-gated `-BreakLock`. That would turn a stray process into a permanently unreclaimable rig, which is the exact failure the timer exists to prevent. It is named loudly in `-Status` and inside the busy reason instead, with its pid, and the scoping is by image path so the developer's own client is never reported.
+
+---
+
+## Hosting from a driven client
+
+The rig could drive clients and could not produce a host who plays, so every test whose subject was the host's own client half was unreachable. A listen host closes that: `NetworkRole.Server` with a player character, the dedicated server's code path with `IsBatchMode` false. The game-side facts are in `Research/GameSystems/ListenHost.md` and are not repeated here; what follows is why the rig's shape around them is what it is.
+
+### `/host` is modelled on `/connect`, not on `/newworld`
+
+`/connect` is the other endpoint that changes this process's network role, so it already carries the three things hosting needs: the duplicate-identity refusal, a per-step main-thread hop rather than one long `Main(...)` against the 20 s budget, and an embedded `/status` in the answer. `/newworld` carries none of them. Modelling on the wrong one would have produced an endpoint that answers 504 while the work is still going fine.
+
+The three "poll until `GameState == Running`" loops in `/connect`, `/load` and `/newworld` were separate copies that had drifted. They are now one helper that `/host` also uses. Its one parameter worth naming is `failAtMenu`: a join that falls back to `GameState.None` has failed, whereas `/load`, `/newworld` and `/host` all START at None, so the same test would trip instantly for them.
+
+### The settings write is a direct field assignment, and that is the load-bearing choice
+
+`Settings.CurrentData.StartLocalHost` is read by `GameManager.StartGame()` at world entry and by nothing afterwards, so the settings block has to land BEFORE the load or the create. Setting it on a world that is already up does nothing.
+
+The obvious way to write it is the game's own `settings <name> <value>` console command, which `/load` and `/newworld` already use for their own work. It is a trap. `SettingsCommand.OnValueChanged` calls `Settings.SaveSettings()`, which serialises the WHOLE `SettingData` to `setting.xml`. One such call persists `StartLocalHost=true`, and the next launch of that instance comes up hosting while a test believes it has a plain joiner. Closing the in-game settings panel does the same thing, and so does `Settings.ValidateSavePath()` returning true at boot. A direct field write stays in memory and dies with the process.
+
+Nothing inside the endpoint can prevent the other three paths, so the state is reported instead: `/status.startLocalHostPersisted` reads the flag out of the instance's `setting.xml` on disk (string scan, not an XML reader, so a malformed file degrades to "unknown" rather than throwing inside the endpoint a harness polls constantly), next to `startLocalHostInMemory` for the live value. `-Stop` then clears the flag from `setting.xml` after the process is gone, which is the cheap end of the same fix. It has to be after, because the game rewrites that file on exit.
+
+Worth knowing alongside it: `-Provision -Force` rebuilds the instance TREE and does not reset `data/<instance>/`. The save root, the logs, the pid file and `setting.xml` all survive, deliberately (a staged save must not evaporate on a plugin rebuild), which is exactly why a stale `StartLocalHost` could outlive the rebuild that was supposed to give a clean instance.
+
+### "The call returned" is not evidence, twice over
+
+`NetworkServer.Host()` returns early with nothing but a console line when `GameState == None` (hosting from the main menu), and after a failed bind it retries three times a second apart and then returns quietly. So `/host` asserts in two stages: first that the world reached `Running` at all, then that `NetworkServer.IsHosting` is true and `/status.role` is `listenHost`, with a 15 s budget for that second stage to allow for the retry ladder. A failure at either stage answers 409 carrying the console tail, the requested port, and the full `/status`, because the useful information after a silent failure is what the GAME said.
+
+`/status.role` exists for the same reason one level up. `IsActive`, `IsServer` and `IsClient` are three views of one enum field, and they read backwards for the case that matters most: a listen host is `NetworkRole.Server` and therefore reports `IsClient == false`, which is the opposite of the intuition that a hosting player is a client that also serves. Computing the answer once, inside the plugin, means nothing downstream re-derives it and gets that wrong. The launcher prefers the reported value and only falls back to deriving it (from `networkRole`, never from `isClient`) for an instance running a plugin build from before the field existed.
+
+### The tier-1 gate had to stop routing through a patched getter
+
+An instance that can create a world makes the save-path question load-bearing rather than tidy. Two fixes, both about the same folder:
+
+`Router.DefaultUserDataPath()` used to read `StationSaveUtils.DefaultPath`, which StationeersLaunchPad has already Harmony-patched to return its own `SavePathOverride`. On a provisioned instance that is the instance's own `data/<instance>/userdata`, so the "is this inside the real user-data folder" check was comparing the candidate against the safe folder rather than the dangerous one. Both answers were inverted: pointing a running instance at the developer's real save folder was not refused and needed no `force=true`, while a legitimate redirect inside the instance's own save root WAS refused. The comparand is now computed here, from the Windows shell folder, matching what `client-rig.ps1 Get-UserDataPath` computes, so the launcher and the plugin agree on which folder is off limits. It fails closed: an unresolvable real folder means refuse, never allow. `GET /savepath` reports both paths so the difference is visible instead of assumed.
+
+`SavePathOverride` was written at the end of `Invoke-SeedMods`, behind that function's early return for a developer with no `modconfig.xml`. An instance provisioned on such a machine, or with `-SeedMods:$false`, got no redirect at all and wrote into the developer's tier-1 folder, behind a warning whose text mentioned only mods. It is now its own function, called unconditionally from `Invoke-Provision` ahead of the seed, and a failure to write it throws for `-Role host` and warns for `-Role client`. That asymmetry is the point: a joining client reads a world the server owns, while a host creates one.
+
+### Two collisions the rig has to refuse, for different reasons
+
+**ClientId**, already covered under "Identity", with one addition: the host consumes an id of its own and it exists FIRST, so a joiner that collides takes over the HOST's body. `/host` therefore applies the same `PeerProbe` gate `/connect` does, with the same `allowDuplicateIdentity` escape hatch. `TotalPlayersInGame` on a host is `Clients.Count + 1` and the host appears in its own roster, so anything counting joiners subtracts it.
+
+**Game port.** A second TCP listener on a taken port fails loudly, which makes the control-plane port check mostly bookkeeping. RakNet does not behave that way: two UDP bindings on one port coexist, and which socket receives a datagram is decided by its destination address, not by who bound first. Nothing errors and nothing warns, so the joiner ends up talking to whichever binding won and the test passes or fails against a session nobody chose. That failure is invisible from inside the game, which is why it has to be refused in the launcher before anything is launched. The rig's own band is 27800 plus the instance index, clear of the control plane at 27700 plus index, of the dedicated server at 28015/28016, and of the game client's own 27015/27016.
+
+### Teardown is classification first, action second
+
+Registry insertion order used to decide the teardown, which normally meant the host went first and took the world down under every joiner still in it. The order now falls out of a classification pass over the WHOLE rig, taken before anything is stopped, because the refusals are only worth having while the rig is still intact.
+
+The classification is two passes because one is not enough. Pass 1 asks each live instance what it is. Pass 2 classifies, and classification needs the whole rig: an instance whose control plane does not answer is only safely a joiner while NOBODY is joined to anything. The moment any instance reports `joinedClient`, a silent process is a candidate for the thing it joined, so it is treated as possibly-host rather than assumed safe. On a cold boot nobody is joined to anything, so a booting instance does not make `-Stop -All` ceremonial.
+
+Then: joiners `/disconnect` first and confirm it, anything holding a world saves and confirms it, hosts quit, unclassifiable instances last. A failure at any step stops the sequence loudly rather than tearing the rest of the rig down on top of it. Killing a joiner instead of disconnecting it would leave the host holding a peer that never said goodbye, and that is precisely the state the host is about to write to disk.
+
+`-Start` throws over a running instance rather than warning and skipping, matching the dedicated server. A skipped start is the worst outcome available: the call looks successful, the instance is still in whatever world it was already in, and every later assertion runs against a rig that is not the one the caller asked for.
+
+### `/save` reports what the game said, never what was asked
+
+The client rig could create a world and had no way to persist one, which was the largest remaining guarantee gap against the dedicated server. The contract mirrors `dedicated-server.ps1 -Save`: request, wait for evidence, and on timeout WARN rather than claim success. Answering 200 for a fire-and-forget call would be worse than having no endpoint, because a test would then tear the rig down believing a world it never wrote is on disk.
+
+The evidence is the console, corroborated by the file. `Starting Save for <name>` separates "the save never started" from "the save started and is still running", which is the difference between a broken call and a big world. `Saved <name>` (or `Created new save` for a first save under that name) is printed only after the `SaveResult` comes back successful, and that is the confirmation. Every failure path prints through `ConsoleWindow.PrintError`, so a failed save answers immediately instead of burning the whole timeout. The head `.save` file's size and write stamp are read afterwards and reported, but are used as the PRIMARY signal only when the console tap is not patched: the file's write time moves while the zip is still streaming, so on its own it can confirm a half-written save.
+
+Status codes follow the `/input/*` rule. Confirmed is 200; asked-for-but-unconfirmed is 409 carrying `requested:true` and a warning, so a launcher can tell "not confirmed" from "refused outright" and a caller that does nothing special cannot receive a success for something that did not happen. The game's `save` command is scoped `HostOrSinglePlayer`, so `/save` refuses on a joined client rather than pretending.
 
 ---
 
@@ -254,7 +325,7 @@ Incidentally, the original diagnosis blamed that registry key for the fullscreen
 ### Three traps on the way
 
 1. `ScreenWidth` and `ScreenHeight` are declared as **string**, not int. `LoadSettings` uses `int.TryParse` and tolerates garbage; `ApplyVideoSettings` uses a bare `int.Parse` and would throw inside `GameManager.Start()`, an `async void`. Write digits only.
-2. The `Settings` class is in the **global namespace**, and other loaded assemblies carry their own `Settings`. Resolving it by name returned the wrong one on the first build, which is what a reported "Settings type not found" actually meant. Resolution is a scan for a type named `Settings` that has both a static `CurrentData` field and a static `LoadSettings` method; nothing else in the process has both.
+2. The game's `Settings` class is **`Assets.Scripts.Serialization.Settings`**, and more than one loaded assembly carries a type called `Settings`. Resolving it by the bare name `Settings` returned the wrong one on the first build, which is what a reported "Settings type not found" actually meant. One thing that does not fix it is a `using Assets.Scripts;`: C# `using` imports one namespace, not its descendants, so the type in the nested `Assets.Scripts.Serialization` namespace is still not addressable by its short name. Code that needs the type at compile time either imports the namespace it is actually in (`using Assets.Scripts.Serialization;`, as `Routes.Host.cs` does) or pins it with an alias (`using Settings = Assets.Scripts.Serialization.Settings;`, as `StateReporter.cs` does, which is the safer form where several `Settings` types are in scope). `WindowMode` resolves it reflectively instead, so a rename degrades to a disabled feature rather than a plugin that will not load: it scans for a type named `Settings` with both a static `CurrentData` field and a static `LoadSettings` method, and nothing else in the process has both. That scan is still correct; only its code comment's claim about the global namespace is not.
 3. `<Monitor>` is serialized and read by nothing.
 
 ---
@@ -405,6 +476,7 @@ The JSON reader is hand-rolled because the game ships no JSON library a BepInEx 
 ## Relevant central pages
 
 - [Research/Workflows/DrivingTheGameClientProgrammatically.md](../../Research/Workflows/DrivingTheGameClientProgrammatically.md) - the curated version of the input, gate and window findings.
+- [Research/GameSystems/ListenHost.md](../../Research/GameSystems/ListenHost.md) - the boot chain behind `/host`: `StartLocalHost`, `NetworkServer.Host`, the RakNet bind, and why `NetworkRole` has no `Host` value.
 - [Research/GameSystems/CursorManager.md](../../Research/GameSystems/CursorManager.md) - the full cursor state inventory behind the wedge.
 - [TestRig/DedicatedServer/CLAUDE.md](../DedicatedServer/CLAUDE.md) - the server side of any multiplayer test this rig drives.
 - [TestRig/DedicatedServer/dev-plugins/ScenarioRunner/README.md](../DedicatedServer/dev-plugins/ScenarioRunner/README.md) - the server-side counterpart, including the give-item scenario that hands an item to a connected player without involving the client's cursor.

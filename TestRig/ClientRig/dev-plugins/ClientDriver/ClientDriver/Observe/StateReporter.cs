@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Reflection;
 using Assets.Scripts;
 using Assets.Scripts.Inventory;
@@ -11,6 +12,10 @@ using HarmonyLib;
 using UnityEngine;
 using GameManager = Assets.Scripts.GameManager;
 using NetworkClient = Assets.Scripts.NetworkClient;
+// Aliased rather than imported. More than one loaded assembly carries a type called Settings, and
+// resolving this one by bare name picked the wrong one once already (see RESEARCH.md, "Three traps
+// on the way"). An alias pins it.
+using Settings = Assets.Scripts.Serialization.Settings;
 
 namespace ClientDriver
 {
@@ -50,6 +55,9 @@ namespace ClientDriver
             try { o.Str("gameVersion", GameManager.GetGameVersion()); } catch { }
 
             // ---- network -----------------------------------------------------
+            // 'role' first, deliberately. It is the one field downstream code should read, and it
+            // exists so nothing has to re-derive the answer from the raw flags below. See Role().
+            o.Str("role", Role());
             try
             {
                 o.Str("networkRole", NetworkManager.NetworkRole.ToString());
@@ -62,6 +70,24 @@ namespace ClientDriver
                 o.Int("playersInGame", NetworkManager.TotalPlayersInGame);
             }
             catch (Exception ex) { o.Str("networkError", ex.Message); }
+
+            o.Bit("hosting", Hosting());
+            o.Int("hostPort", HostPort());
+            o.Raw("connectedClients", ConnectedClientsJson());
+
+            // ---- save hygiene -------------------------------------------------
+            // Four fields that together answer "where does this instance write, and will it host
+            // again next boot". The last one is the important one and it is read from DISK, not
+            // from the in-memory flag: a settings write persists the whole SettingData, so an
+            // instance can be carrying StartLocalHost=true into its next launch while nothing in
+            // this session shows it. See SettingsPath().
+            string settingsPath = SettingsPath();
+            string saveRoot = Router.EffectiveSaveRoot();
+            o.Str("settingsPath", settingsPath);
+            o.Str("savePathResolved", saveRoot);
+            o.Bit("saveRootIsolated", Router.IsIsolatedSaveRoot(saveRoot));
+            o.Raw("startLocalHostPersisted", TriState(PersistedStartLocalHost(settingsPath)));
+            try { o.Bit("startLocalHostInMemory", Settings.CurrentData.StartLocalHost); } catch { }
 
             try
             {
@@ -153,6 +179,146 @@ namespace ClientDriver
                 case "Running": return "inWorld";
                 default: return "unknown";
             }
+        }
+
+        /// <summary>
+        ///     What this process IS: <c>menu</c>, <c>singlePlayer</c>, <c>joinedClient</c>,
+        ///     <c>listenHost</c> or <c>dedicated</c>.
+        ///
+        ///     THE ONE PLACE THIS IS COMPUTED. Every consumer reads <c>/status.role</c> and nothing
+        ///     re-derives it, because the raw flags read backwards for the case that matters most.
+        ///     A listen host is <c>NetworkRole.Server</c> and therefore reports
+        ///     <c>IsClient == false</c>, which is the opposite of the intuition that a hosting
+        ///     player is "a client that is also a server". <c>IsActive</c>, <c>IsServer</c> and
+        ///     <c>IsClient</c> are three views of one enum field, not three independent booleans.
+        ///
+        ///     The dedicated server and a listen host are the same <c>NetworkRole.Server</c> and are
+        ///     one boolean apart: <c>GameManager.IsBatchMode</c>. See
+        ///     <c>Research/GameSystems/ListenHost.md</c>.
+        /// </summary>
+        internal static string Role()
+        {
+            bool isClient, isServer;
+            try
+            {
+                isClient = NetworkManager.IsClient;
+                isServer = NetworkManager.IsServer;
+            }
+            catch { return "unknown"; }
+
+            if (isServer)
+            {
+                bool batch = false;
+                try { batch = GameManager.IsBatchMode; } catch { }
+                return batch ? "dedicated" : "listenHost";
+            }
+            if (isClient) return "joinedClient";
+
+            // NetworkRole.None. In a world that means single player; anywhere else it means this
+            // process is not in a world at all.
+            string state = "unknown";
+            try { state = GameManager.GameState.ToString(); } catch { }
+            return (state == "Running" || state == "Paused") ? "singlePlayer" : "menu";
+        }
+
+        /// <summary>
+        ///     <c>NetworkServer.IsHosting</c>, the reliable post-condition for a host attempt.
+        ///     <c>NetworkServer.Host()</c> no-ops from the main menu and gives up quietly after
+        ///     three failed binds, so "the call returned" proves nothing.
+        /// </summary>
+        internal static bool Hosting()
+        {
+            try { return NetworkServer.IsHosting; } catch { return false; }
+        }
+
+        /// <summary>The port the RakNet listener is bound to, or 0 when not hosting.</summary>
+        internal static int HostPort()
+        {
+            try { return Hosting() ? NetworkServer.HostPort : 0; } catch { return 0; }
+        }
+
+        /// <summary>
+        ///     The <c>setting.xml</c> this process would write, which the launcher points at the
+        ///     instance's own state folder with <c>-settingspath</c>. Reported so a reader can go
+        ///     and look at the file that carries a persisted host flag.
+        /// </summary>
+        internal static string SettingsPath()
+        {
+            try { return Settings.SettingData.Path; } catch { return null; }
+        }
+
+        /// <summary>
+        ///     Whether <c>StartLocalHost</c> is TRUE ON DISK, so this instance would host again on
+        ///     its next launch. Null when the file is absent or does not carry the element.
+        ///
+        ///     Read from the file rather than from <c>Settings.CurrentData</c> on purpose, because
+        ///     the two can disagree and only the file survives a restart. <c>/host</c> writes the
+        ///     in-memory field and never saves, but three things still flush the whole
+        ///     <c>SettingData</c> to disk behind it: any <c>settings &lt;name&gt; &lt;value&gt;</c>
+        ///     console command (<c>SettingsCommand.OnValueChanged</c> calls
+        ///     <c>Settings.SaveSettings()</c>), closing the in-game settings panel, and
+        ///     <c>Settings.ValidateSavePath()</c> returning true at boot when the save path is not
+        ///     writable. Any of those turns "this instance hosted once" into "this instance hosts
+        ///     every time", and a joiner that silently came up as a host is a test that is
+        ///     confidently wrong. Nothing inside <c>/host</c> can prevent them, so this reports them.
+        ///
+        ///     Parsed with a string scan rather than an XML reader: the file is written by
+        ///     <c>XmlSerializer</c>, the element is a plain boolean, and a malformed file must
+        ///     degrade to "unknown" rather than throw inside the one endpoint a harness always polls.
+        /// </summary>
+        internal static bool? PersistedStartLocalHost(string settingsPath)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(settingsPath) || !System.IO.File.Exists(settingsPath)) return null;
+                string text = System.IO.File.ReadAllText(settingsPath);
+                int at = text.IndexOf("<StartLocalHost>", StringComparison.OrdinalIgnoreCase);
+                if (at < 0) return null;
+                int from = at + "<StartLocalHost>".Length;
+                int to = text.IndexOf('<', from);
+                if (to < 0) return null;
+                string value = text.Substring(from, to - from).Trim();
+                if (string.Equals(value, "true", StringComparison.OrdinalIgnoreCase)) return true;
+                if (string.Equals(value, "false", StringComparison.OrdinalIgnoreCase)) return false;
+                return null;
+            }
+            catch { return null; }
+        }
+
+        private static string TriState(bool? value)
+            => value.HasValue ? (value.Value ? "true" : "false") : "null";
+
+        /// <summary>
+        ///     The server-side roster, which is what makes "did the second instance actually arrive"
+        ///     assertable from the host without asking the joiner. Empty on anything that is not a
+        ///     server: <c>NetworkBase.Clients</c> is a static list that a joined client never fills.
+        ///
+        ///     ClientId travels as a string, matching <c>/instance</c>, because a JSON number goes
+        ///     through double on the reading side and silently loses precision above 2^53. A
+        ///     truncated ClientId is exactly the failure these ids exist to detect.
+        /// </summary>
+        internal static string ConnectedClientsJson()
+        {
+            var rows = new List<string>();
+            try
+            {
+                if (!NetworkManager.IsServer) return "[]";
+                var clients = NetworkBase.Clients;
+                if (clients == null) return "[]";
+                foreach (var client in clients)
+                {
+                    if (client == null) continue;
+                    var row = new Json.Obj();
+                    try { row.Str("clientId", client.ClientId.ToString(CultureInfo.InvariantCulture)); } catch { }
+                    try { row.Str("username", client.name); } catch { }
+                    try { row.Str("state", client.state.ToString()); } catch { }
+                    try { row.Bit("isHost", client.IsHost); } catch { }
+                    try { row.Int("connectionId", client.connectionId); } catch { }
+                    rows.Add(row.ToString());
+                }
+            }
+            catch { return "[]"; }
+            return "[" + string.Join(",", rows.ToArray()) + "]";
         }
 
         internal static string PlayerJson()
