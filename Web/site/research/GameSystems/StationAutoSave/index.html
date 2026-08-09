@@ -8725,7 +8725,7 @@
 <p>Consequences:</p>
 <ul>
 <li>A <code>-new</code> world produces NO real autosaves until it gets a name. The stdin console <code>save "&lt;name&gt;"</code> path would assign one, but stdin console commands are a no-op on the batch-mode dedicated server (observed at 0.2.6228.27061 and re-confirmed at 0.2.6403.27689: <code>save</code> queued via the launcher control file produced no save folder, no log response). Starting with <code>-load &lt;SaveName&gt;</code> instead gives the world a name from the start and autosaves work normally.</li>
-<li>When a test plan uses "an AutoSave line" as the world-is-ticking readiness marker (<code>DedicatedServer/CLAUDE.md</code>, "First-autosave grep"), on a <code>-new</code> world watch for the <code>Save Failed: Folder name is empty.</code> line instead; it is emitted at the same cadence and implies the same unpaused-and-running state.</li>
+<li>When a test plan uses "an AutoSave line" as the world-is-ticking readiness marker (<code>TestRig/DedicatedServer/CLAUDE.md</code>, "First-autosave grep"), on a <code>-new</code> world watch for the <code>Save Failed: Folder name is empty.</code> line instead; it is emitted at the same cadence and implies the same unpaused-and-running state.</li>
 </ul>
 <h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
 <ul>

@@ -8642,7 +8642,7 @@
           <summary><strong>Sources</strong> (3)</summary>
           <ul>
             
-              <li><code>DedicatedServer/data/server.log, 2026-07-02 Luna_rearch boot at game 0.2.6403.27689 (3,363+ repeats of the quoted exception)</code></li>
+              <li><code>TestRig/DedicatedServer/data/server.log, 2026-07-02 Luna_rearch boot at game 0.2.6403.27689 (3,363+ repeats of the quoted exception)</code></li>
             
               <li><code>.work/decomp/0.2.6403.27689/ForceFieldDoorMod.decompiled.cs (Workshop_3328065049, mod About version 0.2.4767.21868.1, assembly ref Assembly-CSharp 0.2.5259.23818)</code></li>
             
@@ -8728,7 +8728,7 @@
 <p>After swapping the rewritten DLL into <code>data/mods/Workshop_3328065049/</code> (server stopped first; the running server holds the file), the same Luna_rearch boot produced zero MissingMethodException over sustained ticking and the full simulation section ran (ScenarioRunner scenario fired). The rewrite is to the dedicated server's LOCAL mod copy only; the client's Workshop copy stays broken, and a <code>-SyncMods</code> re-mirror clobbers the fix. Original DLL preserved next to the fix note in the session stash.</p>
 <h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
 <ul>
-<li>2026-07-02: page created during the Luna_rearch dead-sim investigation at game 0.2.6403.27689. Exception block quoted verbatim from <code>DedicatedServer/data/server.log</code>; caller IL and mod IL quoted from same-day <code>ilspycmd -il</code> dumps; the two-file binary-grep result, the 15-door save census (<code>world.xml</code> PrefabName scan), and the post-fix clean boot are from the same session.</li>
+<li>2026-07-02: page created during the Luna_rearch dead-sim investigation at game 0.2.6403.27689. Exception block quoted verbatim from <code>TestRig/DedicatedServer/data/server.log</code>; caller IL and mod IL quoted from same-day <code>ilspycmd -il</code> dumps; the two-file binary-grep result, the 15-door save census (<code>world.xml</code> PrefabName scan), and the post-fix clean boot are from the same session.</li>
 </ul>
 <h2 id="open-questions">Open questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>
 <ul>

@@ -8700,7 +8700,7 @@
             
               <li><code>Plans/PgpVerifyHelper/PgpVerifyHelper/ScenarioRunner.cs (the working enumeration pattern)</code></li>
             
-              <li><code>DedicatedServer/data/server.log (crash repro on the ElectricityTick worker thread)</code></li>
+              <li><code>TestRig/DedicatedServer/data/server.log (crash repro on the ElectricityTick worker thread)</code></li>
             
           </ul>
         </details>
@@ -8876,7 +8876,7 @@
 <ul>
 <li>2026-07-15: added the "Capturing a device name during off-thread snapshot build" section (additive; no existing section changed, so no fresh-validator pass). PowerGridPlus's <code>AtomicElectricityTickPatch</code> prefix (replacing <code>ElectricityManager.ElectricityTick</code>) and its <code>GridSnapshot.Build</code> SNAPSHOT phase run on the UniTask ThreadPool worker (patch header comment; <code>DeliveryEffectClassifier.cs:32</code>), so device fields read during snapshot build are off-thread reads. <code>Thing.PrefabName</code> (plain immutable string, already on the safe list) is the correct off-thread name source; <code>Thing.DisplayName</code> (Assembly-CSharp 0.2.6403.27689 line 317670: player-rename <code>CustomName</code> with a <code>Localization.GetThingName</code> fallback, and <code>virtual</code>) and <code>Localization.GetThingName</code> (line 210256, calls <code>Animator.StringToHash</code> on both the primary and the fallback lookup) are NOT confirmed worker-safe. Verified against the 0.2.6403.27689 decompile and the current PowerGridPlus source; top-level verified_in / verified_at advanced to 0.2.6403.27689 / 2026-07-15 (the pre-existing sections keep their earlier stamps).</li>
 <li>2026-07-07: added <code>thing.IsBeingDestroyed</code> to the safe-off-thread reads list (game version 0.2.6403.27689: <code>public bool IsBeingDestroyed =&gt; BeingDestroyed;</code> on Thing, decompile line 318452). Occasion: PowerGridPlus partial-power forensics. Single-bullet addition with its own inline version note; the section stamp and the other entries keep their 0.2.6228.27061 basis.</li>
-<li>2026-05-25: page created. Source: live crash repro on the dedicated server during PgpVerifyHelper development (<code>DedicatedServer/data/server.log</code> after the 2026-05-25 transformer-conservation run) plus the <code>Plans/PgpVerifyHelper/PgpVerifyHelper/ScenarioRunner.cs</code> fix. Decompile reference for the static pools verified in place at <code>OcclusionManager.AllThings</code> (line 199822), <code>CableNetwork.AllCableNetworks</code> (line 253430), <code>AtmosphericsManager.AllAtmospheres</code> (line 417824).</li>
+<li>2026-05-25: page created. Source: live crash repro on the dedicated server during PgpVerifyHelper development (<code>TestRig/DedicatedServer/data/server.log</code> after the 2026-05-25 transformer-conservation run) plus the <code>Plans/PgpVerifyHelper/PgpVerifyHelper/ScenarioRunner.cs</code> fix. Decompile reference for the static pools verified in place at <code>OcclusionManager.AllThings</code> (line 199822), <code>CableNetwork.AllCableNetworks</code> (line 253430), <code>AtmosphericsManager.AllAtmospheres</code> (line 417824).</li>
 </ul>
 <h2 id="open-questions">Open questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>
 <ul>

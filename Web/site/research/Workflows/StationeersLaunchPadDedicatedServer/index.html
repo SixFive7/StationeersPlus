@@ -9044,11 +9044,11 @@
           <summary><strong>Sources</strong> (6)</summary>
           <ul>
             
-              <li><code>DedicatedServer/install/BepInEx/plugins/StationeersLaunchPad/StationeersLaunchPad.dll (decompile at .work/decomp/0.2.6228.27061/StationeersLaunchPad.decompiled.cs)</code></li>
+              <li><code>TestRig/DedicatedServer/install/BepInEx/plugins/StationeersLaunchPad/StationeersLaunchPad.dll (decompile at .work/decomp/0.2.6228.27061/StationeersLaunchPad.decompiled.cs)</code></li>
             
               <li><code>{'rocketstation_Data/Managed/Assembly-CSharp.dll :': 'NetworkServer.VerifyConnection / PackageJoinData / ProcessJoinData, GameManager.GetGameVersion, NetworkMessages.VerifyPlayer (decompile at .work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs lines 204091, 212898-212902, 213188, 213684, 213768-213813, 279339-279438)'}</code></li>
             
-              <li><code>{'DedicatedServer/install/BepInEx/plugins/StationeersLaunchPad/StationeersLaunchPad.dll :': 'no join-path patch (decompile at .work/decomp/0.2.6403.27689/StationeersLaunchPad.decompiled.cs lines 3692-3717, 3763-3803, 16922, 17193, 17255)'}</code></li>
+              <li><code>{'TestRig/DedicatedServer/install/BepInEx/plugins/StationeersLaunchPad/StationeersLaunchPad.dll :': 'no join-path patch (decompile at .work/decomp/0.2.6403.27689/StationeersLaunchPad.decompiled.cs lines 3692-3717, 3763-3803, 16922, 17193, 17255)'}</code></li>
             
               <li><code>{'rocketstation_Data/Managed/Assembly-CSharp.dll :': 'WorkshopMenu (decompile lines 38373-38491)'}</code></li>
             
@@ -9310,7 +9310,7 @@
 <p>To mirror a client's mod set onto a dedicated server, three things are needed in the right places on the server:</p>
 <ol>
 <li><code>&lt;install&gt;/BepInEx/plugins/StationeersLaunchPad/</code> with all five DLLs from the <strong>server</strong> zip (mirroring the client's <code>BepInEx/plugins/StationeersLaunchPad/</code> and adding <code>RG.ImGui.dll</code> produces an equivalent tree).</li>
-<li><code>&lt;SavePath&gt;/mods/&lt;Source&gt;_&lt;DirectoryName&gt;/...</code> for every enabled mod on the client. The directory name follows the export convention: <code>Workshop_&lt;PublishedFileId&gt;</code> for Workshop mods, <code>Local_&lt;DirName&gt;</code> for Local mods. The contents are a recursive copy of the source mod folder. <strong><code>&lt;SavePath&gt;</code> is whatever you set via <code>-settings SavePath &lt;path&gt;</code>; if unset, it defaults to <code>&lt;install&gt;/</code>. Our launcher sets it to <code>&lt;repo&gt;/DedicatedServer/data/</code>.</strong></li>
+<li><code>&lt;SavePath&gt;/mods/&lt;Source&gt;_&lt;DirectoryName&gt;/...</code> for every enabled mod on the client. The directory name follows the export convention: <code>Workshop_&lt;PublishedFileId&gt;</code> for Workshop mods, <code>Local_&lt;DirName&gt;</code> for Local mods. The contents are a recursive copy of the source mod folder. <strong><code>&lt;SavePath&gt;</code> is whatever you set via <code>-settings SavePath &lt;path&gt;</code>; if unset, it defaults to <code>&lt;install&gt;/</code>. Our launcher sets it to <code>&lt;repo&gt;/TestRig/DedicatedServer/data/</code>.</strong></li>
 <li><code>&lt;install&gt;/modconfig.xml</code> with one <code>&lt;Core Enabled="true"&gt;</code> entry plus optionally one <code>&lt;Local Enabled="true"&gt;&lt;Path Value="&lt;Source&gt;_&lt;DirectoryName&gt;" /&gt;&lt;/Local&gt;</code> entry per mod. (See the auto-add note below: the file is not strictly required since <code>ApplyConfig</code> adds any discovered mod that is not in modconfig with <code>Enabled = true</code>. Including the file is still recommended to express intent and to disable specific mods if needed.)</li>
 </ol>
 <p>The <code>&lt;install&gt;/modconfig.xml</code> lives at <code>&lt;DefaultPath&gt;</code> even when SavePath is redirected; it is a config file and the engine hardcodes its path to <code>Path.Combine(StationSaveUtils.DefaultPath, "modconfig.xml")</code>.</p>
@@ -9340,7 +9340,7 @@
 <h2 id="why-the-clients-bepinexconfigcfg-mirror-is-not-sufficient">Why the client's <code>BepInEx/config/*.cfg</code> mirror is not sufficient<a class="headerlink" href="#why-the-clients-bepinexconfigcfg-mirror-is-not-sufficient" title="Permanent link">&para;</a></h2>
 <!-- verified: 0.2.6228.27061 @ 2026-04-28 -->
 
-<p>The client's <code>&lt;install&gt;/BepInEx/config/</code> contains <code>.cfg</code> files for every BepInEx-style mod the client has loaded (e.g. <code>BetterAdvancedTablet.cfg</code>, <code>JetpackHeightUnlocker.cfg</code>, dozens more). Mirroring this directory to the server is documented in <code>DedicatedServer/CLAUDE.md</code> as part of <code>-Bootstrap</code>.</p>
+<p>The client's <code>&lt;install&gt;/BepInEx/config/</code> contains <code>.cfg</code> files for every BepInEx-style mod the client has loaded (e.g. <code>BetterAdvancedTablet.cfg</code>, <code>JetpackHeightUnlocker.cfg</code>, dozens more). Mirroring this directory to the server is documented in <code>TestRig/DedicatedServer/CLAUDE.md</code> as part of <code>-Bootstrap</code>.</p>
 <p>These configs are written by mods AS THEY LOAD, not by BepInEx ahead of time. Their presence on the server does NOT cause those mods to load; they are written for mods that DO load and remain as no-ops if the corresponding mods are missing. Mirroring the configs is only valuable to preserve user-tuned settings across client / server boundary; the mod DLLs and <code>mods/&lt;...&gt;/</code> folders are still required for the mods to actually run.</p>
 <h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
 <!-- verified: 0.2.6228.27061 @ 2026-04-28 -->

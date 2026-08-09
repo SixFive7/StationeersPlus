@@ -8852,7 +8852,7 @@
             
               <li><code>E:\Steam\steamapps\workshop\content\544550\3579306377 (PowerOverhaul installed)</code></li>
             
-              <li><code>DedicatedServer/data/server.log (live test logs from 2026-05-22 sessions)</code></li>
+              <li><code>TestRig/DedicatedServer/data/server.log (live test logs from 2026-05-22 sessions)</code></li>
             
           </ul>
         </details>
@@ -8902,7 +8902,7 @@
 <p>Cross-mod compatibility findings for Power Grid Plus against the power-related Steam Workshop mods catalogued in <code>Mods/PowerGridPlus/RESEARCH.md</code> Appendix B / D, with the specific compat-flagged cases called out by the eighth verification task in <code>Mods/PowerGridPlus/TODO.md</code>.</p>
 <p>This page covers two kinds of finding:</p>
 <ul>
-<li><strong>Live-tested</strong> against game version 0.2.6228.27061 on <code>DedicatedServer/</code> (the user's full enabled-mod set, fresh Mars2 world): MorePowerMod (3243132734) and PowerOverhaul (3579306377).</li>
+<li><strong>Live-tested</strong> against game version 0.2.6228.27061 on <code>TestRig/DedicatedServer/</code> (the user's full enabled-mod set, fresh Mars2 world): MorePowerMod (3243132734) and PowerOverhaul (3579306377).</li>
 <li><strong>Code-analytical</strong> for priority mods that are not subscribed in the developer's modconfig.xml: assessment based on the public information in Appendix B / D plus, for Re-Volt, direct reading of the source clone at <code>.work/revolt-source/</code>.</li>
 </ul>
 <p>The eighth TODO bullet explicitly states "If a mod from the priority list is not enabled in the developer's modconfig, document the gap in the compat page and skip; do NOT install Workshop mods autonomously."</p>
@@ -8911,7 +8911,7 @@
 
 <p>Two server runs, both <code>-Start -New Mars2</code> on the dedicated server with InspectorPlus <code>Force Unpause Without Client = true</code>:</p>
 <ol>
-<li><strong>Run A (with PGP)</strong>: full user mod set including a freshly built <code>Mods/PowerGridPlus/PowerGridPlus/bin/Release/PowerGridPlus.dll</code> overlaid into <code>DedicatedServer/data/mods/Local_PowerGridPlus/</code>. Hash D034FEB497..., 91648 bytes, mtime 2026-05-22 03:20:32. World started at 03:55:56 game-clock.</li>
+<li><strong>Run A (with PGP)</strong>: full user mod set including a freshly built <code>Mods/PowerGridPlus/PowerGridPlus/bin/Release/PowerGridPlus.dll</code> overlaid into <code>TestRig/DedicatedServer/data/mods/Local_PowerGridPlus/</code>. Hash D034FEB497..., 91648 bytes, mtime 2026-05-22 03:20:32. World started at 03:55:56 game-clock.</li>
 <li><strong>Run B (without PGP)</strong>: same mod set with the PGP DLL moved out of <code>Local_PowerGridPlus/</code> (folder remains so StationeersLaunchPad still discovers it but loads no plugin). World started at 04:02 game-clock.</li>
 </ol>
 <p>Both runs used the same set of currently-enabled mods from the developer's <code>%USERPROFILE%\Documents\My Games\Stationeers\modconfig.xml</code> (snapshot 2026-05-22): MorePowerMod, PowerOverhaul, Omni Transmitter Settings, BetterAdvancedTablet, JetpackHeightUnlocker, InspectorPlus, EquipmentPlus, PowerTransmitterPlus, plus a long tail of unrelated Workshop entries (~60 mods total). The dedicated server's mirror was sync'd at 03:05 by an earlier session.</p>
@@ -8924,7 +8924,7 @@
 </span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>03:55:38: Power Grid Plus is patching recipe for ItemCableCoilSuperHeavy
 </span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>03:55:38: successfully loaded the &#39;Power Grid Plus&#39; mod
 </span></code></pre></div>
-<p>No <code>[Error]</code> / <code>[Fatal]</code> entries attributable to PGP. Harmony <code>PatchAll</code> succeeded; the <code>CableCostPatches.ApplyRecipeCost()</code> runtime override fired for the configured <code>Super-Heavy Cable Cost Multiplier</code>. PGP was loaded only from <code>&lt;DedicatedServer&gt;/data/mods/Local_PowerGridPlus/PowerGridPlus.dll</code>; the <code>install/BepInEx/plugins/PowerGridPlus/PowerGridPlus.dll</code> overlay (deployed earlier via <code>-DeployMods</code>) was NOT a second load — StationeersLaunchPad's LocalModSource owned the load and BepInEx's Chainloader silently deduplicated the install/plugins copy. <strong>Recommendation</strong>: prefer <code>-SyncMods</code> alone when testing cross-mod compat (per <code>DedicatedServer/CLAUDE.md</code>'s duplicate-load guidance), and skip <code>-DeployMods</code> unless the user's modconfig entry points at a stale build.</p>
+<p>No <code>[Error]</code> / <code>[Fatal]</code> entries attributable to PGP. Harmony <code>PatchAll</code> succeeded; the <code>CableCostPatches.ApplyRecipeCost()</code> runtime override fired for the configured <code>Super-Heavy Cable Cost Multiplier</code>. PGP was loaded only from <code>&lt;DedicatedServer&gt;/data/mods/Local_PowerGridPlus/PowerGridPlus.dll</code>; the <code>install/BepInEx/plugins/PowerGridPlus/PowerGridPlus.dll</code> overlay (deployed earlier via <code>-DeployMods</code>) was NOT a second load — StationeersLaunchPad's LocalModSource owned the load and BepInEx's Chainloader silently deduplicated the install/plugins copy. <strong>Recommendation</strong>: prefer <code>-SyncMods</code> alone when testing cross-mod compat (per <code>TestRig/DedicatedServer/CLAUDE.md</code>'s duplicate-load guidance), and skip <code>-DeployMods</code> unless the user's modconfig entry points at a stale build.</p>
 <h3 id="morepowermod-3243132734-nre-on-fresh-world-spawn-not-pgps-fault">MorePowerMod (3243132734) NRE on fresh-world spawn -- not PGP's fault<a class="headerlink" href="#morepowermod-3243132734-nre-on-fresh-world-spawn-not-pgps-fault" title="Permanent link">&para;</a></h3>
 <p>Both runs produced the same NRE within ~0 seconds of <code>Started new game in world Mars2</code>:</p>
 <div class="language-text highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>NullReferenceException: Object reference not set to an instance of an object
@@ -9237,7 +9237,7 @@
 <!-- verified: 0.2.6228.27061 @ 2026-05-22 -->
 
 <ul>
-<li>2026-05-22: page created as the eighth-verification-task result for Power Grid Plus. Live tests on <code>DedicatedServer/</code> with fresh Mars2 worlds in game version 0.2.6228.27061. Two runs (with and without PGP) isolated the MorePowerMod <code>StationBatteryNuclear.PoweredChanged</code> NRE as a pre-existing MorePowerMod bug. Re-Volt assessment is code-analytical against <code>.work/revolt-source/Assets/Scripts/Patches/*.cs</code> (<code>PowerTickPatches.cs</code>, <code>CableNetworkPatches.cs</code>, <code>StationaryBatteryPatches.cs</code>, <code>TransformerExploitPatch.cs</code>, <code>AreaPowerControllerPatches.cs</code>, <code>DevicePatches.cs</code>, <code>BatteryLogicPatch.cs</code>). The remaining 15 priority mods could not be live-tested because they are not subscribed in the developer's modconfig.xml; their assessments are taken from <code>Mods/PowerGridPlus/RESEARCH.md</code> Appendix B and the public Workshop descriptions.</li>
+<li>2026-05-22: page created as the eighth-verification-task result for Power Grid Plus. Live tests on <code>TestRig/DedicatedServer/</code> with fresh Mars2 worlds in game version 0.2.6228.27061. Two runs (with and without PGP) isolated the MorePowerMod <code>StationBatteryNuclear.PoweredChanged</code> NRE as a pre-existing MorePowerMod bug. Re-Volt assessment is code-analytical against <code>.work/revolt-source/Assets/Scripts/Patches/*.cs</code> (<code>PowerTickPatches.cs</code>, <code>CableNetworkPatches.cs</code>, <code>StationaryBatteryPatches.cs</code>, <code>TransformerExploitPatch.cs</code>, <code>AreaPowerControllerPatches.cs</code>, <code>DevicePatches.cs</code>, <code>BatteryLogicPatch.cs</code>). The remaining 15 priority mods could not be live-tested because they are not subscribed in the developer's modconfig.xml; their assessments are taken from <code>Mods/PowerGridPlus/RESEARCH.md</code> Appendix B and the public Workshop descriptions.</li>
 </ul>
 <h2 id="open-questions">Open questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>
 <!-- verified: 0.2.6228.27061 @ 2026-05-22 -->

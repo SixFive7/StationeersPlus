@@ -8725,7 +8725,7 @@ verified_at: 2026-07-02
 sources:
   - .work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :: line 254905 (ElectricityManager.ElectricityTick), 417811 (AtmosphericsManager : ThreadedManager), 187543 (GameManager.RecordGameTick), 189381 (GameManager.StartGameTick), 189076 (GameManager.GameTickPaused)
   - .work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs :: line 205154 (GameManager.Update), 203880 (GameManager.Managers), 204387 (GameManager.GameTick), 204363 (StartGameTick), 203823 (DefaultTickSpeedMs), 60520 (WorldManager.StartWorld), 60886 (WorldManager.SetGamePause), 272091 (ElectricityManager.ElectricityTick)
-  - DedicatedServer/install/rocketstation_DedicatedServer_Data/Managed/Assembly-CSharp.dll :: Assets.Scripts.GameManager.StartGame + DelayedStartupPause (decompiled to .work/decomp/0.2.6403.27689/Assembly-CSharp.DedicatedServer.GameManager.decompiled.cs lines 902-959)
+  - TestRig/DedicatedServer/install/rocketstation_DedicatedServer_Data/Managed/Assembly-CSharp.dll :: Assets.Scripts.GameManager.StartGame + DelayedStartupPause (decompiled to .work/decomp/0.2.6403.27689/Assembly-CSharp.DedicatedServer.GameManager.decompiled.cs lines 902-959)
 related:
   - ../GameClasses/PowerTick.md
   - ../GameClasses/GameManager.md
@@ -8733,7 +8733,7 @@ related:
 tags: [power, threading, harmony]</p>
 <hr />
 <h1 id="simulation-tick-driver-hooks">Simulation tick driver hooks<a class="headerlink" href="#simulation-tick-driver-hooks" title="Permanent link">&para;</a></h1>
-<p>How to drive a diagnostic plugin from the game's per-tick simulation chain. Background for <code>DedicatedServer/dev-plugins/ScenarioRunner/</code> and <code>Mods/InspectorPlus/</code>.</p>
+<p>How to drive a diagnostic plugin from the game's per-tick simulation chain. Background for <code>TestRig/DedicatedServer/dev-plugins/ScenarioRunner/</code> and <code>Mods/InspectorPlus/</code>.</p>
 <h2 id="the-chain">The chain<a class="headerlink" href="#the-chain" title="Permanent link">&para;</a></h2>
 <!-- verified: 0.2.6228.27061 @ 2026-05-26 -->
 
@@ -8758,7 +8758,7 @@ tags: [power, threading, harmony]</p>
 <li>A <code>FileSystemWatcher</code> callback fires on a ThreadPool thread, so any Unity API call from it crashes. Routing through the dispatcher only helps if the dispatcher is alive.</li>
 <li>The GameTick-driven subsystem Tick methods, in contrast, fire on every simulation cycle whenever <code>RunSimulation</code> is true. A Harmony postfix on <code>ElectricityManager.ElectricityTick</code> is the simplest reliable pump.</li>
 </ul>
-<p><code>Mods/InspectorPlus/InspectorPlus/RequestPollOnTickPatch.cs</code> already uses this pattern for its request poller; <code>DedicatedServer/dev-plugins/ScenarioRunner/ScenarioRunner/SimTickPump.cs</code> follows the same convention so the two cohabit cleanly.</p>
+<p><code>Mods/InspectorPlus/InspectorPlus/RequestPollOnTickPatch.cs</code> already uses this pattern for its request poller; <code>TestRig/DedicatedServer/dev-plugins/ScenarioRunner/ScenarioRunner/SimTickPump.cs</code> follows the same convention so the two cohabit cleanly.</p>
 <h2 id="threading-constraint-on-the-postfix">Threading constraint on the postfix<a class="headerlink" href="#threading-constraint-on-the-postfix" title="Permanent link">&para;</a></h2>
 <!-- verified: 0.2.6228.27061 @ 2026-05-26 -->
 
