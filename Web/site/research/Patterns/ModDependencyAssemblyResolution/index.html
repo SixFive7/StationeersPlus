@@ -12,13 +12,13 @@
         <meta name="author" content="SixFive7">
       
       
-        <link rel="canonical" href="https://stationeers.huisman.io/research/GameSystems/ThirdPartyModIdentities/">
+        <link rel="canonical" href="https://stationeers.huisman.io/research/Patterns/ModDependencyAssemblyResolution/">
       
       
-        <link rel="prev" href="../TerrainOctree/">
+        <link rel="prev" href="../MainThreadDispatcher/">
       
       
-        <link rel="next" href="../UnregisteredSaveDataBehavior/">
+        <link rel="next" href="../ModLogicTypeRegistration/">
       
       
         
@@ -29,7 +29,7 @@
     
     
       
-        <title>ThirdPartyModIdentities - StationeersPlus</title>
+        <title>Mod dependency assembly resolution under BepInEx 5 and Mono - StationeersPlus</title>
       
     
     
@@ -82,7 +82,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#thirdpartymodidentities" class="md-skip">
+        <a href="#the-symptom" class="md-skip">
           Skip to content
         </a>
       
@@ -118,7 +118,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              ThirdPartyModIdentities
+              Mod dependency assembly resolution under BepInEx 5 and Mono
             
           </span>
         </div>
@@ -3525,74 +3525,10 @@
                 
   
   
-    
-  
   
   
     
     
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
       
         
       
@@ -3612,2067 +3548,7 @@
       
         
       
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-    
-    
-    
-      
-      
-    
-    
-    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
-      
-        
-        
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_3" checked>
-        
-          
-          <label class="md-nav__link" for="__nav_3_3" id="__nav_3_3_label" tabindex="0">
-            
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    GameSystems
-  
-
-    
-  </span>
-  
-  
-
-            <span class="md-nav__icon md-icon"></span>
-          </label>
-        
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_3_label" aria-expanded="true">
-          <label class="md-nav__title" for="__nav_3_3">
-            <span class="md-nav__icon md-icon"></span>
-            
-  
-    GameSystems
-  
-
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../AtmosphericThingTickDispatch/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Atmospheric thing tick dispatch (Thing.OnAtmosphericTick)
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../BreathingAndOxygenation/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Breathing and Oxygenation
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../CameraFilterPack/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    CameraFilterPack
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../ChatBroadcast/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    ChatBroadcast
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../ChemistryGasPhaseData/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Chemistry gas phase data (freezing points, max-liquid temperatures, Antoine-style coefficients)
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../ConnectionFailureSilence/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Connection failures are silent
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../ConveyorBeltCutContent/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    ConveyorBeltCutContent
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../CreativeModeAndDifficulty/" class="md-nav__link">
         
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Creative Mode and Difficulty
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../CursorManager/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    CursorManager and the cursor-target tuple
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../DLCGating/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    DLC gating
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../DamageState/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    DamageState
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../DedicatedServerSettings/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Dedicated Server Settings
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../DevicePortGeometry/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Device Port Geometry (power connection cells)
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../DevicePowerDraw/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Device power draw (which devices exceed the 5 kW normal-cable rating)
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../DirectConnect/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Direct-Connect Server Join Flow
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../EntityHydrationAndNeeds/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Entity Hydration and Needs
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../Explosions/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Explosions
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../HeatEmissionToAtmosphere/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Heat emission to atmosphere
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../IC10DeviceAddressing/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    IC10DeviceAddressing
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../IC10ExecutionTick/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    IC10 Execution Tick Rate and Yield Semantics
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../IC10SourceLimits/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    IC10SourceLimits
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../IC10Stack/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    IC10 Data Stack, sp/ra Registers, and push/pop Semantics
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../IC10SyntaxHighlighting/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    IC10SyntaxHighlighting
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../KeyBinding/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Key Binding
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../LightSources/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    LightSources
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../ListenHost/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Listen Host
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../Localization/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Localization
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../LogicType/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    LogicType
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../LogicValueFormatting/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    LogicValueFormatting
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../ModDeduplication/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    ModDeduplication
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../ModLoadSequence/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    ModLoadSequence
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../ModMetadataLimits/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Mod Metadata Limits
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../NetworkRoles/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    NetworkRoles
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../NetworkUpdateFlags/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    NetworkUpdateFlags
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../Occlusion/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Occlusion (distance-based renderer culling)
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../PlacementOrientation/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    PlacementOrientation
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../PlayerIdentityAcrossRejoin/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Player identity across a disconnect and rejoin
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../PowerProducerLogicReadability/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Power producer logic-read surfaces
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../PowerProducerOnOffState/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Power producer HasOnOffState and On-writeability
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../PowerSegmentingDevices/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Power Segmenting Devices
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../PowerTickThreading/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    PowerTickThreading
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../PrefabSourceAttribution/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Prefab source attribution (which mod added a prefab)
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../RecipeDataLoading/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    RecipeData loading and GameData XML overlay
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../RenderingPipelineAndGlow/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Rendering Pipeline and Glow Implementation
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../RepairMechanics/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    RepairMechanics
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../RespawnFlow/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    RespawnFlow
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../RocketConstructionEligibility/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    RocketConstructionEligibility
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../SaveConsoleProtocol/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Save console protocol
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../SaveDataRegistration/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    SaveDataRegistration
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../SaveZipExtension/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Side-car file persistence in save ZIPs
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../ScreenDropdownBase/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    ScreenDropdownBase Dropdown Population
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../ScrollInputHandling/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Scroll Input Handling
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../SettingsPersistence/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Settings persistence
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../SimulationTickDriverHooks/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    SimulationTickDriverHooks
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../StationAutoSave/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    StationAutoSave
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../StationpediaAscendedInternals/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    StationpediaAscendedInternals
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../StationpediaMarkup/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    StationpediaMarkup
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../StationpediaPageRendering/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    StationpediaPageRendering
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../StationpediaSearch/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    StationpediaSearch
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../StructurePlacementValidation/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Structure placement validation (CanConstruct / CanReplace)
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../StructureRegistration/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    StructureRegistration
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../StunStateMachine/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    StunStateMachine
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../TerrainOctree/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    TerrainOctree
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-    
-  
-  
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    ThirdPartyModIdentities
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    ThirdPartyModIdentities
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#stationpedia-ascended-identity-constants" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Stationpedia Ascended identity constants
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#stationeers-logic-extended-reference-pattern" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Stationeers Logic Extended reference pattern
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#existing-stationeers-damage-mod-ecosystem" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Existing Stationeers damage mod ecosystem
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#verification-history" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Verification history
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#open-questions" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Open questions
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../UnregisteredSaveDataBehavior/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    UnregisteredSaveDataBehavior
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../WorldStateAPIs/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    WorldStateAPIs
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-          </ul>
-        </nav>
-      
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    
-    
       
         
       
@@ -5797,7 +3673,2029 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_4" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_3" id="__nav_3_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GameSystems
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    GameSystems
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/AtmosphericThingTickDispatch/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Atmospheric thing tick dispatch (Thing.OnAtmosphericTick)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/BreathingAndOxygenation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Breathing and Oxygenation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/CameraFilterPack/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CameraFilterPack
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/ChatBroadcast/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ChatBroadcast
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/ChemistryGasPhaseData/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Chemistry gas phase data (freezing points, max-liquid temperatures, Antoine-style coefficients)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/ConnectionFailureSilence/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Connection failures are silent
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/ConveyorBeltCutContent/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ConveyorBeltCutContent
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/CreativeModeAndDifficulty/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Creative Mode and Difficulty
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/CursorManager/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CursorManager and the cursor-target tuple
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/DLCGating/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    DLC gating
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/DamageState/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    DamageState
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/DedicatedServerSettings/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Dedicated Server Settings
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/DevicePortGeometry/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Device Port Geometry (power connection cells)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/DevicePowerDraw/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Device power draw (which devices exceed the 5 kW normal-cable rating)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/DirectConnect/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Direct-Connect Server Join Flow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/EntityHydrationAndNeeds/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Entity Hydration and Needs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/Explosions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Explosions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/HeatEmissionToAtmosphere/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Heat emission to atmosphere
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/IC10DeviceAddressing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    IC10DeviceAddressing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/IC10ExecutionTick/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    IC10 Execution Tick Rate and Yield Semantics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/IC10SourceLimits/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    IC10SourceLimits
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/IC10Stack/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    IC10 Data Stack, sp/ra Registers, and push/pop Semantics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/IC10SyntaxHighlighting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    IC10SyntaxHighlighting
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/KeyBinding/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Key Binding
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/LightSources/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LightSources
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/ListenHost/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Listen Host
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/Localization/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Localization
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/LogicType/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LogicType
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/LogicValueFormatting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LogicValueFormatting
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/ModDeduplication/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ModDeduplication
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/ModLoadSequence/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ModLoadSequence
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/ModMetadataLimits/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Mod Metadata Limits
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/NetworkRoles/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    NetworkRoles
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/NetworkUpdateFlags/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    NetworkUpdateFlags
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/Occlusion/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Occlusion (distance-based renderer culling)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/PlacementOrientation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PlacementOrientation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/PlayerIdentityAcrossRejoin/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Player identity across a disconnect and rejoin
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/PowerProducerLogicReadability/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Power producer logic-read surfaces
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/PowerProducerOnOffState/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Power producer HasOnOffState and On-writeability
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/PowerSegmentingDevices/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Power Segmenting Devices
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/PowerTickThreading/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PowerTickThreading
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/PrefabSourceAttribution/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Prefab source attribution (which mod added a prefab)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/RecipeDataLoading/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RecipeData loading and GameData XML overlay
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/RenderingPipelineAndGlow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Rendering Pipeline and Glow Implementation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/RepairMechanics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RepairMechanics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/RespawnFlow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RespawnFlow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/RocketConstructionEligibility/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RocketConstructionEligibility
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/SaveConsoleProtocol/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Save console protocol
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/SaveDataRegistration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SaveDataRegistration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/SaveZipExtension/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Side-car file persistence in save ZIPs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/ScreenDropdownBase/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ScreenDropdownBase Dropdown Population
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/ScrollInputHandling/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Scroll Input Handling
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/SettingsPersistence/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Settings persistence
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/SimulationTickDriverHooks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SimulationTickDriverHooks
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/StationAutoSave/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    StationAutoSave
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/StationpediaAscendedInternals/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    StationpediaAscendedInternals
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/StationpediaMarkup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    StationpediaMarkup
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/StationpediaPageRendering/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    StationpediaPageRendering
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/StationpediaSearch/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    StationpediaSearch
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/StructurePlacementValidation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Structure placement validation (CanConstruct / CanReplace)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/StructureRegistration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    StructureRegistration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/StunStateMachine/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    StunStateMachine
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/TerrainOctree/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    TerrainOctree
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/ThirdPartyModIdentities/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ThirdPartyModIdentities
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/UnregisteredSaveDataBehavior/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    UnregisteredSaveDataBehavior
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/WorldStateAPIs/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    WorldStateAPIs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_4" checked>
         
           
           <label class="md-nav__link" for="__nav_3_4" id="__nav_3_4_label" tabindex="0">
@@ -5818,7 +5716,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_4_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_4_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_3_4">
             <span class="md-nav__icon md-icon"></span>
             
@@ -5836,7 +5734,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Patterns/AboutXmlWorkshopHandleParse/" class="md-nav__link">
+      <a href="../AboutXmlWorkshopHandleParse/" class="md-nav__link">
         
   
   
@@ -5864,7 +5762,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Patterns/AccessToolsRecipes/" class="md-nav__link">
+      <a href="../AccessToolsRecipes/" class="md-nav__link">
         
   
   
@@ -5892,7 +5790,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Patterns/AsyncEnumerator472/" class="md-nav__link">
+      <a href="../AsyncEnumerator472/" class="md-nav__link">
         
   
   
@@ -5920,7 +5818,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Patterns/AsyncHarmonyTrap/" class="md-nav__link">
+      <a href="../AsyncHarmonyTrap/" class="md-nav__link">
         
   
   
@@ -5948,7 +5846,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Patterns/BestEffortIntegration/" class="md-nav__link">
+      <a href="../BestEffortIntegration/" class="md-nav__link">
         
   
   
@@ -5976,7 +5874,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Patterns/BinaryStreamSafety/" class="md-nav__link">
+      <a href="../BinaryStreamSafety/" class="md-nav__link">
         
   
   
@@ -6004,7 +5902,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Patterns/BlueprintModPlacement/" class="md-nav__link">
+      <a href="../BlueprintModPlacement/" class="md-nav__link">
         
   
   
@@ -6032,7 +5930,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Patterns/ClientDisconnectedPrefix/" class="md-nav__link">
+      <a href="../ClientDisconnectedPrefix/" class="md-nav__link">
         
   
   
@@ -6060,7 +5958,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Patterns/ConditionalWeakTableCache/" class="md-nav__link">
+      <a href="../ConditionalWeakTableCache/" class="md-nav__link">
         
   
   
@@ -6088,7 +5986,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Patterns/ConflictDetection/" class="md-nav__link">
+      <a href="../ConflictDetection/" class="md-nav__link">
         
   
   
@@ -6116,7 +6014,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Patterns/CursorAdjacencyLookup/" class="md-nav__link">
+      <a href="../CursorAdjacencyLookup/" class="md-nav__link">
         
   
   
@@ -6144,7 +6042,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Patterns/CustomLogicValueInjection/" class="md-nav__link">
+      <a href="../CustomLogicValueInjection/" class="md-nav__link">
         
   
   
@@ -6172,7 +6070,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Patterns/FileSystemWatcherMainThread/" class="md-nav__link">
+      <a href="../FileSystemWatcherMainThread/" class="md-nav__link">
         
   
   
@@ -6200,7 +6098,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Patterns/Float16Quantization/" class="md-nav__link">
+      <a href="../Float16Quantization/" class="md-nav__link">
         
   
   
@@ -6228,7 +6126,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Patterns/GameLoggingSinks/" class="md-nav__link">
+      <a href="../GameLoggingSinks/" class="md-nav__link">
         
   
   
@@ -6256,7 +6154,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Patterns/GetCameraForwardGrid/" class="md-nav__link">
+      <a href="../GetCameraForwardGrid/" class="md-nav__link">
         
   
   
@@ -6284,7 +6182,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Patterns/HarmonyBaseCallDetourMultiFire/" class="md-nav__link">
+      <a href="../HarmonyBaseCallDetourMultiFire/" class="md-nav__link">
         
   
   
@@ -6312,7 +6210,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Patterns/HarmonyFieldOrProperty/" class="md-nav__link">
+      <a href="../HarmonyFieldOrProperty/" class="md-nav__link">
         
   
   
@@ -6340,7 +6238,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Patterns/HarmonyInheritedMethods/" class="md-nav__link">
+      <a href="../HarmonyInheritedMethods/" class="md-nav__link">
         
   
   
@@ -6368,7 +6266,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Patterns/HarmonyLogicableInheritedMethodTrap/" class="md-nav__link">
+      <a href="../HarmonyLogicableInheritedMethodTrap/" class="md-nav__link">
         
   
   
@@ -6396,7 +6294,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Patterns/HarmonyParameterNameBinding/" class="md-nav__link">
+      <a href="../HarmonyParameterNameBinding/" class="md-nav__link">
         
   
   
@@ -6424,7 +6322,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Patterns/HarmonyPatchOrdering/" class="md-nav__link">
+      <a href="../HarmonyPatchOrdering/" class="md-nav__link">
         
   
   
@@ -6452,7 +6350,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Patterns/HarmonyPatchTypes/" class="md-nav__link">
+      <a href="../HarmonyPatchTypes/" class="md-nav__link">
         
   
   
@@ -6480,7 +6378,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Patterns/HarmonyPrefixReturnBool/" class="md-nav__link">
+      <a href="../HarmonyPrefixReturnBool/" class="md-nav__link">
         
   
   
@@ -6508,7 +6406,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Patterns/ILRepackPerModCopy/" class="md-nav__link">
+      <a href="../ILRepackPerModCopy/" class="md-nav__link">
         
   
   
@@ -6536,7 +6434,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Patterns/InGameConsoleOutput/" class="md-nav__link">
+      <a href="../InGameConsoleOutput/" class="md-nav__link">
         
   
   
@@ -6564,7 +6462,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Patterns/InventoryAutoEquip/" class="md-nav__link">
+      <a href="../InventoryAutoEquip/" class="md-nav__link">
         
   
   
@@ -6592,7 +6490,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Patterns/LogicTypeRegistration/" class="md-nav__link">
+      <a href="../LogicTypeRegistration/" class="md-nav__link">
         
   
   
@@ -6620,7 +6518,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Patterns/LogicableInitializeAppend/" class="md-nav__link">
+      <a href="../LogicableInitializeAppend/" class="md-nav__link">
         
   
   
@@ -6648,7 +6546,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Patterns/MainThreadDispatcher/" class="md-nav__link">
+      <a href="../MainThreadDispatcher/" class="md-nav__link">
         
   
   
@@ -6673,10 +6571,35 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../../Patterns/ModDependencyAssemblyResolution/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Mod dependency assembly resolution under BepInEx 5 and Mono
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -6692,6 +6615,145 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#the-symptom" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The symptom
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#which-mod-pulls-in-messagepack" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Which mod pulls in MessagePack
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#required-versus-present" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Required versus present
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-file-is-not-merely-present-it-is-loaded" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The file is not merely present, it is loaded
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#what-resolves-an-assembly-reference-in-this-process" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What resolves an assembly reference in this process
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-two-per-frame-call-sites-and-what-each-one-costs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The two per-frame call sites, and what each one costs
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-conflict-between-the-code-reading-and-the-field-evidence" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The conflict between the code reading and the field evidence
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#upstream-status" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Upstream status
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#fix-options-in-order-of-how-little-they-depend-on-unexplained-behaviour" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fix options, in order of how little they depend on unexplained behaviour
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#verification-history" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verification history
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#open-questions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Open questions
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -6704,7 +6766,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Patterns/ModLogicTypeRegistration/" class="md-nav__link">
+      <a href="../ModLogicTypeRegistration/" class="md-nav__link">
         
   
   
@@ -6732,7 +6794,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Patterns/MultiplayerStateMutation/" class="md-nav__link">
+      <a href="../MultiplayerStateMutation/" class="md-nav__link">
         
   
   
@@ -6760,7 +6822,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Patterns/PassiveTooltipPipelines/" class="md-nav__link">
+      <a href="../PassiveTooltipPipelines/" class="md-nav__link">
         
   
   
@@ -6788,7 +6850,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Patterns/PeriodicProcessing/" class="md-nav__link">
+      <a href="../PeriodicProcessing/" class="md-nav__link">
         
   
   
@@ -6816,7 +6878,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Patterns/PooledSpanEnumeration/" class="md-nav__link">
+      <a href="../PooledSpanEnumeration/" class="md-nav__link">
         
   
   
@@ -6844,7 +6906,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Patterns/PrefabCloning/" class="md-nav__link">
+      <a href="../PrefabCloning/" class="md-nav__link">
         
   
   
@@ -6872,7 +6934,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Patterns/ProtectedMethodPublicAPIBypass/" class="md-nav__link">
+      <a href="../ProtectedMethodPublicAPIBypass/" class="md-nav__link">
         
   
   
@@ -6900,7 +6962,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Patterns/SaveDataIsinstInheritance/" class="md-nav__link">
+      <a href="../SaveDataIsinstInheritance/" class="md-nav__link">
         
   
   
@@ -6928,7 +6990,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Patterns/SaveLoadOrdering/" class="md-nav__link">
+      <a href="../SaveLoadOrdering/" class="md-nav__link">
         
   
   
@@ -6956,7 +7018,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Patterns/ServerAuthoritativeSimulation/" class="md-nav__link">
+      <a href="../ServerAuthoritativeSimulation/" class="md-nav__link">
         
   
   
@@ -6984,7 +7046,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Patterns/SinglePlayerNetworkRole/" class="md-nav__link">
+      <a href="../SinglePlayerNetworkRole/" class="md-nav__link">
         
   
   
@@ -7012,7 +7074,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Patterns/SlotInsertionBlock/" class="md-nav__link">
+      <a href="../SlotInsertionBlock/" class="md-nav__link">
         
   
   
@@ -7040,7 +7102,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Patterns/SlotTypeIconLookup/" class="md-nav__link">
+      <a href="../SlotTypeIconLookup/" class="md-nav__link">
         
   
   
@@ -7068,7 +7130,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Patterns/StaleModReferenceJitCrash/" class="md-nav__link">
+      <a href="../StaleModReferenceJitCrash/" class="md-nav__link">
         
   
   
@@ -7096,7 +7158,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Patterns/StationeersLaunchPadSettingsGrouping/" class="md-nav__link">
+      <a href="../StationeersLaunchPadSettingsGrouping/" class="md-nav__link">
         
   
   
@@ -7124,7 +7186,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Patterns/StationeersModdingGotchas/" class="md-nav__link">
+      <a href="../StationeersModdingGotchas/" class="md-nav__link">
         
   
   
@@ -7152,7 +7214,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Patterns/StationeersNamespaces/" class="md-nav__link">
+      <a href="../StationeersNamespaces/" class="md-nav__link">
         
   
   
@@ -7180,7 +7242,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Patterns/StationpediaDescriptionRendering/" class="md-nav__link">
+      <a href="../StationpediaDescriptionRendering/" class="md-nav__link">
         
   
   
@@ -7208,7 +7270,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Patterns/SubcomponentGrafting/" class="md-nav__link">
+      <a href="../SubcomponentGrafting/" class="md-nav__link">
         
   
   
@@ -7236,7 +7298,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Patterns/TextMeshProLineMetrics/" class="md-nav__link">
+      <a href="../TextMeshProLineMetrics/" class="md-nav__link">
         
   
   
@@ -7264,7 +7326,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Patterns/ThingEnumerationOffMainThread/" class="md-nav__link">
+      <a href="../ThingEnumerationOffMainThread/" class="md-nav__link">
         
   
   
@@ -7292,7 +7354,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Patterns/UniTaskDelaySignatureDrift/" class="md-nav__link">
+      <a href="../UniTaskDelaySignatureDrift/" class="md-nav__link">
         
   
   
@@ -7320,7 +7382,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Patterns/UnityFakeNull/" class="md-nav__link">
+      <a href="../UnityFakeNull/" class="md-nav__link">
         
   
   
@@ -7348,7 +7410,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Patterns/UnityMaterialPerInstance/" class="md-nav__link">
+      <a href="../UnityMaterialPerInstance/" class="md-nav__link">
         
   
   
@@ -7376,7 +7438,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Patterns/WorldSpacePreviewRendering/" class="md-nav__link">
+      <a href="../WorldSpacePreviewRendering/" class="md-nav__link">
         
   
   
@@ -8629,8 +8691,6 @@
   
   
   
-    
-  
   
     <label class="md-nav__title" for="__toc">
       <span class="md-nav__icon md-icon"></span>
@@ -8639,10 +8699,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#stationpedia-ascended-identity-constants" class="md-nav__link">
+  <a href="#the-symptom" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Stationpedia Ascended identity constants
+        The symptom
       
     </span>
   </a>
@@ -8650,10 +8710,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#stationeers-logic-extended-reference-pattern" class="md-nav__link">
+  <a href="#which-mod-pulls-in-messagepack" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Stationeers Logic Extended reference pattern
+        Which mod pulls in MessagePack
       
     </span>
   </a>
@@ -8661,10 +8721,76 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#existing-stationeers-damage-mod-ecosystem" class="md-nav__link">
+  <a href="#required-versus-present" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Existing Stationeers damage mod ecosystem
+        Required versus present
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-file-is-not-merely-present-it-is-loaded" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The file is not merely present, it is loaded
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#what-resolves-an-assembly-reference-in-this-process" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What resolves an assembly reference in this process
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-two-per-frame-call-sites-and-what-each-one-costs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The two per-frame call sites, and what each one costs
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-conflict-between-the-code-reading-and-the-field-evidence" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The conflict between the code reading and the field evidence
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#upstream-status" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Upstream status
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#fix-options-in-order-of-how-little-they-depend-on-unexplained-behaviour" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fix options, in order of how little they depend on unexplained behaviour
       
     </span>
   </a>
@@ -8754,10 +8880,10 @@
     
     
       <li class="md-path__item">
-        <a href="../AtmosphericThingTickDispatch/" class="md-path__link">
+        <a href="../AboutXmlWorkshopHandleParse/" class="md-path__link">
           
   <span class="md-ellipsis">
-    GameSystems
+    Patterns
   </span>
 
         </a>
@@ -8776,39 +8902,51 @@
     <aside class="research-meta" markdown>
       
         <p class="research-meta-type">
-          <strong>Category:</strong> GameSystems
+          <strong>Category:</strong> Patterns
         </p>
       
       
         <p class="research-meta-verified">
           <strong>Verified</strong>
-           in game version <code>0.2.6228.27061</code>
-           on 2026-04-20.
+           in game version <code>0.2.6403.27689</code>
+           on 2026-08-11.
         </p>
       
       
       
         <details class="research-meta-sources">
-          <summary><strong>Sources</strong> (3)</summary>
+          <summary><strong>Sources</strong> (8)</summary>
           <ul>
             
-              <li><code>Plans/StationpediaPlus/PLAN.md:74-80</code></li>
+              <li><code>.work/decomp/0.2.6403.27689/BepInEx.Preloader.decompiled.cs</code></li>
             
-              <li><code>Plans/RepairPrototype/plan.md:213-228</code></li>
+              <li><code>.work/decomp/0.2.6403.27689/BepInEx.decompiled.cs</code></li>
             
-              <li><code>Mods/PowerTransmitterPlus/RESEARCH.md:748-760</code></li>
+              <li><code>.work/decomp/0.2.6403.27689/StationeersLaunchPad.decompiled.cs</code></li>
+            
+              <li><code>.work/decomp/0.2.6403.27689/ScriptedScreens.decompiled.cs</code></li>
+            
+              <li><code>.work/decomp/0.2.6403.27689/StationeersLua.decompiled.cs</code></li>
+            
+              <li><code>.work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs</code></li>
+            
+              <li><code>.work/decomp/0.2.6403.27689/Assembly-CSharp.GameManager.decompiled.cs</code></li>
+            
+              <li><code>https://github.com/MessagePack-CSharp/MessagePack-CSharp/issues/2174</code></li>
             
           </ul>
         </details>
       
       
         <details class="research-meta-related">
-          <summary><strong>Related pages</strong> (2)</summary>
+          <summary><strong>Related pages</strong> (3)</summary>
           <ul>
             
-              <li><code>../Patterns/BestEffortIntegration.md</code></li>
+              <li><code>../Workflows/DrivingTheGameClientProgrammatically.md</code></li>
             
-              <li><code>./LogicType.md</code></li>
+              <li><code>./ILRepackPerModCopy.md</code></li>
+            
+              <li><code>./StaleModReferenceJitCrash.md</code></li>
             
           </ul>
         </details>
@@ -8824,43 +8962,389 @@
       
       
       
+        <span class="md-tag">harmony</span>
+      
+    
+      
+      
+      
+      
         <span class="md-tag">launchpad</span>
+      
+    
+      
+      
+      
+      
+        <span class="md-tag">packaging</span>
       
     
   </nav>
 
 
 
-<h1 id="thirdpartymodidentities">ThirdPartyModIdentities<a class="headerlink" href="#thirdpartymodidentities" title="Permanent link">&para;</a></h1>
-<p>Reference table for third-party mod identity constants (Plugin GUID, Harmony ID, Workshop ID, Version) that our mods consult when using <code>[HarmonyAfter("...")]</code>, <code>Chainloader.PluginInfos.ContainsKey(...)</code>, or simple "is that other mod loaded" checks. Also a survey of the existing Stationeers damage-adjacent mod ecosystem.</p>
-<h2 id="stationpedia-ascended-identity-constants">Stationpedia Ascended identity constants<a class="headerlink" href="#stationpedia-ascended-identity-constants" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
+  <h1>Mod dependency assembly resolution under BepInEx 5 and Mono</h1>
 
-<p>SPA Plugin GUID <code>com.florpydorp.stationpediaascended</code>, Harmony ID <code>com.stationpediaascended.mod</code>, Secondary Harmony ID (script engine) <code>com.stationpediaascended.mod.scriptengine</code>, Workshop ID <code>3634225688</code>, Version <code>0.8.6</code> per <code>[BepInPlugin]</code> (About.xml shows stale 0.8.5). Use <code>Chainloader.PluginInfos.ContainsKey("com.florpydorp.stationpediaascended")</code> and <code>[HarmonyAfter("com.stationpediaascended.mod")]</code>.</p>
-<h2 id="stationeers-logic-extended-reference-pattern">Stationeers Logic Extended reference pattern<a class="headerlink" href="#stationeers-logic-extended-reference-pattern" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
+<p>A mod that ships a third-party NuGet dependency alongside its own assembly is relying on three
+different loaders agreeing: StationeersLaunchPad loads the files, BepInEx installs one process-wide
+<code>AppDomain.AssemblyResolve</code> handler, and Unity's Mono runtime resolves everything else from its own
+app base. This page documents what each of those actually does, using the worked example that is
+live in this developer's install: MessagePack 3.1.7.0 asking for
+<code>System.Collections.Immutable, Version=8.0.0.0</code> and not getting it, on every frame, forever.</p>
+<h2 id="the-symptom">The symptom<a class="headerlink" href="#the-symptom" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-08-11 -->
 
-<p>Author: ThunderDuck. Establishes the pattern for mod-authored custom LogicTypes. PowerTransmitterPlus adopts that pattern in full:
-- Registry of <code>LogicTypeInfo</code> entries, hardcoded inline.
-- Reflection injection into <code>ProgrammableChip.AllConstants</code>.
-- Postfix on <code>Logicable.Initialize</code> to extend tablet UI arrays.
-- Postfix on <code>Enum.GetName</code> and <code>EnumCollection&lt;LogicType, ushort&gt;.GetName / GetNameFromValue</code>.
-- Per-device <code>CanLogicRead</code> postfix + <code>GetLogicValue</code> prefix.
-- Postfix on <code>Stationpedia.PopulateLogicVariables</code>.</p>
-<p>Stationeers Logic Extended has NO public extensibility API. Every mod that wants custom LogicTypes reimplements the registration pattern from scratch.</p>
-<p><code>Animator.StringToHash(name)</code> is the value stored in <code>Constant.Hash</code>, used for the <code>#hash</code> MIPS directive; pure name lookups don't require it.</p>
-<h2 id="existing-stationeers-damage-mod-ecosystem">Existing Stationeers damage mod ecosystem<a class="headerlink" href="#existing-stationeers-damage-mod-ecosystem" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
+<div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>TypeLoadException: Could not load type of field
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>  &#39;MessagePack.Internal.DynamicAssemblyFactory:lastCreatedDynamicAssemblySkipVisibilityChecks&#39; (2)
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>  due to: Could not load file or assembly
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>  &#39;System.Collections.Immutable, Version=8.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a&#39;
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>  or one of its dependencies.
+</span></code></pre></div>
+<p>The field named in the message is real and its type is the whole story:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1">// MessagePack.Internal.DynamicAssemblyFactory, MessagePack 3.1.7.0</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="k">private</span><span class="w"> </span><span class="n">ImmutableHashSet</span><span class="o">&lt;</span><span class="n">AssemblyName</span><span class="o">&gt;</span><span class="w"> </span><span class="n">lastCreatedDynamicAssemblySkipVisibilityChecks</span><span class="w"> </span><span class="o">=</span>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">    </span><span class="n">SkipClrVisibilityChecks</span><span class="p">.</span><span class="n">EmptySet</span><span class="p">.</span><span class="n">Add</span><span class="p">(</span><span class="n">Assembly</span><span class="p">.</span><span class="n">GetExecutingAssembly</span><span class="p">().</span><span class="n">GetName</span><span class="p">());</span>
+</span></code></pre></div>
+<p><code>ImmutableHashSet&lt;T&gt;</code> lives in <code>System.Collections.Immutable</code>, so the type cannot be laid out and
+<code>DynamicAssemblyFactory</code> fails to load. <code>DynamicAssemblyFactory</code> is a static field of
+<code>DynamicUnionResolver</code>, which is a member of <code>StandardResolverHelper</code>, which backs
+<code>StandardResolver</code>, so the failure surfaces as a chain of <code>TypeInitializationException</code> from
+whichever MessagePack entry point ran first. A failed type initializer is cached by the runtime and
+rethrown on every later access, which is why one bad load turns into a per-frame exception for the
+rest of the process lifetime.</p>
+<h2 id="which-mod-pulls-in-messagepack">Which mod pulls in MessagePack<a class="headerlink" href="#which-mod-pulls-in-messagepack" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-08-11 -->
 
-<p>No auto-repair mod exists as of 2026-04; this is a gap. Damage-adjacent mods: XRepairsInOne (weapon/solar bug fixes), Configurable Storms (original + Kastuk fork), Re-Volt (cable damage overhaul), Perishable Items (food decay -&gt; player damage), Incident: Godmode (removed from Workshop). Stationeers has no Steam achievements or save-integrity checks; no ironman mode. Save editing and mods are consequence-free.</p>
-<h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
+<p>Read from the <code>AssemblyRef</code> tables, not guessed. Both Workshop mods are by the same author (zedle)
+and both are at version 0.9.5.0.</p>
+<table>
+<thead>
+<tr>
+<th>Assembly</th>
+<th>Ships <code>MessagePack.dll</code></th>
+<th>References <code>MessagePack</code></th>
+<th>Ships <code>System.Collections.Immutable.dll</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>StationeersLua 0.9.5.0 (Workshop item 3659911735)</td>
+<td>yes, 3.1.7.0</td>
+<td>yes, <code>MessagePack, Version=3.1.7.0, PublicKeyToken=b4a0369545f0a1be</code></td>
+<td>yes, 8.0.0.0</td>
+</tr>
+<tr>
+<td>ScriptedScreens 0.9.5.0 (Workshop item 3666779631)</td>
+<td>no</td>
+<td>yes, same reference</td>
+<td>yes, 8.0.0.0</td>
+</tr>
+</tbody>
+</table>
+<p>So the answer is both, with one copy of the library. StationeersLua is the only mod of the two that
+carries <code>MessagePack.dll</code> and <code>MessagePack.Annotations.dll</code>; ScriptedScreens references the same
+assembly identity and gets it from StationeersLua's folder, which is consistent with ScriptedScreens
+declaring StationeersLua as a hard requirement ("install first; ScriptedScreens will not load
+without it"). No other subscribed Workshop item in this install contains a file named
+<code>MessagePack*.dll</code>; a recursive search over the whole Workshop content directory for this app
+returns exactly the two files in item 3659911735.</p>
+<p><code>MessagePack.dll</code> 3.1.7.0 declares five assembly references, one of which is the one that fails:</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>netstandard, Version=2.1.0.0, PublicKeyToken=cc7b13ffcd2ddd51
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>System.Collections.Immutable, Version=8.0.0.0, PublicKeyToken=b03f5f7f11d50a3a
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>MessagePack.Annotations, Version=3.1.7.0, PublicKeyToken=b4a0369545f0a1be
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>System.Runtime.CompilerServices.Unsafe, Version=6.0.0.0, PublicKeyToken=b03f5f7f11d50a3a
+</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>Microsoft.NET.StringTools, Version=1.0.0.0, PublicKeyToken=b03f5f7f11d50a3a
+</span></code></pre></div>
+<h2 id="required-versus-present">Required versus present<a class="headerlink" href="#required-versus-present" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-08-11 -->
 
 <ul>
-<li>2026-04-20: page created from the Research migration; verbatim content lifted from F0219ae, F0059 (identity-half of the finding; the pattern-half routes to <code>Research/Patterns/BestEffortIntegration.md</code>), and F0229c.</li>
+<li><strong>Required</strong>: <code>System.Collections.Immutable, Version=8.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</code>.</li>
+<li><strong>Shipped by the game</strong>: nothing under that name. <code>rocketstation_Data\Managed\</code> contains
+  <code>Sentry.System.Collections.Immutable.dll</code>, whose assembly identity is
+  <code>Sentry.System.Collections.Immutable, Version=5.0.0.0</code> with an empty public key. Different simple
+  name, different version, unsigned. It cannot satisfy the reference under any binding policy, and
+  no binding redirect can rename an assembly. The install also has no plain
+  <code>System.Collections.Immutable.dll</code> anywhere in <code>rocketstation_Data\Managed\</code>.</li>
+<li><strong>Shipped by the mods</strong>: both mods carry a <code>System.Collections.Immutable.dll</code> that is
+  byte-identical between them (same size, same SHA-256) and whose identity is exactly
+  <code>System.Collections.Immutable, Version=8.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</code>.
+  That is the assembly MessagePack asks for, with no version gap and no token gap to bridge.</li>
+</ul>
+<p>So this is not a version mismatch. The correct file is on disk, twice.</p>
+<h2 id="the-file-is-not-merely-present-it-is-loaded">The file is not merely present, it is loaded<a class="headerlink" href="#the-file-is-not-merely-present-it-is-loaded" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-08-11 -->
+
+<p>StationeersLaunchPad loads every DLL in a mod folder, recursively, with no filter:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="c1">// StationeersLaunchPad.ModInfo constructor</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="n">Assemblies</span><span class="p">.</span><span class="n">AddRange</span><span class="p">(</span><span class="n">Directory</span><span class="p">.</span><span class="n">GetFiles</span><span class="p">(</span><span class="n">DirectoryPath</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;*.dll&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">SearchOption</span><span class="p">.</span><span class="n">AllDirectories</span><span class="p">));</span>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="n">AssetBundles</span><span class="p">.</span><span class="n">AddRange</span><span class="p">(</span><span class="n">Directory</span><span class="p">.</span><span class="n">GetFiles</span><span class="p">(</span><span class="n">DirectoryPath</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;*.assets&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">SearchOption</span><span class="p">.</span><span class="n">AllDirectories</span><span class="p">));</span>
+</span></code></pre></div>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="c1">// StationeersLaunchPad.Loading.LoadedMod.LoadAssemblySingle</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="k">private</span><span class="w"> </span><span class="n">UniTask</span><span class="o">&lt;</span><span class="n">Assembly</span><span class="o">&gt;</span><span class="w"> </span><span class="n">LoadAssemblySingle</span><span class="p">(</span><span class="kt">string</span><span class="w"> </span><span class="n">path</span><span class="p">)</span>
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="p">{</span>
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">UniTask</span><span class="p">.</span><span class="n">RunOnThreadPool</span><span class="p">(</span><span class="k">delegate</span>
+</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="w">        </span><span class="n">Logger</span><span class="p">.</span><span class="n">LogDebug</span><span class="p">(</span><span class="s">&quot;Loading Assembly &quot;</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">path</span><span class="p">);</span>
+</span><span id="__span-4-7"><a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="w">        </span><span class="n">Assembly</span><span class="w"> </span><span class="n">assembly</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Assembly</span><span class="p">.</span><span class="n">LoadFrom</span><span class="p">(</span><span class="n">path</span><span class="p">);</span>
+</span><span id="__span-4-8"><a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="w">        </span><span class="n">ModLoader</span><span class="p">.</span><span class="n">RegisterAssembly</span><span class="p">(</span><span class="n">assembly</span><span class="p">,</span><span class="w"> </span><span class="k">this</span><span class="p">);</span>
+</span><span id="__span-4-9"><a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="w">        </span><span class="n">Logger</span><span class="p">.</span><span class="n">LogInfo</span><span class="p">(</span><span class="s">&quot;Loaded Assembly&quot;</span><span class="p">);</span>
+</span><span id="__span-4-10"><a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">assembly</span><span class="p">;</span>
+</span><span id="__span-4-11"><a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a><span class="w">    </span><span class="p">});</span>
+</span><span id="__span-4-12"><a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>The Unity player log confirms both loads succeed and that both copies end up in the domain:</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>[StationeersLua [StationeersLaunchPad]]: Loading Assembly ...\3659911735\System.Collections.Immutable.dll
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>[StationeersLua [StationeersLaunchPad]]: Loaded Assembly
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>[ScriptedScreens [StationeersLaunchPad]]: Loading Assembly ...\3666779631\System.Collections.Immutable.dll
+</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>[ScriptedScreens [StationeersLaunchPad]]: Loaded Assembly
+</span></code></pre></div>
+<p>and the same log's domain dump lists <code>Assembly System.Collections.Immutable</code> twice, once in each
+mod's block, alongside <code>Assembly Sentry.System.Collections.Immutable</code> from the game.</p>
+<p>This retires the "Mono never probes mod folders" explanation. Nothing has to probe: the assembly is
+loaded by absolute path before any of it is needed.</p>
+<h2 id="what-resolves-an-assembly-reference-in-this-process">What resolves an assembly reference in this process<a class="headerlink" href="#what-resolves-an-assembly-reference-in-this-process" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-08-11 -->
+
+<p>Two mechanisms, and only two.</p>
+<p><strong>Mono's own probing.</strong> Unity's Mono resolves a reference by simple name against its app base,
+<code>rocketstation_Data\Managed\</code>, plus anything already registered under a matching identity. No
+<code>.config</code> file with <code>assemblyBinding</code> is loaded for the player, so app.config binding redirects are
+not a lever here. Mono's <code>Assembly.LoadFrom</code> is also documented upstream as not participating in
+binding-redirect resolution the way the Microsoft CLR does (mono/mono issue 8152, closed).</p>
+<p><strong>BepInEx's one handler.</strong> <code>BepInEx.Preloader.PreloaderRunner.PreloaderPreMain</code> installs a
+process-wide handler and never removes it (there is exactly one <code>+= LocalResolve</code> and no matching
+<code>-=</code> in <code>BepInEx.Preloader.dll</code> 5.4.23.5):</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="n">AppDomain</span><span class="p">.</span><span class="n">CurrentDomain</span><span class="p">.</span><span class="n">AssemblyResolve</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">LocalResolve</span><span class="p">;</span>
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="n">AppDomain</span><span class="p">.</span><span class="n">CurrentDomain</span><span class="p">.</span><span class="n">AssemblyResolve</span><span class="w"> </span><span class="o">-=</span><span class="w"> </span><span class="n">Entrypoint</span><span class="p">.</span><span class="n">ResolveCurrentDirectory</span><span class="p">;</span>
+</span></code></pre></div>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="k">private</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="n">Assembly</span><span class="w"> </span><span class="nf">LocalResolve</span><span class="p">(</span><span class="kt">object</span><span class="w"> </span><span class="n">sender</span><span class="p">,</span><span class="w"> </span><span class="n">ResolveEventArgs</span><span class="w"> </span><span class="n">args</span><span class="p">)</span>
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="p">{</span>
+</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">Utility</span><span class="p">.</span><span class="n">TryParseAssemblyName</span><span class="p">(</span><span class="n">args</span><span class="p">.</span><span class="n">Name</span><span class="p">,</span><span class="w"> </span><span class="k">out</span><span class="w"> </span><span class="kt">var</span><span class="w"> </span><span class="n">assemblyName</span><span class="p">))</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="k">null</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="w">    </span><span class="kt">var</span><span class="w"> </span><span class="n">source</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="k">from</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">AppDomain</span><span class="p">.</span><span class="n">CurrentDomain</span><span class="p">.</span><span class="n">GetAssemblies</span><span class="p">()</span>
+</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="w">        </span><span class="k">select</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">assembly</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">a</span><span class="p">,</span><span class="w"> </span><span class="n">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">Utility</span><span class="p">.</span><span class="n">TryParseAssemblyName</span><span class="p">(</span><span class="n">a</span><span class="p">.</span><span class="n">FullName</span><span class="p">,</span><span class="w"> </span><span class="k">out</span><span class="w"> </span><span class="kt">var</span><span class="w"> </span><span class="n">assemblyName2</span><span class="p">)</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="n">assemblyName2</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="k">null</span><span class="p">)</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="k">into</span><span class="w"> </span><span class="n">a</span>
+</span><span id="__span-7-6"><a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a><span class="w">        </span><span class="k">where</span><span class="w"> </span><span class="n">a</span><span class="p">.</span><span class="n">name</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="k">null</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">a</span><span class="p">.</span><span class="n">name</span><span class="p">.</span><span class="n">Name</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">assemblyName</span><span class="p">.</span><span class="n">Name</span>
+</span><span id="__span-7-7"><a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a><span class="w">        </span><span class="k">orderby</span><span class="w"> </span><span class="n">a</span><span class="p">.</span><span class="n">name</span><span class="p">.</span><span class="n">Version</span><span class="w"> </span><span class="k">descending</span>
+</span><span id="__span-7-8"><a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a><span class="w">        </span><span class="k">select</span><span class="w"> </span><span class="n">a</span><span class="p">).</span><span class="n">ToList</span><span class="p">();</span>
+</span><span id="__span-7-9"><a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a><span class="w">    </span><span class="n">Assembly</span><span class="w"> </span><span class="n">assembly</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">source</span><span class="p">.</span><span class="n">FirstOrDefault</span><span class="p">(</span><span class="n">a</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">a</span><span class="p">.</span><span class="n">name</span><span class="p">.</span><span class="n">Version</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">assemblyName</span><span class="p">.</span><span class="n">Version</span><span class="p">)</span><span class="w"> </span><span class="o">??</span><span class="w"> </span><span class="n">source</span><span class="p">.</span><span class="n">FirstOrDefault</span><span class="p">())</span><span class="o">?.</span><span class="n">assembly</span><span class="p">;</span>
+</span><span id="__span-7-10"><a id="__codelineno-7-10" name="__codelineno-7-10" href="#__codelineno-7-10"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">assembly</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="k">null</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="n">assembly</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+</span><span id="__span-7-11"><a id="__codelineno-7-11" name="__codelineno-7-11" href="#__codelineno-7-11"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">Utility</span><span class="p">.</span><span class="n">TryResolveDllAssembly</span><span class="p">(</span><span class="n">assemblyName</span><span class="p">,</span><span class="w"> </span><span class="n">Paths</span><span class="p">.</span><span class="n">BepInExAssemblyDirectory</span><span class="p">,</span><span class="w"> </span><span class="k">out</span><span class="w"> </span><span class="n">assembly</span><span class="p">)</span>
+</span><span id="__span-7-12"><a id="__codelineno-7-12" name="__codelineno-7-12" href="#__codelineno-7-12"></a><span class="w">        </span><span class="o">||</span><span class="w"> </span><span class="n">Utility</span><span class="p">.</span><span class="n">TryResolveDllAssembly</span><span class="p">(</span><span class="n">assemblyName</span><span class="p">,</span><span class="w"> </span><span class="n">Paths</span><span class="p">.</span><span class="n">PatcherPluginPath</span><span class="p">,</span><span class="w"> </span><span class="k">out</span><span class="w"> </span><span class="n">assembly</span><span class="p">)</span>
+</span><span id="__span-7-13"><a id="__codelineno-7-13" name="__codelineno-7-13" href="#__codelineno-7-13"></a><span class="w">        </span><span class="o">||</span><span class="w"> </span><span class="n">Utility</span><span class="p">.</span><span class="n">TryResolveDllAssembly</span><span class="p">(</span><span class="n">assemblyName</span><span class="p">,</span><span class="w"> </span><span class="n">Paths</span><span class="p">.</span><span class="n">PluginPath</span><span class="p">,</span><span class="w"> </span><span class="k">out</span><span class="w"> </span><span class="n">assembly</span><span class="p">))</span>
+</span><span id="__span-7-14"><a id="__codelineno-7-14" name="__codelineno-7-14" href="#__codelineno-7-14"></a><span class="w">    </span><span class="p">{</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="n">assembly</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+</span><span id="__span-7-15"><a id="__codelineno-7-15" name="__codelineno-7-15" href="#__codelineno-7-15"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="k">null</span><span class="p">;</span>
+</span><span id="__span-7-16"><a id="__codelineno-7-16" name="__codelineno-7-16" href="#__codelineno-7-16"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>Three properties of that handler matter for mod authors:</p>
+<ul>
+<li>It matches on <strong>simple name only</strong>, then prefers an exact version and otherwise takes the highest
+  version present. A mod that needs version 8 of something and finds version 4 already loaded gets
+  version 4 handed to it without complaint.</li>
+<li>Its directory fallback covers <code>BepInEx\core</code>, <code>BepInEx\patchers</code> and <code>BepInEx\plugins</code>. It does
+  <strong>not</strong> cover Workshop mod folders, which is why a dependency that StationeersLaunchPad did not
+  load explicitly is unreachable.</li>
+<li><code>BepInEx.dll</code>'s own <code>TypeLoader.Resolver</code> is a Mono.Cecil <code>DefaultAssemblyResolver</code> used for
+  metadata scanning during plugin discovery. It is not an <code>AppDomain.AssemblyResolve</code> handler and
+  has no effect on runtime binding. <code>BepInEx.dll</code> contains no <code>LocalResolve</code> and no
+  <code>AppDomain.CurrentDomain.AssemblyResolve</code> subscription at all.</li>
+</ul>
+<p>The unexplained step is that <code>LocalResolve</code> would find the loaded 8.0.0.0 copy on its first branch,
+with an exact version match, if it were consulted. The failure therefore happens without the loaded
+copy being reached. Whether Mono suppresses the managed resolve event on the field-type-loading path,
+or caches the negative result per referencing image, was not established from the artifacts available
+here. See Open questions.</p>
+<h2 id="the-two-per-frame-call-sites-and-what-each-one-costs">The two per-frame call sites, and what each one costs<a class="headerlink" href="#the-two-per-frame-call-sites-and-what-each-one-costs" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-08-11 -->
+
+<p>Both mods touch MessagePack from an unguarded per-frame Harmony patch, and the two sites have very
+different blast radii. This distinction is the reason "an exception every frame" is not by itself a
+severity.</p>
+<p><strong>Site A, ScriptedScreens, a prefix.</strong> The failing initializer is the static constructor of
+<code>ScriptedScreensScriptableUiSystem</code>, and the exact statement is the MessagePack options build:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="k">static</span><span class="w"> </span><span class="nf">ScriptedScreensScriptableUiSystem</span><span class="p">()</span>
+</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="p">{</span>
+</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="w">    </span><span class="p">...</span>
+</span><span id="__span-8-4"><a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="w">    </span><span class="n">MpOptions</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">MessagePackSerializerOptions</span><span class="p">.</span><span class="n">Standard</span>
+</span><span id="__span-8-5"><a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a><span class="w">        </span><span class="p">.</span><span class="n">WithResolver</span><span class="p">((</span><span class="n">IFormatterResolver</span><span class="p">)(</span><span class="kt">object</span><span class="p">)</span><span class="n">ContractlessStandardResolver</span><span class="p">.</span><span class="n">Instance</span><span class="p">)</span>
+</span><span id="__span-8-6"><a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a><span class="w">        </span><span class="p">.</span><span class="n">WithCompression</span><span class="p">((</span><span class="n">MessagePackCompression</span><span class="p">)</span><span class="mi">2</span><span class="p">);</span>
+</span><span id="__span-8-7"><a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a><span class="w">    </span><span class="p">...</span>
+</span><span id="__span-8-8"><a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>Every static member of that class then rethrows forever, including the one read here:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="na">[HarmonyPatch(typeof(KeyWrap), &quot;PollForInput&quot;)]</span>
+</span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="na">[HarmonyPrefix]</span>
+</span><span id="__span-9-3"><a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="k">private</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="nf">KeyWrap_PollForInput_Prefix</span><span class="p">()</span>
+</span><span id="__span-9-4"><a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="p">{</span>
+</span><span id="__span-9-5"><a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">ScriptedScreensScriptableUiSystem</span><span class="p">.</span><span class="n">IsInterfaceModeActive</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="k">true</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+</span><span id="__span-9-6"><a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">ScriptedScreensScriptableUiSystem</span><span class="p">.</span><span class="n">IsTextInputFocused</span><span class="p">())</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="k">false</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+</span><span id="__span-9-7"><a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="k">true</span><span class="p">;</span>
+</span><span id="__span-9-8"><a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>There is no try/catch in this prefix, none in the mod's patch application
+(<code>_harmony = new Harmony("zedle.stationeers.scriptedscreens"); _harmony.PatchAll();</code>, unconditional),
+and none anywhere in the chain above it:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="k">internal</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">PollInputs</span><span class="p">()</span><span class="w">                 </span><span class="c1">// KeyMap, Assembly-CSharp 44823</span>
+</span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="p">{</span>
+</span><span id="__span-10-3"><a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">PollingSet</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="k">null</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">return</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+</span><span id="__span-10-4"><a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="w">    </span><span class="k">foreach</span><span class="w"> </span><span class="p">(</span><span class="n">KeyWrap</span><span class="w"> </span><span class="n">item</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">PollingSet</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">item</span><span class="p">.</span><span class="n">PollForInput</span><span class="p">();</span><span class="w"> </span><span class="p">}</span>
+</span><span id="__span-10-5"><a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a><span class="p">}</span>
+</span><span id="__span-10-6"><a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a>
+</span><span id="__span-10-7"><a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a><span class="k">public</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">ManagerUpdate</span><span class="p">()</span><span class="w">              </span><span class="c1">// KeyManager : ManagerBase, 43736</span>
+</span><span id="__span-10-8"><a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a><span class="p">{</span>
+</span><span id="__span-10-9"><a id="__codelineno-10-9" name="__codelineno-10-9" href="#__codelineno-10-9"></a><span class="w">    </span><span class="k">base</span><span class="p">.</span><span class="n">ManagerUpdate</span><span class="p">();</span>
+</span><span id="__span-10-10"><a id="__codelineno-10-10" name="__codelineno-10-10" href="#__codelineno-10-10"></a><span class="w">    </span><span class="n">KeyMap</span><span class="p">.</span><span class="n">PollInputs</span><span class="p">();</span>
+</span><span id="__span-10-11"><a id="__codelineno-10-11" name="__codelineno-10-11" href="#__codelineno-10-11"></a><span class="w">    </span><span class="n">ResetState</span><span class="p">();</span>
+</span><span id="__span-10-12"><a id="__codelineno-10-12" name="__codelineno-10-12" href="#__codelineno-10-12"></a><span class="p">}</span>
+</span><span id="__span-10-13"><a id="__codelineno-10-13" name="__codelineno-10-13" href="#__codelineno-10-13"></a>
+</span><span id="__span-10-14"><a id="__codelineno-10-14" name="__codelineno-10-14" href="#__codelineno-10-14"></a><span class="k">foreach</span><span class="w"> </span><span class="p">(</span><span class="n">ManagerBase</span><span class="w"> </span><span class="n">manager2</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">Managers</span><span class="p">)</span><span class="w">        </span><span class="c1">// GameManager.Update, tail</span>
+</span><span id="__span-10-15"><a id="__codelineno-10-15" name="__codelineno-10-15" href="#__codelineno-10-15"></a><span class="p">{</span>
+</span><span id="__span-10-16"><a id="__codelineno-10-16" name="__codelineno-10-16" href="#__codelineno-10-16"></a><span class="w">    </span><span class="n">manager2</span><span class="p">.</span><span class="n">ManagerUpdate</span><span class="p">();</span>
+</span><span id="__span-10-17"><a id="__codelineno-10-17" name="__codelineno-10-17" href="#__codelineno-10-17"></a><span class="p">}</span>
+</span><span id="__span-10-18"><a id="__codelineno-10-18" name="__codelineno-10-18" href="#__codelineno-10-18"></a><span class="n">BatchRenderer</span><span class="p">.</span><span class="n">RenderAll</span><span class="p">();</span>
+</span><span id="__span-10-19"><a id="__codelineno-10-19" name="__codelineno-10-19" href="#__codelineno-10-19"></a><span class="n">WindTurbineGenerator</span><span class="p">.</span><span class="n">UpdateWind</span><span class="p">();</span>
+</span></code></pre></div>
+<p>Read literally, a throw at the first <code>KeyWrap</code> aborts <code>PollInputs</code> for the whole frame (so no
+<code>KeyWrap</code>-bound action fires: Cancel, Help, SwapHands, Drop, Internals, ToggleLight, SmartStow,
+InventorySelect, quicksave), aborts <code>KeyManager.ManagerUpdate</code>, and then aborts the <code>Managers</code> loop
+inside <code>GameManager.Update</code>, taking with it every manager ordered after <code>KeyManager</code> plus
+<code>BatchRenderer.RenderAll()</code> and <code>WindTurbineGenerator.UpdateWind()</code>.</p>
+<p><strong>Site B, StationeersLua, a postfix.</strong> StationeersLua hangs its own per-frame work off the end of
+the same method:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="na">[HarmonyPatch(typeof(GameManager), &quot;Update&quot;)]</span>
+</span><span id="__span-11-2"><a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="k">internal</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nc">McpServerTickPatch</span>
+</span><span id="__span-11-3"><a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="p">{</span>
+</span><span id="__span-11-4"><a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="w">    </span><span class="na">[HarmonyPostfix]</span>
+</span><span id="__span-11-5"><a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a><span class="w">    </span><span class="k">private</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">GameManager_Update_Postfix</span><span class="p">()</span>
+</span><span id="__span-11-6"><a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-11-7"><a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a><span class="w">        </span><span class="kt">bool</span><span class="w"> </span><span class="n">num</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">NetworkManager</span><span class="p">.</span><span class="n">IsServer</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">NetworkManager</span><span class="p">.</span><span class="n">IsActive</span><span class="p">;</span>
+</span><span id="__span-11-8"><a id="__codelineno-11-8" name="__codelineno-11-8" href="#__codelineno-11-8"></a><span class="w">        </span><span class="kt">bool</span><span class="w"> </span><span class="n">flag</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">McpMultiplayerDebugProxy</span><span class="p">.</span><span class="n">ShouldProxyRequestsLocally</span><span class="p">();</span>
+</span><span id="__span-11-9"><a id="__codelineno-11-9" name="__codelineno-11-9" href="#__codelineno-11-9"></a><span class="w">        </span><span class="kt">bool</span><span class="w"> </span><span class="n">flag2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">num</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="p">(</span><span class="n">McpServerConfig</span><span class="p">.</span><span class="n">Enabled</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="n">McpServerConfig</span><span class="p">.</span><span class="n">EnableExtensionApi</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="n">McpServerConfig</span><span class="p">.</span><span class="n">AllowMultiplayerDebugProxy</span><span class="p">);</span>
+</span><span id="__span-11-10"><a id="__codelineno-11-10" name="__codelineno-11-10" href="#__codelineno-11-10"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">McpServerConfig</span><span class="p">.</span><span class="n">AnyListenerEnabled</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="n">flag2</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="n">flag</span><span class="p">)</span>
+</span><span id="__span-11-11"><a id="__codelineno-11-11" name="__codelineno-11-11" href="#__codelineno-11-11"></a><span class="w">        </span><span class="p">{</span>
+</span><span id="__span-11-12"><a id="__codelineno-11-12" name="__codelineno-11-12" href="#__codelineno-11-12"></a><span class="w">            </span><span class="n">McpMultiplayerDebugProxy</span><span class="p">.</span><span class="n">Tick</span><span class="p">();</span>
+</span><span id="__span-11-13"><a id="__codelineno-11-13" name="__codelineno-11-13" href="#__codelineno-11-13"></a><span class="w">            </span><span class="n">McpGameBridge</span><span class="p">.</span><span class="n">Tick</span><span class="p">();</span>
+</span><span id="__span-11-14"><a id="__codelineno-11-14" name="__codelineno-11-14" href="#__codelineno-11-14"></a><span class="w">        </span><span class="p">}</span>
+</span><span id="__span-11-15"><a id="__codelineno-11-15" name="__codelineno-11-15" href="#__codelineno-11-15"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-11-16"><a id="__codelineno-11-16" name="__codelineno-11-16" href="#__codelineno-11-16"></a><span class="p">}</span>
+</span></code></pre></div>
+<p><code>ShouldProxyRequestsLocally()</code> is called unconditionally, ahead of every config gate, so this site
+runs every frame regardless of whether any of the mod's optional listeners are enabled. A throw here
+costs nothing in the game's own frame: a postfix runs after the original body has completed, so the
+only casualties are other postfixes on <code>GameManager.Update</code> ordered after this one.</p>
+<p>Both sites are per-frame and both are reached at the main menu as well as in world, because
+<code>KeyManager</code> and <code>GameManager.Update</code> are both live before a world is loaded.</p>
+<h2 id="the-conflict-between-the-code-reading-and-the-field-evidence">The conflict between the code reading and the field evidence<a class="headerlink" href="#the-conflict-between-the-code-reading-and-the-field-evidence" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-08-11 -->
+
+<p>Site A above says the client should be visibly broken. The field evidence says it is not:</p>
+<ul>
+<li>The developer hosts a session with both mods enabled, a second player joins normally, and the
+  exception fires throughout. That is recorded independently on
+  <a href="../../Workflows/DrivingTheGameClientProgrammatically/">DrivingTheGameClientProgrammatically</a>.</li>
+<li>The game is played to completion with both mods enabled. If the <code>Managers</code> loop aborted at
+  <code>KeyManager</code> every frame, <code>BatchRenderer.RenderAll()</code> would never run and every manager after
+  <code>KeyManager</code> would never tick.</li>
+<li>The Unity player log from a session with both mods loaded contains <strong>zero</strong> occurrences of
+  <code>DynamicAssemblyFactory</code> and zero occurrences of the <code>System.Collections.Immutable</code> load failure,
+  while containing three unrelated <code>TypeLoadException</code> entries from a different mod
+  (<code>IC10Inspector</code> failing to find <code>IC10Extender</code>). Unity logs an exception that escapes a
+  MonoBehaviour message, so a throw escaping <code>GameManager.Update</code> should appear there and does not.</li>
+</ul>
+<p>Three readings survive that are not distinguishable from the static artifacts: the throw never
+escapes site A (something between the prefix and the frame loop swallows it), <code>KeyManager</code> sits last
+in the <code>Managers</code> list so the loop truncation costs nothing observable, or the flood observed in the
+game console comes from site B and a different, caught path rather than from site A. The manager
+order cannot settle it, because <code>GameManager.Managers</code> is <code>public List&lt;ManagerBase&gt; Managers = new
+List&lt;ManagerBase&gt;()</code> populated by Unity serialization: <code>Managers.Add</code> has zero occurrences in
+<code>Assembly-CSharp</code>, so the order is not in the decompile at all.</p>
+<p>Do not upgrade this to "the exception breaks multiplayer joins". The strongest supported statement
+remains the one already on record: it is observationally log spam. A separate datum reinforces it
+from outside this install, which is that the developer's friend runs the same mod set, sees the same
+exception, and joins the developer's hosted world without trouble.</p>
+<h2 id="upstream-status">Upstream status<a class="headerlink" href="#upstream-status" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-08-11 -->
+
+<p>The exception is a known, open, unfixed MessagePack issue and is not specific to Stationeers.</p>
+<ul>
+<li><strong>MessagePack-CSharp issue 2174</strong>, opened 2025-03-10, still open, no maintainer response. Same
+  exception text down to the field name, same missing identity
+  (<code>System.Collections.Immutable, Version=8.0.0.0, PublicKeyToken=b03f5f7f11d50a3a</code>), same cascade
+  through <code>DynamicUnionResolver</code> and <code>StandardResolverHelper</code> into <code>StandardResolver</code>. Reported on
+  MessagePack 3.1.3 under Unity Mono at API level .NET Standard 2.1, which is exactly the
+  configuration here (MessagePack 3.1.7.0, both mod assemblies built against .NET Standard 2.1).</li>
+<li><strong>MessagePack-CSharp issue 2086</strong>, closed, records that the dependency on
+  <code>System.Collections.Immutable</code> 8.0.0 is what breaks under Unity and that referencing 6.0.0 locally
+  works instead.</li>
+<li><strong>MessagePack-CSharp issue 2155</strong>, open, is the same dependency-resolution class of failure on
+  Unity 6 builds.</li>
+<li><strong>mono/mono issue 8152</strong>, closed, records that <code>Assembly.LoadFrom</code> does not honour app.config
+  binding redirects on Mono the way it does on the Microsoft CLR.</li>
+</ul>
+<p>Angles searched and found empty: the StationeersLaunchPad issue tracker (30 issues, all states, none
+about assembly resolution or missing dependencies), the LaunchPadBooster issue tracker (9 issues,
+all states, none related), and general web search for the exception text paired with Stationeers or
+BepInEx. The two mods' Workshop pages and comment threads were <strong>not</strong> checked: the repository rule
+requires steamcommunity.com lookups to go through the Playwright browser, and no Playwright tool was
+available in this session. Neither mod publishes a public source repository.</p>
+<h2 id="fix-options-in-order-of-how-little-they-depend-on-unexplained-behaviour">Fix options, in order of how little they depend on unexplained behaviour<a class="headerlink" href="#fix-options-in-order-of-how-little-they-depend-on-unexplained-behaviour" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-08-11 -->
+
+<ol>
+<li><strong>Put the assembly on Mono's own probing path.</strong> Copy the mods' own
+   <code>System.Collections.Immutable.dll</code> (8.0.0.0, token <code>b03f5f7f11d50a3a</code>) into
+   <code>rocketstation_Data\Managed\</code>. That directory is the Mono app base, so the reference resolves
+   through the runtime's normal lookup and never needs the managed <code>AssemblyResolve</code> event to fire.
+   This is the only option that does not depend on the step this page could not explain.</li>
+<li><strong>Put it in <code>BepInEx\core\</code>.</strong> Reachable through <code>LocalResolve</code>'s directory fallback, but only if
+   the event fires at all, which is precisely what is in doubt. Recorded on
+   <a href="../../Workflows/DrivingTheGameClientProgrammatically/">DrivingTheGameClientProgrammatically</a> as
+   tried once with an ambiguous result, and since removed from the developer's install.</li>
+<li><strong>A patch mod with its own <code>AppDomain.CurrentDomain.AssemblyResolve</code> handler</strong> pointed at the
+   bundled copy in either Workshop folder. One handler covers both mods. Same caveat as option 2
+   about whether the event fires on this path, and it needs to be installed before either mod's
+   first MessagePack touch.</li>
+<li><strong>A binding redirect: not available.</strong> There is no app.config in play for the Unity player, Mono
+   does not honour redirects for <code>Assembly.LoadFrom</code> (mono/mono 8152), and no redirect could map
+   <code>System.Collections.Immutable</code> onto the differently named <code>Sentry.System.Collections.Immutable</code>
+   in any case.</li>
+<li><strong>A different MessagePack build: upstream's problem.</strong> MessagePack 3.x takes the
+   <code>System.Collections.Immutable</code> 8.0.0 dependency by design; issue 2086 shows 6.0.0 works, but that
+   is a rebuild of the mods, not something a downstream install can do.</li>
+</ol>
+<h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
+<ul>
+<li>2026-08-11: page created. Assembly identities and reference tables read directly from the PE
+  metadata of the shipped DLLs; load evidence read from the Unity player log of a session with both
+  mods enabled; loader and resolver code read from fresh decompiles of <code>StationeersLaunchPad.dll</code>,
+  <code>BepInEx.dll</code>, <code>BepInEx.Preloader.dll</code>, <code>ScriptedScreens.dll</code> and <code>StationeersLua.dll</code> at
+  0.2.6403.27689. Two claims previously in circulation in this repository are not repeated here
+  because the artifacts contradict them. First, that nothing adds the mod folders to the resolution
+  path: the DLL is loaded outright by absolute path and the domain holds two copies, per the loader
+  code and the player log quoted above. Second, that the ScriptedScreens static constructor reaches
+  MessagePack through <code>McpMultiplayerDebugProxy</code>: that symbol has zero occurrences in
+  <code>ScriptedScreens.dll</code> (one grep re-checks it), it is a <code>StationeersLua</code> type and belongs to site
+  B, and site A fails on <code>MessagePackSerializerOptions.Standard.WithResolver(...)</code> in the static
+  constructor quoted above. The second claim also appears verbatim on
+  <a href="../../Workflows/DrivingTheGameClientProgrammatically/">DrivingTheGameClientProgrammatically</a>,
+  which has NOT been edited: correcting verified content on an existing page requires the fresh
+  validator protocol in <code>Research/WORKFLOW.md</code> Rule 3, and that pass is still owed.</li>
 </ul>
 <h2 id="open-questions">Open questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>
-<p>None at creation.</p>
+<ul>
+<li>Why the loaded 8.0.0.0 copy does not satisfy MessagePack's reference. <code>LocalResolve</code> would return
+  it on an exact version match if the managed resolve event were raised for a failure on the
+  field-type-loading path. Whether Mono skips the event there, or caches the negative reference
+  result per referencing image so a later successful load cannot help, was not determined. Settling
+  it needs a runtime probe (subscribe an <code>AssemblyResolve</code> handler that logs every request, then
+  force a MessagePack touch), not more decompiling.</li>
+<li>Which of the three readings in "The conflict" is correct. The cheapest discriminator is a runtime
+  enter/exit counter on <code>KeyManager.ManagerUpdate</code> and on a manager known to sit late in the list,
+  compared across frames while the exception is firing. The client rig already exposes that shape of
+  measurement for the input chain.</li>
+<li>Whether <code>Assembly.LoadFrom</code> on a ThreadPool thread (StationeersLaunchPad loads mod assemblies via
+  <code>UniTask.RunOnThreadPool</code>, serial or parallel depending on the configured load strategy) changes
+  anything about which context the loaded assembly lands in. Not investigated.</li>
+</ul>
 
 
 
@@ -8900,7 +9384,7 @@
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
           
-          <a href="../TerrainOctree/" class="md-footer__link md-footer__link--prev" aria-label="Previous: TerrainOctree">
+          <a href="../MainThreadDispatcher/" class="md-footer__link md-footer__link--prev" aria-label="Previous: MainThreadDispatcher">
             <div class="md-footer__button md-icon">
               
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
@@ -8910,20 +9394,20 @@
                 Previous
               </span>
               <div class="md-ellipsis">
-                TerrainOctree
+                MainThreadDispatcher
               </div>
             </div>
           </a>
         
         
           
-          <a href="../UnregisteredSaveDataBehavior/" class="md-footer__link md-footer__link--next" aria-label="Next: UnregisteredSaveDataBehavior">
+          <a href="../ModLogicTypeRegistration/" class="md-footer__link md-footer__link--next" aria-label="Next: Mod LogicType Registration Analysis">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                UnregisteredSaveDataBehavior
+                Mod LogicType Registration Analysis
               </div>
             </div>
             <div class="md-footer__button md-icon">
