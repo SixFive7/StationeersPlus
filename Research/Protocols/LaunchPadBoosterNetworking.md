@@ -3,8 +3,9 @@ title: LaunchPadBooster Networking
 type: Protocols
 created_in: 0.2.6228.27061
 verified_in: 0.2.6403.27689
-verified_at: 2026-07-14
+verified_at: 2026-08-11
 sources:
+  - .work/decomp/0.2.6403.27689/LaunchPadBooster.decompiled.cs :: ConnectionState.DoJoinValidateMod 2095-2172, FailClientJoin 1399-1405
   - Mods/PowerTransmitterPlus/RESEARCH.md:676-692
   - Mods/SprayPaintPlus/RESEARCH.md:211-213
   - Mods/SprayPaintPlus/RESEARCH.md:149-151
@@ -51,6 +52,47 @@ There are NO public connect/disconnect events; Harmony-patch `NetworkManager.Pla
 <!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
 
 `MOD.Networking.Required = true` tells LaunchPadBooster to reject connections from clients that do not have the mod, or have a different version. This ensures all players run the same wire format.
+
+### The Required gate is SYMMETRIC, and a mod the SERVER has and the client does not is equally fatal
+<!-- verified: 0.2.6403.27689 @ 2026-08-11 -->
+
+`ConnectionState.DoJoinValidateMod` (LaunchPadBooster.decompiled.cs:2095-2172) compares the two mod lists in **both directions** and rejects on either. It builds a `HashSet` of the incoming side's mod hashes, then:
+
+- for each incoming entry with no local `ModNetworking.InstancesByHash` match, if `item.Required` it goes on the "this side is missing it" list;
+- for each local `ModNetworking.Instances` entry whose hash is absent from the incoming set, if `instance.Required` it goes on the "the other side is missing it" list;
+- matched pairs additionally run `VersionValidator.ValidateVersion`, and a validator that THROWS is counted as a failure rather than ignored.
+
+If all four lists are empty it returns true. Otherwise it labels the sides from `NetworkManager.IsServer` and builds one line per problem:
+
+```csharp
+stringBuilder.AppendLine($"{text} missing mod {text3}@{text4} (hash {num})");
+```
+
+then calls `CloseWithError`, which on the client reaches `FailClientJoin` (:1399-1405):
+
+```csharp
+ConsoleWindow.PrintError(message, suppressStacktrace: true);
+NetworkClient.StopConnectionTimer();
+NetworkManager.EndConnection();
+ShowConfirmationPanel(Singleton<ConfirmationPanel>.Instance, "Incompatible mods", message, "ButtonOk", NetworkClient.Cancel);
+```
+
+So the rejection is **loud, immediate and specific**, which is the opposite of the vanilla connection-failure behaviour documented on [Connection failures are silent](../GameSystems/ConnectionFailureSilence.md). It arrives as a modal titled `Incompatible mods`, and it is raised on the joining client even when the mod the joiner lacks is one only the SERVER loaded.
+
+**Measured, 2026-08-11, on the client rig**: a listen host with `StationeersLua@0.9.5.0` and `ScriptedScreens@0.9.5.0` enabled, against a joiner with both disabled, produced
+
+```
+Incompatible mods
+client missing mod StationeersLua@0.9.5.0 (hash 210483820)
+client missing mod ScriptedScreens@0.9.5.0 (hash -69930857)
+```
+
+on **5 of 5 attempts**, each failing in **3.9 to 4.0 seconds**. Both mods disabled on both sides: 5 of 5 joined, 11.8 to 15.3 s. Both mods ENABLED on both sides: 5 of 5 joined, 12.2 to 14.9 s. The variable is whether the two mod lists MATCH, not whether the mods are loaded.
+
+Two consequences worth stating plainly:
+
+- **A Workshop mod nobody wrote a line of networking code for can still be `Required`.** Neither of the two above is a networking mod in any obvious sense. Any mod that sets the flag participates in this gate, so "the host has one extra mod" is a complete explanation for a join that never happens.
+- **The failure is fast and named, so it is easy to tell apart from a silent RakNet failure.** A join that dies in about 4 s with a modal is this gate; a join that hangs to a driver timeout with nothing logged is the vanilla silence.
 
 ## Networking V2 benefits over vanilla piggybacking
 <!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
@@ -294,6 +336,8 @@ Mod consequence: a custom payload carrying floats writes `writer.WriteSingle(x)`
 - 2026-05-28: added "IJoinSuffixSerializer: join-time state snapshot to a joining client". Verified from PowerTransmitterPlus `Plugin.cs:260-348` (implements `IJoinSuffixSerializer`; `SerializeJoinSuffix` / `DeserializeJoinSuffix` ship the auto-aim cache + seven config values) and `DistanceConfigSync.cs:9-23`, cross-referenced with `./PlayerConnectedThingFindTiming.md`. Documents the host `PackageJoinData` / client `ProcessJoinData`-after-`ProcessThings` invocation points, the remote-join-only gating, and why it replaced the v1.6.x `PlayerConnected` rebroadcast (which fires before the joiner is in `NetworkBase.Clients`). Additive (the page previously documented only `IJoinValidator`, with `IJoinPrefixSerializer` noted out of scope); no existing claim contradicted, so no fresh validator.
 - 2026-07-14: added "RocketBinaryWriter / RocketBinaryReader: the vanilla primitive surface" (game version 0.2.6403.27689), from the PowerGridPlus fault-hover session's float-payload check. Both classes read in full from the 0.2.6403.27689 decompile: `RocketBinaryReader : RocketBinaryCore` 274266-274519 (Stream-backed, `ReadExactly` 274284, virtual methods, `PostRead` hook 274275) and `RocketBinaryWriter : RocketBinaryCore` 274520-274839 (ArrayPool buffer, `Ensure` 274560-274566, `PreWrite` hook 274556); namespace `Assets.Scripts.Networking` confirmed at 272552. `WriteSingle` (274644-274650) and `ReadSingle` (274380-274385) quoted verbatim: 4-byte little-endian IEEE 754 via `BitConverter.SingleToInt32Bits` / `Int32BitsToSingle`, confirming full-precision float payloads for custom network messages (the FloatHalf pair at 274715 / 274387 remains the only half-precision path). Full primitive inventory recorded with paired line references. Additive; no existing claim contradicted (the page previously used these types in verbatim LaunchPadBooster excerpts without documenting the game-side surface). Top-level `verified_in` bumped to 0.2.6403.27689 for this section; earlier sections keep their 0.2.6228.27061 stamps and were not re-read this pass.
 
+- 2026-08-11: added "The Required gate is SYMMETRIC..." under Handshake / version, from a live three-arm experiment on the client rig plus the LaunchPadBooster decompile (`ConnectionState.DoJoinValidateMod` 2095-2172, `FailClientJoin` 1399-1405). Fifteen join attempts, five per arm: mods matched-off 5/5 joined, matched-on 5/5 joined, host-only 0/5 with the `Incompatible mods` modal naming both mods and both hashes, every failure inside 4 s. Additive to the one-line claim already on the page (which said only that a client without the mod is rejected); it does not contradict it, but it does correct the natural reading that the gate is one-directional. The measured direction is the opposite one: the joiner was rejected for mods only the SERVER had. Also recorded because it is the operational explanation for a class of driven-join failure that had been attributed to other causes.
+
 ## Open questions
 
-None at creation.
+- The `VersionValidator.ValidateVersion` default is not documented here. The gate distinguishes "missing" from "version incompatible" and from "the validator threw", and only the missing case has been observed live.
