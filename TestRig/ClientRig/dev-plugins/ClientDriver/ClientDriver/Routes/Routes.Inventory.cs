@@ -327,6 +327,7 @@ namespace ClientDriver
 
             var res = new Json.Obj()
                 .Bit("ok", true)
+                .Raw("epoch", Epoch.Json())
                 .Str("instance", InstanceManifest.Name)
                 .Str("player", SafeName(human))
                 .Int("humanId", human.ReferenceId)

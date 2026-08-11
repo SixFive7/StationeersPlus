@@ -122,6 +122,7 @@ Web/_staging/
 !/TestRig/session.lock.template
 !/TestRig/DedicatedServer/
 !/TestRig/ClientRig/
+!/TestRig/playtest/
 
 ## Dedicated server half: local-only except CLAUDE.md, the launcher, and source
 ## code under dev-plugins/. install/ and data/ are ignored wholesale.
@@ -147,6 +148,18 @@ Web/_staging/
 !/TestRig/ClientRig/dev-plugins/
 /TestRig/ClientRig/dev-plugins/**/bin/
 /TestRig/ClientRig/dev-plugins/**/obj/
+
+## Playtest harness: the library, its offline suite, the runner, the manual, and the
+## per-mod checks under checks/. Deny-all inside here too, matching both halves: an
+## evidence bundle normally lands in .work/, but -EvidenceRoot can point anywhere and
+## a bundle carries every request and response of a run. Under an ignore-a-few-things
+## list one of those would be committable by accident.
+/TestRig/playtest/*
+!/TestRig/playtest/README.md
+!/TestRig/playtest/playtest.ps1
+!/TestRig/playtest/playtest-lib.ps1
+!/TestRig/playtest/playtest-lib.tests.ps1
+!/TestRig/playtest/checks/
 
 ## Test / benchmark / coverage output
 TestResults/

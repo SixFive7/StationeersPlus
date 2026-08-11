@@ -93,8 +93,45 @@ namespace ClientDriver
                 "GET  /config?guid=&filter=       every ConfigEntry of a loaded plugin",
                 "POST /config/set                 {guid, section, key, value, save} write a live ConfigEntry",
                 "POST /config/reload              {guid} re-read the .cfg from disk",
-                "GET  /reflect?type=&member=      read any static field or property by full type name",
+                "GET  /reflect?type=&member=&expand=&expandLimit=&key=   read any STATIC field or property by full",
+                "                                 type name. expand=true lists a collection's entries; key=<k> answers",
+                "                                 'does this dictionary contain that key' without dumping it.",
                 "GET  /reflect/members?type=      every static member of a type with its runtime value type",
+                "",
+                "GET  /thing?refId=&refIds=&fields=&type=&comparePrefab=&expand=&expandLimit=&key=",
+                "                                 READ ANY MEMBER OF ANY THING, on this instance. 'fields' is a",
+                "                                 comma-separated list of instance field or property names, public or",
+                "                                 private, on the Thing's runtime type or any base type. A dotted path",
+                "                                 walks (ParentSlot.Parent.ReferenceId) and [n] indexes a list.",
+                "                                 A member that does not exist answers ok:false naming the types it",
+                "                                 searched, NEVER an empty value. Each field also carries prefabValue",
+                "                                 and matchesPrefab: a value identical to the untouched prefab's is",
+                "                                 indistinguishable from never having been set (Thing.EmissionColor",
+                "                                 initialises to Color.white, so an unpainted object reads as glowing).",
+                "                                 Every row carries a 'location' block: in a slot or on the ground,",
+                "                                 whose slot, which hand, and whether THIS process is the authority.",
+                "GET  /reflect/instance?refId=&member=&type=&expand=&key=   read ONE instance member on one object.",
+                "                                 The instance twin of /reflect. 'type' pins WHICH declaring type the",
+                "                                 member is looked up on, which is the only way to reach a private base",
+                "                                 field a derived type shadows. Unwraps a ConfigEntry<T>.",
+                "GET  /thing/members?refId=&type=&contains=&limit=&values=   every instance member of a Thing (or of a",
+                "                                 bare type), with declaring type and current value. Diagnostic of last",
+                "                                 resort. values=false skips invoking every property getter.",
+                "",
+                "GET  /dlc                        this process's DLC entitlement, the session pool, what has been",
+                "                                 removed, and the ordering a removal must be sequenced into",
+                "POST /dlc/remove                 {dlc, scope=owned|shared|both} REMOVE entitlement from THIS process.",
+                "                                 REMOVAL ONLY: the only write it performs clears bits out of the value",
+                "                                 already there, so no route, parameter or value can add entitlement.",
+                "                                 A request carrying add/grant/set/give/own/unlock is refused, not",
+                "                                 ignored. dlc takes a DLCType name, several comma-separated, 'all',",
+                "                                 or a numeric mask. In memory, per process, never persisted.",
+                "                                 SEQUENCE IT BEFORE WORLD ENTRY: a joiner announces",
+                "                                 DLCManager.GetOwnedDLC() at the end of its join and a listen host",
+                "                                 re-seeds the pool from it at the end of the load, so a removal after",
+                "                                 world entry is silently undone. GET /dlc carries the full ordering.",
+                "POST /dlc/restore                put back the baseline this process held before its first removal.",
+                "                                 Takes no arguments: there is no value a caller can name that it writes.",
             };
 
             return new Json.Obj()
@@ -111,6 +148,21 @@ namespace ClientDriver
                                      "menu, singlePlayer, joinedClient, listenHost or dedicated. Read it " +
                                      "rather than re-deriving from isClient/isServer, because a listen host " +
                                      "is NetworkRole.Server and so reports isClient=false.")
+                .Str("epochContract", "every state-reporting response carries an 'epoch' block naming the " +
+                                      "instance that answered and the stretch of its life the answer was " +
+                                      "valid in. " + Epoch.ComparabilityRule + " epoch.session increments on " +
+                                      "a change of game state, network role, network state, hosting or " +
+                                      "world, and never on a joiner arriving (read epoch.clients for that). " +
+                                      "epoch.sampledSecondsAgo is wall clock, so a stamp minutes old means " +
+                                      "the main thread is not running frames and every value beside it " +
+                                      "describes the past.")
+                .Str("authorityContract", "epoch.authoritative and location.authoritative are " +
+                                          "GameManager.RunSimulation: true on a listen host, a dedicated " +
+                                          "server and single player, false on a joined client. A joiner " +
+                                          "reporting an item in its hand proves the joiner thinks so; the " +
+                                          "same read on the authority is the server's own record, which is " +
+                                          "what separates a replicated change from a client-local one.")
+                .Raw("epoch", Epoch.Json())
                 .StrArray("endpoints", endpoints)
                 .ToString();
         }

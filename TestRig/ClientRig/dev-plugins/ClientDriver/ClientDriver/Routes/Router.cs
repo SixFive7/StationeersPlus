@@ -48,8 +48,11 @@ namespace ClientDriver
 
                 // ---- state -------------------------------------------------
                 case "/status": return Main(() => HttpResponse.Json(StateReporter.Status()));
-                case "/player": return Main(() => HttpResponse.Json(
-                    "{\"ok\":true,\"player\":" + StateReporter.PlayerJson() + "}"));
+                case "/player": return Main(() => HttpResponse.Json(new Json.Obj()
+                    .Bit("ok", true)
+                    .Raw("epoch", Epoch.Json())
+                    .Raw("player", StateReporter.PlayerJson())
+                    .ToString()));
                 case "/colors": return Main(() => HttpResponse.Json(StateReporter.Colors()));
                 case "/plugins": return Main(() => HttpResponse.Json(StateReporter.Plugins()));
                 case "/nearby": return Main(() => HttpResponse.Json(StateReporter.Nearby(
@@ -148,9 +151,23 @@ namespace ClientDriver
                 case "/config/reload": return Main(() => HttpResponse.Json(ConfigAccess.Reload(
                     Json.GetStr(body, "guid"))));
                 case "/reflect": return Main(() => HttpResponse.Json(ConfigAccess.ReadStatic(
-                    Json.GetStr(body, "type"), Json.GetStr(body, "member"))));
+                    Json.GetStr(body, "type"), Json.GetStr(body, "member"),
+                    Json.GetBool(body, "expand", false),
+                    Math.Max(1, Math.Min(500, Json.GetInt(body, "expandLimit", 25))),
+                    Json.GetStr(body, "key"))));
                 case "/reflect/members": return Main(() => HttpResponse.Json(ConfigAccess.DumpMembers(
                     Json.GetStr(body, "type"))));
+
+                // ---- instance reflection: any member of any Thing --------------
+                case "/thing": return Main(() => ThingRoute(body));
+                case "/thing/members": return Main(() => ThingMembersRoute(body));
+                case "/reflect/instance": return Main(() => ReflectInstanceRoute(body));
+
+                // ---- per-process DLC entitlement, REMOVAL ONLY ------------------
+                // There is deliberately no route here whose name could add. See Routes.Dlc.cs.
+                case "/dlc": return Main(() => HttpResponse.Json(DlcEntitlement.Describe()));
+                case "/dlc/remove": return Main(() => DlcRemoveRoute(body));
+                case "/dlc/restore": return Main(() => DlcRestoreRoute(body));
 
                 default:
                     return HttpResponse.Error("unknown endpoint '" + req.Path + "'. GET /help lists them all.", 404);
@@ -181,6 +198,11 @@ namespace ClientDriver
                 .Int("pumpFrames", MainThreadPump.FramesSeen)
                 .Int("frame", MainThreadPump.FrameCount)
                 .Bit("pumpAlive", MainThreadPump.Alive)
+                // The epoch is a cache read, so it rides even here. epoch.sampledSecondsAgo is wall
+                // clock: on a wedged client this endpoint still answers and the stamp says how long
+                // ago the game last ran a frame, which is the fact a caller most needs at that
+                // moment and the one /status cannot deliver because it would block.
+                .Raw("epoch", Epoch.Json())
                 .ToString());
         }
 

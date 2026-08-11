@@ -39,7 +39,7 @@ namespace ClientDriver
         ///    ConfigEntry holds a reference to its owning ConfigFile, and both
         ///    outlive the MonoBehaviour, so this route works whether or not the
         ///    plugin component is still alive. It is the route that actually works
-        ///    for a mod like SprayPaintPlus.
+        ///    for a Workshop mod, which is to say for nearly everything under test.
         /// </summary>
         internal static ConfigFile FindConfig(string guid, out string error)
         {
@@ -383,10 +383,20 @@ namespace ClientDriver
 
         /// <summary>
         /// Reads a static field or property on any loaded type by full name, so a
-        /// harness can assert on mod internals that are not ConfigEntry backed
-        /// (for example SprayPaintPlus's SettingsMerge.EffectiveColorCycling).
+        /// harness can assert on mod internals that are not ConfigEntry backed.
+        ///
+        /// Values are rendered through <see cref="ThingReflect.Describe"/>, the same
+        /// renderer the instance routes use, which is what makes a collection more
+        /// than its type name here: <c>expand=true</c> lists its entries and
+        /// <c>key=&lt;k&gt;</c> answers "does this registry contain that key" without
+        /// dumping it. A mod-side dictionary keyed by reference id used to come back as
+        /// "Dictionary`2" and needed a bespoke script to inspect.
+        ///
+        /// The instance twin is <c>GET /reflect/instance</c>, which reads a member on a
+        /// specific object rather than a static.
         /// </summary>
-        internal static string ReadStatic(string typeName, string memberName)
+        internal static string ReadStatic(string typeName, string memberName,
+                                          bool expand = false, int expandLimit = 25, string key = null)
         {
             Type type = null;
             foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
@@ -435,14 +445,14 @@ namespace ClientDriver
             }
             catch { }
 
-            return new Json.Obj()
+            var o = new Json.Obj()
                 .Bit("ok", true)
+                .Raw("epoch", Epoch.Json())
                 .Str("type", typeName)
                 .Str("member", memberName)
-                .Str("kind", kind)
-                .Str("value", value == null ? null : value.ToString())
-                .Str("valueType", value == null ? null : value.GetType().Name)
-                .ToString();
+                .Str("kind", kind);
+            ThingReflect.Describe(o, value, expand, expandLimit, key);
+            return o.ToString();
         }
     }
 }

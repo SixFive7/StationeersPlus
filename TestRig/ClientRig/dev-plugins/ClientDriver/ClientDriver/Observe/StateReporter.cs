@@ -33,7 +33,12 @@ namespace ClientDriver
             o.Bit("ok", true);
             o.Str("plugin", Plugin.PluginName + " " + Plugin.PluginVersion);
 
-            // Which instance this is, first, so a snapshot or a log line is attributable without
+            // The epoch first, because it is what makes everything under it comparable to another
+            // reading. Two readings whose epoch.session differs straddle a world or network
+            // transition and are not describing the same situation, however alike they look.
+            o.Raw("epoch", Epoch.Json());
+
+            // Which instance this is, next, so a snapshot or a log line is attributable without
             // cross-referencing a port table. Two instances used to produce indistinguishable
             // /status blobs apart from the identity fields.
             o.Str("instanceName", string.IsNullOrEmpty(InstanceManifest.Name) ? "(unnamed)" : InstanceManifest.Name);
@@ -580,22 +585,46 @@ namespace ClientDriver
                     if (!string.IsNullOrEmpty(typeFilter) &&
                         thing.GetType().Name.IndexOf(typeFilter, StringComparison.OrdinalIgnoreCase) < 0 &&
                         (thing.PrefabName ?? "").IndexOf(typeFilter, StringComparison.OrdinalIgnoreCase) < 0) return;
-                    entries.Add(new Json.Obj()
+                    var row = new Json.Obj()
                         .Int("referenceId", thing.ReferenceId)
                         .Str("prefabName", thing.PrefabName)
                         .Str("type", thing.GetType().Name)
                         .Flt("distance", d)
                         .Vec("position", p)
                         .Bit("paintable", SafePaintable(thing))
-                        .Int("customColorIndex", SafeColorIndex(thing))
-                        .ToString());
+                        .Int("customColorIndex", SafeColorIndex(thing));
+                    // Whether it is loose or held, so a scan distinguishes an item on the ground
+                    // from one in somebody's hand without a second request per row. The full answer,
+                    // including whose hand and whether this process is the authority, is
+                    // GET /thing?refId=<id>.
+                    AppendParent(row, thing);
+                    entries.Add(row.ToString());
                 });
             }
             catch (Exception ex) { o.Str("scanError", ex.Message); }
 
-            o.Bit("ok", true).Int("scanned", scanned).Int("count", entries.Count);
+            o.Bit("ok", true).Raw("epoch", Epoch.Json());
+            o.Int("scanned", scanned).Int("count", entries.Count);
             o.Raw("things", "[" + string.Join(",", entries.ToArray()) + "]");
             return o.ToString();
+        }
+
+        /// <summary>
+        ///     The one-line "is this in a slot, and whose" for a scan row. <c>ParentSlot</c> lives on
+        ///     <c>DynamicThing</c>, so a Structure reports <c>inSlot:false</c> because it cannot be
+        ///     in one, which is a different fact from an item lying on the floor.
+        /// </summary>
+        private static void AppendParent(Json.Obj row, Thing thing)
+        {
+            var dynamicThing = thing as DynamicThing;
+            if (dynamicThing == null) { row.Bit("inSlot", false); return; }
+            Slot slot = null;
+            try { slot = dynamicThing.ParentSlot; } catch { }
+            if (slot == null) { row.Bit("inSlot", false); return; }
+            row.Bit("inSlot", true);
+            try { row.Str("slotKey", slot.StringKey); } catch { }
+            try { row.Int("parentId", slot.Parent == null ? 0 : slot.Parent.ReferenceId); } catch { }
+            try { row.Str("parentName", slot.Parent == null ? null : slot.Parent.DisplayName); } catch { }
         }
     }
 }

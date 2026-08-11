@@ -271,6 +271,7 @@ namespace ClientDriver
         {
             var o = new Json.Obj();
             o.Bit("ok", true);
+            o.Raw("epoch", Epoch.Json());
             o.Str("instance", InstanceManifest.Name);
             o.Int("frame", Time.frameCount);
 

@@ -551,7 +551,7 @@ Everything below was hit for real on 0.2.6403.27689 with StationeersLaunchPad 0.
 
 **`persistentDataPath` cannot be separated.** Editing `app.info` does nothing: the player takes company and product from the serialized PlayerSettings inside `globalgamemanagers`. So `PlayerCookie-v2.xml`, `Player.log`, `Blueprints\` and the PlayerPrefs registry key are shared by every instance and by the developer's client. Identity is handled in code instead, and the cookie file is protected by suppressing `Save()`.
 
-**Every instance shares one Steam session.** Convenient (DLC entitlements are pooled, so metallic paints work everywhere) but they are not independent Steam identities and cannot be on one machine. A test needing one DLC owner and one non-owner is out of reach here.
+**Every instance shares one Steam session.** Convenient (DLC entitlements are pooled, so metallic paints work everywhere) but they are not independent Steam identities and cannot be on one machine. That bounds identity, not entitlement: a test needing one DLC owner and one non-owner needs a per-process entitlement override in ClientDriver, restricted to removing entitlement, and not a second Steam account. See `RESEARCH.md`, "What is not separable".
 
 **RAM is the constraint, not disk.** About 5 GB per instance idle at the menu, about 10 GB in world. Two instances plus the dedicated server fit comfortably in 128 GB; four would be tight. Disk is 3.6 MB for the first instance and 9.7 MB for the second.
 

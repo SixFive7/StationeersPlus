@@ -367,6 +367,7 @@ namespace ClientDriver
         private static string JoinDiagnostics()
         {
             var o = new Json.Obj().Bit("ok", true);
+            o.Raw("epoch", Epoch.Json());
             o.Str("state", JoinTrace.StateLine());
             o.Raw("peer", JoinTrace.ProbePeer().ToJson());
 

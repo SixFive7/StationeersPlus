@@ -552,6 +552,12 @@ namespace ClientDriver
         {
             try { MainThreadPump.PumpFromFrame(); }
             catch { }
+            // Sample the epoch every frame. It has to be here rather than inside the routes that
+            // report it, for the same reason JoinTrace does: a transition between two HTTP reads is
+            // exactly the thing the session counter exists to catch, and nothing asks in between.
+            // Five static reads and five integer compares in the steady state, allocating nothing.
+            try { Epoch.Tick(); }
+            catch { }
             // Sample the join state while a connect is in flight. It has to run per frame from
             // here rather than from the endpoint's own poll loop, because everything worth seeing
             // (RakNet's connection state, the peer going away) happens and is undone between two
