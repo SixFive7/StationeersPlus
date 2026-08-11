@@ -435,11 +435,24 @@ Every body field can also be passed as a query parameter, so anything is reachab
 | `POST /player/use` | `{targetId}` or `{cursor:true}`. Uses the held item on a target by reference id, no aiming required and no distance gate. |
 | `POST /player/swaphands` | Swap active and inactive hand. |
 
+### Inventory
+
+Getting an item into a hand, including a **joined** client's hand, which `/spawn/hand` cannot do.
+
+| Endpoint | Notes |
+|---|---|
+| `GET /inventory` | `?player=&humanId=`. Every slot of a character with the `key` and `index` the routes below accept. No selector means the local player. `activeHand` and `inactiveHand` only resolve for the character this process owns. |
+| `POST /inventory/arm` | `{prefab, hand=activeHand\|left\|right\|either, quantity, replace, searchRadius, timeoutMs}`. **One call, any role, joiner included.** Spawns through the server, waits for the Thing to arrive, moves it into the hand with a `MoveToSlotMessage`, waits for the server to agree. 200 only when the hand actually holds it. |
+| `POST /inventory/move` | `{thing\|from, to=activeHand, intoThing, replace, wait, timeoutMs}`. Moves an existing Thing into a slot via `OnServer.MoveToSlot`, the same call every inventory drag makes. No authority needed: on a client it is a `MoveToSlotMessage`. Waits for the slot to fill. |
+| `POST /inventory/give` | `{prefab, player\|clientId\|humanId, slot=either\|left\|right\|<key>\|<index>, quantity, replace}`. **Host only.** Creates a prefab straight into another player's slot via `OnServer.Create`, with no ground hop. Cannot target a remote player's ACTIVE hand. |
+
+`/inventory/arm` is the one to reach for. `/inventory/give` plus `/inventory/move` is the same job split across the two instances, and is the fallback when the arm route's item-identification heuristic picks the wrong loose item.
+
 ### Spawning
 
 | Endpoint | Notes |
 |---|---|
-| `POST /spawn/hand` | `{prefab}`. Straight into the active hand. Needs simulation authority, so host or single player. |
+| `POST /spawn/hand` | `{prefab}`. Straight into the active hand. Needs simulation authority, so host or single player. Use `/inventory/arm` instead on a joiner. |
 | `POST /spawn/world` | `{prefab, position\|offset\|distance, viaServer}`. On a client it routes through `OnServer.SpawnDynamicThingMaxStack`, which forwards to the server. |
 | `POST /spawn/structure` | `{prefab, position\|offset\|distance, yaw, colorIndex}`. Goes through `Constructor.SpawnConstruct`, which is client-safe. |
 | `GET /prefabs?contains=&type=&limit=` | Prefab catalogue. |
@@ -531,6 +544,8 @@ Everything below was hit for real on 0.2.6403.27689 with StationeersLaunchPad 0.
 **A forced cursor without a collider kills the client, permanently.** The cursor is a tuple, not one field, and `{FoundThing = X, CursorTargetCollider = null}` is a pair the game itself can never produce. `Thing.GetSlot(null)` then throws every frame from inside `GameManager.Update`, before the loop reaches the only code that could rebuild the cursor, so it throws again next frame forever, and `NetworkManager.ManagerUpdate` in the same loop stops processing packets. Measured at 100 exceptions per 6 seconds; only leaving the world recovered it. `/cursor/force` pins the collider alongside the target and refuses a target with no reachable collider. Full inventory in `Research/GameSystems/CursorManager.md`.
 
 **Prefer `/player/use` with a `targetId` to anything cursor-shaped.** `OnServer.AttackWith` with an explicit target has no distance or line-of-sight gate (a stroke landed from 15 m away), so aiming is never necessary. `/cursor/force` is only for code that genuinely reads `CursorManager.CursorThing`.
+
+**Picking an item up needs no cursor either.** `OnServer.MoveToSlot` is what every inventory drag in the UI ends in, and on a client it is a `MoveToSlotMessage` to the server rather than a local move. The server applies it through `Thing.MoveToSlot`, whose only gates are `CanEnter` and "destination slot is empty": no proximity check, no ownership check. So an item lying on the ground goes straight into a hand by reference id. That is what `/inventory/arm` and `/inventory/move` do, and it is why the old approach of forcing the cursor onto a dropped item was both unnecessary and doomed (`/cursor/force` returns the target's slot collider, so the click lands as a slot interaction).
 
 **The console tee merges two streams.** `GET /console/log` returns both the game console and the BepInEx log, and a mod line that goes to both appears twice, so a naive count doubles. Pass `source=console` when counting what a player would actually see.
 

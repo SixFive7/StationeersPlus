@@ -104,6 +104,15 @@ namespace ClientDriver
                 case "/player/use": return Main(() => UseOnTarget(body));
                 case "/player/swaphands": return Main(() => SwapHands());
 
+                // ---- inventory -----------------------------------------------
+                // /inventory/move and /inventory/arm are NOT wrapped in Main(...): on a client the
+                // move is a message to the server and the slot only fills when the server's next
+                // state delta arrives, so both hop to the main thread per step and poll in between.
+                case "/inventory": return Main(() => InventoryList(body));
+                case "/inventory/move": return InventoryMove(body);
+                case "/inventory/give": return InventoryGive(body);
+                case "/inventory/arm": return InventoryArm(body);
+
                 // ---- spawning ------------------------------------------------
                 case "/spawn/hand": return Main(() => SpawnIntoHand(body));
                 case "/spawn/world": return Main(() => SpawnIntoWorld(body));
