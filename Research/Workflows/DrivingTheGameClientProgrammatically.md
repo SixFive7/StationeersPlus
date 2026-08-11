@@ -3,7 +3,7 @@ title: Driving the game client programmatically
 type: Workflows
 created_in: 0.2.6403.27689
 verified_in: 0.2.6403.27689
-verified_at: 2026-07-30
+verified_at: 2026-08-11
 sources:
   - .work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs
   - .work/decomp/0.2.6403.27689/Assembly-CSharp.Human.decompiled.cs
@@ -538,7 +538,7 @@ Because the seam is `OrbitalSimulation.Draw`, this only works once the real main
 the `RenderOverlay` branch above.
 
 ## Failure modes seen on a live client
-<!-- verified: 0.2.6403.27689 @ 2026-07-27 -->
+<!-- verified: 0.2.6403.27689 @ 2026-08-11 -->
 
 **Transient Steam Workshop failure parks the client forever.** When
 `StationeersLaunchPad.Steam.FetchWorkshopPage` throws (a `NullReferenceException` out of
@@ -551,15 +551,22 @@ relaunch; an unattended loop needs to detect it and retry.
 `gameObject.activeInHierarchy`, which is true for a window early in startup with an empty
 `_dataStack` behind it. Treat a dialog as showing only when the stack has data.
 
-**`StationeersLua` and `ScriptedScreens` throw an exception every single frame.** Their
-`ScriptedScreensScriptableUiSystem` static ctor pulls `McpMultiplayerDebugProxy`, which pulls
-MessagePack, which fails with
+**`StationeersLua` and `ScriptedScreens` throw an exception every single frame.** The
+`ScriptedScreensScriptableUiSystem` static ctor reaches MessagePack directly, in one hop, with no
+intermediary type: its last statement is
+`MpOptions = MessagePackSerializerOptions.Standard.WithResolver(ContractlessStandardResolver.Instance).WithCompression(...)`,
+and from there `ContractlessStandardResolver` -> `StandardResolverHelper` ->
+`ImmutableCollectionResolver` pulls `System.Collections.Immutable, Version=8.0.0.0`, which fails with
 `Could not load file or assembly 'System.Collections.Immutable, Version=8.0.0.0'`. Once the ctor
 fails, every later access rethrows `TypeInitializationException`, and it rethrows from
 `ScriptedScreensBehaviorPatch.KeyWrap_PollForInput_Prefix` -> `KeyMap.PollInputs` ->
 `KeyManager.ManagerUpdate` -> `GameManager.Update`, i.e. every frame for the rest of the session,
 at the main menu and in world alike. It floods the console ring hard enough to evict thousands of
 lines. Disabling both mods removes the exception but does not by itself fix a stalled join.
+`StationeersLua` has a second, separate per-frame site that reaches the same poisoned library
+(`McpServerTickPatch.GameManager_Update_Postfix` -> `McpMultiplayerDebugProxy.ShouldProxyRequestsLocally()`);
+it is not part of the `ScriptedScreens` chain. Mechanism, blast radius and the resolution gap:
+[Patterns/ModDependencyAssemblyResolution.md](../Patterns/ModDependencyAssemblyResolution.md).
 
 **It is observationally log spam, not a functional break.** Field evidence from the developer:
 they host a session with both mods enabled and a second player joins normally, with the exception
@@ -635,6 +642,18 @@ Lunar world's display name being "Moon: Great Mare".
   collapses the repeats and is not a usable measure. Re-measured against the game's own console ring
   with the plugin's `UnityEngine.Input` patches disabled: the exception fires continuously with no
   join involved and with no input patching in the process.
+- 2026-08-11: conflict on "how the `ScriptedScreens` static ctor reaches MessagePack". Previous
+  claim: the ctor pulls `McpMultiplayerDebugProxy`, which pulls MessagePack. New finding: the ctor
+  reaches MessagePack directly in one hop, and `McpMultiplayerDebugProxy` is a `StationeersLua` type
+  that `ScriptedScreens.dll` does not reference at all. Fresh validator verdict: the new finding is
+  correct, established from the assembly TypeDef and TypeRef tables via `PEReader` / `MetadataReader`
+  rather than a text search, and corroborated against the `.cctor` IL. The name appears in neither
+  table of `ScriptedScreens.dll`; it is a TypeDef in `StationeersLua.dll`
+  (`StationeersLua.McpServer.McpMultiplayerDebugProxy`). `ScriptedScreens.dll` references only three
+  `StationeersLua` types (`LuaMcpRegistry`, `McpServer.McpEditorContext`, `McpServer.McpServerConfig`),
+  none of them touched by the ctor. Result: the chain was corrected in place and the separate
+  `StationeersLua` per-frame site recorded alongside it. The rest of the entry, including the
+  `KeyWrap_PollForInput_Prefix` rethrow path, was confirmed unchanged.
 
 ## Open questions
 
@@ -644,6 +663,11 @@ Lunar world's display name being "Moon: Great Mare".
   further console output, on a client whose mod set is not identical to the server's. Whether this
   is a mod-list mismatch, a verify-handshake stall, or something specific to that server's state
   was not determined. The client side of the join was verified as far as the game itself controls.
-- Whether the `System.Collections.Immutable` load failure in `StationeersLua` / `ScriptedScreens` is
-  a packaging bug in those mods or a StationeersLaunchPad assembly-resolution gap. Both mods ship
-  the DLL in their own Workshop folder and it is still not resolved at runtime.
+- Why the `System.Collections.Immutable` load fails when the correct assembly is both shipped and
+  loaded. It is neither a packaging bug nor a StationeersLaunchPad gap, which is what this entry
+  used to ask: both mods ship the exactly-correct 8.0.0.0 assembly and StationeersLaunchPad does
+  load it, so the loaded copy is present in the domain when the reference fails to bind. Whether
+  Mono suppresses the managed `AssemblyResolve` event on the field-type-loading path, or caches the
+  negative reference per image, is unresolved and needs a runtime probe rather than more
+  decompiling. Detail:
+  [Patterns/ModDependencyAssemblyResolution.md](../Patterns/ModDependencyAssemblyResolution.md).
