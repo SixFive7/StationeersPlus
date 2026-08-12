@@ -831,6 +831,114 @@ function Resolve-RigInstancePort {
     return [int]$e.port
 }
 
+function Resolve-RigInstanceEntry {
+    # The whole registry row, for the few things that need more than the port
+    # (the instance tree, so a reader can open a file the endpoint cannot serve).
+    # Same refusal as Resolve-RigInstancePort: an unprovisioned name stops the
+    # check rather than resolving to a guess.
+    param([Parameter(Mandatory)] [string] $Name)
+    if (-not $script:PlaytestRegistry) {
+        throw "No rig registry is wired, so instance '$Name' cannot be resolved. See the composition-root note at the top of playtest-lib.ps1."
+    }
+    $entries = @(& $script:PlaytestRegistry)
+    $e = $entries | Where-Object { "$($_.instanceName)" -eq $Name } | Select-Object -First 1
+    if (-not $e) {
+        $known = ($entries | ForEach-Object { "$($_.instanceName)" }) -join ', '
+        throw (New-PlaytestSignal -Kind 'inconclusive' -Detector 'instance-not-provisioned' `
+            -Message "Instance '$Name' is not in the client rig registry, so this check cannot run. Provision it first: client-rig.ps1 -Provision -As <id> -Instance $Name [-Role host]. Known instances: $known" `
+            -Detail @{ requested = $Name; known = $known })
+    }
+    return $e
+}
+
+function Resolve-RigInstanceLogPath {
+    <#
+    .SYNOPSIS
+        The instance's BepInEx LogOutput.log, on disk.
+    .DESCRIPTION
+        The instance trees normally sit on the game install's volume rather than
+        under TestRig/, so the path comes from the instancesRoot recorded in the
+        registry entry at provision time, with the same fallback order the
+        launcher uses. An entry written before that field existed falls back to
+        <RigHome>/ClientRig/instances.
+    #>
+    param([Parameter(Mandatory)] [string] $Name)
+    $e = Resolve-RigInstanceEntry -Name $Name
+    $root = "$($e.instancesRoot)"
+    if (-not $root) {
+        $root = Join-Path (Join-Path (Get-PlaytestRigHome) 'ClientRig') 'instances'
+    }
+    return (Join-Path (Join-Path (Join-Path $root $Name) 'BepInEx') 'LogOutput.log')
+}
+
+function Read-PlaytestBepInExLog {
+    <#
+    .SYNOPSIS
+        The instance's BepInEx log FILE, shaped like the console tee's response.
+    .DESCRIPTION
+        The console tee is a bounded ring (2000 lines per source by default) and
+        StationeersLaunchPad's mod loading evicts thousands of lines during boot,
+        so a boot-time line is routinely gone before any check can read it. That
+        is what turned check 05 into 'console-tee-evicted': the line it needed was
+        real, printed, and unreadable, and declining was the only honest answer.
+
+        The log file has no ring and no eviction, and the between-session state
+        reset deletes it, so each check's run starts from an empty one. That makes
+        it the right authority for anything printed during boot.
+
+        The shape deliberately mirrors GET /console/log ('count' plus 'lines' with
+        a 'text' per row) so a check switches reader name and nothing else, and
+        'exists' plus 'bytes' are reported so an absent file is a distinguishable
+        fact rather than a count of zero.
+    #>
+    param(
+        [Parameter(Mandatory)] [string] $Instance,
+        [string] $Contains = '',
+        [int] $Limit = 0
+    )
+    $path = Resolve-RigInstanceLogPath -Name $Instance
+    if (-not (Test-Path -LiteralPath $path)) {
+        return [pscustomobject]@{
+            ok = $false; instance = $Instance; path = $path; exists = $false
+            bytes = 0; count = 0; matched = 0; lines = @()
+        }
+    }
+    $bytes = 0
+    try { $bytes = [int64](Get-Item -LiteralPath $path).Length } catch { $bytes = 0 }
+    # Read shared: the game holds this file open for append while it runs, so a
+    # plain Get-Content would fail exactly when a check needs it most.
+    $all = @()
+    try {
+        $fs = [System.IO.File]::Open($path, [System.IO.FileMode]::Open,
+                                     [System.IO.FileAccess]::Read,
+                                     [System.IO.FileShare]::ReadWrite -bor [System.IO.FileShare]::Delete)
+        try {
+            $sr = New-Object System.IO.StreamReader($fs)
+            try { $all = @($sr.ReadToEnd() -split "`r?`n") } finally { $sr.Dispose() }
+        }
+        finally { $fs.Dispose() }
+    }
+    catch {
+        return [pscustomobject]@{
+            ok = $false; instance = $Instance; path = $path; exists = $true
+            bytes = $bytes; count = 0; matched = 0; lines = @()
+            error = "$($_.Exception.Message)"
+        }
+    }
+    $hits = if ($Contains) { @($all | Where-Object { $_ -and "$_".Contains($Contains) }) } else { @($all | Where-Object { $_ }) }
+    $matched = @($hits).Count
+    if ($Limit -gt 0 -and $matched -gt $Limit) { $hits = @($hits | Select-Object -First $Limit) }
+    return [pscustomobject]@{
+        ok = $true; instance = $Instance; path = $path; exists = $true
+        bytes = $bytes; totalLines = @($all).Count
+        # 'count' is the number of MATCHES, exactly as GET /console/log means it,
+        # and is not clipped by -Limit: a check counting six banner lines with a
+        # limit of 5 must read 6 and fail, not read 5 and pass.
+        count = $matched; matched = $matched
+        lines = @($hits | ForEach-Object { [pscustomobject]@{ source = 'bepinexfile'; text = $_ } })
+    }
+}
+
 function Update-PlaytestLockIfDue {
     <#
     .SYNOPSIS
@@ -1044,7 +1152,8 @@ $script:PlaytestReaders = [ordered]@{
     'thing'     = 'GET /thing?refId=&fields=. An INSTANCE field on one Thing, per machine. -Of <refId> picks the Thing, -Of <refId>/<Field> picks one field row so -Select value and -Select matchesPrefab work.'
     'reflect'   = 'GET /reflect?type=&member=. Any STATIC field or property by full type name. Instance fields belong to the thing reader.'
     'nearby'    = 'GET /nearby. Things around the player; -Of <referenceId> picks one.'
-    'console'   = 'GET /console/log. The sequence-numbered tee, for a line a mod printed.'
+    'console'   = 'GET /console/log. The sequence-numbered tee, for a line a mod printed. A BOUNDED RING: boot-time lines are routinely evicted, so read those through bepinexlog instead.'
+    'bepinexlog' = 'The instance BepInEx/LogOutput.log FILE. No ring and no eviction, and the state reset empties it per session, so it is the authority for anything printed during boot. -ReaderArgs @{ contains = <s>; limit = N }, and -Select count.'
     'inventory' = 'GET /inventory. Every slot of a character. -Of <slot key or index> picks one.'
     'plugins'   = 'GET /plugins. Every plugin found by assembly scan.'
     'savepath'  = 'GET /savepath. Where this process writes, and whether that is isolated from the developer folder.'
@@ -1074,7 +1183,7 @@ function Read-RigValue {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)] [string] $From,
-        [Parameter(Mandatory)][ValidateSet('status', 'roster', 'config', 'thing', 'reflect', 'nearby', 'console', 'inventory', 'plugins', 'savepath', 'player', 'dlc')] [string] $Reader,
+        [Parameter(Mandatory)][ValidateSet('status', 'roster', 'config', 'thing', 'reflect', 'nearby', 'console', 'bepinexlog', 'inventory', 'plugins', 'savepath', 'player', 'dlc')] [string] $Reader,
         [string] $Select = '.',
         [string] $Of = '',
         [hashtable] $ReaderArgs,
@@ -1084,8 +1193,25 @@ function Read-RigValue {
     Assert-PlaytestInstanceName -Name $From -Context $ctx -Parameter '-From'
     Update-PlaytestLockIfDue -Context $ctx
 
-    $port  = Resolve-RigInstancePort -Name $From
     $query = if ($ReaderArgs) { $ReaderArgs } else { @{} }
+
+    # bepinexlog reads a FILE, not the control plane, so it takes the same
+    # observation path as every other reader but skips the transport. Everything
+    # after this branch (evidence record, observation shape, ReaderArgs
+    # pass-through for Assert-RigChange) is deliberately shared.
+    if ($Reader -eq 'bepinexlog') {
+        $started  = Get-PlaytestNowUtc
+        $response = Read-PlaytestBepInExLog -Instance $From `
+            -Contains "$($query['contains'])" -Limit ([int]$query['limit'])
+        $elapsed = [int]((Get-PlaytestNowUtc) - $started).TotalMilliseconds
+        $ref = Write-PlaytestRequestRecord -Instance $From -Method 'FILE' -Path "$($response.path)" `
+            -Response $response -ErrorText '' -ElapsedMs $elapsed -Context $ctx
+        return (New-PlaytestObservation -From $From -Reader $Reader -Select $Select -Of $Of `
+            -ReaderArgs $ReaderArgs -Scope $response -Source "FILE $($response.path)" `
+            -EvidenceRef $ref -Context $ctx)
+    }
+
+    $port  = Resolve-RigInstancePort -Name $From
     $path = switch ($Reader) {
         'status'    { '/status' }
         'roster'    { '/status' }
@@ -1118,27 +1244,87 @@ function Read-RigValue {
             -Detail @{ instance = $From; reader = $Reader; path = $path; evidence = $ref })
     }
 
-    $scope = Resolve-PlaytestReaderScope -Reader $Reader -Response $response -Of $Of
-    $value = Select-PlaytestPath -Object $scope -Path $Select
+    return (New-PlaytestObservation -From $From -Reader $Reader -Select $Select -Of $Of `
+        -ReaderArgs $ReaderArgs -Scope $response -Source "GET $path" -EvidenceRef $ref -Context $ctx)
+}
 
+function New-PlaytestObservation {
+    <#
+    .SYNOPSIS
+        Narrow a reader response, record it, and hand back a Playtest.Observation.
+    .DESCRIPTION
+        Shared by every reader, including the ones that do not go through the
+        control plane. Two readers building their own observation is two places
+        for the ReaderArgs pass-through to be forgotten, and forgetting it once
+        already cost a campaign: Assert-RigChange re-reads from the observation,
+        so without the args the re-read hits '/thing' or '/config' with no query
+        string, the endpoint answers 400, and the check reports inconclusive with
+        no comparison made. The clone is shallow so a check that reuses and
+        mutates its own hashtable cannot retroactively change what the baseline
+        was read with.
+    #>
+    param(
+        [Parameter(Mandatory)][string] $From,
+        [Parameter(Mandatory)][string] $Reader,
+        [string] $Select = '.',
+        [string] $Of = '',
+        [hashtable] $ReaderArgs,
+        $Scope,
+        [string] $Source,
+        [string] $EvidenceRef,
+        $Context
+    )
+    $ctx = if ($Context) { $Context } else { $script:PlaytestContext }
+    $narrowed = Resolve-PlaytestReaderScope -Reader $Reader -Response $Scope -Of $Of
+    $value = Select-PlaytestPath -Object $narrowed -Path $Select
     $obs = [pscustomobject]@{
         PSTypeName  = 'Playtest.Observation'
         Instance    = $From
         Reader      = $Reader
         Select      = $Select
         Of          = $Of
+        ReaderArgs  = $(if ($ReaderArgs) { $h = @{}; foreach ($k in $ReaderArgs.Keys) { $h[$k] = $ReaderArgs[$k] }; $h } else { $null })
         Value       = $value
-        Source      = "GET $path"
+        Source      = $Source
         CapturedUtc = (Get-PlaytestStamp)
-        EvidenceRef = $ref
+        EvidenceRef = $EvidenceRef
     }
     $seq  = Get-PlaytestNextSequence -Context $ctx
     $name = '{0:d4}-{1}-{2}-{3}.json' -f $seq, (ConvertTo-PlaytestSlug $From), (ConvertTo-PlaytestSlug $Reader), (ConvertTo-PlaytestSlug $Select)
     Write-PlaytestEvidence -Kind 'observations' -Name $name -Content (ConvertTo-PlaytestJson ([ordered]@{
         instance = $From; reader = $Reader; select = $Select; of = $Of
-        value = $value; source = "GET $path"; capturedUtc = $obs.CapturedUtc; request = $ref
+        value = $value; source = $Source; capturedUtc = $obs.CapturedUtc; request = $EvidenceRef
     })) -Context $ctx | Out-Null
     return $obs
+}
+
+function ConvertTo-PlaytestArgument {
+    <#
+    .SYNOPSIS
+        Quote one argument for a child process command line.
+
+    .DESCRIPTION
+        `Start-Process -ArgumentList <string[]>` joins its elements with plain
+        spaces and quotes nothing, so any argument containing a space arrives at
+        the child as several arguments. The lock purpose defaults to the check's
+        own name and therefore ALWAYS contains spaces: every check in every suite
+        died at 'rig-unavailable' with `Cannot convert value "first-use" to type
+        "System.Int32"`, because `-Purpose the first-use notice cap ...` bound
+        `the` to -Purpose and then `first-use` positionally to the launcher's int
+        $Port. The harness could not take the lock at all.
+
+        The rule is CommandLineToArgvW's, which is what the child's parser uses:
+        wrap in double quotes, double any run of backslashes that precedes a
+        quote or ends the string, and escape embedded quotes. It is a pure
+        function so the offline suite can pin it without a process.
+    #>
+    param([string] $Value)
+    if ($null -eq $Value) { return '""' }
+    if ($Value -eq '')    { return '""' }
+    if ($Value -notmatch '[\s"]') { return $Value }
+    $escaped = [regex]::Replace($Value, '(\\*)"', '$1$1\"')
+    $escaped = [regex]::Replace($escaped, '(\\+)$', '$1$1')
+    return '"' + $escaped + '"'
 }
 
 function ConvertTo-PlaytestQuery {
@@ -1226,7 +1412,7 @@ function Assert-RigValue {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)] [string] $From,
-        [Parameter(Mandatory)][ValidateSet('status', 'roster', 'config', 'thing', 'reflect', 'nearby', 'console', 'inventory', 'plugins', 'savepath', 'player', 'dlc')] [string] $Reader,
+        [Parameter(Mandatory)][ValidateSet('status', 'roster', 'config', 'thing', 'reflect', 'nearby', 'console', 'bepinexlog', 'inventory', 'plugins', 'savepath', 'player', 'dlc')] [string] $Reader,
         [string] $Select = '.',
         [string] $Of = '',
         [hashtable] $ReaderArgs,
@@ -1288,7 +1474,7 @@ function Assert-RigAgreement {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)] [string[]] $Across,
-        [Parameter(Mandatory)][ValidateSet('status', 'roster', 'config', 'thing', 'reflect', 'nearby', 'console', 'inventory', 'plugins', 'savepath', 'player', 'dlc')] [string] $Reader,
+        [Parameter(Mandatory)][ValidateSet('status', 'roster', 'config', 'thing', 'reflect', 'nearby', 'console', 'bepinexlog', 'inventory', 'plugins', 'savepath', 'player', 'dlc')] [string] $Reader,
         [string] $Select = '.',
         [string] $Of = '',
         [hashtable] $ReaderArgs,
@@ -1351,7 +1537,13 @@ function Assert-RigChange {
     if (-not $Unchanged -and -not $PSBoundParameters.ContainsKey('To')) {
         throw "Assert-RigChange needs -To <value> or -Unchanged."
     }
-    $now = Read-RigValue -From $Baseline.Instance -Reader $Baseline.Reader -Select $Baseline.Select -Of $Baseline.Of -Context $Context
+    # The re-read must reproduce the baseline's request exactly, ReaderArgs
+    # included. It used to drop them, so every baseline taken through a reader
+    # with a query string (thing, config, console, inventory, reflect, nearby)
+    # re-read as a bare '/thing' or '/config', got a 400, and ended the check
+    # inconclusive with no comparison made at all.
+    $baselineArgs = if ($Baseline.PSObject.Properties['ReaderArgs']) { $Baseline.ReaderArgs } else { $null }
+    $now = Read-RigValue -From $Baseline.Instance -Reader $Baseline.Reader -Select $Baseline.Select -Of $Baseline.Of -ReaderArgs $baselineArgs -Context $Context
     if ($Unchanged) {
         if (Test-PlaytestValueEqual $Baseline.Value $now.Value) {
             Write-Host "[Playtest]   ok   $($Baseline.Instance).$($Baseline.Reader).$($Baseline.Select) unchanged at [$($now.Value)]"
@@ -1627,9 +1819,29 @@ function Stop-RigInstances {
     foreach ($name in $ordered) {
         $res = Invoke-RigCommand -ArgList @('-Stop', '-Instance', $name, '-As', $ctx.Owner, '-TimeoutSeconds', '60') -Label "stop-$name" -Context $ctx
         if ([int]$res.ExitCode -ne 0) {
-            $note = "stop of '$name' failed (exit $($res.ExitCode)): $((("$($res.StdErr)$($res.StdOut)" -split "`n") | Where-Object { $_.Trim() } | Select-Object -First 1))"
-            $ctx.TeardownNotes += $note
-            Write-Warning "[Playtest] $note"
+            # The launcher REFUSES to quit on top of a world whose save it could
+            # not confirm, which is right for a world somebody wants to keep and
+            # wrong for every world this harness makes. A check's world is
+            # created fresh from `World = <id>` and has no station name yet, so
+            # `/save` with no name has nothing to save under and the refusal
+            # fires on EVERY host check. Unhandled, that leaves the instance up
+            # and the rig lock held, which is the one thing teardown exists to
+            # prevent. Retry once with -Force and record that the world was
+            # discarded; a check that wanted its world kept must save it by name
+            # in its own body first.
+            $first = (("$($res.StdErr)$($res.StdOut)" -split "`n") | Where-Object { $_.Trim() } | Select-Object -First 1)
+            Write-Host "[Playtest]   stop of '$name' refused, retrying with -Force (the check's world is disposable)"
+            $forced = Invoke-RigCommand -ArgList @('-Stop', '-Instance', $name, '-As', $ctx.Owner, '-TimeoutSeconds', '60', '-Force') -Label "stop-forced-$name" -Context $ctx
+            if ([int]$forced.ExitCode -ne 0) {
+                $note = "stop of '$name' failed even with -Force (exit $($forced.ExitCode)): $((("$($forced.StdErr)$($forced.StdOut)" -split "`n") | Where-Object { $_.Trim() } | Select-Object -First 1))"
+                $ctx.TeardownNotes += $note
+                Write-Warning "[Playtest] $note"
+            }
+            else {
+                $note = "stopped '$name' with -Force after: $first"
+                $ctx.TeardownNotes += $note
+                Write-Host "[Playtest]   stopped $name (forced; that world is gone)"
+            }
         }
         else {
             Write-Host "[Playtest]   stopped $name"
@@ -1764,35 +1976,165 @@ function Start-RigInstances {
         Wait-RigStage -Name $spec.Name -Stage 'menu' -WaitSeconds $BootWaitSeconds -Context $ctx | Out-Null
         $targetName = if ($spec.ConnectTo) { "$($spec.ConnectTo)" } elseif (@($hostSpecs).Count -gt 0) { "$($hostSpecs[0].Name)" } else { '' }
         if (-not $targetName) { continue }
-
-        $hostStatus = $null
-        try { $hostStatus = Invoke-PlaytestTransport -Port (Resolve-RigInstancePort -Name $targetName) -Path '/status' -BodyJson '' -TimeoutSec 30 } catch { $hostStatus = $null }
-        $before = @(Select-PlaytestPath -Object $hostStatus -Path 'connectedClients').Count
-        $port   = if ($hostStatus -and [int]$hostStatus.hostPort -gt 0) { [int]$hostStatus.hostPort } else { 0 }
-        if ($port -le 0) {
-            throw (New-PlaytestSignal -Kind 'inconclusive' -Detector 'host-not-hosting' `
-                -Message "'$targetName' does not report a host port, so '$($spec.Name)' has nothing to join and the check is inconclusive." `
-                -Detail @{ host = $targetName })
-        }
-        $address = if ($spec.Address) { "$($spec.Address)" } else { '127.0.0.1' }
-        Invoke-RigAction -On $spec.Name -Path '/connect' -Body @{ address = $address; port = $port } -Blocking -Context $ctx | Out-Null
-        Wait-RigStage -Name $spec.Name -Stage 'inWorld' -WaitSeconds $WorldWaitSeconds -Context $ctx | Out-Null
-
-        # The authority for "did it join" is the HOST roster. The joining side
-        # answered ok on a run where nothing had joined, so its own report is
-        # recorded as evidence and never believed.
-        $hostAfter = $null
-        try { $hostAfter = Invoke-PlaytestTransport -Port (Resolve-RigInstancePort -Name $targetName) -Path '/status' -BodyJson '' -TimeoutSec 30 } catch { $hostAfter = $null }
-        $after = @(Select-PlaytestPath -Object $hostAfter -Path 'connectedClients').Count
-        if ($after -le $before) {
-            $flake = ($script:PlaytestFlakes | Where-Object { $_.Name -eq 'joiner-not-in-roster' } | Select-Object -First 1)
-            Add-PlaytestDetector -Context $ctx -Name 'joiner-not-in-roster'
-            throw (New-PlaytestSignal -Kind 'inconclusive' -Detector 'joiner-not-in-roster' `
-                -Message "'$($spec.Name)' reported a connection but the roster on '$targetName' did not grow ($before then $after). $($flake.Summary) The rig could not be brought up, so the check is inconclusive and never failed." `
-                -Detail @{ joiner = $spec.Name; host = $targetName; before = $before; after = $after })
-        }
-        Write-Host "[Playtest]   $($spec.Name) is in $targetName roster ($after client(s))"
+        Connect-RigJoiner -Name "$($spec.Name)" -To $targetName `
+            -Address $(if ($spec.Address) { "$($spec.Address)" } else { '127.0.0.1' }) `
+            -WorldWaitSeconds $WorldWaitSeconds -Context $ctx | Out-Null
     }
+}
+
+function Connect-RigJoiner {
+    <#
+    .SYNOPSIS
+        Join one instance to a host, and prove it arrived from the HOST roster.
+
+    .DESCRIPTION
+        The single implementation of "connect a joiner", used by the harness's own
+        bring-up AND by any check body that bounces a joiner. That it exists is the
+        fix for a specific failure: on 2026-08-11 four of eight checks came back
+        inconclusive with 'joiner-not-in-roster', and none of them was a join
+        problem. Ten of ten hand-driven joins landed on the same rig the same
+        evening, and the harness's own bring-up connected every one of those four.
+        What failed was the SECOND connect, the one a check body issues after it has
+        disconnected the joiner to change its client half, because that path had its
+        own copy of the logic and the copy did not retry.
+
+        Three things this does that a bare POST /connect does not:
+
+          - It confirms from the HOST, never from the joiner. A /connect answered ok
+            on a run where nothing had joined; the server-side roster is the only
+            authority for "did it arrive".
+          - It POLLS the roster instead of reading it once. The roster is written
+            when the server registers the client, which is not the same instant the
+            joiner reports inWorld, so a single read right after the barrier can be
+            a real join measured too early.
+          - It RETRIES, because "a client that has just disconnected is still
+            settling" is documented behaviour and the reason connect-first-attempt
+            sits at the top of the flake taxonomy. Each retry disconnects first, so
+            the next attempt starts from the menu rather than from a half state.
+
+        A retry makes the check a DEGRADED pass, never a clean one, exactly like
+        every other retried condition.
+
+    .OUTPUTS
+        An object carrying Roster (the host-side count after arrival), Attempts,
+        and SeqBeforeConnect.
+
+        SeqBeforeConnect is the joiner's console sequence number read immediately
+        before the FINAL /connect, and it exists because retrying broke a check
+        that retrying was supposed to fix. Anything the mod prints once PER JOIN
+        (the join summary, the effective-settings line) appears once per attempt,
+        so a check that baselined its console before the whole helper ran counted
+        three lines after three attempts and failed a correct mod. Baseline from
+        this instead: it is the sequence as of the join that actually landed, so
+        the count is per-join however many attempts it took.
+    #>
+    param(
+        [Parameter(Mandatory)][string] $Name,
+        [Parameter(Mandatory)][string] $To,
+        [string] $Address = '127.0.0.1',
+        [int] $Port = 0,
+        [int] $WorldWaitSeconds = 600,
+        [int] $Attempts = 3,
+        [double] $GapSeconds = 10,
+        [double] $RosterPollSeconds = 30,
+        $Context
+    )
+    $ctx = if ($Context) { $Context } else { $script:PlaytestContext }
+
+    function Get-RosterCount([string] $HostName) {
+        $s = $null
+        try { $s = Invoke-PlaytestTransport -Port (Resolve-RigInstancePort -Name $HostName) -Path '/status' -BodyJson '' -TimeoutSec 30 }
+        catch { return -1 }
+        return @(Select-PlaytestPath -Object $s -Path 'connectedClients').Count
+    }
+
+    $hostStatus = $null
+    try { $hostStatus = Invoke-PlaytestTransport -Port (Resolve-RigInstancePort -Name $To) -Path '/status' -BodyJson '' -TimeoutSec 30 } catch { $hostStatus = $null }
+    $resolvedPort = if ($Port -gt 0) { $Port } elseif ($hostStatus -and [int]$hostStatus.hostPort -gt 0) { [int]$hostStatus.hostPort } else { 0 }
+    if ($resolvedPort -le 0) {
+        Add-PlaytestDetector -Context $ctx -Name 'host-not-hosting'
+        throw (New-PlaytestSignal -Kind 'inconclusive' -Detector 'host-not-hosting' `
+            -Message "'$To' does not report a game port, so '$Name' has nothing to join and the check is inconclusive." `
+            -Detail @{ host = $To; joiner = $Name })
+    }
+
+    $before = @(Select-PlaytestPath -Object $hostStatus -Path 'connectedClients').Count
+    $lastAfter = $before
+    for ($attempt = 1; $attempt -le $Attempts; $attempt++) {
+        if ($attempt -gt 1) {
+            # Start from the menu. Reconnecting from a half-joined state is what
+            # the settling window is about, and neither of these two is a reason
+            # to stop trying: the disconnect is best-effort and the barrier after
+            # it is only there to give the client time to land at the menu.
+            try { Invoke-RigAction -On $Name -Path '/disconnect' -Body @{ } -Blocking -NoRetry -Context $ctx | Out-Null } catch { }
+            try { Wait-RigStage -Name $Name -Stage 'menu' -WaitSeconds 180 -Context $ctx | Out-Null } catch { }
+            Wait-PlaytestSeconds $GapSeconds
+            Add-PlaytestDetector -Context $ctx -Name 'connect-first-attempt'
+            Add-PlaytestAttempt -Context $ctx -Attempts $attempt
+            Write-Host "[Playtest]   $Name retrying the join to $To (attempt $attempt of $Attempts)"
+        }
+
+        # NOT `continue` from inside a catch. `break` and `continue` in a
+        # try/catch are flow-control exceptions in PowerShell: they unwind past
+        # the enclosing try and, from inside a function, can escape the loop and
+        # even the function entirely, so the caller's own foreach silently takes
+        # the continue. A flag keeps the control flow ordinary and readable.
+        $arrived = $false
+        $lastError = $null
+        # Read immediately before the connect, so a caller measuring per-join
+        # output baselines from the attempt that actually landed rather than from
+        # before the retries. See the OUTPUTS note above.
+        $seqBefore = $null
+        try {
+            $s = Invoke-PlaytestTransport -Port (Resolve-RigInstancePort -Name $Name) -Path '/console/log?limit=1' -BodyJson '' -TimeoutSec 30
+            $seqBefore = $s.nextSeq
+        }
+        catch { $seqBefore = $null }
+        try {
+            Invoke-RigAction -On $Name -Path '/connect' -Body @{ address = $Address; port = $resolvedPort } -Blocking -Context $ctx | Out-Null
+            Wait-RigStage -Name $Name -Stage 'inWorld' -WaitSeconds $WorldWaitSeconds -Context $ctx | Out-Null
+            $arrived = $true
+        }
+        catch {
+            # Keep it: if every attempt fails this way, the last one explains the
+            # give-up better than the roster count does.
+            $lastError = $_
+        }
+
+        if ($arrived) {
+            # Poll rather than read once: inWorld on the joiner and the row
+            # appearing in the server roster are two different instants.
+            $deadline = (Get-PlaytestNowUtc).AddSeconds($RosterPollSeconds)
+            do {
+                $lastAfter = Get-RosterCount $To
+                if ($lastAfter -gt $before) {
+                    Write-Host "[Playtest]   $Name is in $To roster ($lastAfter client(s), attempt $attempt)"
+                    return [pscustomobject]@{
+                        PSTypeName       = 'Playtest.JoinResult'
+                        Joiner           = $Name
+                        Host             = $To
+                        Roster           = $lastAfter
+                        Attempts         = $attempt
+                        SeqBeforeConnect = $seqBefore
+                    }
+                }
+                Wait-PlaytestSeconds 2
+            } while ((Get-PlaytestNowUtc) -lt $deadline)
+        }
+        elseif ($attempt -ge $Attempts -and $lastError) {
+            # Every attempt died at the connect itself rather than at the roster,
+            # so the connect's own signal is the honest answer. Rethrowing it
+            # keeps its detector (connect-first-attempt, boot-timeout, whatever
+            # fired) instead of relabelling it as a roster problem it is not.
+            throw $lastError
+        }
+    }
+
+    $flake = ($script:PlaytestFlakes | Where-Object { $_.Name -eq 'joiner-not-in-roster' } | Select-Object -First 1)
+    Add-PlaytestDetector -Context $ctx -Name 'joiner-not-in-roster'
+    throw (New-PlaytestSignal -Kind 'inconclusive' -Detector 'joiner-not-in-roster' `
+        -Message "'$Name' reported a connection but the roster on '$To' did not grow ($before then $lastAfter) after $Attempts attempt(s), each polled for $RosterPollSeconds s. $($flake.Summary) The rig could not be brought up, so the check is inconclusive and never failed." `
+        -Detail @{ joiner = $Name; host = $To; before = $before; after = $lastAfter; attempts = $Attempts })
 }
 
 function Start-RigInstanceProcess {

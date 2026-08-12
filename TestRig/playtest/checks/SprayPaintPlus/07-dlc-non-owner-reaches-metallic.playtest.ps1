@@ -136,16 +136,13 @@ Register-PlaytestCheck `
             Assert-RigValue -From 'hostie' -Reader dlc -Select 'state.removedOwned' -Matches 'MetallicPaints' `
                 -Because 'DLCManager._ownedDLC is read at world entry by both paths that fill the session pool, so a removal that did not survive it would leave the host quietly owning the DLC and every reading below would be about the wrong arrangement'
 
-            $hostPort = Read-RigValue -From 'hostie' -Reader status -Select 'hostPort'
-            Invoke-RigAction -On 'joiner' -Path '/connect' `
-                -Body @{ address = '127.0.0.1'; port = [int]$hostPort.Value } -Blocking | Out-Null
-            Wait-RigStage -Name 'joiner' -Stage 'inWorld' -WaitSeconds 600 | Out-Null
-
-            $roster = Read-RigValue -From 'hostie' -Reader roster -Select 'count'
-            if ([int]$roster.Value -lt 2) {
-                Set-PlaytestInconclusive -Detector 'joiner-not-in-roster' `
-                    -Because "the host roster carries $($roster.Value) entries (the host counts as one of them), so the owner is not in the session and cannot have contributed anything to the pool"
-            }
+            # The harness's own bring-up path, not a copy of it. This check
+            # declares no host in -Instances (so bring-up stops at the menu and
+            # the body can strip the entitlement first), which used to mean it
+            # also had to hand-roll the join; the hand-rolled version connected
+            # once and read the roster once, and reported joiner-not-in-roster on
+            # 2026-08-11 on a rig that was joining fine.
+            Connect-RigJoiner -Name 'joiner' -To 'hostie' | Out-Null
             Wait-PlaytestSeconds 5
 
             # ---- 5. The pool, read on the authority. This is vanilla shared-DLC

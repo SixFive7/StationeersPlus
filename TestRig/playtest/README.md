@@ -156,6 +156,7 @@ Omitting `-Binary` and calling `Assert-BinaryUnderTest` yourself in the body is 
 | `Invoke-RigAction -On <instance> -Path <endpoint> [-Body <hashtable>] [-Blocking] [-NoRetry] [-TimeoutSec N]` | One endpoint on one instance, with the flake taxonomy applied. Returns `Playtest.ActionResult` (instance, path, attempts, degraded, raw response, evidence reference). `-Blocking` marks an endpoint that freezes that instance's whole control plane (`/host`, `/connect`, `/save`, `/load`, `/newworld`, `/waitfor`), so a transport silence there is explained rather than treated as a dead instance. Throws inconclusive when it cannot complete. |
 | `Wait-RigStage -Name <instance> -Stage ping\|modsLoaded\|menu\|inWorld [-WaitSeconds N]` | Barrier on one instance, with the taxonomy applied to the wait itself. Deliberately not the launcher's own `-Wait`: the detectors need the `/status` blob at the moment the barrier gives up, and a barrier in a child process can only report that it timed out. |
 | `Restart-RigInstance -Name <instance>` | Stop and start that ONE instance. Never `-All`. |
+| `Connect-RigJoiner -Name <joiner> -To <host> [-Address] [-Port] [-Attempts N] [-GapSeconds N] [-RosterPollSeconds N]` | Join one instance to a host and prove it arrived **from the host's roster**. The single implementation, used by the harness's own bring-up and by any check body that bounces a joiner. It reads the port off the host, POLLS the roster rather than reading it once (inWorld on the joiner and the row appearing server-side are different instants), and retries from the menu, because a client that has just disconnected is still settling. A retry makes the check a degraded pass. **Use this rather than driving `/connect` yourself**: four checks reported `joiner-not-in-roster` on a rig that was joining fine, purely because each carried its own copy of the logic and the copies did not confirm-and-retry. |
 | `Save-PlaytestConsoleTail [-Step <label>] [-Instances <names>]` | Append each instance's console tail to the evidence bundle. Never throws. |
 
 ### Reading
@@ -170,11 +171,28 @@ Omitting `-Binary` and calling `Assert-BinaryUnderTest` yourself in the body is 
 | `thing` | `GET /thing?refIds=&fields=`. An **instance** field on one object, per machine. `-Of '<refId>'` picks the Thing; `-Of '<refId>/<Field>'` picks one field row, so `-Select value` and `-Select matchesPrefab` read what a check wants. |
 | `reflect` | `GET /reflect?type=&member=`. **Statics only.** Instance fields belong to `thing`. |
 | `nearby` | `GET /nearby`. `-Of <referenceId>` picks one Thing. |
-| `console` | `GET /console/log`. |
+| `console` | `GET /console/log`. A BOUNDED RING (2000 lines per source), so boot-time lines are routinely gone before a check can read them. Use it for anything printed while the check is driving. |
+| `bepinexlog` | The instance's `BepInEx/LogOutput.log` FILE, resolved through the `instancesRoot` in the rig registry. No ring, no eviction, and the state reset empties it per session, so it is the authority for anything printed during BOOT. `-ReaderArgs @{ contains = '<s>'; limit = N }`, then `-Select count`. `limit` clips the returned lines and never the count, so a check counting six lines with a limit of five still reads six. It also reports `exists`, so an absent log is distinguishable from a mod that printed nothing. |
 | `inventory` | `GET /inventory`. `-Of <slot key or index>`. |
 | `plugins`, `savepath`, `player`, `dlc` | The remaining plain reads. |
 
 **`matchesPrefab` is not decoration.** A value equal to the one on the object's untouched prefab is indistinguishable from never having been set on that instance, and a live run drew the wrong conclusion from exactly that. When a check reads an instance field as evidence that something happened, assert `matchesPrefab` is `$false` on the object that was acted on, and expect `$true` on a control that was not.
+
+**...but `matchesPrefab` is useless on a REFERENCE-typed member, and it fails silently.** `/thing` decides `matchesPrefab` by rendering the instance value and the prefab value and comparing the renderings. For a reference type whose `ToString` is not overridden, both render as the bare type name, so the two always match. `Thing.CustomColor` is the case that bit: it is an `Assets.Scripts.Objects.ColorSwatch`, and on every Thing in the world, painted or not, it reads
+
+```
+"value": "Assets.Scripts.Objects.ColorSwatch"
+"prefabValue": { "value": "Assets.Scripts.Objects.ColorSwatch" }
+"matchesPrefab": true      <- always
+"isNull": false            <- always
+```
+
+A campaign spent a day on a mod defect that did not exist because three checks read that member and concluded nothing had been painted. **Before using a field as evidence, look at its `valueType` in the response.** If the rendering is a type name rather than a value, the field cannot answer the question. For colour specifically, read the row-level `customColorIndex`, which `/thing` computes the way the game does.
+
+**Two more traps in the same family, both measured:**
+
+- **Pick a starting value the action cannot coincidentally produce.** `StructureCableStraight` spawns at `customColorIndex` 4, which is exactly what `ItemSprayCanRed` applies, so before and after are identical on a working stroke and on a stroke that never happened. `/spawn/structure` takes a `colorIndex`, so spawn the scene in a colour the action will change (gray 1 in, red 4 out) and the reading becomes falsifiable.
+- **Assert that the ACTION landed before you assert what it implies.** Every check that reads a consequence should first assert the direct effect. The three checks that went wrong all asserted on console output that only appears when a stroke lands, with nothing anywhere asserting that a stroke landed, so a scene that was never painted and a mod that never spoke were indistinguishable.
 
 `-Select` is a dotted path with array indexing and a `count` pseudo-member: `hosting`, `connectedClients.count`, `connectedClients[0].username`. A path that does not resolve reads `$null`, and the assert verb decides whether absent is wrong.
 
@@ -184,7 +202,7 @@ Omitting `-Binary` and calling `Assert-BinaryUnderTest` yourself in the body is 
 |---|---|
 | `Assert-RigValue -From <instance> -Reader <r> [-Select <path>] [-Of <id>] (-Is\|-IsNot\|-Matches\|-AtLeast\|-AtMost\|-Contains) <value> -Because <text>` | Read through a reader and require the value. Exactly one comparison. `-Because` is mandatory: a report saying "hosting was False" is a puzzle, one saying why it matters is a finding. |
 | `Assert-RigAgreement -Across <names> -Reader <r> [-Select] [-Is] -Because <text>` | Every named instance must report the same value, and optionally that value. The shape of nearly every multiplayer check. |
-| `Assert-RigChange -Baseline <observation> (-To <value>\|-Unchanged) -Because <text>` | Compare against a `Read-RigValue` taken before the action. A single snapshot cannot tell you whether a field changed, and `-Unchanged` is the control half of the same discipline. A remembered raw value is refused: it carries no instance, no reader and no evidence reference. |
+| `Assert-RigChange -Baseline <observation> (-To <value>\|-Unchanged) -Because <text>` | Compare against a `Read-RigValue` taken before the action. A single snapshot cannot tell you whether a field changed, and `-Unchanged` is the control half of the same discipline. A remembered raw value is refused: it carries no instance, no reader and no evidence reference. The re-read reproduces the baseline's request in full, **`-ReaderArgs` included**: an observation carries a copy of them for exactly this. Without that it re-read as a bare `/thing` or `/config`, which answers 400, so every baseline taken through a reader with a query string ended the check inconclusive with no comparison made. |
 | `Assert-BinaryUnderTest -On <names> -Mod <guid> [-ExpectedConfigCount N] [-ExpectedGroupCount N] [-DllPath] [-DeployedRelativePath]` | See above. |
 | `Set-PlaytestInconclusive -Because <text> [-Detector <name>]` | For a check that discovers it cannot make its observation. There is no `Set-PlaytestFail`: a second way to spell "fail" would be the bare-boolean back door this harness exists to close. |
 
@@ -332,6 +350,13 @@ That indirection is what makes the offline suite honest. A library that reaches 
 These are capabilities a check may reasonably want. Each one currently forces `Set-PlaytestInconclusive` or a workaround.
 
 The largest one closed while this harness was being written: **per-Thing instance fields**. `/nearby` carries a fixed set of fields and `/reflect` reads statics only, so reading something like an emission colour per side used to mean InspectorPlus request files. `GET /thing?refIds=&fields=` now answers it directly, with a `matchesPrefab` flag on every field, and the `thing` reader here is built on it. There is deliberately no `inspector` reader: a file-drop round trip pretending to be an endpoint would have been the wrong shape to standardise on.
+
+A second one closed on 2026-08-12: **boot-time log lines**. The console tee is a
+2000-line ring per source and StationeersLaunchPad's mod loading evicts thousands of
+lines during boot, so a check needing a line printed at load time could only decline
+(`console-tee-evicted`) however correct the mod was. The `bepinexlog` reader reads
+`BepInEx/LogOutput.log` off disk instead: no ring, nothing ages off, and the
+between-session state reset empties it so what it holds is this run only.
 
 Still open:
 

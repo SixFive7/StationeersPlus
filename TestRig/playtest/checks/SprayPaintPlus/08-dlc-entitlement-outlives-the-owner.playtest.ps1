@@ -117,16 +117,11 @@ Register-PlaytestCheck `
             Assert-RigValue -From 'hostie' -Reader dlc -Select 'state.removedOwned' -Matches 'MetallicPaints' `
                 -Because 'a strip that did not survive world entry would leave the host owning the DLC outright, and the whole check would be measuring a process that never lost anything'
 
-            $hostPort = Read-RigValue -From 'hostie' -Reader status -Select 'hostPort'
-            Invoke-RigAction -On 'joiner' -Path '/connect' `
-                -Body @{ address = '127.0.0.1'; port = [int]$hostPort.Value } -Blocking | Out-Null
-            Wait-RigStage -Name 'joiner' -Stage 'inWorld' -WaitSeconds 600 | Out-Null
-
-            $roster = Read-RigValue -From 'hostie' -Reader roster -Select 'count'
-            if ([int]$roster.Value -lt 2) {
-                Set-PlaytestInconclusive -Detector 'joiner-not-in-roster' `
-                    -Because "the host roster carries $($roster.Value) entries (the host counts as one of them), so the owner never joined and never contributed its entitlement"
-            }
+            # The harness's own bring-up path, not a copy of it: it reads the port
+            # off the host, polls the HOST roster rather than reading it once, and
+            # retries from the menu. The copy this replaced reported
+            # joiner-not-in-roster on 2026-08-11 on a rig that was joining fine.
+            Connect-RigJoiner -Name 'joiner' -To 'hostie' | Out-Null
             Wait-PlaytestSeconds 5
 
             $poolWithOwner = Read-RigValue -From 'hostie' -Reader dlc -Select 'state.shared'

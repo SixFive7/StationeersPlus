@@ -137,12 +137,32 @@ Initialize-PlaytestLib `
         $outFile = [System.IO.Path]::GetTempFileName()
         $errFile = [System.IO.Path]::GetTempFileName()
         try {
+            # Every argument is quoted before it crosses the process boundary,
+            # because Start-Process -ArgumentList joins a string[] with plain
+            # spaces and quotes NOTHING. The first thing that broke on it is the
+            # one argument that always contains spaces: the lock purpose defaults
+            # to the check's own name, so `-Purpose the first-use notice cap ...`
+            # arrived at the launcher as `-Purpose the` followed by `first-use`
+            # positionally, which binds to the int $Port. Every check in every
+            # suite therefore died at `rig-unavailable` with a type-conversion
+            # message, and the harness could not take the lock at all.
             $full = @('-NoProfile', '-NonInteractive', '-File', $ClientRigScript) + $ArgList
+            $full = @($full | ForEach-Object { ConvertTo-PlaytestArgument $_ })
             # -NoNewWindow inherits this console instead of allocating one, so
             # nothing flashes and nothing takes the developer's foreground. The
             # rig's never-touch-the-foreground rule applies to the harness too.
-            $p = Start-Process -FilePath $PwshExe -ArgumentList $full -NoNewWindow -PassThru -Wait `
+            #
+            # -PassThru then WaitForExit(), NEVER Start-Process -Wait. `-Wait`
+            # waits for the process AND ITS DESCENDANTS, and `-Start` launches a
+            # game that is meant to outlive the launcher by design. So the second
+            # command the harness ever issued blocked until the game exited: the
+            # host booted, sat at the menu, and the runner waited behind it
+            # forever with no timeout and nothing in the evidence bundle after
+            # the lock record. Measured at 18 minutes before the run was killed
+            # by hand. WaitForExit() waits for THIS child only.
+            $p = Start-Process -FilePath $PwshExe -ArgumentList $full -NoNewWindow -PassThru `
                     -RedirectStandardOutput $outFile -RedirectStandardError $errFile
+            $p.WaitForExit()
             return [pscustomobject]@{
                 ExitCode = [int]$p.ExitCode
                 StdOut   = (Get-Content -Raw -LiteralPath $outFile -ErrorAction SilentlyContinue)

@@ -85,12 +85,18 @@ Register-PlaytestCheck `
                 -Of 'Client - Network Painting/Network Paint Cables' -Select 'value' -Is $true `
                 -Because 'WarningNotifier only speaks when the SERVER half is the blocker: a player who turned their own half off gets silence by design, which would read as a working cap for the wrong reason'
 
-            # ---- 2. Five cable segments, two metres apart in a line, so they
-            # form one CableNetwork. Four of them are seeds for the four strokes;
-            # the fifth is never aimed at and is the flood control.
+            # ---- 2. Five cable segments, two metres apart in a line. Four are
+            # seeds for the four strokes; the fifth is never aimed at.
+            #
+            # colorIndex 1 (ColorGray) is NOT decoration. A cable spawned with no
+            # colour comes up at customColorIndex 4, which is ColorRed, which is
+            # exactly what ItemSprayCanRed applies, so before and after read the
+            # same and no stroke can be proved to have landed. That is what made
+            # the 2026-08-11 run conclude nothing had been painted when the seed
+            # had in fact been painted every time. Gray in, red out, unambiguous.
             for ($i = 0; $i -lt 5; $i++) {
                 $r = Invoke-RigAction -On 'hostie' -Path '/spawn/structure' -Body @{
-                    prefab = 'StructureCableStraight'; distance = 2; offset = @(($i * 2), 0, 0)
+                    prefab = 'StructureCableStraight'; distance = 2; offset = @(($i * 2), 0, 0); colorIndex = 1
                 }
                 $id = "$($r.Response.referenceId)"
                 if (-not $id -or $id -eq '0') {
@@ -144,20 +150,36 @@ Register-PlaytestCheck `
                 -Select 'count' -Is 0 `
                 -Because 'the fourth stroke at the same function must print nothing at all; the substring here is deliberately looser than the counted one, so a notice that reappeared under different wording is still caught'
 
-            # ---- 7. The control, from the authority. The console is a report
-            # about a decision; this is the decision itself. A cable in the same
-            # network that was never aimed at must still be unpainted, which is
-            # what "the flood was blocked" means.
-            Assert-RigValue -From 'hostie' -Reader thing `
-                -ReaderArgs @{ refIds = $control; fields = 'CustomColor' } `
-                -Of "$control/CustomColor" -Select 'isNull' -Is $true `
-                -Because 'the server half refused cable painting, so the network flood must not have reached this segment; if it carries a colour the notices were printed while the paint went through anyway'
-
+            # ---- 7. The decision itself, from the authority. The console above is
+            # a report ABOUT a decision; these two read the world.
+            #
+            # Read customColorIndex, the row-level value /thing computes the way
+            # the game does. NOT the CustomColor member: Thing.CustomColor is a
+            # ColorSwatch REFERENCE whose rendering is the literal string
+            # "Assets.Scripts.Objects.ColorSwatch", identical on the instance and
+            # on the prefab, so matchesPrefab is always true and isNull always
+            # false no matter what has been painted. This check used to assert
+            # isNull on it, which can never be true, and the previous campaign
+            # read the same member and concluded nothing had been painted when
+            # every stroke had in fact landed.
             $painted = $spawned[0]
             Assert-RigValue -From 'hostie' -Reader thing `
                 -ReaderArgs @{ refIds = $painted; fields = 'CustomColor' } `
-                -Of "$painted/CustomColor" -Select 'isNull' -Is $false `
-                -Because 'the seed the player actually aimed at is painted by vanilla and must have a colour; without this the control above would also pass on a run where no stroke ever landed'
+                -Of $painted -Select 'customColorIndex' -Is 4 `
+                -Because 'the seed the player aimed at was spawned ColorGray (1) and ItemSprayCanRed applies ColorRed (4), so this is the assertion that proves a stroke landed at all. It is the one that was missing: without it every console count above could read 0 for the mundane reason that nothing was ever painted, and a whole campaign was spent on that'
+
+            # A runaway-paint guard, and ONLY that. It is deliberately NOT
+            # evidence that the flood was blocked: cables placed by
+            # Constructor.SpawnConstruct never join each other's CableNetwork on
+            # this rig (measured over eight layouts: both axes, yaw 0 and 90,
+            # spacing 0.5 m, 1 m and 2 m, every one painting the seed and leaving
+            # the rest), so each carries a singleton network and there is no flood
+            # to block. What this still catches is paint reaching an object nobody
+            # aimed at, which would be a real defect whatever the topology.
+            Assert-RigValue -From 'hostie' -Reader thing `
+                -ReaderArgs @{ refIds = $control; fields = 'CustomColor' } `
+                -Of $control -Select 'customColorIndex' -Is 1 `
+                -Because 'this segment was never aimed at, so it must still carry the ColorGray it was spawned with; paint arriving on an object nobody targeted is a defect regardless of whether a network flood was involved'
         }
         finally {
             # ---- Clean up: the spawned cables and the can, and the config back

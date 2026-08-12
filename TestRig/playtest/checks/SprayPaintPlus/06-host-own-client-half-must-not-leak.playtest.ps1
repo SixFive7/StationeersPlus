@@ -100,11 +100,19 @@ Register-PlaytestCheck `
                 -Of 'Client - Glow Paint/Glow Paint' -Select 'value' -Is $true `
                 -Because 'the acting player half is merged per player on the server, so a joiner with its own half off would be blocked by its own choice'
 
-            # ---- 2. Two cable segments, six metres apart so they are separate
-            # networks and a network flood cannot reach from one to the other.
+            # ---- 2. Two cable segments, six metres apart so a network flood
+            # cannot reach from one to the other. (Measured separately: cables
+            # placed by Constructor.SpawnConstruct never join each other's
+            # CableNetwork on this rig at any spacing, so they are independent
+            # anyway. The six metres is belt and braces, not the mechanism.)
+            #
+            # colorIndex 1 (ColorGray) is load bearing. A cable spawned with no
+            # colour comes up at customColorIndex 4, which is exactly what
+            # ItemSprayCanRed applies, so "did the plain paint land" would be
+            # unanswerable: before and after would both read 4. Gray in, red out.
             foreach ($offset in @(0, 6)) {
                 $r = Invoke-RigAction -On 'hostie' -Path '/spawn/structure' -Body @{
-                    prefab = 'StructureCableStraight'; distance = 3; offset = @($offset, 0, 0)
+                    prefab = 'StructureCableStraight'; distance = 3; offset = @($offset, 0, 0); colorIndex = 1
                 }
                 $id = "$($r.Response.referenceId)"
                 if (-not $id -or $id -eq '0') {
@@ -134,12 +142,26 @@ Register-PlaytestCheck `
                 -Of $target -Select 'location.authoritative' -Is $true `
                 -Because 'every glow assertion below is read here, and a value read on a machine that does not run the simulation is that machine own view rather than the world state'
 
+            # Did the plain paint land at all? Ask that FIRST, and separately.
+            # On 2026-08-11 this check declined with 'baseline-not-matte' and the
+            # message guessed at two causes without being able to tell them apart.
+            # The colour index answers it outright: gray in, red out means the
+            # stroke landed, so anything still wrong with EmissionColor after this
+            # point is a fact about EmissionColor rather than a missing stroke.
+            $paintLanded = Read-RigValue -From 'hostie' -Reader thing `
+                -ReaderArgs @{ refIds = $target; fields = 'CustomColor' } `
+                -Of $target -Select 'customColorIndex'
+            if ("$($paintLanded.Value)" -ne '4') {
+                Set-PlaytestInconclusive -Detector 'seed-not-painted' `
+                    -Because "the target was spawned ColorGray (1) and reads customColorIndex=$($paintLanded.Value) after a plain ItemSprayCanRed stroke, so the stroke never landed and the matte baseline every glow assertion rests on was never established. Nothing was measured about the mod. This is the rig or the scene, not the mod: the prefix on OnServer.SetCustomColor is void and cannot suppress the seed."
+            }
+
             $targetBefore = Read-RigValue -From 'hostie' -Reader thing `
                 -ReaderArgs @{ refIds = $target; fields = 'EmissionColor.r' } `
                 -Of "$target/EmissionColor.r" -Select 'value'
             if ("$($targetBefore.Value)" -ne '0') {
                 Set-PlaytestInconclusive -Detector 'baseline-not-matte' `
-                    -Because "the target reads EmissionColor.r=$($targetBefore.Value) after a plain paint, so the baseline is not matte and a later reading of 1 would prove nothing. Thing.EmissionColor initialises to Color.white, so this is what an unpainted object looks like: the plain paint did not land."
+                    -Because "the plain stroke DID land (customColorIndex went 1 to 4) and the target still reads EmissionColor.r=$($targetBefore.Value), so a plain paint does not drive EmissionColor to (0,0,0,0) on a StructureCableStraight the way it does on Piping. Thing.EmissionColor initialises to Color.white, so a later reading of 1 would be indistinguishable from that initial value and the glow assertion cannot be made on this object. Restage the check on a pipe, which is what the 2026-08-09 glow run used."
             }
 
             # ---- 4. The joiner arms a gun, switches it on, and paints. Holding

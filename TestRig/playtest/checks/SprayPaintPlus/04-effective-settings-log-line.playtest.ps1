@@ -142,21 +142,17 @@ Register-PlaytestCheck `
         Invoke-RigAction -On 'joiner' -Path '/disconnect' -Body @{ } -Blocking | Out-Null
         Wait-RigStage -Name 'joiner' -Stage 'menu' -WaitSeconds 180 | Out-Null
 
-        $hostPort = Read-RigValue -From 'hostie' -Reader status -Select 'hostPort'
-        if ([int]$hostPort.Value -le 0) {
-            Set-PlaytestInconclusive -Detector 'host-not-hosting' `
-                -Because 'the host stopped reporting a game port while the joiner was at the menu, so there is nothing to rejoin and no join payload was ever built'
-        }
+        # The harness's own bring-up path, reused rather than copied. The copy
+        # this replaced connected once and read the roster once, which is the
+        # 2026-08-11 joiner-not-in-roster inconclusive on a rig that was joining
+        # fine.
+        $join = Connect-RigJoiner -Name 'joiner' -To 'hostie'
 
-        Invoke-RigAction -On 'joiner' -Path '/connect' `
-            -Body @{ address = '127.0.0.1'; port = [int]$hostPort.Value } -Blocking | Out-Null
-        Wait-RigStage -Name 'joiner' -Stage 'inWorld' -WaitSeconds 600 | Out-Null
-
-        $roster = Read-RigValue -From 'hostie' -Reader roster -Select 'count'
-        if ([int]$roster.Value -lt 2) {
-            Set-PlaytestInconclusive -Detector 'joiner-not-in-roster' `
-                -Because "the host roster carries $($roster.Value) entries after the rejoin (the host counts as one of them), so the joiner never arrived and nothing was measured about the mod"
-        }
+        # Re-baseline from the join that actually LANDED. LogEffectiveSettings
+        # runs once per join, so a window opened before a retried join holds one
+        # line per attempt and the "exactly one Info line" assertion would fail a
+        # correct mod.
+        if ($join.SeqBeforeConnect) { $seq0 = @{ Value = $join.SeqBeforeConnect } }
         Wait-PlaytestSeconds 5
 
         # ---- Conclude on the joiner, which is the authority for its own log

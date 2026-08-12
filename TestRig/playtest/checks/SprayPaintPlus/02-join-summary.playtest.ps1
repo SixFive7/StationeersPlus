@@ -103,24 +103,22 @@ Register-PlaytestCheck `
             Invoke-RigAction -On 'joiner' -Path '/disconnect' -Body @{ } -Blocking | Out-Null
             Wait-RigStage -Name 'joiner' -Stage 'menu' -WaitSeconds 180 | Out-Null
 
-            $hostPort = Read-RigValue -From 'hostie' -Reader status -Select 'hostPort'
-            if ([int]$hostPort.Value -le 0) {
-                Set-PlaytestInconclusive -Detector 'host-not-hosting' `
-                    -Because 'the host stopped reporting a game port while the joiner was at the menu, so there is nothing to rejoin and nothing was measured about the mod'
-            }
+            # Connect-RigJoiner is the harness's own bring-up path, reused here
+            # verbatim. This check used to have its own copy, and the copy did not
+            # confirm-and-retry: on 2026-08-11 it reported joiner-not-in-roster on
+            # a rig where 10 of 10 hand-driven joins landed the same evening. The
+            # helper reads the port off the host, polls the HOST roster rather
+            # than reading it once, and retries from the menu, because "a client
+            # that has just disconnected is still settling" is documented
+            # behaviour and this is exactly that window.
+            $join = Connect-RigJoiner -Name 'joiner' -To 'hostie'
 
-            Invoke-RigAction -On 'joiner' -Path '/connect' `
-                -Body @{ address = '127.0.0.1'; port = [int]$hostPort.Value } -Blocking | Out-Null
-            Wait-RigStage -Name 'joiner' -Stage 'inWorld' -WaitSeconds 600 | Out-Null
-
-            # The joiner's own /connect answering ok is a statement about the
-            # request. The host roster is the authority for "did it arrive", and
-            # a rejoin that did not land is a rig problem, not a mod defect.
-            $roster = Read-RigValue -From 'hostie' -Reader roster -Select 'count'
-            if ([int]$roster.Value -lt 2) {
-                Set-PlaytestInconclusive -Detector 'joiner-not-in-roster' `
-                    -Because "the host roster carries $($roster.Value) entries after the rejoin (the host counts as one of them), so the joiner is not in the world and no join payload was ever built"
-            }
+            # Re-baseline from the join that actually LANDED. The summary is
+            # printed once per join, so if the helper needed three attempts the
+            # window opened before them holds three lines and a correct mod fails
+            # the "exactly one" assertion. Measured: that is precisely what
+            # happened on the first run after the helper was introduced.
+            if ($join.SeqBeforeConnect) { $seq0 = @{ Value = $join.SeqBeforeConnect } }
 
             # The payload rides the join itself, so it has normally landed by
             # the time inWorld is reported. A few seconds of slack costs nothing

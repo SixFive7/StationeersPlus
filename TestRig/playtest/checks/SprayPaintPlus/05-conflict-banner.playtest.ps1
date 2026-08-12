@@ -142,32 +142,41 @@ Register-PlaytestCheck `
             Restart-RigInstance -Name 'hostie' -Reason 'seeding the conflict stub, which is only read at boot'
             Wait-RigStage -Name 'hostie' -Stage 'menu' -WaitSeconds 400 | Out-Null
 
-            # ---- 4. The fixture is live, and the detector saw it. Both of these
-            # are boot-time log lines, and the console tee keeps 2000 lines per
-            # source while mod loading produces thousands, so an absent line has
-            # two possible meanings and only one of them is a defect. Read the
-            # eviction counter first and decline rather than accuse.
-            $dropped = Read-RigValue -From 'hostie' -Reader console -ReaderArgs @{ limit = 1 } -Select 'dropped'
-            $seen = Read-RigValue -From 'hostie' -Reader console `
-                -ReaderArgs @{ source = 'bepinex'; contains = 'TEST FIXTURE ACTIVE'; limit = 50 } -Select 'count'
-            if ([int]$seen.Value -lt 2 -and [int]$dropped.Value -gt 0) {
-                Set-PlaytestInconclusive -Detector 'console-tee-evicted' `
-                    -Because "the fixture's own two boot lines are not in the tee and it has dropped $($dropped.Value) line(s), so 'the stub did not load' cannot be told apart from 'the ring overflowed during mod loading'. Nothing was measured about the mod."
+            # ---- 4. The fixture is live, and the detector saw it. Every line in
+            # this step is printed during BOOT, which is precisely what the
+            # console tee cannot be asked for: it is a 2000-line ring per source
+            # and StationeersLaunchPad's mod loading evicts thousands of lines
+            # before a check can read anything. On 2026-08-11 this check declined
+            # with console-tee-evicted for exactly that reason, which was the
+            # honest answer to the wrong question.
+            #
+            # The bepinexlog reader reads BepInEx/LogOutput.log on disk instead.
+            # It has no ring, so nothing ages off, and the between-session state
+            # reset deletes it, so what it holds is this run and only this run.
+            # Boot-time evidence belongs there; the tee is still the right reader
+            # for the runtime half of this check below, where sequence numbers
+            # are what separate "at the menu" from "in a world".
+            $logSeen = Read-RigValue -From 'hostie' -Reader bepinexlog `
+                -ReaderArgs @{ contains = 'TEST FIXTURE ACTIVE' } -Select 'count'
+            $logExists = Read-RigValue -From 'hostie' -Reader bepinexlog -Select 'exists'
+            if ($logExists.Value -ne $true) {
+                Set-PlaytestInconclusive -Detector 'bepinex-log-missing' `
+                    -Because "the instance has no BepInEx/LogOutput.log to read, so a boot-time line cannot be looked for at all and nothing was measured about the mod. It is deleted by the state reset and written afresh on every launch, so an absent one means the instance tree is not where the registry says it is."
             }
 
-            Assert-RigValue -From 'hostie' -Reader console `
-                -ReaderArgs @{ source = 'bepinex'; contains = 'TEST FIXTURE ACTIVE'; limit = 50 } `
+            Assert-RigValue -From 'hostie' -Reader bepinexlog `
+                -ReaderArgs @{ contains = 'TEST FIXTURE ACTIVE' } `
                 -Select 'count' -AtLeast 2 `
                 -Because 'both stub assemblies have to be loaded before anything is read into the banner or its absence; a fixture that did not load makes every assertion below meaningless'
 
             foreach ($name in @('CONFLICT: ColorCycler.dll is loaded', 'CONFLICT: NetworkPainter.dll is loaded')) {
-                Assert-RigValue -From 'hostie' -Reader console `
-                    -ReaderArgs @{ source = 'bepinex'; contains = $name; limit = 50 } `
+                Assert-RigValue -From 'hostie' -Reader bepinexlog `
+                    -ReaderArgs @{ contains = $name } `
                     -Select 'count' -AtLeast 1 `
                     -Because "the deferred assembly scan on Prefab.OnPrefabsLoaded is what withholds PatchAll, and it names each conflict separately; a banner without this line would mean the banner fired for some other reason"
             }
-            Assert-RigValue -From 'hostie' -Reader console `
-                -ReaderArgs @{ source = 'bepinex'; contains = 'SprayPaintPlus NOT LOADED'; limit = 50 } `
+            Assert-RigValue -From 'hostie' -Reader bepinexlog `
+                -ReaderArgs @{ contains = 'SprayPaintPlus NOT LOADED' } `
                 -Select 'count' -AtLeast 1 `
                 -Because 'the permanent record of a refused load is this line in the log, which is what a player is pointed at when the banner stops repeating'
 

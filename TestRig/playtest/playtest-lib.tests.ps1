@@ -160,7 +160,14 @@ function Reset-Fake {
         StuckBoot       = @{}
         HostSetsHosting = $true
         ConnectJoins    = $true
+        # The failure Connect-RigJoiner exists for, and it is NOT the same as
+        # ConnectJoins=$false: /connect answers ok, the joiner reaches inWorld,
+        # and the HOST roster does not carry it until attempt N. 0 means the
+        # roster grows on the first attempt, which is the healthy rig.
+        RosterJoinsAtAttempt = 0
+        ConsoleSeq      = 100
         ConfigEntries   = 4
+        ThingValue      = '(1,1,1,1)'   # Thing 442's ExampleField, so a test can move it
         StatusBoots     = @{}     # instance -> how many /status calls before it reaches menu
         StatusCalls     = @{}
         State           = @{
@@ -238,7 +245,7 @@ $script:FakeTransport = {
             }
             $script:Fake.State[$name].phase = 'inWorld'
             $script:Fake.State[$name].role  = 'joinedClient'
-            if ($script:Fake.ConnectJoins) {
+            if ($script:Fake.ConnectJoins -and $script:Fake.ConnectAttempts -ge $script:Fake.RosterJoinsAtAttempt) {
                 $script:Fake.State['hostie'].connectedClients = @(@($script:Fake.State['hostie'].connectedClients) + [pscustomobject]@{ clientId = '900000000002'; username = $name; isHost = $false })
             }
             return [pscustomobject]@{ ok = $true; result = 'connected' }
@@ -250,6 +257,14 @@ $script:FakeTransport = {
             return [pscustomobject]@{ guid = 'net.example'; count = @($entries).Count; entries = $entries }
         }
         '/thing' {
+            # The real endpoint answers 400 with no refId/refIds, and a non-2xx
+            # arrives here as a throw. The fake has to reproduce that: without
+            # it, a re-read that silently dropped its ReaderArgs still looked
+            # like a working read, which is exactly how Assert-RigChange shipped
+            # unable to re-read anything that needs a query string.
+            if ($Path -notmatch '(^|[?&])(refId|refIds|id|ids)=') {
+                throw "fake transport: 400 :: pass 'refId' (a Thing ReferenceId) or 'refIds' (a comma-separated list)."
+            }
             # Two Things: 442 was acted on, 445 is the untouched control. The
             # control still reads its PREFAB value, which is the trap that
             # produced a retracted conclusion in a live run.
@@ -259,8 +274,8 @@ $script:FakeTransport = {
                     [pscustomobject]@{
                         instance = $name; requestedRefId = '442'; found = $true
                         fields = @(
-                            [pscustomobject]@{ name = 'ExampleField'; ok = $true; value = '(1,1,1,1)'; matchesPrefab = $false }
-                            [pscustomobject]@{ name = 'OtherField';   ok = $true; value = '4';         matchesPrefab = $false }
+                            [pscustomobject]@{ name = 'ExampleField'; ok = $true; value = $script:Fake.ThingValue; matchesPrefab = $false }
+                            [pscustomobject]@{ name = 'OtherField';   ok = $true; value = '4';                     matchesPrefab = $false }
                         )
                     }
                     [pscustomobject]@{
@@ -273,7 +288,12 @@ $script:FakeTransport = {
             }
         }
         '/dlc'         { return [pscustomobject]@{ ok = $true; owned = @('ExamplePack') } }
-        '/console/log' { return [pscustomobject]@{ lines = @('[Example] a console line') } }
+        '/console/log' {
+            # nextSeq advances on every read, so a test can tell the sequence
+            # taken before a retried connect from one taken before the first.
+            $script:Fake.ConsoleSeq++
+            return [pscustomobject]@{ nextSeq = $script:Fake.ConsoleSeq; count = 1; dropped = 0; lines = @('[Example] a console line') }
+        }
         '/nearby'      { return [pscustomobject]@{ things = @([pscustomobject]@{ referenceId = 442; colorIndex = 4 }, [pscustomobject]@{ referenceId = 445; colorIndex = 4 }) } }
         '/player'      { return [pscustomobject]@{ position = [pscustomobject]@{ x = 1.5; y = 2.5; z = 3.5 } } }
         '/ping'        { return [pscustomobject]@{ ok = $true } }
@@ -335,9 +355,12 @@ function Use-TestPaths {
         -Transport $script:FakeTransport `
         -RigCommand $script:FakeRigCommand `
         -Registry {
+            # instancesRoot is what the bepinexlog reader resolves an instance
+            # TREE through, and the trees normally sit on the game install's
+            # volume rather than under TestRig/, so the fake carries it too.
             @(
-                [pscustomobject]@{ instanceName = 'hostie'; port = 27701; role = 'host' }
-                [pscustomobject]@{ instanceName = 'joiner'; port = 27702; role = 'client' }
+                [pscustomobject]@{ instanceName = 'hostie'; port = 27701; role = 'host';   instancesRoot = (Join-Path $script:TempRoot 'instances') }
+                [pscustomobject]@{ instanceName = 'joiner'; port = 27702; role = 'client'; instancesRoot = (Join-Path $script:TempRoot 'instances') }
             )
         } `
         -Clock { $script:FakeNow } `
@@ -618,6 +641,18 @@ function Test-Authority {
     $ctx = New-TestContext
     $script:PlaytestContext = $ctx
 
+    # Argument quoting across the process boundary. This is not decoration: with
+    # it missing, the lock purpose (which defaults to the CHECK NAME and so always
+    # has spaces) reached client-rig.ps1 as several arguments, the second landed
+    # positionally on the launcher's int $Port, and EVERY check in EVERY suite
+    # reported inconclusive/rig-unavailable. The harness could not take the lock.
+    Assert-Equal 'plain' (ConvertTo-PlaytestArgument 'plain') 'an argument with no space is passed through untouched'
+    Assert-Equal '"the first-use notice cap"' (ConvertTo-PlaytestArgument 'the first-use notice cap') 'an argument with spaces is quoted'
+    Assert-Equal '""' (ConvertTo-PlaytestArgument '') 'an empty argument survives as an empty quoted string rather than vanishing'
+    Assert-Equal '"a \"b\" c"' (ConvertTo-PlaytestArgument 'a "b" c') 'an embedded quote is escaped'
+    Assert-Equal '"C:\rig dir\\"' (ConvertTo-PlaytestArgument 'C:\rig dir\') 'a trailing backslash is doubled so it cannot escape the closing quote'
+    Assert-Equal 'C:\rig\client-rig.ps1' (ConvertTo-PlaytestArgument 'C:\rig\client-rig.ps1') 'a path with no space keeps its backslashes'
+
     # The decoys teach rather than exist.
     Assert-Throws { Assert-RigOk } 'Assert-RigOk refuses and explains why' 'statement about the request'
     Assert-Throws { Assert-RigResponse } 'Assert-RigResponse refuses and explains why' 'evidence, not a conclusion'
@@ -697,6 +732,39 @@ function Test-Authority {
     Assert-Equal 'fail' (Get-Outcome { Assert-RigChange -Baseline $baseline -To 'inWorld' -Because 'wrong on purpose' -Context $ctx }) 'a value that moved to the wrong one fails'
     Assert-Throws { Assert-RigChange -Baseline 'inWorld' -To 'menu' -Because 'x' -Context $ctx } 'a remembered raw value is not a baseline' 'Playtest.Observation'
     Assert-Throws { Assert-RigChange -Baseline $baseline -To 'menu' -Unchanged -Because 'x' -Context $ctx } '-To and -Unchanged together are refused' 'either -To or -Unchanged'
+
+    # A baseline taken through a reader with a QUERY STRING must be re-readable.
+    # This shipped broken: the observation carried no ReaderArgs and the re-read
+    # went out as a bare '/thing', which the endpoint answers 400. Every
+    # before-and-after check on a per-Thing field, a config entry, a console tail
+    # or an inventory slot therefore reported inconclusive with no comparison
+    # made at all, and the readers that need a query are exactly the ones whose
+    # baselines matter. The fake mirrors the real 400, so a regression here
+    # cannot pass.
+    $thingArgs = @{ refIds = '442,445'; fields = 'ExampleField' }
+    $tBase = Invoke-Quiet { Read-RigValue -From 'hostie' -Reader thing -Of '442/ExampleField' -Select 'value' -ReaderArgs $thingArgs -Context $ctx }
+    Assert-Equal '(1,1,1,1)' $tBase.Value 'fixture check: the acted-on Thing reads its current value'
+    Assert-True ($null -ne $tBase.ReaderArgs) 'the observation CARRIES the ReaderArgs it was read with'
+    Assert-Equal '442,445' "$($tBase.ReaderArgs.refIds)" 'and carries them by value, so the re-read reproduces the same request'
+    Assert-NoThrow { Assert-RigChange -Baseline $tBase -Unchanged -Because 'nothing has acted on it yet' -Context $ctx } `
+        'Assert-RigChange -Unchanged re-reads a query-string reader instead of 400ing into inconclusive'
+    $script:Fake.ThingValue = '(0,0,0,0)'
+    Assert-NoThrow { Assert-RigChange -Baseline $tBase -To '(0,0,0,0)' -Because 'the stroke must land on this side' -Context $ctx } `
+        'Assert-RigChange -To re-reads a query-string reader and sees the move'
+    Assert-Equal 'fail' (Get-Outcome { Assert-RigChange -Baseline $tBase -Unchanged -Because 'the control must not move' -Context $ctx }) `
+        'and a query-string baseline that moved still FAILS rather than going inconclusive'
+    $script:Fake.ThingValue = '(1,1,1,1)'
+
+    # Mutating the hashtable after the baseline was taken must not retroactively
+    # change what the baseline was read with.
+    $thingArgs.refIds = '999'
+    Assert-NoThrow { Assert-RigChange -Baseline $tBase -Unchanged -Because 'the baseline owns its own copy of the args' -Context $ctx } `
+        'the ReaderArgs on an observation are a copy, not the caller hashtable'
+
+    # And the guard itself: the fake refuses a query-less /thing, which is what
+    # makes the three assertions above measurements rather than decoration.
+    $r = Get-OutcomeRecord { Read-RigValue -From 'hostie' -Reader thing -Of '442/ExampleField' -Select 'value' -Context $ctx }
+    Assert-Equal 'inconclusive' $r.Outcome 'a thing read with no ReaderArgs at all is still inconclusive, as the endpoint 400s'
 
     $script:PlaytestContext = $null
 }
@@ -1009,6 +1077,138 @@ function Test-BringUp {
     Assert-Equal 'boot-timeout' $r.Detector 'a boot that survives the restart is a boot timeout'
     Assert-Equal 'inconclusive' $r.Outcome 'and it is inconclusive, never a failure'
     Assert-Match $r.Message 'after 2 attempt' 'and the retry was bounded, not endless'
+}
+
+function New-TestInstanceLog {
+    # The instance's BepInEx/LogOutput.log, where the bepinexlog reader looks:
+    # <instancesRoot>/<name>/BepInEx/LogOutput.log
+    param([Parameter(Mandatory)][string] $Name, [Parameter(Mandatory)][string[]] $Lines)
+    $p = Join-Path (Join-Path (Join-Path (Join-Path $script:TempRoot 'instances') $Name) 'BepInEx') 'LogOutput.log'
+    New-Item -ItemType Directory -Force -Path (Split-Path -Parent $p) | Out-Null
+    Set-Content -LiteralPath $p -Value ($Lines -join "`r`n") -Encoding utf8
+    return $p
+}
+
+function Test-JoinHelper {
+    if (-not (Test-SectionSelected 'joinhelper')) { return }
+    Start-Section 'Connect-RigJoiner: confirm from the host roster, poll it, and retry'
+    Reset-TestHome
+    $ctx = New-TestContext
+    $ctx.Owner = 'a1b2c3d4'
+
+    # The host has to be in a world for any of this to mean anything.
+    Invoke-Quiet { Start-RigInstances -Context $ctx -BootWaitSeconds 60 -WorldWaitSeconds 60 } | Out-Null
+    $baseConnects = @($script:Fake.Requests | Where-Object { $_.Path -eq '/connect' }).Count
+    Assert-Equal 1 $baseConnects 'bring-up now goes through the shared helper and still connects exactly once on a healthy rig'
+    Assert-False $ctx.Degraded 'a first-attempt join is a CLEAN pass, not a degraded one'
+
+    # The real 2026-08-11 failure: a check body disconnects the joiner and
+    # reconnects it, and the roster does not carry it on the first attempt.
+    # The old copy of this logic aborted here. The helper must retry and win.
+    Reset-TestHome
+    $ctx = New-TestContext
+    $ctx.Owner = 'a1b2c3d4'
+    Invoke-Quiet { Start-RigInstances -Context $ctx -BootWaitSeconds 60 -WorldWaitSeconds 60 } | Out-Null
+    $script:Fake.State['hostie'].connectedClients = @($script:Fake.State['hostie'].connectedClients | Where-Object { $_.isHost })
+    $script:Fake.ConnectAttempts = 0
+    $script:Fake.RosterJoinsAtAttempt = 2
+    $join = $null
+    Assert-NoThrow { $script:JoinResult = Connect-RigJoiner -Name 'joiner' -To 'hostie' -WorldWaitSeconds 60 -GapSeconds 1 -RosterPollSeconds 6 -Context $ctx } `
+        'a rejoin whose roster row only appears on the second attempt still lands'
+    $join = $script:JoinResult
+    Assert-Equal 2 $script:Fake.ConnectAttempts 'and it really re-drove /connect rather than re-reading the same answer'
+
+    # The contract that stops a retry from breaking the check it was meant to fix.
+    # Anything the mod prints once PER JOIN appears once per attempt, so a check
+    # measuring "exactly one line" has to baseline from the attempt that landed.
+    # Without this, check 02 counted 3 join summaries after 3 attempts and failed
+    # a correct mod, which is exactly what happened on the first live run.
+    Assert-Equal 2 $join.Attempts 'the join result reports how many attempts it took'
+    Assert-True  ($null -ne $join.SeqBeforeConnect) 'and carries the console sequence read immediately before the FINAL connect'
+    Assert-True  ($join.SeqBeforeConnect -gt 100) 'which is a later sequence than the one before the first attempt, so per-join output is counted once'
+    Assert-Equal 'joiner' $join.Joiner 'and names the joiner'
+    Assert-Equal 'hostie' $join.Host   'and the host it joined'
+    Assert-True  $ctx.Degraded 'a retried join is a DEGRADED pass, never a clean one'
+    Assert-True  ($ctx.Detectors -contains 'connect-first-attempt') 'and it records the detector that documents why'
+    Assert-True  (@($script:Fake.Requests | Where-Object { $_.Path -eq '/disconnect' }).Count -ge 1) 'the retry disconnects first, so the next attempt starts from the menu rather than from a half state'
+
+    # Exhausted: still inconclusive, still named, still never a failure.
+    Reset-TestHome
+    $ctx = New-TestContext
+    $ctx.Owner = 'a1b2c3d4'
+    Invoke-Quiet { Start-RigInstances -Context $ctx -BootWaitSeconds 60 -WorldWaitSeconds 60 } | Out-Null
+    $script:Fake.State['hostie'].connectedClients = @($script:Fake.State['hostie'].connectedClients | Where-Object { $_.isHost })
+    $script:Fake.ConnectJoins = $false
+    $r = Get-OutcomeRecord { Connect-RigJoiner -Name 'joiner' -To 'hostie' -WorldWaitSeconds 60 -Attempts 3 -GapSeconds 1 -RosterPollSeconds 4 -Context $ctx }
+    Assert-Equal 'inconclusive'         $r.Outcome  'a join that never reaches the roster is inconclusive'
+    Assert-Equal 'joiner-not-in-roster' $r.Detector 'and is named joiner-not-in-roster'
+    Assert-Match $r.Message 'after 3 attempt' 'and says how many times it tried, so a bounded give-up is distinguishable from one shot'
+    Assert-Match $r.Message 'inconclusive and never failed' 'and never accuses the mod'
+
+    # The host has no port: nothing to join, and that is the host's problem.
+    Reset-TestHome
+    $ctx = New-TestContext
+    $ctx.Owner = 'a1b2c3d4'
+    $r = Get-OutcomeRecord { Connect-RigJoiner -Name 'joiner' -To 'hostie' -WorldWaitSeconds 30 -Context $ctx }
+    Assert-Equal 'host-not-hosting' $r.Detector 'a host reporting no game port is host-not-hosting, not a join failure'
+    Assert-Equal 0 (@($script:Fake.Requests | Where-Object { $_.Path -eq '/connect' }).Count) 'and nothing was asked to connect to it'
+}
+
+function Test-BepInExLogReader {
+    if (-not (Test-SectionSelected 'bepinexlog')) { return }
+    Start-Section 'the bepinexlog reader: boot lines the console ring has already evicted'
+    Reset-TestHome
+    $ctx = New-TestContext
+
+    New-TestInstanceLog -Name 'hostie' -Lines @(
+        '[Info   :StationeersLaunchPad] loading 67 mods'
+        '[Error  :  ConflictStub] TEST FIXTURE ACTIVE: ColorCycler'
+        '[Error  :  ConflictStub] TEST FIXTURE ACTIVE: NetworkPainter'
+        '[Error  :SprayPaintPlus] CONFLICT: ColorCycler.dll is loaded'
+        '[Error  :SprayPaintPlus] CONFLICT: NetworkPainter.dll is loaded'
+        '[Error  :SprayPaintPlus] SprayPaintPlus NOT LOADED'
+    ) | Out-Null
+
+    $n = Read-RigValue -From 'hostie' -Reader bepinexlog -ReaderArgs @{ contains = 'TEST FIXTURE ACTIVE' } -Select 'count' -Context $ctx
+    Assert-Equal 2 $n.Value 'it counts the matching lines'
+    $e = Read-RigValue -From 'hostie' -Reader bepinexlog -Select 'exists' -Context $ctx
+    Assert-True $e.Value 'and reports that the file exists'
+    $none = Read-RigValue -From 'hostie' -Reader bepinexlog -ReaderArgs @{ contains = 'a line nobody printed' } -Select 'count' -Context $ctx
+    Assert-Equal 0 $none.Value 'a substring nobody printed counts zero rather than throwing'
+
+    # The property the whole reader exists for: -Limit clips what comes BACK,
+    # never what is COUNTED. A check counting six banner lines with a limit of
+    # five must read 6 and fail, not read 5 and pass.
+    $clip = Read-RigValue -From 'hostie' -Reader bepinexlog -ReaderArgs @{ contains = 'TEST FIXTURE ACTIVE'; limit = 1 } -Select 'count' -Context $ctx
+    Assert-Equal 2 $clip.Value 'a limit clips the returned lines and never the count'
+    $rows = Read-RigValue -From 'hostie' -Reader bepinexlog -ReaderArgs @{ contains = 'TEST FIXTURE ACTIVE'; limit = 1 } -Select 'lines.count' -Context $ctx
+    Assert-Equal 1 $rows.Value 'and the returned lines really were clipped'
+
+    # An absent log is a distinguishable fact, not a count of zero that a check
+    # would read as "the mod printed nothing". Reset-TestHome clears evidence and
+    # ClientRig/data but NOT the instance trees, so the log has to go explicitly.
+    Reset-TestHome
+    Remove-Item -Recurse -Force -ErrorAction SilentlyContinue (Join-Path $script:TempRoot 'instances')
+    $ctx = New-TestContext
+    $missing = Read-RigValue -From 'hostie' -Reader bepinexlog -ReaderArgs @{ contains = 'anything' } -Select 'exists' -Context $ctx
+    Assert-False $missing.Value 'an instance with no log reports exists=false'
+    $missingCount = Read-RigValue -From 'hostie' -Reader bepinexlog -ReaderArgs @{ contains = 'anything' } -Select 'count' -Context $ctx
+    Assert-Equal 0 $missingCount.Value 'and counts zero without throwing, so a check reads exists before it believes a count'
+
+    # It is unaffected by the ring the console reader is bounded by. This is the
+    # whole point: check 05 declined on console-tee-evicted for lines that were
+    # printed, real, and sitting in this file the entire time.
+    Reset-TestHome
+    $ctx = New-TestContext
+    New-TestInstanceLog -Name 'hostie' -Lines (@('filler') * 5000 + @('[Error  :SprayPaintPlus] SprayPaintPlus NOT LOADED')) | Out-Null
+    $deep = Read-RigValue -From 'hostie' -Reader bepinexlog -ReaderArgs @{ contains = 'SprayPaintPlus NOT LOADED' } -Select 'count' -Context $ctx
+    Assert-Equal 1 $deep.Value 'a line 5000 rows deep is still readable, where a 2000-line ring would have dropped it'
+
+    # The observation is a real one: it carries its ReaderArgs, so a baseline
+    # taken through this reader can be re-read by Assert-RigChange.
+    Assert-Equal 'bepinexlog' $deep.Reader 'the observation names the reader'
+    Assert-Equal 'SprayPaintPlus NOT LOADED' $deep.ReaderArgs['contains'] 'and carries the ReaderArgs it was read with, which is what Assert-RigChange re-reads from'
+    Assert-Match $deep.Source 'FILE ' 'and says it came from a file rather than from a GET'
 }
 
 function Test-Evidence {
@@ -1382,6 +1582,8 @@ try {
     Test-BinaryGate
     Test-Teardown
     Test-BringUp
+    Test-JoinHelper
+    Test-BepInExLogReader
     Test-Evidence
     Test-SaveTier
     Test-Suite
