@@ -345,8 +345,11 @@ param(
     [string] $As,
     [switch] $BreakLock,
     [int]    $TtlMinutes = 10,
+    [int]    $IdleCeilingMinutes = 60,
     [switch] $Release,
-    [switch] $KeepState
+    [switch] $KeepState,
+
+    [switch] $CaptureBaseline
 )
 
 $ErrorActionPreference = 'Stop'
@@ -1790,7 +1793,10 @@ function Invoke-Stop {
         if (-not $lock) {
             Write-Host "[Stop] No rig session lock to release."
         }
-        elseif (($As -and $lock['owner'] -eq $As) -or $BreakLock -or (Test-RigLockTimerExpired $lock)) {
+        elseif (($As -and $lock['owner'] -eq $As) -or $BreakLock -or (Test-RigLockTimerExpired $lock) -or (Test-RigLockIdleCeilingExceeded $lock)) {
+            # The restore runs BEFORE the lock file goes, so it happens while this session still
+            # owns the rig, through the same shared helper -Unlock uses.
+            Invoke-RigReleaseRestore -KeepState:$KeepState
             Remove-Item -Force -ErrorAction SilentlyContinue (Get-RigLockFilePath)
             Write-Host "[Stop] Rig session lock released."
             # -Stop -Release is a session end too, so it gets the same shared-state
@@ -2230,18 +2236,44 @@ function Invoke-Lock {
     if (-not $Purpose) {
         throw "-Lock requires -Purpose `"<short reason>`", e.g. -Purpose `"Two-client paint check for SprayPaintPlus`". See TestRig/session.lock.template."
     }
-    # No -OnReclaim: a running instance keeps the lock LIVE, so a lock can never be reclaimable while
-    # this half still has processes up. Reclaiming here therefore never has an orphan to clean.
+    # -OnReclaim TEARS DOWN, and it exists now because the idle ceiling changed what "reclaimable"
+    # means on this half. The old comment here said a reclaim could never find an instance running,
+    # because a live instance kept the lock LIVE regardless of the timer. That is still true of the
+    # TTL and is no longer true of the ceiling: past it, a rig is reclaimable BUSY OR NOT, which is
+    # the whole point (a hung agent must delay other agents, not block them). So a reclaim on this
+    # half really can arrive with another session's instances still up, and leaving them running
+    # would hand the next agent a rig with foreign processes on its ports.
     # -KeepState is forwarded because a NEW lock resets the rig's between-session state
     # (TestRig/rig-reset.ps1). Opting out is loud on purpose: staging a save or a config value
     # deliberately has to stay possible without becoming the silent default.
     $lockArgs = @{
-        Purpose    = $Purpose
-        CallerId   = $As
-        TtlMinutes = $TtlMinutes
-        BreakLock  = [bool]$BreakLock
-        KeepState  = [bool]$KeepState
-        Tool       = 'client-rig.ps1'
+        Purpose            = $Purpose
+        CallerId           = $As
+        TtlMinutes         = $TtlMinutes
+        IdleCeilingMinutes = $IdleCeilingMinutes
+        BreakLock          = [bool]$BreakLock
+        KeepState          = [bool]$KeepState
+        Tool               = 'client-rig.ps1'
+        OnReclaim          = {
+            # Deliberately NOT the ordered teardown Invoke-Stop performs. That
+            # ordering (joiners disconnect, the world holder saves, the host quits
+            # last) exists to end a test cleanly and preserve its world. Here the
+            # session that owned those instances has been silent for at least the
+            # idle ceiling, there is no test left to preserve, and a hung client's
+            # control plane is exactly the thing likely not to answer. So this
+            # stops them by verified pid and moves on.
+            $live = @(Get-RigClientInstanceStates)
+            if ($live.Count -eq 0) { return }
+            Write-Warning "[Lock] Reclaimed the rig from a session that left $($live.Count) instance(s) running: $(($live | ForEach-Object { $_.Name }) -join ', '). Stopping them, because the restore cannot clear files a running game holds open."
+            foreach ($i in $live) {
+                try {
+                    Stop-Process -Id $i.ProcessId -Force -ErrorAction Stop
+                    Write-Host "[Lock]   stopped $($i.Name) (pid $($i.ProcessId))."
+                }
+                catch { Write-Warning "[Lock]   could not stop $($i.Name) (pid $($i.ProcessId)): $($_.Exception.Message)" }
+            }
+            Start-Sleep -Milliseconds 500
+        }
     }
     if ($ScriptBoundParams.ContainsKey('WaitSeconds')) {
         # Queueing is opt-in and lives in the shared implementation, so -WaitSeconds is forwarded
@@ -2266,8 +2298,10 @@ function Invoke-RefreshLock {
     # $ScriptBoundParams, not $PSBoundParameters: the latter is per-scope and a function gets its
     # own (empty) copy, so the test here silently answered false and -RefreshLock -TtlMinutes N
     # never actually changed the TTL.
-    if ($ScriptBoundParams.ContainsKey('TtlMinutes')) { Update-RigLock -CallerId $As -TtlMinutes $TtlMinutes }
-    else                                              { Update-RigLock -CallerId $As }
+    $refreshArgs = @{ CallerId = $As }
+    if ($ScriptBoundParams.ContainsKey('TtlMinutes'))         { $refreshArgs['TtlMinutes'] = $TtlMinutes }
+    if ($ScriptBoundParams.ContainsKey('IdleCeilingMinutes')) { $refreshArgs['IdleCeilingMinutes'] = $IdleCeilingMinutes }
+    Update-RigLock @refreshArgs
 }
 
 function Invoke-Unlock {
@@ -2281,7 +2315,11 @@ function Invoke-Unlock {
     # -Force is forwarded so the host refusal inside Remove-RigLock can be
     # overridden from THIS launcher too. Without it the refusal was only
     # escapable from dedicated-server.ps1, which is the half that has no hosts.
-    Remove-RigLock -CallerId $As -BreakLock:$BreakLock -Force:$Force
+    # -KeepState is forwarded so a session can hand the rig over dirty ON PURPOSE.
+    # Without it the release restores, which is where the between-session guarantee is actually
+    # earned: the agent that changed things undoes them while it is still the owner and the rig is
+    # provably idle, instead of leaving the bill for whoever turns up next.
+    Remove-RigLock -CallerId $As -BreakLock:$BreakLock -Force:$Force -KeepState:$KeepState
 
     # Only after a SUCCESSFUL release, because Remove-RigLock throws on a refusal
     # and a drift report on a lock that is still held would be reporting on a
@@ -2291,11 +2329,20 @@ function Invoke-Unlock {
     Write-RigSharedStateDrift
 }
 
+function Invoke-CaptureBaseline {
+    # Declare the rig as it stands to be the new definition of clean. The same action exists on
+    # dedicated-server.ps1 and does the same thing: one baseline covers both halves, exactly as one
+    # lock does.
+    Assert-RigLockHeld -Action 'CaptureBaseline' -CallerId $As -Tool 'client-rig.ps1'
+    New-RigBaselineCapture -CapturedBy $As -Force:$Force | Out-Null
+}
+
 # ---- dispatch -------------------------------------------------------------
 
-if ($Lock)        { Invoke-Lock;        return }
-if ($RefreshLock) { Invoke-RefreshLock; return }
-if ($Unlock)      { Invoke-Unlock;      return }
+if ($Lock)            { Invoke-Lock;            return }
+if ($RefreshLock)     { Invoke-RefreshLock;     return }
+if ($Unlock)          { Invoke-Unlock;          return }
+if ($CaptureBaseline) { Invoke-CaptureBaseline; return }
 if ($Provision)   { Invoke-Provision;   return }
 if ($Start)       { Invoke-Start;       return }
 if ($Stop)        { Invoke-Stop;        return }
@@ -2319,18 +2366,27 @@ Session-lock rules: $(Join-Path $TestRigRoot 'session.lock.template') (READ FIRS
 
 Session lock (acquire before ANY mutating command; pass -As <id> thereafter).
 ONE lock covers BOTH TestRig halves, so this id is also what dedicated-server.ps1 expects:
-    client-rig.ps1 -Lock -Purpose "<what you are testing>" [-TtlMinutes 10] [-WaitSeconds N]
+    client-rig.ps1 -Lock -Purpose "<what you are testing>" [-TtlMinutes 10] [-IdleCeilingMinutes 60] [-WaitSeconds N]
     client-rig.ps1 -RefreshLock -As <id>                        (while actively testing)
-    client-rig.ps1 -Unlock -As <id>                             (release when done)
-    Gated: -Provision, -Start, -Stop, -Save, -Remove, -Broadcast, -Call.
+    client-rig.ps1 -Unlock -As <id>                             (release when done; RESTORES the rig)
+    client-rig.ps1 -CaptureBaseline -As <id> [-Force]           (make this rig the definition of clean)
+    Gated: -Provision, -Start, -Stop, -Save, -Remove, -Broadcast, -Call, -CaptureBaseline.
     Free:  -Status, -List, -Logs, -Snapshot, -Wait.
+    Two timers: -TtlMinutes is the liveness heartbeat, which a busy rig renews by itself.
+    -IdleCeilingMinutes is the absolute idle ceiling, and past it the lock is reclaimable EVEN ON A
+    BUSY RIG: the reclaiming session stops the instances it finds and restores the rig, so a hung
+    agent delays others instead of blocking them. Only your own commands reset the ceiling, so a
+    forgotten instance can no longer hold the whole rig. -Status prints the countdown.
     -Lock -WaitSeconds N queues for up to N seconds when another session holds the rig. Default 0,
     which is today's immediate refusal. It is a queue, not a reservation: no fairness is promised.
     Breaking another session's LIVE lock (-BreakLock) is human-gated: only on the user's say-so.
     -BreakLock is NOT -Force. -Force overrides refusals inside your own session and never a lock.
 
-State hygiene: taking a NEW lock RESETS what the previous session left behind, so a test cannot
-fail on an unrelated test's leftovers. Per instance that is setting.xml (it carries StartLocalHost),
+State hygiene: RELEASING the lock restores the rig and ACQUIRING one restores it again as a crash
+backstop, so a test cannot fail on an unrelated test's leftovers. -Unlock -KeepState hands the rig
+over dirty on purpose (the marker stays set, so the next session cleans up); -CaptureBaseline makes
+your current setup the permanent definition of clean instead. Per instance the restore clears
+setting.xml (it carries StartLocalHost),
 data/<instance>/userdata/saves/, the logs, imgui.ini, a stale game.pid, BepInEx config (re-copied
 from the source install, with SavePathOverride re-applied), LogOutput.log, the assembly cache and
 the InspectorPlus request and snapshot folders. Kept: rig.json, instance.json, provision.stamp,

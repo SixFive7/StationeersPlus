@@ -119,9 +119,10 @@ function Initialize-RigResetPaths {
     $script:RigResetDediInstall = Join-Path $RigHome 'DedicatedServer\install'
     $script:RigResetDediData    = Join-Path $RigHome 'DedicatedServer\data'
 
-    # State this file owns, both inside TestRig/ and both gitignored by the
+    # State this file owns, all inside TestRig/ and all gitignored by the
     # deny-all rule on the rig root.
-    $script:RigResetStateFile = Join-Path $RigHome 'session.state.json'
+    $script:RigResetStateFile   = Join-Path $RigHome 'session.state.json'
+    $script:RigResetBaselineDir = Join-Path $RigHome 'baseline'
 
     # Read-only sources OUTSIDE the rig. Left unresolved rather than guessed: a
     # reset that cannot find the source install skips the config re-copy loudly
@@ -151,6 +152,9 @@ function Initialize-RigResetPaths {
 
 function Get-RigResetHomePath      { return $script:RigResetHome }
 function Get-RigResetStateFilePath { return $script:RigResetStateFile }
+function Get-RigBaselineDirPath    { return $script:RigResetBaselineDir }
+function Get-RigBaselineFilePath   { return (Join-Path $script:RigResetBaselineDir 'manifest.json') }
+function Get-RigBaselineStoreDir   { return (Join-Path $script:RigResetBaselineDir 'content') }
 
 function Get-RigResetSourceInstall {
     # The developer's Stationeers install, used ONLY as a read-only source for
@@ -176,6 +180,396 @@ function Get-RigResetSourceInstall {
         return $path
     }
     catch { return $null }
+}
+
+# ===========================================================================
+# THE BASELINE: what "clean" actually means, written down
+# ===========================================================================
+# Before this existed, "clean" was a hardcoded list of things to delete inside
+# this file. That is enough to remove obvious garbage and not enough to answer
+# the question that matters: what SHOULD the rig look like. Two consequences
+# were visible in the code itself. Server configs were left alone with the
+# comment "rig-owned versus mod-owned is undecided", because nothing knew what
+# their correct values were. And dedicated-server worlds were all kept, because
+# nothing could tell a world staged deliberately last week from one this
+# session's test created ten minutes ago.
+#
+# A baseline is a capture of the rig at a moment somebody declared correct. With
+# one, both questions have answers: a config's baseline bytes ARE its correct
+# value, and a world absent from the baseline IS this session's.
+#
+# WHAT IS STORED, AND WHY NOT EVERYTHING
+#   Two representations were on the table.
+#
+#   A FULL COPY of the mutable surface, restored by mirroring it back. Rejected.
+#   It is gigabytes (the dedicated server's worlds and every instance's seeded
+#   mods), it is slow enough that nobody would re-capture it often, and worst of
+#   all it would silently roll back deployed mod builds: every -DeployMods would
+#   have to be followed by a re-capture or the next restore would put the old
+#   DLL back, and "my fix is not in the game" is the quietest possible failure.
+#
+#   A MANIFEST of paths, sizes and hashes, restored by the existing surgical
+#   deletes. Also not enough on its own: a manifest can detect that a config file
+#   changed, but it cannot put the old bytes back.
+#
+#   So this is both, split by class:
+#     config   small, rig-owned, restorable: every *.cfg under an instance's
+#              BepInEx/config and under the dedicated server's, plus each
+#              modconfig.xml. Bytes ARE stored, and the restore copies them back.
+#              Kilobytes in total.
+#     payload  hashed and inventoried, never stored and never restored: deployed
+#              plugins and seeded mods. This is the class where rolling back
+#              would undo a deliberate deploy, so it is only ever REPORTED.
+#     worlds   dedicated-server saves, recorded by name and size, never hashed
+#              (a world is hundreds of megabytes) and never stored. Their names
+#              are what lets the restore tell a baseline world from a new one.
+#
+# STALENESS IS LOUD, NEVER SILENT
+#   A baseline captured before a game update or a mod rebuild describes a rig
+#   that no longer exists. That is reported at every acquisition, names the exact
+#   reason, and names -CaptureBaseline as the fix. It does NOT block the lock:
+#   an unclean rig must not become an unlockable one, and a stale baseline is
+#   still better than none. The one thing staleness DOES change is the world
+#   pruning, which is the only irreversible action here: a stale baseline reports
+#   new worlds instead of deleting them, because destroying data on the strength
+#   of a manifest nobody trusts is the wrong way round.
+
+function Get-RigGameVersion {
+    # The game version string. Used as the baseline's staleness anchor: when this
+    # moves, every config default and every plugin in the rig may have moved too.
+    #
+    # It lives in StreamingAssets\version.ini, whose first line reads
+    # "UPDATEVERSION=Update 0.2.6420.27780". The data folder is named for the
+    # product, so the client and the dedicated server each have their own, and
+    # both are checked because this function serves both halves.
+    #
+    # This used to read a "version.txt" at the install root. No such file has
+    # ever existed, so the function returned 'unknown' every time, and the
+    # caller in Test-RigBaselineStale skips its comparison on 'unknown'. The
+    # net effect was that a game update could never mark a baseline stale, which
+    # is the one thing the anchor exists to catch. Found on 2026-08-12, when
+    # 0.2.6420.27780 shipped and the rig noticed nothing: both client instances
+    # silently kept July binaries because the provision hard-links had broken,
+    # and -Status reported them healthy throughout.
+    param([string] $SourceInstall)
+    if (-not $SourceInstall) { $SourceInstall = Get-RigResetSourceInstall }
+    if (-not $SourceInstall) { return 'unknown' }
+    foreach ($dataDir in @('rocketstation_Data', 'rocketstation_DedicatedServer_Data')) {
+        try {
+            $v = Join-Path $SourceInstall (Join-Path $dataDir 'StreamingAssets\version.ini')
+            if (-not (Test-Path -LiteralPath $v)) { continue }
+            # -TotalCount 1: the file is the whole changelog, ~170 KB, and only
+            # its first line carries the version.
+            $line = (Get-Content -LiteralPath $v -TotalCount 1 -ErrorAction Stop)
+            if (-not $line) { continue }
+            # "UPDATEVERSION=Update <version>". Both the key and the word Update
+            # are optional in the match so a format tweak degrades to the raw
+            # value rather than to 'unknown'.
+            if ($line -match '(\d+(?:\.\d+)+)') { return $Matches[1] }
+            $t = ($line -replace '^\s*UPDATEVERSION\s*=\s*', '').Trim()
+            if ($t) { return $t }
+        } catch { }
+    }
+    return 'unknown'
+}
+
+function Get-RigFileHash {
+    param([string] $Path)
+    try { return (Get-FileHash -LiteralPath $Path -Algorithm SHA256 -ErrorAction Stop).Hash }
+    catch { return $null }
+}
+
+function New-RigSurfaceRecord {
+    param(
+        [Parameter(Mandatory)] [string] $Key,
+        [Parameter(Mandatory)] [string] $Path,
+        [Parameter(Mandatory)] [ValidateSet('config', 'payload', 'world')] [string] $Class,
+        [string] $Half = '',
+        [string] $Instance = ''
+    )
+    [pscustomobject]@{ Key = $Key; Path = $Path; Class = $Class; Half = $Half; Instance = $Instance }
+}
+
+function Get-RigMutableSurface {
+    # Every file the baseline has an opinion about, with a stable key.
+    #
+    # ONE definition, used by the capture and by the restore, so the two can
+    # never disagree about what the surface is. The key is deliberately a
+    # rig-relative string rather than an absolute path: instance trees live on
+    # whichever volume the launcher put them on, and a baseline that stopped
+    # matching after an -InstancesRoot change would be worse than none.
+    #
+    # NOT included, on purpose: logs, caches, InspectorPlus requests and
+    # snapshots, pid files, imgui.ini, setting.xml and the client save roots.
+    # Every one of those is unconditionally deleted by the reset, so recording
+    # what they looked like says nothing about whether the rig is clean. The ~1,050
+    # hard links per instance are not included either, and must never be: they
+    # share file data with the developer's install, so copying or writing one
+    # reaches into a read-only tree.
+    #
+    # THIS IS AN ALLOW-LIST, AND THAT IS THE POINT, NOT AN OVERSIGHT.
+    #   The reset only ever acts on paths that appear here or in the hardcoded
+    #   target list, so anything an agent deliberately puts ANYWHERE ELSE in an
+    #   instance tree survives every restore untouched and is never reported as
+    #   drift to be scrubbed. That is what makes a deliberate, instance-scoped
+    #   environment change expressible at all: dropping a real (never hard-linked)
+    #   assembly into an instance's own rocketstation_Data\Managed\ to fix a
+    #   per-instance load failure, for example, is a permanent property of that
+    #   instance, not this session's garbage, and nothing here will remove it or
+    #   call it a difference from stock.
+    #   A deny-list would have the opposite default and would quietly delete
+    #   exactly those deliberate changes, which is why this is not one. If a
+    #   future class of file DOES need restoring, add it here explicitly, with a
+    #   class, rather than widening the sweep.
+    $out     = New-Object System.Collections.Generic.List[object]
+    $rootMap = Get-RigClientInstanceRootMap
+
+    foreach ($name in (Get-RigResetInstanceNames)) {
+        $data = Join-Path $script:RigResetClientData $name
+        $tree = (Get-RigInstanceTree -Name $name -RootMap $rootMap).Path
+        $bep  = Join-Path $tree 'BepInEx'
+
+        $cfgDir = Join-Path $bep 'config'
+        foreach ($f in @(Get-ChildItem -LiteralPath $cfgDir -Filter '*.cfg' -File -ErrorAction SilentlyContinue)) {
+            $out.Add((New-RigSurfaceRecord -Key "client/$name/bepinex-config/$($f.Name)" -Path $f.FullName -Class 'config' -Half 'client' -Instance $name))
+        }
+        $mc = Join-Path $data 'userdata\modconfig.xml'
+        if (Test-Path -LiteralPath $mc) {
+            $out.Add((New-RigSurfaceRecord -Key "client/$name/modconfig.xml" -Path $mc -Class 'config' -Half 'client' -Instance $name))
+        }
+        foreach ($f in @(Get-ChildItem -LiteralPath (Join-Path $bep 'plugins') -Recurse -File -ErrorAction SilentlyContinue)) {
+            $rel = $f.FullName.Substring((Join-Path $bep 'plugins').Length).TrimStart('\', '/').Replace('\', '/')
+            $out.Add((New-RigSurfaceRecord -Key "client/$name/plugins/$rel" -Path $f.FullName -Class 'payload' -Half 'client' -Instance $name))
+        }
+        foreach ($f in @(Get-ChildItem -LiteralPath (Join-Path $data 'userdata\mods') -Recurse -File -ErrorAction SilentlyContinue)) {
+            $rel = $f.FullName.Substring((Join-Path $data 'userdata\mods').Length).TrimStart('\', '/').Replace('\', '/')
+            $out.Add((New-RigSurfaceRecord -Key "client/$name/mods/$rel" -Path $f.FullName -Class 'payload' -Half 'client' -Instance $name))
+        }
+    }
+
+    $install = $script:RigResetDediInstall
+    $sdata   = $script:RigResetDediData
+    foreach ($f in @(Get-ChildItem -LiteralPath (Join-Path $install 'BepInEx\config') -Filter '*.cfg' -File -ErrorAction SilentlyContinue)) {
+        $out.Add((New-RigSurfaceRecord -Key "server/bepinex-config/$($f.Name)" -Path $f.FullName -Class 'config' -Half 'server'))
+    }
+    $smc = Join-Path $install 'modconfig.xml'
+    if (Test-Path -LiteralPath $smc) {
+        $out.Add((New-RigSurfaceRecord -Key 'server/modconfig.xml' -Path $smc -Class 'config' -Half 'server'))
+    }
+    foreach ($f in @(Get-ChildItem -LiteralPath (Join-Path $install 'BepInEx\plugins') -Recurse -File -ErrorAction SilentlyContinue)) {
+        $rel = $f.FullName.Substring((Join-Path $install 'BepInEx\plugins').Length).TrimStart('\', '/').Replace('\', '/')
+        $out.Add((New-RigSurfaceRecord -Key "server/plugins/$rel" -Path $f.FullName -Class 'payload' -Half 'server'))
+    }
+    foreach ($d in @(Get-ChildItem -LiteralPath (Join-Path $sdata 'saves') -Directory -ErrorAction SilentlyContinue)) {
+        $out.Add((New-RigSurfaceRecord -Key "server/saves/$($d.Name)" -Path $d.FullName -Class 'world' -Half 'server'))
+    }
+    # PLAIN array, deliberately NOT comma-wrapped, and the difference matters.
+    # `return ,$arr` protects a single-element result from being unrolled into a
+    # scalar, which is right for a list of STRINGS a caller indexes directly (see
+    # Compare-RigSharedState). It is wrong here, because every caller writes
+    # @(Get-RigMutableSurface): @() around a comma-wrapped array keeps the outer
+    # wrapper, so the caller gets ONE element that is the whole array, and
+    # $rec.Key then evaluates to an array of keys through member enumeration. The
+    # failure is loud in a parameter binder but silent anywhere it is only tested
+    # for truthiness. Returning the plain array makes @() correct and an empty
+    # result an empty array.
+    return $out.ToArray()
+}
+
+function Get-RigBaselineStoredPath {
+    # Where a config file's captured bytes live. The key is turned into a flat,
+    # safe file name rather than a nested path, because a key contains characters
+    # (and a depth) that do not survive being pasted into a directory tree.
+    param([Parameter(Mandatory)] [string] $Key)
+    $sha  = [System.Security.Cryptography.SHA256]::HashData([System.Text.Encoding]::UTF8.GetBytes($Key.ToLowerInvariant()))
+    $hex  = [System.BitConverter]::ToString($sha[0..7]).Replace('-', '')
+    $leaf = Split-Path -Leaf $Key
+    return (Join-Path (Get-RigBaselineStoreDir) "$hex-$leaf")
+}
+
+function Get-RigBaseline {
+    # The captured baseline, or $null. Returns the parsed manifest with its Files
+    # flattened into a hashtable keyed the same way Get-RigMutableSurface keys the
+    # live rig, so a lookup is one indexer and never a scan.
+    if (-not $script:RigResetBaselineDir) { return $null }
+    $manifest = Get-RigBaselineFilePath
+    if (-not (Test-Path -LiteralPath $manifest)) { return $null }
+    try { $raw = (Get-Content -Raw -LiteralPath $manifest -ErrorAction Stop) | ConvertFrom-Json -ErrorAction Stop }
+    catch { return $null }
+    if (-not $raw) { return $null }
+    $byKey = @{}
+    foreach ($f in @($raw.files)) {
+        if ($null -eq $f -or -not $f.PSObject.Properties['key']) { continue }
+        $byKey[[string]$f.key] = $f
+    }
+    return [pscustomobject]@{
+        CapturedUtc   = [string]$raw.capturedUtc
+        CapturedBy    = [string]$raw.capturedBy
+        GameVersion   = [string]$raw.gameVersion
+        SourceInstall = [string]$raw.sourceInstall
+        Host          = [string]$raw.host
+        Instances     = @($raw.instances)
+        Files         = $byKey
+        Raw           = $raw
+    }
+}
+
+function Test-RigBaselineStale {
+    # Is the baseline still describing this rig. Reasons are returned rather than
+    # summarised, because "stale" on its own tells an agent nothing about whether
+    # it should re-capture or investigate.
+    param($Baseline)
+    if (-not $Baseline) { $Baseline = Get-RigBaseline }
+    $reasons = New-Object System.Collections.Generic.List[string]
+    if (-not $Baseline) {
+        return [pscustomobject]@{ Present = $false; Stale = $true; Reasons = @('no baseline has ever been captured') }
+    }
+
+    $nowVersion = Get-RigGameVersion
+    if ($Baseline.GameVersion -and $nowVersion -ne 'unknown' -and $Baseline.GameVersion -ne $nowVersion) {
+        $reasons.Add("the game moved from $($Baseline.GameVersion) to $nowVersion since the baseline was captured")
+    }
+
+    $now  = @(Get-RigResetInstanceNames)
+    $then = @($Baseline.Instances | ForEach-Object { [string]$_ })
+    foreach ($n in $now)  { if ($then -notcontains $n) { $reasons.Add("instance '$n' exists now and was not in the baseline") } }
+    foreach ($n in $then) { if ($now  -notcontains $n) { $reasons.Add("instance '$n' was in the baseline and is gone now") } }
+
+    # A payload the baseline never saw, or one whose bytes moved, means somebody
+    # deployed a plugin or re-seeded a mod. That is legitimate and deliberate, and
+    # it is exactly the moment the baseline needs re-taking, so it is a staleness
+    # reason and never an action.
+    $moved = 0
+    foreach ($rec in (Get-RigMutableSurface)) {
+        if ($rec.Class -ne 'payload') { continue }
+        $b = $Baseline.Files[$rec.Key]
+        if (-not $b) { $moved++; continue }
+        if ((Get-RigFileHash $rec.Path) -ne [string]$b.sha256) { $moved++ }
+    }
+    if ($moved -gt 0) { $reasons.Add("$moved deployed plugin or seeded mod file(s) differ from the baseline (a rebuild or a re-seed since it was captured)") }
+
+    return [pscustomobject]@{
+        Present = $true
+        Stale   = ($reasons.Count -gt 0)
+        Reasons = $reasons.ToArray()
+    }
+}
+
+function New-RigBaselineCapture {
+    # Declare the rig as it stands to be the definition of clean.
+    #
+    # This is the ONLY way the baseline changes, and it is an explicit action on
+    # both launchers (-CaptureBaseline) rather than something that happens on its
+    # own. A baseline that re-captured itself automatically would happily bless
+    # whatever mess triggered the capture, and the next agent would inherit it as
+    # "correct" with nothing to say otherwise.
+    #
+    # It refuses on a busy rig, because a config half-written by a running game is
+    # not a definition of anything. -Force overrides that, in the ordinary sense
+    # -Force has everywhere in this rig: it waves away a refusal inside your own
+    # session, and never touches anybody else's lock.
+    param(
+        [string] $CapturedBy = '',
+        [switch] $Force,
+        [switch] $WhatIf
+    )
+    $gate = Test-RigResetAllowed
+    if (-not $gate.Allowed -and -not $Force) {
+        throw "Refusing to capture a baseline while the rig is in use ($($gate.Reason)). A config file the game is holding open, or a world mid-save, is not a definition of 'clean'. Stop what is running and capture again, or pass -Force if you are certain the running thing cannot write to the rig."
+    }
+    if (-not $gate.Allowed) {
+        Write-Warning "[Baseline] -Force: capturing while the rig is in use ($($gate.Reason)). Whatever those processes have half-written is about to become the definition of a clean rig."
+    }
+
+    $surface = @(Get-RigMutableSurface)
+    $files   = New-Object System.Collections.Generic.List[object]
+    $stored  = 0
+    foreach ($rec in $surface) {
+        $entry = [ordered]@{ key = $rec.Key; class = $rec.Class; half = $rec.Half; instance = $rec.Instance }
+        if ($rec.Class -eq 'world') {
+            $bytes = 0
+            $m = Get-ChildItem -LiteralPath $rec.Path -Recurse -File -ErrorAction SilentlyContinue | Measure-Object Length -Sum
+            if ($m.Sum) { $bytes = [long]$m.Sum }
+            $entry['bytes']  = $bytes
+            $entry['sha256'] = ''      # never hashed: a world is hundreds of MB
+        }
+        else {
+            $fi = Get-Item -LiteralPath $rec.Path -ErrorAction SilentlyContinue
+            $entry['bytes']  = if ($fi) { [long]$fi.Length } else { 0 }
+            $entry['sha256'] = [string](Get-RigFileHash $rec.Path)
+            if ($rec.Class -eq 'config' -and -not $WhatIf) {
+                $dest = Get-RigBaselineStoredPath -Key $rec.Key
+                New-Item -ItemType Directory -Force -Path (Split-Path -Parent $dest) | Out-Null
+                Copy-Item -LiteralPath $rec.Path -Destination $dest -Force -ErrorAction Stop
+                $stored++
+            }
+            elseif ($rec.Class -eq 'config') { $stored++ }
+        }
+        $files.Add([pscustomobject]$entry)
+    }
+
+    $record = [ordered]@{
+        capturedUtc   = (Get-RigNowUtc)
+        capturedBy    = $CapturedBy
+        gameVersion   = (Get-RigGameVersion)
+        sourceInstall = [string](Get-RigResetSourceInstall)
+        host          = $env:COMPUTERNAME
+        instances     = @(Get-RigResetInstanceNames)
+        files         = $files.ToArray()
+    }
+
+    if ($WhatIf) {
+        Write-Host "[Baseline] -WhatIf: nothing was written. A capture would record $($files.Count) entries ($stored config file(s) stored by content)."
+        return [pscustomobject]@{ WhatIf = $true; Entries = $files.Count; Stored = $stored; Record = $record }
+    }
+
+    # Drop any stored content the new capture did not re-write, so the store
+    # never accumulates files from instances that no longer exist.
+    $keep = @{}
+    foreach ($rec in $surface) { if ($rec.Class -eq 'config') { $keep[(Get-RigBaselineStoredPath -Key $rec.Key)] = $true } }
+    foreach ($f in @(Get-ChildItem -LiteralPath (Get-RigBaselineStoreDir) -File -ErrorAction SilentlyContinue)) {
+        if (-not $keep.ContainsKey($f.FullName)) { Remove-Item -LiteralPath $f.FullName -Force -ErrorAction SilentlyContinue }
+    }
+
+    New-Item -ItemType Directory -Force -Path $script:RigResetBaselineDir | Out-Null
+    ($record | ConvertTo-Json -Depth 8) | Set-Content -LiteralPath (Get-RigBaselineFilePath) -Encoding utf8
+
+    $byClass = @($files | Group-Object Class | ForEach-Object { "$($_.Count) $($_.Name)" }) -join ', '
+    Write-Host "[Baseline] Captured the rig as the new definition of clean."
+    Write-Host "[Baseline]   file      : $(Get-RigBaselineFilePath)"
+    Write-Host "[Baseline]   game      : $($record.gameVersion)"
+    Write-Host "[Baseline]   instances : $(if ($record.instances.Count) { $record.instances -join ', ' } else { 'none' })"
+    Write-Host "[Baseline]   recorded  : $($files.Count) entries ($byClass)"
+    Write-Host "[Baseline]   stored    : $stored config file(s) kept by content, so a restore can put their exact bytes back"
+    Write-Host "[Baseline] Plugins and seeded mods are recorded but NEVER restored: rolling one back would undo a deliberate deploy."
+    Write-Host "[Baseline] Re-capture after a game update, a mod rebuild or a re-provision. Until then the rig restores to THIS."
+    return [pscustomobject]@{ WhatIf = $false; Entries = $files.Count; Stored = $stored; Record = $record }
+}
+
+function Compare-RigBaselineConfig {
+    # Config-class drift only, which is cheap (a handful of small files) and is
+    # the class the restore can actually act on. Payload drift is deliberately not
+    # computed here: it belongs to staleness, not to a restore.
+    param($Baseline)
+    if (-not $Baseline) { $Baseline = Get-RigBaseline }
+    $out = New-Object System.Collections.Generic.List[string]
+    if (-not $Baseline) { return , $out.ToArray() }
+    $seen = @{}
+    foreach ($rec in (Get-RigMutableSurface)) {
+        if ($rec.Class -ne 'config') { continue }
+        $seen[$rec.Key] = $true
+        $b = $Baseline.Files[$rec.Key]
+        if (-not $b)                                        { $out.Add("$($rec.Key) : new since the baseline") }
+        elseif ((Get-RigFileHash $rec.Path) -ne [string]$b.sha256) { $out.Add("$($rec.Key) : contents changed since the baseline") }
+    }
+    foreach ($k in @($Baseline.Files.Keys | Sort-Object)) {
+        if ([string]$Baseline.Files[$k].class -ne 'config') { continue }
+        if (-not $seen.ContainsKey($k)) { $out.Add("$k : in the baseline, missing now") }
+    }
+    # Comma-wrapped: PowerShell unrolls a returned array, so a single-line report
+    # would come back as a bare string and a caller indexing [0] would get its
+    # first CHARACTER. The same trap Compare-RigSharedState documents.
+    return , $out.ToArray()
 }
 
 # ---- the tier-1 safety write ----------------------------------------------
@@ -402,6 +796,62 @@ function Get-RigNewestBuildTime {
     return ($files | Sort-Object LastWriteTimeUtc -Descending | Select-Object -First 1).LastWriteTimeUtc
 }
 
+function Get-RigBaselineConfigActions {
+    # Per-file restore actions for one config scope, from the baseline.
+    #
+    # This is what replaces "re-copy BepInEx/config from the developer's install"
+    # once a baseline exists. The source install is a reasonable PROXY for a clean
+    # config (it is where a provision seeds from) but it is not the rig's config:
+    # it is the developer's own, it moves when they change a setting in their own
+    # game, and it has no opinion at all about the dedicated server's files. A
+    # baseline does.
+    #
+    # Only files that actually differ are planned, so a clean rig plans nothing
+    # and the printed summary stays honest about what moved.
+    param(
+        [Parameter(Mandatory)] $Baseline,
+        [Parameter(Mandatory)] [string] $Prefix,
+        [Parameter(Mandatory)] [string] $TargetDir,
+        [Parameter(Mandatory)] [string] $Half,
+        [string] $Instance = '',
+        [Parameter(Mandatory)] $LiveRecords
+    )
+    $out  = New-Object System.Collections.Generic.List[object]
+    $seen = @{}
+    foreach ($rec in $LiveRecords) {
+        $seen[$rec.Key] = $rec
+    }
+    foreach ($key in @($Baseline.Files.Keys | Where-Object { $_ -like "$Prefix*" } | Sort-Object)) {
+        $b = $Baseline.Files[$key]
+        if ([string]$b.class -ne 'config') { continue }
+        $stored = Get-RigBaselineStoredPath -Key $key
+        $leaf   = Split-Path -Leaf $key
+        if (-not (Test-Path -LiteralPath $stored)) {
+            # The manifest names a file whose bytes are not in the store. Nothing
+            # can be restored from it, and pretending otherwise would overwrite a
+            # real config with nothing.
+            continue
+        }
+        # The target is derived from the key, not from the live file, so a config
+        # a session DELETED is restored rather than quietly staying missing. That
+        # is the case a hash comparison alone cannot see.
+        $target = Join-Path $TargetDir $leaf
+        $live   = $seen[$key]
+        if ($live -and (Get-RigFileHash $live.Path) -eq [string]$b.sha256) { continue }
+        $why = if ($live) { 'its contents moved since the baseline was captured' } else { 'it was deleted since the baseline was captured' }
+        $out.Add((New-RigResetAction -Half $Half -Instance $Instance -Kind 'RestoreBaselineFile' -Path $target -Source $stored `
+            -Label "$leaf restored from the baseline" -Reason $why))
+    }
+    foreach ($rec in $LiveRecords) {
+        if ($Baseline.Files.ContainsKey($rec.Key)) { continue }
+        $out.Add((New-RigResetAction -Half $Half -Instance $Instance -Kind 'DeleteFile' -Path $rec.Path `
+            -Label "$(Split-Path -Leaf $rec.Key) removed (not in the baseline)" -Reason 'a config file created after the baseline was captured is this session garbage by the same argument as a value it flipped'))
+    }
+    # Plain array, for the same reason Get-RigMutableSurface returns one: every
+    # caller wraps this in @().
+    return $out.ToArray()
+}
+
 # ---- the plan -------------------------------------------------------------
 
 function Get-RigResetPlan {
@@ -424,6 +874,28 @@ function Get-RigResetPlan {
     $lastReset = $null
     $baseline  = Get-RigSharedStateBaseline
     if ($baseline -and $baseline.PSObject.Properties['LastResetUtc']) { $lastReset = $baseline.LastResetUtc }
+
+    # ---- the captured baseline, and how much of it may be trusted ----
+    # Read once and passed down, because every branch below asks the same two
+    # questions: does a baseline exist, and is it still describing this rig.
+    $base       = Get-RigBaseline
+    $surfaceAll = @(Get-RigMutableSurface)
+    $baseState  = Test-RigBaselineStale -Baseline $base
+    if (-not $baseState.Present) {
+        $reports.Add((New-RigResetReport -Half 'rig' -Kind 'BaselineAbsent' -Warn `
+            -Detail "no baseline has been captured, so 'clean' falls back to the built-in delete list. Server configs are not restored and new dedicated-server worlds are not pruned, because nothing here knows what they should look like. Capture one on an idle rig: dedicated-server.ps1 -CaptureBaseline -As <id>"))
+    }
+    elseif ($baseState.Stale) {
+        $reports.Add((New-RigResetReport -Half 'rig' -Kind 'BaselineStale' -Warn `
+            -Detail "the baseline (captured $($base.CapturedUtc), game $($base.GameVersion)) no longer describes this rig: $($baseState.Reasons -join '; '). Config files are still restored from it, but new worlds are only reported, not deleted. Re-capture on an idle rig: dedicated-server.ps1 -CaptureBaseline -As <id>"))
+    }
+    else {
+        $reports.Add((New-RigResetReport -Half 'rig' -Kind 'BaselineUsed' `
+            -Detail "restoring to the baseline captured $($base.CapturedUtc) (game $($base.GameVersion), $($base.Files.Count) entries)"))
+    }
+    # A world may only be DELETED on the strength of a baseline nobody has reason
+    # to doubt. Everything else the baseline drives is reversible; this is not.
+    $pruneWorlds = ($baseState.Present -and -not $baseState.Stale)
 
     # ---- client half, per provisioned instance ----
     # Read once, used for every instance: the trees are wherever -Provision put them, which is
@@ -489,17 +961,55 @@ function Get-RigResetPlan {
         if (Test-Path -LiteralPath $bepinex) {
             # POST /config/set defaults to save:true, so every value a previous
             # test flipped is sticky until something puts it back.
-            $cfgDir = Join-Path $bepinex 'config'
-            $copied = $false
-            if ($source) {
+            #
+            # THE BASELINE WINS OVER THE SOURCE INSTALL when it covers this
+            # instance. The source install is the developer's own game and only
+            # ever was a proxy for a clean config; the baseline is the rig's own
+            # captured state and is exact. The copy stays as the fallback for an
+            # instance the baseline has never seen (a fresh provision), and for a
+            # rig that has no baseline at all.
+            $cfgDir  = Join-Path $bepinex 'config'
+            $copied  = $false
+            $prefix  = "client/$name/bepinex-config/"
+            $covered = $false
+            if ($base) { $covered = @($base.Files.Keys | Where-Object { $_ -like "$prefix*" }).Count -gt 0 }
+
+            if ($covered) {
+                $liveCfg = @($surfaceAll | Where-Object { $_.Class -eq 'config' -and $_.Key -like "$prefix*" })
+                $cfgActs = @(Get-RigBaselineConfigActions -Baseline $base -Prefix $prefix -TargetDir $cfgDir `
+                                -Half 'client' -Instance $name -LiveRecords $liveCfg)
+                foreach ($a in $cfgActs) {
+                    $actions.Add($a)
+                    # Only a write that actually touches the StationeersLaunchPad
+                    # config can wipe SavePathOverride, and only then is a failed
+                    # re-apply this reset's fault. Marking every restore as a copy
+                    # would make an unrelated failure fatal for no reason.
+                    if ((Split-Path -Leaf $a.Path) -eq 'stationeers.launchpad.cfg') { $copied = $true }
+                }
+                # modconfig.xml is a separate scope with its own target folder. It
+                # is included because StationeersLaunchPad has been observed
+                # rewriting a modconfig and silently dropping every Local entry,
+                # which is the kind of damage nothing else here would notice.
+                $mcPrefix = "client/$name/modconfig.xml"
+                $liveMc   = @($surfaceAll | Where-Object { $_.Key -eq $mcPrefix })
+                foreach ($a in @(Get-RigBaselineConfigActions -Baseline $base -Prefix $mcPrefix -TargetDir $userData `
+                                    -Half 'client' -Instance $name -LiveRecords $liveMc)) {
+                    $actions.Add($a)
+                }
+            }
+            elseif ($source) {
                 $srcCfg = Join-Path $source 'BepInEx\config'
                 $actions.Add((New-RigResetAction -Half 'client' -Instance $name -Kind 'CopyConfigTree' -Path $cfgDir -Source $srcCfg `
                     -Label 'BepInEx config re-copied' -Reason 'POST /config/set persists by default, so a flipped value is sticky'))
                 $copied = $true
+                if ($base) {
+                    $reports.Add((New-RigResetReport -Half 'client' -Instance $name -Kind 'BaselineMissesInstance' -Warn `
+                        -Detail "the baseline has no config for this instance, so its BepInEx config was re-copied from the source install instead. That is the pre-baseline behaviour and is only approximately right. Capture a baseline once this instance is set up as you want it: -CaptureBaseline"))
+                }
             }
             else {
                 $reports.Add((New-RigResetReport -Half 'client' -Instance $name -Kind 'ConfigCopySkipped' -Warn `
-                    -Detail 'BepInEx config NOT re-copied: the source install could not be resolved from Directory.Build.props. Any plugin setting a previous test changed is still in place.'))
+                    -Detail 'BepInEx config NOT re-copied: no baseline covers this instance AND the source install could not be resolved from Directory.Build.props. Any plugin setting a previous test changed is still in place.'))
             }
 
             # ALWAYS, and always AFTER the copy. The copy wipes SavePathOverride,
@@ -633,27 +1143,72 @@ function Get-RigResetPlan {
             -Label 'setting.xml' -Reason 'carries stale SavePath and UseSteamP2P; -Start passes every flag it needs'))
     }
 
-    # PRESERVED and reported. Staged worlds are deliberate setup, so deleting
-    # them destroys somebody's afternoon; there is no retention policy anywhere,
-    # which is worth saying out loud once a session.
+    # ---- server worlds: keep the baseline's, prune this session's ----
+    #
+    # This is the one place the baseline makes an IRREVERSIBLE decision, so it is
+    # the one place it has to be beyond doubt. With a fresh baseline, a world it
+    # does not list was created after the capture, which means this session (or an
+    # unreleased one) made it, which means its lifetime ends with the lock. With no
+    # baseline, or a stale one, nothing here can tell a deliberately staged world
+    # from a test's leftover, and the old behaviour stands: keep everything, say so.
     $saveRoot = Join-Path $dediData 'saves'
     if (Test-Path -LiteralPath $saveRoot) {
         $worlds = @(Get-ChildItem -LiteralPath $saveRoot -Directory -ErrorAction SilentlyContinue)
         if ($worlds.Count -gt 0) {
-            $bytes = 0
+            $keptCount = 0
+            $keptBytes = 0
             foreach ($w in $worlds) {
                 $m = Get-ChildItem -LiteralPath $w.FullName -Recurse -File -ErrorAction SilentlyContinue | Measure-Object Length -Sum
-                if ($m.Sum) { $bytes += $m.Sum }
+                $wb = if ($m.Sum) { [long]$m.Sum } else { 0 }
+                $inBaseline = ($base -and $base.Files.ContainsKey("server/saves/$($w.Name)"))
+                if ($pruneWorlds -and -not $inBaseline) {
+                    $actions.Add((New-RigResetAction -Half 'server' -Kind 'DeleteTree' -Path $w.FullName `
+                        -Label ("world '{0}' deleted ({1:N1} MB)" -f $w.Name, ($wb / 1MB)) `
+                        -Reason 'it did not exist when the baseline was captured, so it belongs to a session that is over'))
+                }
+                else {
+                    $keptCount++
+                    $keptBytes += $wb
+                }
             }
-            $reports.Add((New-RigResetReport -Half 'server' -Kind 'SavesRetained' `
-                -Detail ("data/saves kept: {0} world(s), {1:N1} MB, no retention policy" -f $worlds.Count, ($bytes / 1MB))))
+            if ($keptCount -gt 0) {
+                $why = if ($pruneWorlds) { 'they are in the baseline' }
+                       elseif ($baseState.Present) { 'the baseline is stale, so nothing is deleted on its say-so' }
+                       else { 'there is no baseline, so nothing here can tell a staged world from a leftover' }
+                $reports.Add((New-RigResetReport -Half 'server' -Kind 'SavesRetained' `
+                    -Detail ("data/saves kept: {0} world(s), {1:N1} MB ({2})" -f $keptCount, ($keptBytes / 1MB), $why)))
+            }
         }
     }
 
-    # PRESERVED and reported. Which of these are rig-owned and which are mod-owned
-    # is not decided, and resetting a value nobody classified would be its own
-    # silent breakage. Naming the ones that moved is the honest middle.
-    if ($lastReset) {
+    # ---- server config: restored from the baseline, or reported without one ----
+    #
+    # "rig-owned versus mod-owned is undecided" was the honest answer while nothing
+    # recorded what these files should contain. A baseline decides it: whatever was
+    # captured IS the rig-owned value, and a value that moved since is this
+    # session's and goes back. Without a baseline the old report stands, because
+    # resetting a value nobody classified would be its own silent breakage.
+    $srvCfgDir = Join-Path $dediInstall 'BepInEx\config'
+    $srvCovered = $false
+    if ($base) { $srvCovered = @($base.Files.Keys | Where-Object { $_ -like 'server/bepinex-config/*' }).Count -gt 0 }
+    if ($srvCovered) {
+        $liveSrv = @($surfaceAll | Where-Object { $_.Class -eq 'config' -and $_.Key -like 'server/bepinex-config/*' })
+        foreach ($a in @(Get-RigBaselineConfigActions -Baseline $base -Prefix 'server/bepinex-config/' -TargetDir $srvCfgDir `
+                            -Half 'server' -LiveRecords $liveSrv)) {
+            # net.scenariorunner.cfg is already handled above by blanking exactly
+            # one value and leaving the rest of the file alone. Restoring the whole
+            # file from the baseline as well would fight that, and would put back
+            # whatever Scenario the baseline happened to capture.
+            if ((Split-Path -Leaf $a.Path) -eq 'net.scenariorunner.cfg') { continue }
+            $actions.Add($a)
+        }
+        $liveMc = @($surfaceAll | Where-Object { $_.Key -eq 'server/modconfig.xml' })
+        foreach ($a in @(Get-RigBaselineConfigActions -Baseline $base -Prefix 'server/modconfig.xml' -TargetDir $dediInstall `
+                            -Half 'server' -LiveRecords $liveMc)) {
+            $actions.Add($a)
+        }
+    }
+    elseif ($lastReset) {
         $cfgDir = Join-Path $dediInstall 'BepInEx\config'
         if (Test-Path -LiteralPath $cfgDir) {
             try { $since = [DateTime]::Parse($lastReset, [System.Globalization.CultureInfo]::InvariantCulture,
@@ -665,7 +1220,7 @@ function Get-RigResetPlan {
                              ForEach-Object { $_.Name })
                 if ($touched.Count -gt 0) {
                     $reports.Add((New-RigResetReport -Half 'server' -Kind 'ConfigTouched' -Warn `
-                        -Detail "server config changed since the last reset and is NOT reset here (rig-owned versus mod-owned is undecided): $($touched -join ', ')"))
+                        -Detail "server config changed since the last reset and is NOT reset here (no baseline covers the server, so rig-owned versus mod-owned is still undecided): $($touched -join ', '). Capture a baseline to make these restorable: -CaptureBaseline"))
                 }
             }
         }
@@ -680,6 +1235,8 @@ function Get-RigResetPlan {
         Reports       = $reports.ToArray()
         KeepState     = [bool]$KeepState
         LastResetUtc  = $lastReset
+        Baseline      = $baseState
+        PruneWorlds   = $pruneWorlds
     }
 }
 
@@ -967,6 +1524,16 @@ function Invoke-RigReset {
     # from the state the session actually begins with.
     Save-RigSharedStateBaseline -LastResetUtc (Get-RigNowUtc)
 
+    # THE MARKER IS CLEARED HERE AND NOWHERE ELSE, and only when every action
+    # succeeded. That is the whole contract: "no marker" means "a restore ran to
+    # completion", so a partial restore leaves the rig marked and the next
+    # acquisition tries again. Clearing it on a failure would turn one bad reset
+    # into a rig that never gets cleaned and never says so.
+    if ($failures.Count -eq 0 -and (Get-Command Clear-RigDirtyMarker -ErrorAction SilentlyContinue)) {
+        try { Clear-RigDirtyMarker }
+        catch { Write-Warning "[Reset] The restore completed but the dirty marker could not be cleared: $($_.Exception.Message). The rig is clean; the next acquisition will simply restore an already-clean rig, which costs nothing." }
+    }
+
     if ($failures.Count -gt 0) {
         foreach ($f in $failures) { Write-Warning "[Reset] $f" }
         throw "The rig state reset failed on $($failures.Count) action(s), so at least one instance is HALF RESET and must not be trusted for a test:`n  $($failures -join "`n  ")`nFix the cause (a file held open by a process, a permission), then -Unlock and take the lock again; re-asserting a lock you already hold does not reset."
@@ -1000,6 +1567,25 @@ function Invoke-RigResetAction {
             # its assembly cache there and a missing folder is one more thing for
             # a first launch to get wrong.
             New-Item -ItemType Directory -Force -Path $Action.Path | Out-Null
+        }
+        'DeleteTree' {
+            # Like DeleteDirectory but the folder does NOT come back. Used for a
+            # dedicated-server world: an empty directory where a world used to be
+            # is not a neutral leftover, it is something the game and every save
+            # listing has to decide what to do with.
+            Remove-Item -LiteralPath $Action.Path -Recurse -Force -ErrorAction Stop
+        }
+        'RestoreBaselineFile' {
+            # Put a captured config back, byte for byte. The source is always a
+            # file inside TestRig/baseline/content/ that a capture wrote; nothing
+            # here ever copies out of the developer's install, and nothing takes a
+            # path from a caller.
+            if (-not (Test-Path -LiteralPath $Action.Source)) {
+                throw "the baseline no longer has stored content at $($Action.Source), so nothing could be restored"
+            }
+            $dir = Split-Path -Parent $Action.Path
+            if ($dir -and -not (Test-Path -LiteralPath $dir)) { New-Item -ItemType Directory -Force -Path $dir | Out-Null }
+            Copy-Item -LiteralPath $Action.Source -Destination $Action.Path -Force -ErrorAction Stop
         }
         'CopyConfigTree' {
             # Copy every .cfg the source install has over the instance's, then
@@ -1105,7 +1691,14 @@ function Write-RigResetOutcome {
     foreach ($g in (@($Performed) | Group-Object { if ($_.Instance) { $_.Instance } else { $_.Half } })) {
         Write-Host "[Reset]   $($g.Name): $((@($g.Group | ForEach-Object { $_.Label })) -join ', ')"
     }
-    Write-Host "[Reset]   kept: rig.json, instance manifests, provision stamps, seeded mods, the dedicated server's saves and mods, the hard links."
+    Write-Host "[Reset]   kept: rig.json, instance manifests, provision stamps, seeded mods, deployed plugins, the hard links."
+    if ($Plan.PSObject.Properties['Baseline'] -and $Plan.Baseline) {
+        $b = $Plan.Baseline
+        $how = if (-not $b.Present) { 'no baseline (built-in delete list only)' }
+               elseif ($b.Stale)    { 'a STALE baseline (config restored from it, worlds only reported)' }
+               else                 { 'the captured baseline' }
+        Write-Host "[Reset]   clean state: $how."
+    }
     Write-RigResetReports -Plan $Plan
     Write-Host "[Reset] This resets BETWEEN sessions only. A session spans many start/stop cycles, so two unrelated tests under THIS one lock get no reset between them: release and re-take the lock when the subject changes."
 }

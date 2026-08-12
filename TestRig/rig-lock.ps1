@@ -35,12 +35,44 @@
 #   The mutex is never held across anything slow. Process teardown, the busy
 #   probe and every Write-Host happen outside it.
 #
-# STATE HYGIENE HANGS OFF ACQUISITION
-#   A NEW lock is a session boundary, so New-RigLock calls Invoke-RigReset
-#   (TestRig/rig-reset.ps1) to clear what the previous session left behind. The
-#   lock is the only mandatory choke point that already exists, which is why the
-#   reset lives here rather than in a rule somebody has to remember. Re-asserting
-#   a lock you already hold does NOT reset; -KeepState opts out loudly.
+# STATE HYGIENE HANGS OFF BOTH ENDS OF THE SESSION
+#   A session boundary is a RELEASE and an ACQUISITION, and the restore runs at
+#   both. Remove-RigLock restores before it frees the lock, which is where the
+#   guarantee is actually earned: the agent that made the mess pays for it, while
+#   it is still the owner and while the rig is provably idle. New-RigLock restores
+#   again on acquisition, which is the BACKSTOP for the case the release path can
+#   never cover: a session that crashed, was killed, or lost the machine to a
+#   reboot never reaches its own release. Restores are idempotent, so doing it
+#   twice costs nothing and the pair leaves no gap. Re-asserting a lock you
+#   already hold does NOT reset; -KeepState opts out loudly at either end.
+#
+# THE DIRTY MARKER: HOW ACQUISITION KNOWS THE LAST SESSION DID NOT CLEAN UP
+#   Assert-RigLockHeld writes TestRig/session.dirty before the FIRST mutating
+#   action of a session, durably (write-through, flushed, atomic replace), and
+#   only a completed restore clears it. So the marker is on disk before anything
+#   it describes has happened, which is what makes it survive a kill, a bugcheck
+#   or a power cut: in-memory state would not.
+#
+#   It records the OS boot identity as well as the pid, because a pid alone lies
+#   across a reboot: process ids are reused, so "pid 8123 is alive" after a
+#   restart says nothing about the pwsh that wrote the marker before it. The rig
+#   already refuses to trust a bare pid for the game (Get-RigLiveProcess); the
+#   marker applies the same rule to its own writer, and treats "not from this
+#   boot" as proof the writer is gone.
+#
+# TWO TIMERS, DOING DIFFERENT JOBS (do not collapse them into one)
+#   1. ttl_minutes (default 10) is a LIVENESS HEARTBEAT on refreshed_at. Its job
+#      is to free a rig nobody is using. A busy rig self-renews it, because a
+#      brief gap between two commands must not hand a live test to somebody else.
+#   2. idle_ceiling_minutes (default 60) is an ABSOLUTE IDLE CEILING on
+#      active_at. Its job is to free a rig whose OWNER is gone, busy or not. Only
+#      the owner's own actions move active_at; the busy self-renew never touches
+#      it, which is the whole reason it is a separate field. Anchoring the
+#      ceiling on refreshed_at would let a rig with one forgotten client instance
+#      renew itself past the ceiling for ever, which is exactly the hung-agent
+#      case the ceiling exists for.
+#   A session that keeps working is never reclaimed, however long it runs: every
+#   mutating command bumps active_at. What the ceiling ends is an hour of silence.
 #
 # Tests: TestRig/rig-lock.tests.ps1 (offline, no game, no network, runs against a
 # temp directory through Initialize-RigLockPaths). Run it after any change here.
@@ -65,12 +97,23 @@ function Initialize-RigLockPaths {
         [Parameter(Mandatory)] [string] $RigHome,
         [string] $ServerImageName = 'rocketstation_DedicatedServer',
         [string] $ClientImageName = 'rocketstation',
-        [string] $InstanceRoot
+        [string] $InstanceRoot,
+        [string] $BootId
     )
 
     $script:RigLockHome  = $RigHome
     $script:RigLockFile  = Join-Path $RigHome 'session.lock'
     $script:RigLockRules = Join-Path $RigHome 'session.lock.template'
+
+    # The crash marker. It lives beside the lock rather than inside either half,
+    # because one session dirties both halves and one restore cleans both.
+    $script:RigDirtyFile = Join-Path $RigHome 'session.dirty'
+
+    # An injectable boot identity, for the same reason the image names are
+    # injectable: "this marker predates a reboot" is a branch that must be
+    # exercised offline, and no test can reboot the machine.
+    $script:RigBootIdOverride = $BootId
+    $script:RigBootIdCache    = $null
 
     # Activity probes for each half. Paths are fixed relative to TestRig/, so the
     # library can see whether EITHER half is busy regardless of which launcher
@@ -100,9 +143,212 @@ function Initialize-RigLockPaths {
     $script:RigLockMutexFullName = $null
 }
 
-function Get-RigLockRulesPath { return $script:RigLockRules }
-function Get-RigLockFilePath  { return $script:RigLockFile }
-function Get-RigLockHomePath  { return $script:RigLockHome }
+function Get-RigLockRulesPath   { return $script:RigLockRules }
+function Get-RigLockFilePath    { return $script:RigLockFile }
+function Get-RigLockHomePath    { return $script:RigLockHome }
+function Get-RigDirtyFilePath   { return $script:RigDirtyFile }
+
+# ---- boot identity --------------------------------------------------------
+
+function Get-RigBootId {
+    # A string that changes when the machine restarts and does not change
+    # otherwise. It is what turns "the process that wrote this marker is gone"
+    # from a guess into a fact: after a reboot every recorded pid is meaningless,
+    # because Windows hands the same numbers out again to unrelated processes.
+    #
+    # LastBootUpTime is the exact answer and is what this asks for first. The
+    # fallback derives the same instant from the machine's uptime and is tagged
+    # 'approx' and rounded to the minute, because two derivations seconds apart
+    # must not read as two different boots.
+    #
+    # A boot id that cannot be computed at all returns 'unknown', and every
+    # comparison against 'unknown' fails, so an unidentifiable boot means "assume
+    # the marker predates it" and therefore "restore". Restoring twice is free;
+    # skipping a restore is not.
+    if ($script:RigBootIdOverride) { return $script:RigBootIdOverride }
+    if ($script:RigBootIdCache)    { return $script:RigBootIdCache }
+    $id = 'unknown'
+    try {
+        $os = Get-CimInstance -ClassName Win32_OperatingSystem -ErrorAction Stop
+        if ($os -and $os.LastBootUpTime) {
+            $id = 'boot:' + ([DateTime]$os.LastBootUpTime).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss'Z'")
+        }
+    }
+    catch { }
+    if ($id -eq 'unknown') {
+        try {
+            $up = [TimeSpan]::FromMilliseconds([Environment]::TickCount64)
+            $b  = [DateTime]::UtcNow - $up
+            $b  = [DateTime]::new($b.Year, $b.Month, $b.Day, $b.Hour, $b.Minute, 0, [DateTimeKind]::Utc)
+            $id = 'approx:' + $b.ToString("yyyy-MM-ddTHH:mm:ss'Z'")
+        }
+        catch { }
+    }
+    $script:RigBootIdCache = $id
+    return $id
+}
+
+# ---- the crash marker -----------------------------------------------------
+# Written before the first mutating action of a session, cleared only by a
+# COMPLETED restore. Its presence at acquisition means the previous session did
+# not clean up after itself, which is the only signal that survives a process
+# kill, a bugcheck or a power cut.
+
+function Write-RigFileDurable {
+    # Write text and get it onto the platter before returning.
+    #
+    # Set-Content does not do this: it returns once the bytes are in the file
+    # system cache, and a power cut in the next few seconds loses them. The whole
+    # point of the marker is that it outlives exactly that event, so it is written
+    # WriteThrough and flushed with FlushFileBuffers (Flush($true)) before the
+    # atomic rename. NTFS journals the rename itself, so a marker that exists is
+    # a marker that was complete.
+    param(
+        [Parameter(Mandatory)] [string] $Path,
+        [Parameter(Mandatory)] [string] $Text
+    )
+    $dir = Split-Path -Parent $Path
+    if ($dir -and -not (Test-Path -LiteralPath $dir)) { New-Item -ItemType Directory -Force -Path $dir | Out-Null }
+    $tmp = "$Path.$PID-$([guid]::NewGuid().ToString('N').Substring(0, 8)).tmp"
+    try {
+        $bytes = [System.Text.Encoding]::UTF8.GetBytes($Text)
+        $fs = [System.IO.FileStream]::new($tmp, [System.IO.FileMode]::Create, [System.IO.FileAccess]::Write,
+                [System.IO.FileShare]::None, 4096, [System.IO.FileOptions]::WriteThrough)
+        try {
+            $fs.Write($bytes, 0, $bytes.Length)
+            $fs.Flush($true)
+        }
+        finally { $fs.Dispose() }
+        for ($attempt = 1; $attempt -le 10; $attempt++) {
+            try { [System.IO.File]::Move($tmp, $Path, $true); return }
+            catch [System.IO.IOException]             { Start-Sleep -Milliseconds (5 * $attempt) }
+            catch [System.UnauthorizedAccessException] { Start-Sleep -Milliseconds (5 * $attempt) }
+        }
+        throw "Could not replace $Path after 10 attempts. Something is holding it open."
+    }
+    finally { Remove-Item -LiteralPath $tmp -Force -ErrorAction SilentlyContinue }
+}
+
+function ConvertFrom-RigFieldText {
+    # The key=value parser both state files share. Comments and blank lines are
+    # skipped and a value may contain '=' (split on the first one only).
+    param([string] $Text)
+    $fields = [ordered]@{}
+    if ($null -eq $Text) { return $fields }
+    foreach ($line in ($Text -split "`r?`n")) {
+        $t = $line.Trim()
+        if (-not $t -or $t.StartsWith('#')) { continue }
+        $eq = $t.IndexOf('=')
+        if ($eq -lt 1) { continue }
+        $fields[$t.Substring(0, $eq).Trim()] = $t.Substring($eq + 1).Trim()
+    }
+    return $fields
+}
+
+function Read-RigDirtyMarker {
+    # The marker as fields, or $null when the rig is not marked dirty. A file with
+    # no 'owner' key is not a marker, matching Read-RigLock: that covers an empty
+    # file, a comment-only one and anything hand-broken.
+    $text = Read-RigLockText -Path $script:RigDirtyFile
+    if ($null -eq $text) { return $null }
+    $fields = ConvertFrom-RigFieldText $text
+    if (-not $fields.Contains('owner')) { return $null }
+    return $fields
+}
+
+function Write-RigDirtyMarker {
+    # Mark the rig dirty. Idempotent for one session: a marker this owner already
+    # wrote in this boot is left exactly as it is, so the FIRST mutation's
+    # timestamp survives and every later gated command costs one Test-Path.
+    param(
+        [Parameter(Mandatory)] [string] $Owner,
+        [string] $Purpose = '',
+        [string] $Reason  = 'a mutating action'
+    )
+    $existing = Read-RigDirtyMarker
+    if ($existing -and $existing['owner'] -eq $Owner -and $existing['boot_id'] -eq (Get-RigBootId)) { return $false }
+
+    $me   = $null
+    try { $me = (Get-Process -Id $PID -ErrorAction Stop).Name } catch { }
+    $sb = [System.Text.StringBuilder]::new()
+    [void]$sb.AppendLine('# Stationeers TestRig - DIRTY MARKER (auto-managed; do not hand-edit).')
+    [void]$sb.AppendLine('# Written before the first mutating action of a session; cleared only by a')
+    [void]$sb.AppendLine('# COMPLETED state restore. Present at acquisition means the last session did')
+    [void]$sb.AppendLine('# not clean up (it crashed, was killed, or the machine went down).')
+    [void]$sb.AppendLine('# Rules: session.lock.template.')
+    foreach ($kv in @(
+        @{ k = 'owner';      v = $Owner }
+        @{ k = 'purpose';    v = $Purpose }
+        @{ k = 'reason';     v = $Reason }
+        @{ k = 'marked_at';  v = (Get-RigNowUtc) }
+        @{ k = 'boot_id';    v = (Get-RigBootId) }
+        @{ k = 'writer_pid'; v = "$PID" }
+        @{ k = 'writer_image'; v = "$me" }
+        @{ k = 'host';       v = "$env:COMPUTERNAME" }
+    )) {
+        [void]$sb.AppendLine("$($kv.k)=$($kv.v)")
+    }
+    Write-RigFileDurable -Path $script:RigDirtyFile -Text $sb.ToString()
+    return $true
+}
+
+function Clear-RigDirtyMarker {
+    for ($attempt = 1; $attempt -le 10; $attempt++) {
+        if (-not (Test-Path -LiteralPath $script:RigDirtyFile)) { return }
+        try { Remove-Item -LiteralPath $script:RigDirtyFile -Force -ErrorAction Stop; return }
+        catch { Start-Sleep -Milliseconds (5 * $attempt) }
+    }
+    throw "Could not delete the rig dirty marker at $($script:RigDirtyFile) after 10 attempts. Something is holding it open, so the rig still reads as dirty and the next acquisition will restore again."
+}
+
+function Get-RigDirtyState {
+    # What the marker means right now, as data.
+    #
+    #   Dirty       a marker is present at all
+    #   SameBoot    it was written since the machine last started
+    #   WriterAlive its process is still running AND is still the image it was
+    #   Crashed     dirty, and nothing is left that could still be writing
+    #
+    # WriterAlive is only ever consulted when SameBoot is true. A pid from before
+    # a reboot names whatever process inherited that number afterwards, and
+    # trusting it is how a crashed session's mess gets mistaken for a live one's.
+    $m = Read-RigDirtyMarker
+    if (-not $m) {
+        return [pscustomobject]@{
+            Dirty = $false; SameBoot = $true; WriterAlive = $false; Crashed = $false
+            Owner = ''; Purpose = ''; Reason = ''; MarkedAt = ''; BootId = ''; Marker = $null
+        }
+    }
+    $sameBoot = ($m['boot_id'] -eq (Get-RigBootId)) -and ($m['boot_id']) -and ((Get-RigBootId) -ne 'unknown')
+    $alive    = $false
+    if ($sameBoot) {
+        $p = 0
+        if ([int]::TryParse("$($m['writer_pid'])", [ref]$p)) {
+            $alive = ($null -ne (Get-RigLiveProcess -TargetPid $p -ImageName $m['writer_image']))
+        }
+    }
+    return [pscustomobject]@{
+        Dirty       = $true
+        SameBoot    = [bool]$sameBoot
+        WriterAlive = [bool]$alive
+        Crashed     = (-not $alive)
+        Owner       = [string]$m['owner']
+        Purpose     = [string]$m['purpose']
+        Reason      = [string]$m['reason']
+        MarkedAt    = [string]$m['marked_at']
+        BootId      = [string]$m['boot_id']
+        Marker      = $m
+    }
+}
+
+function Format-RigDirtyState {
+    param([Parameter(Mandatory)] $State)
+    if (-not $State.Dirty) { return 'clean (no dirty marker)' }
+    $how = if (-not $State.SameBoot) { 'the machine has restarted since, so that session is definitely gone' }
+           elseif ($State.WriterAlive) { "its launcher process is STILL RUNNING (pid $($State.Marker['writer_pid']))" }
+           else { 'its launcher process is gone' }
+    return "dirty since $($State.MarkedAt) by owner $($State.Owner) ($($State.Reason)); $how"
+}
 
 # ---- the critical section -------------------------------------------------
 
@@ -263,15 +509,9 @@ function Read-RigLock {
     # comment-only file, and anything hand-broken.
     $text = Read-RigLockText -Path $script:RigLockFile
     if ($null -eq $text) { return $null }
-    $fields = [ordered]@{}
-    foreach ($line in ($text -split "`r?`n")) {
-        $t = $line.Trim()
-        if (-not $t -or $t.StartsWith('#')) { continue }
-        $eq = $t.IndexOf('=')
-        if ($eq -lt 1) { continue }
-        # Split on the FIRST '=' only, so a value may contain '=' and round-trip.
-        $fields[$t.Substring(0, $eq).Trim()] = $t.Substring($eq + 1).Trim()
-    }
+    # Shared with the dirty marker: one parser, so the two state files cannot
+    # disagree about comments, blank lines or a value containing '='.
+    $fields = ConvertFrom-RigFieldText $text
     if (-not $fields.Contains('owner')) { return $null }
     return $fields
 }
@@ -356,6 +596,80 @@ function Get-RigLockAgeText {
             [System.Globalization.DateTimeStyles]::AssumeUniversal -bor [System.Globalization.DateTimeStyles]::AdjustToUniversal)
         return "$([int](([DateTime]::UtcNow - $r).TotalMinutes)) min ago"
     } catch { return 'unknown' }
+}
+
+# ---- the idle ceiling -----------------------------------------------------
+# The second timer. The TTL above asks "is anyone using the rig"; this asks "is
+# the OWNER still there", which is a different question and needs its own anchor.
+# See the header: active_at moves only on the owner's own actions, so the busy
+# self-renew (which moves refreshed_at) can never push the ceiling out.
+
+function Get-RigLockActiveAt {
+    # The instant the owner last acted, as a UTC DateTime, or $null when nothing
+    # in the file can be trusted.
+    #
+    # The fallback order is fail-closed in the same sense the TTL is: never pick a
+    # field that could make the lock look FRESHER than it is. active_at is the
+    # real answer. A lock written before this field existed falls back to
+    # acquired_at, which is older than any owner action and therefore strictly
+    # safer, and only then to refreshed_at. Nothing parseable at all -> $null,
+    # which callers read as "ceiling exceeded".
+    param([Parameter(Mandatory)] $Lock)
+    foreach ($key in @('active_at', 'acquired_at', 'refreshed_at')) {
+        if (-not $Lock.Contains($key)) { continue }
+        try {
+            return [DateTime]::Parse($Lock[$key],
+                [System.Globalization.CultureInfo]::InvariantCulture,
+                [System.Globalization.DateTimeStyles]::AssumeUniversal -bor [System.Globalization.DateTimeStyles]::AdjustToUniversal)
+        }
+        catch { continue }
+    }
+    return $null
+}
+
+function Get-RigLockIdleCeiling {
+    # The configured ceiling in minutes, or $null when the field cannot be
+    # trusted. Same fail-closed shape as the TTL: an unparseable or negative
+    # value is not quietly replaced with the default, because a lock file nobody
+    # can read must not be able to pin the rig.
+    param([Parameter(Mandatory)] $Lock)
+    if (-not $Lock.Contains('idle_ceiling_minutes')) { return 60 }
+    $parsed = 0
+    if ([int]::TryParse($Lock['idle_ceiling_minutes'], [ref]$parsed) -and $parsed -ge 0) { return $parsed }
+    return $null
+}
+
+function Test-RigLockIdleCeilingExceeded {
+    # True when the owner has not acted for longer than the ceiling. This is what
+    # makes a hung agent a DELAY rather than a block: past this point the lock is
+    # reclaimable whether or not the rig is busy, which is the one case the TTL
+    # deliberately cannot reach.
+    param([Parameter(Mandatory)] $Lock)
+    $ceiling = Get-RigLockIdleCeiling $Lock
+    if ($null -eq $ceiling) { return $true }
+    $active = Get-RigLockActiveAt $Lock
+    if ($null -eq $active) { return $true }
+    return ((([DateTime]::UtcNow - $active).TotalMinutes) -gt $ceiling)
+}
+
+function Get-RigLockIdleText {
+    param([Parameter(Mandatory)] $Lock)
+    $active = Get-RigLockActiveAt $Lock
+    if ($null -eq $active) { return 'unknown' }
+    return "$([int](([DateTime]::UtcNow - $active).TotalMinutes)) min"
+}
+
+function Get-RigLockIdleRemainingText {
+    # How long the current holder has before the ceiling makes the lock
+    # reclaimable. Printed by -Status so an agent can see it coming rather than
+    # discover it by losing the rig.
+    param([Parameter(Mandatory)] $Lock)
+    $ceiling = Get-RigLockIdleCeiling $Lock
+    $active  = Get-RigLockActiveAt $Lock
+    if ($null -eq $ceiling -or $null -eq $active) { return 'unreadable, so the ceiling counts as already reached' }
+    $left = $ceiling - ([DateTime]::UtcNow - $active).TotalMinutes
+    if ($left -le 0) { return 'reached' }
+    return "$([int][Math]::Ceiling($left)) min left"
 }
 
 # ---- is the rig actually busy ---------------------------------------------
@@ -620,32 +934,53 @@ function Resolve-RigLockState {
     # foreign lock whose timer lapsed while the rig is genuinely busy gets a full
     # fresh TTL, so a brief gap (a client restarting, a player reconnecting) does
     # not hand a live test to somebody else.
+    # Reclaim names WHY a DeadForeign lock is reclaimable, because the two reasons
+    # read very differently to a human: 'ttl' is a rig nobody was using, while
+    # 'idle-ceiling' may be a rig with a live world on it whose owner walked away.
+    #
+    # ORDER MATTERS AND IS NOT ARBITRARY. The ceiling is tested BEFORE the fresh-
+    # timer branch, because a busy rig self-renews refreshed_at every time anyone
+    # looks at it: a lock held by a hung agent with one forgotten client instance
+    # is permanently "fresh" by the TTL and would never reach the branches below.
+    # Testing the ceiling first is what makes the hung-agent case terminate.
     param(
         $Lock,
         [string] $CallerId,
         $Busy
     )
     if (-not $Lock) {
-        return [pscustomobject]@{ State = 'None'; Lock = $null; Busy = $null; Renew = $false }
+        return [pscustomobject]@{ State = 'None'; Lock = $null; Busy = $null; Renew = $false; Reclaim = '' }
     }
     if ($CallerId -and $Lock['owner'] -eq $CallerId) {
-        return [pscustomobject]@{ State = 'Mine'; Lock = $Lock; Busy = $null; Renew = $false }
+        # Still yours even past the ceiling. The ceiling makes a lock RECLAIMABLE,
+        # not revoked: if you come back before anybody else takes it, your command
+        # runs and bumps active_at, and the countdown starts again. First come.
+        return [pscustomobject]@{ State = 'Mine'; Lock = $Lock; Busy = $null; Renew = $false; Reclaim = '' }
+    }
+    if (Test-RigLockIdleCeilingExceeded $Lock) {
+        $why = if ($Busy -and $Busy.Busy) { $Busy.Detail } else { $null }
+        return [pscustomobject]@{ State = 'DeadForeign'; Lock = $Lock; Busy = $why; Renew = $false; Reclaim = 'idle-ceiling' }
     }
     if (-not (Test-RigLockTimerExpired $Lock)) {
-        return [pscustomobject]@{ State = 'LiveForeign'; Lock = $Lock; Busy = $null; Renew = $false }
+        return [pscustomobject]@{ State = 'LiveForeign'; Lock = $Lock; Busy = $null; Renew = $false; Reclaim = '' }
     }
     if ($Busy -and $Busy.Busy) {
-        return [pscustomobject]@{ State = 'LiveForeign'; Lock = $Lock; Busy = $Busy.Detail; Renew = $true }
+        return [pscustomobject]@{ State = 'LiveForeign'; Lock = $Lock; Busy = $Busy.Detail; Renew = $true; Reclaim = '' }
     }
-    return [pscustomobject]@{ State = 'DeadForeign'; Lock = $Lock; Busy = $null; Renew = $false }
+    return [pscustomobject]@{ State = 'DeadForeign'; Lock = $Lock; Busy = $null; Renew = $false; Reclaim = 'ttl' }
 }
 
 function Test-RigBusyProbeNeeded {
     # The busy probe only changes the answer for a foreign lock whose timer has
-    # lapsed. Everything else is decided by the file alone.
+    # lapsed, OR one past the idle ceiling. The ceiling case does not need the
+    # probe to DECIDE anything (a reclaim happens either way), but it needs it to
+    # REPORT: taking a rig off a session that still has a world up is the loudest
+    # thing this library does, and the message has to name what is running.
+    # Everything else is decided by the file alone.
     param($Lock, [string] $CallerId)
     if (-not $Lock) { return $false }
     if ($CallerId -and $Lock['owner'] -eq $CallerId) { return $false }
+    if (Test-RigLockIdleCeilingExceeded $Lock) { return $true }
     return (Test-RigLockTimerExpired $Lock)
 }
 
@@ -674,10 +1009,18 @@ function Get-RigLockState {
 
         $st = Resolve-RigLockState -Lock $lock -CallerId $CallerId -Busy $b
         if ($st.State -eq 'Mine' -and $RefreshIfMine) {
+            # The owner acted, so BOTH clocks move. This is the only place other
+            # than an explicit refresh where active_at advances, and it is what
+            # makes "a session that keeps working is never reclaimed" true.
             $lock['refreshed_at'] = Get-RigNowUtc
+            $lock['active_at']    = Get-RigNowUtc
             Write-RigLock $lock
         }
         elseif ($st.Renew) {
+            # The RIG is busy, but nobody has said the owner is still there. Only
+            # the heartbeat moves. Bumping active_at here would let a forgotten
+            # instance renew a hung agent's reservation for ever, which is the
+            # exact failure the ceiling exists to end.
             $lock['refreshed_at'] = Get-RigNowUtc
             Write-RigLock $lock
         }
@@ -689,7 +1032,7 @@ function Format-ForeignRigLock {
     param([Parameter(Mandatory)] $State)
     $lk = $State.Lock
     $busy = if ($State.Busy) { "; $($State.Busy)" } else { '' }
-    return "    purpose : $($lk['purpose'])`n    owner   : $($lk['owner'])`n    active  : $(Get-RigLockAgeText $lk)$busy"
+    return "    purpose : $($lk['purpose'])`n    owner   : $($lk['owner'])`n    active  : $(Get-RigLockAgeText $lk)$busy`n    idle    : $(Get-RigLockIdleText $lk) since the owner last acted ($(Get-RigLockIdleRemainingText $lk) on the idle ceiling)"
 }
 
 # ---- the gate -------------------------------------------------------------
@@ -706,7 +1049,29 @@ function Assert-RigLockHeld {
     )
     $st = Get-RigLockState -CallerId $CallerId -RefreshIfMine
     switch ($st.State) {
-        'Mine' { return }
+        'Mine' {
+            # THE CRASH MARKER GOES DOWN HERE, BEFORE THE ACTION RUNS.
+            #
+            # This is the last common point before every mutating command on
+            # either half, and the marker has to be on disk before the mutation
+            # it describes, not after: a session killed between the two would
+            # leave a dirty rig that nothing knows is dirty. Idempotent, so this
+            # is one Test-Path on every command after the first.
+            #
+            # A marker failure is NOT fatal. Losing crash detection is bad;
+            # refusing every mutating command because a file could not be written
+            # is worse, and would make the rig unusable rather than merely
+            # unverified. Say so and continue.
+            try {
+                if (Write-RigDirtyMarker -Owner $st.Lock['owner'] -Purpose $st.Lock['purpose'] -Reason $Action) {
+                    Write-Host "[Lock] Rig marked dirty (first mutating action of this session: $Action). It is restored at -Unlock, or by the next acquisition if this session does not get that far."
+                }
+            }
+            catch {
+                Write-Warning "[Lock] Could not write the crash marker at $($script:RigDirtyFile): $($_.Exception.Message). The action continues, but if this session dies the next acquisition will not know the rig was left dirty."
+            }
+            return
+        }
         'None' {
             throw "[$Action] No rig session lock is held. Acquire one first:`n    $Tool -Lock -Purpose `"<what you are testing>`"`nthen pass -As <id> on every mutating command. One lock covers BOTH TestRig halves. See TestRig/session.lock.template."
         }
@@ -728,7 +1093,12 @@ function Update-RigLockIfMine {
     Invoke-WithRigLockMutex -Context 'refresh the rig lock' -Body {
         $lock = Read-RigLock
         if (-not $lock -or $lock['owner'] -ne $CallerId) { return }
+        # A readiness barrier IS the owner working: it is bounded, foreground and
+        # attached to a test in progress, so it moves active_at as well as the
+        # heartbeat. The thing the rules forbid is a background refresher with no
+        # test behind it, and that is a rule, not something this line can enforce.
         $lock['refreshed_at'] = Get-RigNowUtc
+        $lock['active_at']    = Get-RigNowUtc
         Write-RigLock $lock
     }
 }
@@ -751,6 +1121,7 @@ function New-RigLock {
         [Parameter(Mandatory)] [string] $Purpose,
         [string] $CallerId,
         [int] $TtlMinutes = 10,
+        [int] $IdleCeilingMinutes = 60,
         [switch] $BreakLock,
         [Parameter(Mandatory)] [string] $Tool,
         [scriptblock] $OnReclaim,
@@ -789,7 +1160,9 @@ function New-RigLock {
                 Write-RigLock ([ordered]@{
                     owner = $owner; purpose = $Purpose
                     acquired_at = $lock['acquired_at']; refreshed_at = (Get-RigNowUtc)
-                    ttl_minutes = $TtlMinutes; host = $env:COMPUTERNAME
+                    active_at = (Get-RigNowUtc)
+                    ttl_minutes = $TtlMinutes; idle_ceiling_minutes = $IdleCeilingMinutes
+                    host = $env:COMPUTERNAME
                 })
                 return [pscustomobject]@{ Result = 'Reasserted'; Owner = $owner; State = $st }
             }
@@ -799,7 +1172,9 @@ function New-RigLock {
             Write-RigLock ([ordered]@{
                 owner = $owner; purpose = $Purpose
                 acquired_at = (Get-RigNowUtc); refreshed_at = (Get-RigNowUtc)
-                ttl_minutes = $TtlMinutes; host = $env:COMPUTERNAME
+                active_at = (Get-RigNowUtc)
+                ttl_minutes = $TtlMinutes; idle_ceiling_minutes = $IdleCeilingMinutes
+                host = $env:COMPUTERNAME
             })
             return [pscustomobject]@{ Result = 'Acquired'; Owner = $owner; State = $st }
         }
@@ -839,23 +1214,46 @@ function New-RigLock {
         if ($outcome.State.State -eq 'LiveForeign') {
             Write-Warning "[Lock] -BreakLock: broke a live lock held by '$($outcome.State.Lock['purpose'])' (owner $($outcome.State.Lock['owner']))."
         }
-        elseif ($outcome.State.State -eq 'DeadForeign' -and $OnReclaim) {
-            & $OnReclaim
+        elseif ($outcome.State.State -eq 'DeadForeign') {
+            if ($outcome.State.Reclaim -eq 'idle-ceiling') {
+                # THE WATCHDOG FIRING. Loud, and specific about what it just took,
+                # because this is the one reclaim that can happen to a rig with
+                # processes still on it. A human reading a test that ended for no
+                # visible reason has to be able to find this line.
+                $lk = $outcome.State.Lock
+                Write-Warning "[Lock] IDLE WATCHDOG: reclaimed the rig from owner $($lk['owner']) ('$($lk['purpose'])'), whose last action was $(Get-RigLockIdleText $lk) ago, past its $(Get-RigLockIdleCeiling $lk) min idle ceiling. That session did not release the rig; it is not being punished for being slow, only for being silent."
+                if ($outcome.State.Busy) {
+                    Write-Warning "[Lock] IDLE WATCHDOG: the rig was still BUSY when it was reclaimed: $($outcome.State.Busy). Whatever was running belongs to the reclaimed session and is about to be stopped and reset. If that was a live test somebody cared about, this is where it ended."
+                }
+            }
+            if ($OnReclaim) { & $OnReclaim }
         }
         Write-Host "[Lock] Acquired the rig session lock (covers BOTH TestRig halves)."
         Write-Host "[Lock]   owner   : $($outcome.Owner)   (pass -As $($outcome.Owner) on every mutating command, on either launcher)"
         Write-Host "[Lock]   purpose : $Purpose"
-        Write-Host "[Lock]   ttl     : $TtlMinutes min (refresh with -RefreshLock -As $($outcome.Owner) while actively testing)"
+        Write-Host "[Lock]   ttl     : $TtlMinutes min heartbeat (refresh with -RefreshLock -As $($outcome.Owner) while actively testing)"
+        Write-Host "[Lock]   idle    : $IdleCeilingMinutes min ceiling; after that long with no action from you, another agent may reclaim the rig even if it is busy"
         Write-Host "[Lock] Rules: TestRig/session.lock.template."
 
         # STATE HYGIENE, at the one choke point an agent cannot route around.
-        # A new lock is a session boundary, so the rig is cleaned of what the last
-        # session left behind (TestRig/rig-reset.ps1). Deliberately placed AFTER
-        # the owner id is printed: if the reset throws, the caller still knows the
-        # id it needs to unlock with.
         #
-        # Guarded on the function existing so rig-lock.ps1 stays usable, and
-        # testable, on its own. The launchers dot-source both files.
+        # This is the BACKSTOP half of the pair. The restore normally happens at
+        # -Unlock, where the session that made the mess is still around to pay for
+        # it. A session that crashed, was killed, or lost the machine to a reboot
+        # never reaches that path, and the dirty marker is how this side finds out.
+        #
+        # Deliberately placed AFTER the owner id is printed: if the reset throws,
+        # the caller still knows the id it needs to unlock with. Guarded on the
+        # function existing so rig-lock.ps1 stays usable, and testable, on its own.
+        $dirty = Get-RigDirtyState
+        if ($dirty.Dirty) {
+            if ($KeepState) {
+                Write-Warning "[Lock] The rig was left DIRTY by the previous session ($(Format-RigDirtyState $dirty)), and -KeepState says do not restore it. You are starting on that session's leftovers ON PURPOSE. The marker stays set, so the next acquisition that does not pass -KeepState will restore."
+            }
+            else {
+                Write-Warning "[Lock] The rig was left DIRTY: $(Format-RigDirtyState $dirty). The previous session did not restore it, so the restore runs now, before you get a rig to test on."
+            }
+        }
         if (Get-Command Invoke-RigReset -ErrorAction SilentlyContinue) {
             try {
                 Invoke-RigReset -KeepState:$KeepState -Reason 'lock acquisition' | Out-Null
@@ -865,6 +1263,9 @@ function New-RigLock {
                 throw
             }
         }
+        elseif ($dirty.Dirty -and -not $KeepState) {
+            Write-Warning "[Lock] No restore implementation is loaded (TestRig/rig-reset.ps1 was not dot-sourced), so the dirty rig was NOT restored and the marker stays set. This is a wiring fault, not a rig fault."
+        }
         return $outcome.Owner
     }
 }
@@ -872,7 +1273,8 @@ function New-RigLock {
 function Update-RigLock {
     param(
         [Parameter(Mandatory)] [string] $CallerId,
-        [Nullable[int]] $TtlMinutes
+        [Nullable[int]] $TtlMinutes,
+        [Nullable[int]] $IdleCeilingMinutes
     )
     $msg = Invoke-WithRigLockMutex -Context 'refresh the rig lock' -Body {
         $lock = Read-RigLock
@@ -880,10 +1282,16 @@ function Update-RigLock {
         if ($lock['owner'] -ne $CallerId) {
             throw "Refresh refused: the rig lock is held by owner '$($lock['owner'])' (purpose: $($lock['purpose'])), not '$CallerId'. Your reservation has lapsed. Report to the user; do not touch the rig. See TestRig/session.lock.template."
         }
+        # An explicit refresh is the owner saying "I am still here", so it moves
+        # both clocks. It is the one command whose whole purpose is to answer the
+        # question the idle ceiling asks.
         $lock['refreshed_at'] = Get-RigNowUtc
-        if ($null -ne $TtlMinutes) { $lock['ttl_minutes'] = $TtlMinutes }
+        $lock['active_at']    = Get-RigNowUtc
+        if ($null -ne $TtlMinutes)         { $lock['ttl_minutes'] = $TtlMinutes }
+        if ($null -ne $IdleCeilingMinutes) { $lock['idle_ceiling_minutes'] = $IdleCeilingMinutes }
+        if (-not $lock.Contains('idle_ceiling_minutes')) { $lock['idle_ceiling_minutes'] = 60 }
         Write-RigLock $lock
-        "[RefreshLock] Refreshed (owner $CallerId, ttl $($lock['ttl_minutes']) min)."
+        "[RefreshLock] Refreshed (owner $CallerId, ttl $($lock['ttl_minutes']) min heartbeat, $($lock['idle_ceiling_minutes']) min idle ceiling)."
     }
     Write-Host $msg
 }
@@ -904,24 +1312,86 @@ function Remove-RigLock {
     param(
         [string] $CallerId,
         [switch] $BreakLock,
-        [switch] $Force
+        [switch] $Force,
+        [switch] $KeepState
     )
     # Probe outside the critical section.
     $busy = Get-RigBusySignal
 
-    $msg = Invoke-WithRigLockMutex -Context 'release the rig lock' -Body {
-        $lock = Read-RigLock
-        if (-not $lock) { return "[Unlock] No rig session lock present." }
-        if (-not ($CallerId -and $lock['owner'] -eq $CallerId) -and -not $BreakLock) {
-            throw "Unlock refused: the rig lock is held by owner '$($lock['owner'])' (purpose: $($lock['purpose'])), not '$CallerId'. Report to the user. Only the user may authorize -BreakLock. See TestRig/session.lock.template."
+    # PHASE 1: decide, under the mutex, whether this release may happen at all.
+    # No write yet. Splitting the release into two short critical sections with
+    # the restore between them is deliberate: the restore deletes files and
+    # copies config trees, and the mutex must never be held across anything slow
+    # (see Invoke-WithRigLockMutex). Nothing can slip in during the gap, because
+    # the SESSION lock is still on disk and still names us for the whole of it;
+    # the mutex only guards the file's read-modify-write.
+    $lock = Invoke-WithRigLockMutex -Context 'check the rig lock before releasing' -Body {
+        $l = Read-RigLock
+        if (-not $l) { return $null }
+        if (-not ($CallerId -and $l['owner'] -eq $CallerId) -and -not $BreakLock) {
+            throw "Unlock refused: the rig lock is held by owner '$($l['owner'])' (purpose: $($l['purpose'])), not '$CallerId'. Report to the user. Only the user may authorize -BreakLock. See TestRig/session.lock.template."
         }
         if ($busy.HostLive -and -not $Force) {
             throw "Unlock refused: a listen-host instance is still live ($($busy.HostNames -join ', ')). Releasing now leaves a hosted world running with no session owning it, and the next agent's -Stop -All takes it down mid-test. Stop the instances first (client-rig.ps1 -Stop -All -As <id>), or pass -Force if you really mean to release while it runs. Rig state: $($busy.Detail)"
         }
+        return $l
+    }
+    if (-not $lock) {
+        Write-Host "[Unlock] No rig session lock present."
+        return
+    }
+
+    # PHASE 2: RESTORE, while this session still owns the rig.
+    #
+    # This is where the guarantee is actually earned. The agent that made the
+    # changes is the one that undoes them, at the moment it is provably still the
+    # owner and the rig is provably idle, rather than leaving the bill for
+    # whoever turns up next. Acquisition still restores as well, because a
+    # session that crashed never gets here.
+    Invoke-RigReleaseRestore -KeepState:$KeepState
+
+    # PHASE 3: free the lock. Ownership is re-checked, because between the two
+    # sections an authorized -BreakLock from somewhere else could have replaced
+    # the file, and deleting a lock that is no longer the one we validated would
+    # be exactly the stomp this whole mechanism exists to prevent.
+    $msg = Invoke-WithRigLockMutex -Context 'release the rig lock' -Body {
+        $l = Read-RigLock
+        if (-not $l) { return "[Unlock] The rig session lock was already gone by the time the restore finished." }
+        if ($l['owner'] -ne $lock['owner']) {
+            return "[Unlock] NOT released: the lock now belongs to owner '$($l['owner'])' ('$($l['purpose'])'), not to the one this command validated ($($lock['owner'])). Somebody took the rig while the restore was running; leaving their lock alone."
+        }
         Remove-RigLockFile
-        "[Unlock] Rig session lock released (was owner $($lock['owner']))."
+        "[Unlock] Rig session lock released (was owner $($l['owner']))."
     }
     Write-Host $msg
+}
+
+function Invoke-RigReleaseRestore {
+    # The restore half of a release, in the lock library so that BOTH paths that
+    # free a lock go through one implementation: Remove-RigLock, and the
+    # dedicated server's -Stop -Release, which deletes the lock file itself.
+    #
+    # Guarded on Invoke-RigReset existing so rig-lock.ps1 stays usable, and
+    # testable, without the reset library dot-sourced next to it.
+    #
+    # A FAILED RESTORE STILL RELEASES. That is not carelessness: the dirty marker
+    # is only cleared by a restore that completed, so a failure leaves the rig
+    # marked and the next acquisition restores it before handing it over. Refusing
+    # to release instead would leave a hung session holding the rig on top of a
+    # mess, which is strictly worse.
+    param([switch] $KeepState)
+    if ($KeepState) {
+        Write-Warning "[Unlock] -KeepState: the rig is being released WITHOUT restoring it. Everything this session changed stays on the rig for the next one, on purpose. The dirty marker stays set, so the next -Lock restores unless that agent also passes -KeepState."
+        return
+    }
+    if (-not (Get-Command Invoke-RigReset -ErrorAction SilentlyContinue)) { return }
+    try {
+        Invoke-RigReset -Reason 'lock release' | Out-Null
+    }
+    catch {
+        Write-Warning "[Unlock] The restore FAILED on the way out: $($_.Exception.Message)"
+        Write-Warning "[Unlock] The lock is still being released, and the rig stays marked dirty, so the next acquisition restores it before that agent gets to test. Nothing is lost except the tidy exit."
+    }
 }
 
 function Test-RigLockReleasableOnStop {
@@ -943,6 +1413,7 @@ function Test-RigLockReleasableOnStop {
     if (-not $Lock) { return $true }                                  # nothing to release
     if ($CallerId -and $Lock['owner'] -eq $CallerId) { return $true }  # yours
     if ($BreakLock) { return $true }                                   # human-authorized
+    if (Test-RigLockIdleCeilingExceeded $Lock) { return $true }        # owner gone past the ceiling
     return (Test-RigLockTimerExpired $Lock)                            # already dead
 }
 
@@ -956,27 +1427,54 @@ function Write-RigLockStatus {
     $lock = Read-RigLock
     if (-not $lock) {
         Write-Host "rig lock:     none"
+        Write-RigDirtyStatus
+        Write-RigOrphanWarning
         return
     }
     $expired = Test-RigLockTimerExpired $lock
+    $ceiling = Test-RigLockIdleCeilingExceeded $lock
     $own = if ($CallerId -and $lock['owner'] -eq $CallerId) { 'YOURS' }
            elseif ($CallerId) { "held by another session ($($lock['owner']))" }
            else { "owner $($lock['owner'])" }
     Write-Host "rig lock:     $own"
     Write-Host "  purpose:    $($lock['purpose'])"
     Write-Host "  timer:      $(if ($expired) { 'expired' } else { 'fresh' }); ttl $($lock['ttl_minutes']) min; refreshed $(Get-RigLockAgeText $lock)"
+    # The countdown is printed whether or not it has fired, so an agent can see it
+    # coming instead of finding out by losing the rig mid-test.
+    Write-Host "  idle:       owner last acted $(Get-RigLockIdleText $lock) ago; ceiling $($lock['idle_ceiling_minutes']) min ($(Get-RigLockIdleRemainingText $lock))"
     $busy = Get-RigBusySignal
     if ($busy.Busy) {
-        $note = if ($expired) { '  (lock still LIVE: rig is busy)' } else { '' }
+        $note = if ($ceiling) { '  (lock is RECLAIMABLE anyway: past the idle ceiling)' }
+                elseif ($expired) { '  (lock still LIVE: rig is busy)' }
+                else { '' }
         Write-Host "  rig busy:   $($busy.Detail)$note"
         if ($busy.HostLive) {
             Write-Host "  hosting:    $($busy.HostNames -join ', ')  (-Unlock refuses while a host is live; -Force overrides)"
         }
     }
+    elseif ($ceiling) {
+        Write-Host "  rig busy:   no; past the idle ceiling, so the lock is reclaimable"
+    }
     elseif ($expired) {
         Write-Host "  rig busy:   no; timer expired, so the lock is reclaimable"
     }
+    Write-RigDirtyStatus
     Write-RigOrphanWarning
+}
+
+function Write-RigDirtyStatus {
+    # Named separately so a launcher can print it from anywhere. A dirty rig with
+    # no lock on it is the most interesting state this reports: it means a session
+    # died, and the next -Lock will restore before handing the rig over.
+    $d = Get-RigDirtyState
+    if (-not $d.Dirty) {
+        Write-Host "  rig state:  clean (restored; no session has mutated it since)"
+        return
+    }
+    Write-Host "  rig state:  DIRTY - $(Format-RigDirtyState $d)"
+    if ($d.Crashed) {
+        Write-Host "  rig state:  nothing is left of that session, so the next -Lock restores the rig before granting it."
+    }
 }
 
 function Write-RigOrphanWarning {

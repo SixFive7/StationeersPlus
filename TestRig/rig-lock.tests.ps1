@@ -267,7 +267,10 @@ function New-TestHome {
 function Reset-TestHome {
     # Between tests: no lock file, no fake server, no fake instances.
     Remove-Item -LiteralPath (Get-RigLockFilePath) -Force -ErrorAction SilentlyContinue
+    Remove-Item -LiteralPath (Get-RigDirtyFilePath) -Force -ErrorAction SilentlyContinue
     Get-ChildItem -Path $script:TempRoot -Filter 'session.lock.*' -File -ErrorAction SilentlyContinue |
+        Remove-Item -Force -ErrorAction SilentlyContinue
+    Get-ChildItem -Path $script:TempRoot -Filter 'session.dirty.*' -File -ErrorAction SilentlyContinue |
         Remove-Item -Force -ErrorAction SilentlyContinue
     Remove-Item -Recurse -Force -ErrorAction SilentlyContinue (Join-Path $script:TempRoot 'DedicatedServer\data')
     Remove-Item -Recurse -Force -ErrorAction SilentlyContinue (Join-Path $script:TempRoot 'ClientRig\data')
@@ -278,15 +281,34 @@ function Reset-TestHome {
 function Set-TestLock {
     # Write a lock file directly, so a test can pin any timer state it likes
     # without waiting for real minutes to pass.
+    #
+    # THE TWO AGES ARE SEPARATE KNOBS, because the lock has two timers with
+    # different anchors and the interesting cases are the ones where they
+    # disagree:
+    #   -AgeMinutes   how old refreshed_at is        -> drives ttl_minutes
+    #   -IdleMinutes  how long since the owner acted -> drives idle_ceiling_minutes
+    # Defaulting IdleMinutes to AgeMinutes makes an ordinary fixture behave the
+    # obvious way. A busy rig that self-renewed its heartbeat while its owner
+    # vanished is -AgeMinutes 1 -IdleMinutes 120, and that case is the entire
+    # point of the watchdog.
+    #
+    # Note the default ages: 30 minutes is "well past the 10 min TTL, well inside
+    # the 60 min ceiling", which is what the pre-watchdog suite meant by 60.
     param(
         [string] $Owner = 'OWNERAAA',
         [string] $Purpose = 'a test reservation',
         [double] $AgeMinutes = 0,
+        [double] $IdleMinutes = [double]::NaN,
         $Ttl = 10,
+        $IdleCeiling = 60,
         [string] $RefreshedAtRaw,
-        [switch] $NoRefreshedAt
+        [string] $ActiveAtRaw,
+        [switch] $NoRefreshedAt,
+        [switch] $NoActiveAt
     )
     $stamp = [DateTime]::UtcNow.AddMinutes(-$AgeMinutes).ToString("yyyy-MM-ddTHH:mm:ss'Z'")
+    $idle  = if ([double]::IsNaN($IdleMinutes)) { $AgeMinutes } else { $IdleMinutes }
+    $activeStamp = [DateTime]::UtcNow.AddMinutes(-$idle).ToString("yyyy-MM-ddTHH:mm:ss'Z'")
     $f = [ordered]@{
         owner       = $Owner
         purpose     = $Purpose
@@ -295,8 +317,12 @@ function Set-TestLock {
     if (-not $NoRefreshedAt) {
         $f['refreshed_at'] = if ($PSBoundParameters.ContainsKey('RefreshedAtRaw')) { $RefreshedAtRaw } else { $stamp }
     }
-    $f['ttl_minutes'] = $Ttl
-    $f['host']        = 'TESTHOST'
+    if (-not $NoActiveAt) {
+        $f['active_at'] = if ($PSBoundParameters.ContainsKey('ActiveAtRaw')) { $ActiveAtRaw } else { $activeStamp }
+    }
+    $f['ttl_minutes']          = $Ttl
+    $f['idle_ceiling_minutes'] = $IdleCeiling
+    $f['host']                 = 'TESTHOST'
     Write-RigLock $f
     # No return value on purpose: a fixture that emits its own state pollutes
     # every caller's pipeline. Tests that need the fields read them back through
@@ -387,7 +413,7 @@ function Test-StateMachine {
     Assert-Equal 'LiveForeign' (Invoke-Quiet { (Get-RigLockState -CallerId 'BBB22222').State }) 'other, fresh timer -> LiveForeign'
     Assert-Equal 'LiveForeign' (Invoke-Quiet { (Get-RigLockState).State })                      'no caller id, fresh timer -> LiveForeign'
 
-    Set-TestLock -Owner 'AAA11111' -AgeMinutes 60
+    Set-TestLock -Owner 'AAA11111' -AgeMinutes 30
     Assert-Equal 'DeadForeign' (Invoke-Quiet { (Get-RigLockState -CallerId 'BBB22222').State }) 'other, expired, idle rig -> DeadForeign'
     Assert-Equal 'Mine'        (Invoke-Quiet { (Get-RigLockState -CallerId 'AAA11111').State }) 'expired but mine is still Mine'
 
@@ -397,7 +423,7 @@ function Test-StateMachine {
     Set-TestLock -Owner 'AAA11111'
     Assert-NoThrow { Assert-RigLockHeld -Action 'Start' -CallerId 'AAA11111' -Tool 'dedicated-server.ps1' } 'Assert-RigLockHeld: Mine passes'
     Assert-Throws  { Assert-RigLockHeld -Action 'Start' -CallerId 'BBB22222' -Tool 'dedicated-server.ps1' } 'Assert-RigLockHeld: LiveForeign throws and names -BreakLock' 'BreakLock'
-    Set-TestLock -Owner 'AAA11111' -AgeMinutes 60
+    Set-TestLock -Owner 'AAA11111' -AgeMinutes 30
     Assert-Throws  { Assert-RigLockHeld -Action 'Start' -CallerId 'BBB22222' -Tool 'dedicated-server.ps1' } 'Assert-RigLockHeld: DeadForeign throws and says re-acquire' 'expired'
 
     # New-RigLock across all four states.
@@ -413,7 +439,7 @@ function Test-StateMachine {
     Assert-Throws { New-RigLock -Purpose 'p3' -CallerId 'SOMEONE' -Tool 't' } 'New-RigLock from LiveForeign refuses' 'locked by another session'
     Assert-Equal $owner1 (Read-RigLock)['owner'] 'a refused acquisition leaves the existing owner in place'
 
-    Set-TestLock -Owner 'OLDOWNER' -AgeMinutes 60
+    Set-TestLock -Owner 'OLDOWNER' -AgeMinutes 30
     $reclaimed = $false
     $owner3 = Invoke-Quiet { New-RigLock -Purpose 'p4' -Tool 't' -OnReclaim { $script:ReclaimFlag = $true } }
     Assert-True ($owner3 -ne 'OLDOWNER') 'New-RigLock from DeadForeign mints a new owner id'
@@ -465,7 +491,7 @@ function Test-Ttl {
 
     # Expired + busy: LiveForeign AND self-renewed.
     Reset-TestHome
-    Set-TestLock -Owner 'AAA11111' -AgeMinutes 60
+    Set-TestLock -Owner 'AAA11111' -AgeMinutes 30
     New-TestInstance -Name 'alpha' -Role 'client' | Out-Null
     $before = (Read-RigLock)['refreshed_at']
     $st = Invoke-Quiet { Get-RigLockState -CallerId 'BBB22222' }
@@ -474,6 +500,267 @@ function Test-Ttl {
     Assert-True ($after -ne $before) 'expired timer + busy rig self-renews refreshed_at' "before=$before after=$after"
     Assert-False (Test-RigLockTimerExpired (Read-RigLock)) 'the self-renewed lock has a fresh timer again'
     Assert-Match $st.Busy 'client instance' 'the LiveForeign result carries the busy reason'
+}
+
+function Test-IdleCeiling {
+    if (-not (Test-SectionSelected 'watchdog')) { return }
+    Start-Section 'idle watchdog (the absolute ceiling, and why it is a second field)'
+    Reset-TestHome
+
+    # ---- the fields exist and are written ----
+    $owner = Invoke-Quiet { New-RigLock -Purpose 'watchdog fields' -Tool 't' }
+    $lk = Read-RigLock
+    Assert-True ($lk.Contains('active_at')) 'a new lock records active_at'
+    Assert-True ($lk.Contains('idle_ceiling_minutes')) 'a new lock records idle_ceiling_minutes'
+    Assert-Equal '60' $lk['idle_ceiling_minutes'] 'the idle ceiling defaults to 60 minutes'
+    Assert-False (Test-RigLockIdleCeilingExceeded $lk) 'a lock taken a moment ago is nowhere near the ceiling'
+
+    Reset-TestHome
+    Invoke-Quiet { New-RigLock -Purpose 'custom ceiling' -Tool 't' -IdleCeilingMinutes 5 } | Out-Null
+    Assert-Equal '5' (Read-RigLock)['idle_ceiling_minutes'] '-IdleCeilingMinutes is honoured on acquisition'
+
+    # ---- an idle owner loses the rig ----
+    Reset-TestHome
+    Set-TestLock -Owner 'GONE0001' -AgeMinutes 90
+    Assert-True  (Test-RigLockIdleCeilingExceeded (Read-RigLock)) 'an owner idle past the ceiling is over it'
+    $st = Invoke-Quiet { Get-RigLockState -CallerId 'OTHER' }
+    Assert-Equal 'DeadForeign' $st.State 'past the ceiling, a foreign lock is reclaimable'
+    Assert-Equal 'idle-ceiling' $st.Reclaim 'and the reclaim reason names the ceiling, not the ttl'
+
+    Set-TestLock -Owner 'GONE0001' -AgeMinutes 30
+    $st = Invoke-Quiet { Get-RigLockState -CallerId 'OTHER' }
+    Assert-Equal 'DeadForeign' $st.State 'inside the ceiling but past the TTL is still reclaimable'
+    Assert-Equal 'ttl' $st.Reclaim 'and that one is reported as a TTL reclaim'
+
+    # ---- THE CENTRAL DESIGN QUESTION, both halves ----
+    # Below the ceiling a busy rig is untouchable, exactly as before: a live test
+    # must not lose the rig in the gap between two of its own commands.
+    Reset-TestHome
+    Set-TestLock -Owner 'BUSY0001' -AgeMinutes 30 -IdleMinutes 30
+    New-TestInstance -Name 'hostie' -Role 'host' | Out-Null
+    $st = Invoke-Quiet { Get-RigLockState -CallerId 'OTHER' }
+    Assert-Equal 'LiveForeign' $st.State 'BELOW the ceiling, a busy rig still keeps an expired lock alive (the old guarantee is intact)'
+
+    # Past the ceiling it is NOT, and this is the change. "No hung agent can stop
+    # other agents, only delay it" is only true if busy eventually loses too:
+    # otherwise one forgotten client instance holds the whole rig for ever.
+    Set-TestLock -Owner 'BUSY0001' -AgeMinutes 1 -IdleMinutes 120
+    $st = Invoke-Quiet { Get-RigLockState -CallerId 'OTHER' }
+    Assert-Equal 'DeadForeign' $st.State 'PAST the ceiling, even a BUSY rig is reclaimable'
+    Assert-Equal 'idle-ceiling' $st.Reclaim 'and it is reported as an idle-ceiling reclaim'
+    Assert-Match $st.Busy 'client instance' 'the reclaim carries the busy detail, so the warning can say what it is taking'
+
+    # ---- the mechanism: why active_at has to be its own field ----
+    # A busy rig self-renews its heartbeat. If the ceiling were anchored on
+    # refreshed_at, that renewal would push the ceiling out for ever and the case
+    # above could never be reached. So the renewal must move ONE clock only.
+    Reset-TestHome
+    Set-TestLock -Owner 'BUSY0001' -AgeMinutes 30 -IdleMinutes 45
+    New-TestInstance -Name 'alpha' -Role 'client' | Out-Null
+    $beforeR = (Read-RigLock)['refreshed_at']
+    $beforeA = (Read-RigLock)['active_at']
+    Invoke-Quiet { Get-RigLockState -CallerId 'OTHER' } | Out-Null
+    Assert-True  ((Read-RigLock)['refreshed_at'] -ne $beforeR) 'the busy self-renew DOES move refreshed_at'
+    Assert-Equal $beforeA (Read-RigLock)['active_at'] 'the busy self-renew does NOT move active_at, so it cannot push the ceiling out'
+
+    # And the owner's own actions move both, which is what makes a long but ACTIVE
+    # session safe from the watchdog however long it runs.
+    Reset-TestHome
+    Set-TestLock -Owner 'AAA11111' -AgeMinutes 8 -IdleMinutes 8
+    $beforeA = (Read-RigLock)['active_at']
+    Invoke-Quiet { Assert-RigLockHeld -Action 'Start' -CallerId 'AAA11111' -Tool 't' }
+    Assert-True ((Read-RigLock)['active_at'] -ne $beforeA) 'a mutating command by the owner moves active_at'
+
+    Set-TestLock -Owner 'AAA11111' -AgeMinutes 8 -IdleMinutes 8
+    $beforeA = (Read-RigLock)['active_at']
+    Invoke-Quiet { Update-RigLock -CallerId 'AAA11111' }
+    Assert-True ((Read-RigLock)['active_at'] -ne $beforeA) '-RefreshLock moves active_at'
+
+    Set-TestLock -Owner 'AAA11111' -AgeMinutes 8 -IdleMinutes 8
+    $beforeA = (Read-RigLock)['active_at']
+    Invoke-Quiet { Update-RigLockIfMine -CallerId 'AAA11111' }
+    Assert-True ((Read-RigLock)['active_at'] -ne $beforeA) 'a readiness barrier moves active_at (it is the owner working)'
+
+    Invoke-Quiet { Update-RigLock -CallerId 'AAA11111' -IdleCeilingMinutes 5 }
+    Assert-Equal '5' (Read-RigLock)['idle_ceiling_minutes'] '-RefreshLock -IdleCeilingMinutes rewrites the ceiling'
+    Invoke-Quiet { Update-RigLock -CallerId 'AAA11111' }
+    Assert-Equal '5' (Read-RigLock)['idle_ceiling_minutes'] 'a refresh without one leaves the existing ceiling alone'
+
+    # ---- reclaimable is not revoked ----
+    Reset-TestHome
+    Set-TestLock -Owner 'AAA11111' -AgeMinutes 120
+    Assert-Equal 'Mine' (Invoke-Quiet { (Get-RigLockState -CallerId 'AAA11111').State }) 'past the ceiling the lock is still MINE to its owner: first come, not revoked'
+    Assert-NoThrow { Assert-RigLockHeld -Action 'Start' -CallerId 'AAA11111' -Tool 't' } 'an owner who comes back before anybody reclaims can still act'
+    Assert-False (Test-RigLockIdleCeilingExceeded (Read-RigLock)) 'and that action puts the lock back inside the ceiling'
+
+    # ---- fail closed, exactly like the TTL ----
+    Reset-TestHome
+    Set-TestLock -Owner 'X' -AgeMinutes 90 -NoActiveAt
+    Assert-True (Test-RigLockIdleCeilingExceeded (Read-RigLock)) 'a lock with no active_at falls back to acquired_at (older, never fresher)'
+    Set-TestLock -Owner 'X' -AgeMinutes 5 -NoActiveAt
+    Assert-False (Test-RigLockIdleCeilingExceeded (Read-RigLock)) 'and that fallback still leaves a recent lock inside the ceiling'
+    Set-TestLock -Owner 'X' -ActiveAtRaw 'not-a-timestamp' -AgeMinutes 0
+    Assert-False (Test-RigLockIdleCeilingExceeded (Read-RigLock)) 'an unparseable active_at falls through to acquired_at rather than crashing'
+    Set-TestLock -Owner 'X' -ActiveAtRaw 'nope' -RefreshedAtRaw 'nope' -AgeMinutes 0
+    $bad = Read-RigLock
+    $bad['acquired_at'] = 'nope'
+    Assert-True (Test-RigLockIdleCeilingExceeded $bad) 'a lock with NO parseable time at all counts as past the ceiling (fail closed)'
+    Set-TestLock -Owner 'X' -AgeMinutes 0 -IdleCeiling 'banana'
+    Assert-True (Test-RigLockIdleCeilingExceeded (Read-RigLock)) 'an unparseable idle_ceiling_minutes counts as exceeded (fail closed)'
+    Set-TestLock -Owner 'X' -AgeMinutes 0 -IdleCeiling -5
+    Assert-True (Test-RigLockIdleCeilingExceeded (Read-RigLock)) 'a negative idle_ceiling_minutes counts as exceeded (fail closed)'
+    Assert-Equal 60 (Get-RigLockIdleCeiling @{ owner = 'X' }) 'a lock with no ceiling field at all is read as the 60 min default'
+
+    # ---- the reclaim tears down what it takes ----
+    Reset-TestHome
+    Set-TestLock -Owner 'GONE0001' -AgeMinutes 120
+    New-TestInstance -Name 'leftover' -Role 'host' | Out-Null
+    $script:ReclaimFired = $false
+    $new = Invoke-Quiet { New-RigLock -Purpose 'watchdog takeover' -Tool 't' -OnReclaim { $script:ReclaimFired = $true } }
+    Assert-True ($new -and $new -ne 'GONE0001') 'the watchdog reclaim mints a new owner id'
+    Assert-True $script:ReclaimFired 'the reclaim runs OnReclaim, which is where a launcher tears the leftovers down'
+    $script:ReclaimFired = $false
+
+    # ---- -Stop -Release can free a lock the ceiling has killed ----
+    Reset-TestHome
+    Set-TestLock -Owner 'GONE0001' -AgeMinutes 1 -IdleMinutes 120
+    New-TestInstance -Name 'alpha' -Role 'client' | Out-Null
+    Assert-True (Test-RigLockReleasableOnStop -Lock (Read-RigLock) -CallerId 'OTHER') `
+        'the release predicate frees a lock past the ceiling even though its heartbeat is fresh'
+    Set-TestLock -Owner 'GONE0001' -AgeMinutes 1 -IdleMinutes 1
+    Assert-False (Test-RigLockReleasableOnStop -Lock (Read-RigLock) -CallerId 'OTHER') `
+        'and it still refuses a lock that is fresh on both clocks'
+
+    # ---- the refusal text tells a human how long is left ----
+    Reset-TestHome
+    Set-TestLock -Owner 'AAA11111' -AgeMinutes 2 -IdleMinutes 2
+    $st = Invoke-Quiet { Get-RigLockState -CallerId 'OTHER' }
+    $text = Format-ForeignRigLock $st
+    Assert-Match $text 'idle' 'the refusal names how long the holder has been idle'
+    Assert-Match $text 'ceiling' 'and how long is left on the ceiling'
+    Assert-NoThrow { Write-RigLockStatus -CallerId 'OTHER' } '-Status renders the ceiling countdown without throwing'
+}
+
+function Test-DirtyMarker {
+    if (-not (Test-SectionSelected 'dirty')) { return }
+    Start-Section 'crash marker (survives a kill, a reboot and a power cut)'
+    Reset-TestHome
+    Remove-Item -LiteralPath (Get-RigDirtyFilePath) -Force -ErrorAction SilentlyContinue
+
+    Assert-Equal (Join-Path $script:TempRoot 'session.dirty') (Get-RigDirtyFilePath) 'the marker lives beside the lock, inside the injected home'
+    $d = Get-RigDirtyState
+    Assert-False $d.Dirty 'a rig nobody has mutated is not dirty'
+    Assert-Match (Format-RigDirtyState $d) 'clean' 'and it says so in words'
+
+    # ---- it goes down BEFORE the first mutating action, at the gate ----
+    Set-TestLock -Owner 'AAA11111'
+    Assert-False (Test-Path -LiteralPath (Get-RigDirtyFilePath)) 'taking a lock alone does not mark the rig dirty (nothing has been mutated yet)'
+    Invoke-Quiet { Assert-RigLockHeld -Action 'Start' -CallerId 'AAA11111' -Tool 't' }
+    Assert-True (Test-Path -LiteralPath (Get-RigDirtyFilePath)) 'the FIRST mutating action marks the rig dirty'
+    $m = Read-RigDirtyMarker
+    Assert-Equal 'AAA11111' $m['owner'] 'the marker records who dirtied the rig'
+    Assert-Equal 'Start'    $m['reason'] 'and which action did it'
+    Assert-Match $m['boot_id'] '^(boot|approx|unknown)' 'and the boot identity of the machine it happened on'
+    Assert-Equal "$PID" $m['writer_pid'] 'and the pid of the launcher process that wrote it'
+
+    # Idempotent: the timestamp of the FIRST mutation is what matters, so later
+    # commands must not keep rewriting it.
+    $firstStamp = $m['marked_at']
+    Start-Sleep -Milliseconds 1100
+    Invoke-Quiet { Assert-RigLockHeld -Action 'Save' -CallerId 'AAA11111' -Tool 't' }
+    Assert-Equal $firstStamp (Read-RigDirtyMarker)['marked_at'] 'later mutating commands leave the original marker alone'
+    Assert-Equal 'Start' (Read-RigDirtyMarker)['reason'] 'and do not overwrite what first dirtied it'
+
+    # A different owner DOES replace it: that is a new session's mess.
+    Set-TestLock -Owner 'BBB22222'
+    Invoke-Quiet { Assert-RigLockHeld -Action 'Provision' -CallerId 'BBB22222' -Tool 't' }
+    Assert-Equal 'BBB22222' (Read-RigDirtyMarker)['owner'] 'a different owner writes its own marker'
+
+    $stray = @(Get-ChildItem -Path $script:TempRoot -Filter 'session.dirty.*.tmp' -File -ErrorAction SilentlyContinue)
+    Assert-Equal 0 $stray.Count 'the durable write leaves no staging file behind'
+
+    # ---- the boot-id problem: a pid from before a reboot means nothing ----
+    Reset-TestHome
+    Invoke-Quiet { Write-RigDirtyMarker -Owner 'LIVE0001' -Purpose 'p' -Reason 'Start' } | Out-Null
+    $d = Get-RigDirtyState
+    Assert-True  $d.Dirty       'a marker written by this process reads as dirty'
+    Assert-True  $d.SameBoot    'and as written during this boot'
+    Assert-True  $d.WriterAlive 'and its writer is alive, because it is this very process'
+    Assert-False $d.Crashed     'so it is not a crash'
+    Assert-Match (Format-RigDirtyState $d) 'STILL RUNNING' 'and the description says the session is still going'
+
+    # SIMULATED REBOOT: same marker, different boot id. The recorded pid may well
+    # be alive again as something unrelated, so it must not be consulted at all.
+    Initialize-RigLockPaths -RigHome $script:TempRoot -ServerImageName 'pwsh' -ClientImageName 'pwsh' `
+        -InstanceRoot (Join-Path $script:TempRoot 'ClientRig\instances') -BootId 'boot:2099-01-01T00:00:00Z'
+    $d = Get-RigDirtyState
+    Assert-True  $d.Dirty       'the marker survives the reboot'
+    Assert-False $d.SameBoot    'and is recognised as predating it'
+    Assert-False $d.WriterAlive 'its recorded pid is NOT trusted across a reboot, however alive that number is now'
+    Assert-True  $d.Crashed     'so the previous session counts as gone'
+    Assert-Match (Format-RigDirtyState $d) 'machine has restarted' 'and the description says why'
+    Use-TestPaths
+
+    # A RECYCLED pid within one boot: alive, but not the image it claims. Same
+    # rule the rig already applies to the game process, applied to its own writer.
+    Reset-TestHome
+    Invoke-Quiet { Write-RigDirtyMarker -Owner 'RECYCLED' -Purpose 'p' -Reason 'Start' } | Out-Null
+    $raw = Read-RigDirtyMarker
+    $raw['writer_image'] = 'rocketstation'      # this pid is alive, but it is pwsh, not that
+    Write-RigFileDurable -Path (Get-RigDirtyFilePath) -Text (($raw.Keys | ForEach-Object { "$_=$($raw[$_])" }) -join "`n")
+    $d = Get-RigDirtyState
+    Assert-True  $d.SameBoot    'the recycled-pid marker is from this boot'
+    Assert-False $d.WriterAlive 'but a live pid with the WRONG image is not the process that wrote it'
+    Assert-True  $d.Crashed     'so it counts as a crashed session, which is the safe direction'
+
+    # A dead pid within one boot is the ordinary kill case.
+    Reset-TestHome
+    Invoke-Quiet { Write-RigDirtyMarker -Owner 'KILLED01' -Purpose 'p' -Reason 'Provision' } | Out-Null
+    $raw = Read-RigDirtyMarker
+    $raw['writer_pid'] = "$script:DeadPid"
+    Write-RigFileDurable -Path (Get-RigDirtyFilePath) -Text (($raw.Keys | ForEach-Object { "$_=$($raw[$_])" }) -join "`n")
+    $d = Get-RigDirtyState
+    Assert-False $d.WriterAlive 'a marker whose writer pid names no process reads as dead'
+    Assert-True  $d.Crashed     'which is the kill-mid-mutation case'
+
+    # ---- clearing, and what counts as a marker at all ----
+    Reset-TestHome
+    Invoke-Quiet { Write-RigDirtyMarker -Owner 'AAA11111' } | Out-Null
+    Assert-True (Get-RigDirtyState).Dirty 'fixture check: the rig is marked'
+    Clear-RigDirtyMarker
+    Assert-False (Get-RigDirtyState).Dirty 'clearing the marker leaves the rig clean'
+    Assert-NoThrow { Clear-RigDirtyMarker } 'clearing an absent marker is a no-op, not an error'
+
+    Set-Content -LiteralPath (Get-RigDirtyFilePath) -Value @('# just a comment', 'reason=nothing') -Encoding utf8
+    Assert-True ($null -eq (Read-RigDirtyMarker)) 'a file with no owner key is not a marker'
+    Assert-False (Get-RigDirtyState).Dirty 'and a rig carrying one is not dirty'
+    Set-Content -LiteralPath (Get-RigDirtyFilePath) -Value '' -Encoding utf8
+    Assert-NoThrow { Get-RigDirtyState } 'an empty marker file does not throw'
+    Remove-Item -LiteralPath (Get-RigDirtyFilePath) -Force -ErrorAction SilentlyContinue
+
+    # ---- acquisition NOTICES a dirty rig ----
+    # The restore itself lives in rig-reset.ps1, which this suite deliberately does
+    # not dot-source, so what is pinned here is the detection and the reporting.
+    # rig-reset.tests.ps1 asserts the restore actually runs.
+    Reset-TestHome
+    Invoke-Quiet { Write-RigDirtyMarker -Owner 'CRASHED1' -Purpose 'a session that died' -Reason 'Start' } | Out-Null
+    $raw = Read-RigDirtyMarker
+    $raw['writer_pid'] = "$script:DeadPid"
+    Write-RigFileDurable -Path (Get-RigDirtyFilePath) -Text (($raw.Keys | ForEach-Object { "$_=$($raw[$_])" }) -join "`n")
+    $text = (New-RigLock -Purpose 'after a crash' -Tool 't' 3>&1 6>&1 | Out-String)
+    Assert-Match $text 'DIRTY' 'acquisition says out loud that the previous session left the rig dirty'
+    Assert-Match $text 'CRASHED1' 'and names the session that did it'
+    Assert-True (Test-Path -LiteralPath (Get-RigDirtyFilePath)) 'with no restore implementation loaded the marker is left set rather than silently dropped'
+    Assert-Match $text 'not dot-sourced' 'and that wiring fault is reported instead of being mistaken for a clean rig'
+
+    # -Lock -KeepState inherits the mess on purpose, and says so.
+    Reset-TestHome
+    Invoke-Quiet { Write-RigDirtyMarker -Owner 'CRASHED1' -Purpose 'a session that died' -Reason 'Start' } | Out-Null
+    $text = (New-RigLock -Purpose 'inheriting on purpose' -Tool 't' -KeepState 3>&1 6>&1 | Out-String)
+    Assert-Match $text 'KeepState' '-KeepState on a dirty rig says which flag caused it'
+    Assert-Match $text 'ON PURPOSE' 'and that the leftovers are deliberate'
+    Assert-True (Test-Path -LiteralPath (Get-RigDirtyFilePath)) 'and the marker stays set, so the NEXT session still cleans up'
+    Remove-Item -LiteralPath (Get-RigDirtyFilePath) -Force -ErrorAction SilentlyContinue
 }
 
 function Test-Ownership {
@@ -677,7 +964,7 @@ function Test-ProcessIdentity {
     # reclaim the rig.
     Reset-TestHome
     Initialize-RigLockPaths -RigHome $script:TempRoot   # real image names
-    Set-TestLock -Owner 'GHOST001' -AgeMinutes 60
+    Set-TestLock -Owner 'GHOST001' -AgeMinutes 30
     New-TestDediServer -ProcessId $PID -LogLines @('Client Alice (111) is ready')
     Assert-False (Get-RigBusySignal).Busy 'a recycled server pid does not make the rig busy'
     Assert-Equal 'DeadForeign' (Invoke-Quiet { (Get-RigLockState -CallerId 'OTHER').State }) `
@@ -731,7 +1018,7 @@ function Test-Orphans {
     Assert-Match $b.Detail 'UNTRACKED rig game process' 'the reason text names untracked processes'
     Assert-Match $b.Detail 'not counted as busy' 'the reason text says explicitly that they are not busy'
 
-    Set-TestLock -Owner 'GHOST001' -AgeMinutes 60
+    Set-TestLock -Owner 'GHOST001' -AgeMinutes 30
     Assert-Equal 'DeadForeign' (Invoke-Quiet { (Get-RigLockState -CallerId 'OTHER').State }) `
         'an expired lock is still reclaimable while orphans exist (they cannot pin the rig)'
 
@@ -839,7 +1126,7 @@ function Test-ReleaseOrdering {
     Reset-TestHome
 
     # The two halves of the ordering dependency that -Stop -Release relies on.
-    Set-TestLock -Owner 'AAA11111' -AgeMinutes 60
+    Set-TestLock -Owner 'AAA11111' -AgeMinutes 30
     New-TestInstance -Name 'hostie' -Role 'host' | Out-Null
     $lockRaw = Read-RigLock
 
@@ -1113,7 +1400,7 @@ function Test-ConcurrentMutation {
     $lock = Read-RigLock
     Assert-True ($null -ne $lock) 'refresh storm: the lock file is still readable'
     Assert-Equal $owner $lock['owner'] 'refresh storm: the owner survived 100 concurrent refreshes'
-    Assert-Equal 6 $lock.Count 'refresh storm: the lock still has exactly its 6 fields'
+    Assert-Equal 8 $lock.Count 'refresh storm: the lock still has exactly its 8 fields'
     Assert-False (Test-RigLockTimerExpired $lock) 'refresh storm: the timer is fresh afterwards'
     $stray = @(Get-ChildItem -Path $script:TempRoot -Filter 'session.lock.*.tmp' -File -ErrorAction SilentlyContinue)
     Assert-Equal 0 $stray.Count 'refresh storm: no staging files left behind'
@@ -1249,6 +1536,8 @@ try {
     Test-PathInjection
     Test-StateMachine
     Test-Ttl
+    Test-IdleCeiling
+    Test-DirtyMarker
     Test-Ownership
     Test-BreakLock
     Test-BusySignal

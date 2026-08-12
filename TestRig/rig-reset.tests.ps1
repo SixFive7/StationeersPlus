@@ -151,8 +151,25 @@ function New-SourceInstall {
     # A fake developer install: just the BepInEx/config tree the reset copies out
     # of. Its stationeers.launchpad.cfg deliberately carries NO SavePathOverride,
     # which is the real shape and the reason the re-apply exists.
+    param([string] $Version = '0.2.5095.21641')
     $cfg = Join-Path $script:SourceDir 'BepInEx\config'
     New-Item -ItemType Directory -Force -Path $cfg | Out-Null
+    # StreamingAssets\version.ini is the baseline's staleness anchor. The real
+    # file is the whole changelog and only its first line carries the version,
+    # in the form "UPDATEVERSION=Update <version>", so the fixture writes that
+    # shape plus a following line: a fixture that is only one line long would
+    # pass a reader that ignores -TotalCount and slurps the file.
+    #
+    # This fixture wrote a bare "version.txt" at the source root until
+    # 2026-08-12. No such file exists in a real Stationeers install, so these
+    # assertions were confirming a reader that returned 'unknown' against every
+    # real install, and the staleness check that consumes it skips on 'unknown'.
+    $sa = Join-Path $script:SourceDir 'rocketstation_Data\StreamingAssets'
+    New-Item -ItemType Directory -Force -Path $sa | Out-Null
+    Set-Content -LiteralPath (Join-Path $sa 'version.ini') -Encoding utf8 -Value @(
+        "UPDATEVERSION=Update $Version"
+        'UPDATEDATE=Wed 12/08/2026'
+    )
     Set-Content -LiteralPath (Join-Path $cfg 'stationeers.launchpad.cfg') -Encoding utf8 -Value @(
         '## Settings file was created by plugin StationeersLaunchPad'
         ''
@@ -197,11 +214,12 @@ function New-TestHome {
 function Reset-TestHome {
     # _altroot stands in for an instances root on another volume (E:\StationeersRig on a real rig).
     # It is wiped with everything else so a tree left there by one section cannot leak into the next.
-    foreach ($p in @('ClientRig', 'DedicatedServer', '_userdata', '_locallow', '_altroot')) {
+    foreach ($p in @('ClientRig', 'DedicatedServer', '_userdata', '_locallow', '_altroot', 'baseline')) {
         Remove-Item -Recurse -Force -ErrorAction SilentlyContinue (Join-Path $script:TempRoot $p)
     }
     Remove-Item -Force -ErrorAction SilentlyContinue (Join-Path $script:TempRoot 'session.lock')
     Remove-Item -Force -ErrorAction SilentlyContinue (Join-Path $script:TempRoot 'session.state.json')
+    Remove-Item -Force -ErrorAction SilentlyContinue (Join-Path $script:TempRoot 'session.dirty')
     foreach ($p in @(
         'ClientRig\data', 'ClientRig\instances',
         'DedicatedServer\data',
@@ -911,6 +929,382 @@ function Test-SharedState {
     Assert-NoThrow { Write-RigSharedStateDrift } 'no baseline at all is reported, not thrown'
 }
 
+function Test-Baseline {
+    if (-not (Test-SectionSelected 'baseline')) { return }
+    Start-Section 'the captured baseline: what "clean" means, written down'
+    Reset-TestHome
+
+    Assert-Equal (Join-Path $script:TempRoot 'baseline') (Get-RigBaselineDirPath) 'the baseline lives inside the rig home, under the deny-all gitignore'
+    Assert-True ($null -eq (Get-RigBaseline)) 'a rig that has never been captured has no baseline'
+    $st = Test-RigBaselineStale
+    Assert-False $st.Present 'and Test-RigBaselineStale says so rather than throwing'
+    Assert-True  $st.Stale   'an absent baseline counts as stale, so nothing treats it as authoritative'
+
+    # ---- capture ----
+    New-TestInstance -Name 'client1' -Role 'client' | Out-Null
+    New-TestServerState
+    $cap = Invoke-Quiet { New-RigBaselineCapture -CapturedBy 'test' }
+    Assert-FileExists (Get-RigBaselineFilePath) 'a capture writes the manifest'
+    $base = Get-RigBaseline
+    Assert-True ($null -ne $base) 'and the manifest reads back'
+    Assert-Equal '0.2.5095.21641' $base.GameVersion 'the capture records the game version from StreamingAssets version.ini'
+    Assert-Equal 'client1' ($base.Instances -join ',') 'and which instances existed'
+    Assert-True ($base.Files.ContainsKey('client/client1/bepinex-config/net.spraypaintplus.cfg')) 'an instance config is in the manifest'
+    Assert-True ($base.Files.ContainsKey('server/bepinex-config/net.powergridplus.cfg')) 'a server config is in the manifest'
+    Assert-True ($base.Files.ContainsKey('server/saves/Luna')) 'an existing dedicated-server world is in the manifest'
+    Assert-True ($base.Files.ContainsKey('client/client1/plugins/ClientDriver/ClientDriver.dll')) 'a deployed plugin is in the manifest'
+
+    # Classes: config bytes are stored, payload and worlds are not.
+    # Parenthesised casts: in an argument position PowerShell reads a bare
+    # [string] as a TYPE LITERAL argument, not as a cast, and the call binds the
+    # wrong thing to the wrong parameter.
+    Assert-Equal 'config'  ([string]$base.Files['client/client1/bepinex-config/net.spraypaintplus.cfg'].class) 'an instance cfg is classed config'
+    Assert-Equal 'payload' ([string]$base.Files['client/client1/plugins/ClientDriver/ClientDriver.dll'].class) 'a plugin is classed payload'
+    Assert-Equal 'world'   ([string]$base.Files['server/saves/Luna'].class) 'a world is classed world'
+    Assert-Equal '' ([string]$base.Files['server/saves/Luna'].sha256) 'a world is never hashed (they are hundreds of megabytes)'
+    Assert-True (([string]$base.Files['client/client1/plugins/ClientDriver/ClientDriver.dll'].sha256).Length -eq 64) 'a payload IS hashed, so a rebuild is detectable'
+    Assert-FileExists (Get-RigBaselineStoredPath -Key 'client/client1/bepinex-config/net.spraypaintplus.cfg') 'a config file is stored by content'
+    Assert-False (Test-Path -LiteralPath (Get-RigBaselineStoredPath -Key 'client/client1/plugins/ClientDriver/ClientDriver.dll')) `
+        'a plugin is NOT stored: restoring one would silently undo a deliberate deploy'
+
+    Assert-False (Test-RigBaselineStale).Stale 'a baseline captured just now is not stale'
+
+    # ---- staleness, every reason, loud and specific ----
+    Remove-Item -Recurse -Force -ErrorAction SilentlyContinue $script:SourceDir
+    New-SourceInstall -Version '0.2.9999.00000'
+    Use-TestPaths
+    $st = Test-RigBaselineStale
+    Assert-True  $st.Stale 'a game update makes the baseline stale'
+    Assert-Match ($st.Reasons -join '; ') 'game moved from 0\.2\.5095\.21641 to 0\.2\.9999\.00000' 'and the reason names both versions'
+    Remove-Item -Recurse -Force -ErrorAction SilentlyContinue $script:SourceDir
+    New-SourceInstall
+    Use-TestPaths
+    Assert-False (Test-RigBaselineStale).Stale 'putting the version back makes it fresh again'
+
+    New-TestInstance -Name 'client2' -Role 'client' | Out-Null
+    $st = Test-RigBaselineStale
+    Assert-True  $st.Stale 'a new instance makes the baseline stale'
+    Assert-Match ($st.Reasons -join '; ') "instance 'client2' exists now" 'and the reason names it'
+    Remove-Item -Recurse -Force -ErrorAction SilentlyContinue (Get-InstanceDataDir 'client2')
+    Remove-Item -Recurse -Force -ErrorAction SilentlyContinue (Get-InstanceTreeDir 'client2')
+    Assert-False (Test-RigBaselineStale).Stale 'removing it again makes it fresh'
+
+    Set-Content -LiteralPath (Join-Path (Get-InstanceBepInEx 'client1') 'plugins\ClientDriver\ClientDriver.dll') -Value 'REBUILT bytes' -Encoding utf8
+    $st = Test-RigBaselineStale
+    Assert-True  $st.Stale 'a rebuilt plugin makes the baseline stale'
+    Assert-Match ($st.Reasons -join '; ') 'rebuild or a re-seed' 'and the reason says a deploy happened'
+
+    # A stale baseline is a WARNING on the plan, never a refusal to reset.
+    $plan = Invoke-Quiet { Get-RigResetPlan }
+    $r = @($plan.Reports | Where-Object { $_.Kind -eq 'BaselineStale' })
+    Assert-Equal 1 $r.Count 'a stale baseline is reported on every reset'
+    Assert-True  $r[0].Warn 'as a warning, not a quiet note'
+    Assert-Match $r[0].Detail 'CaptureBaseline' 'and the report names the command that fixes it'
+    Assert-NoThrow { Invoke-RigReset } 'a stale baseline never blocks the reset'
+
+    # ---- re-capture is the fix, and it is explicit ----
+    $cap = Invoke-Quiet { New-RigBaselineCapture -CapturedBy 'test' }
+    Assert-False (Test-RigBaselineStale).Stale 're-capturing after the rebuild makes the baseline fresh again'
+    $plan = Invoke-Quiet { Get-RigResetPlan }
+    Assert-Equal 1 (@($plan.Reports | Where-Object { $_.Kind -eq 'BaselineUsed' })).Count 'and the reset then reports it is restoring TO the baseline'
+
+    # ---- capture refuses on a busy rig, and -Force is the documented override ----
+    Reset-TestHome
+    New-TestInstance -Name 'live1' -Role 'client' -RawPid "$PID" | Out-Null
+    Assert-Throws { New-RigBaselineCapture } 'capturing while the rig is in use is refused' 'not a definition'
+    Assert-False (Test-Path -LiteralPath (Get-RigBaselineFilePath)) 'and nothing was written'
+    Assert-NoThrow { New-RigBaselineCapture -Force } '-Force overrides that refusal, in the ordinary same-session sense'
+    Assert-FileExists (Get-RigBaselineFilePath) 'and then the capture happens'
+
+    # ---- -WhatIf ----
+    Reset-TestHome
+    New-TestInstance -Name 'client1' -Role 'client' | Out-Null
+    $before = Get-TreeFingerprint $script:TempRoot
+    $res = Invoke-Quiet { New-RigBaselineCapture -WhatIf }
+    Assert-Equal $before (Get-TreeFingerprint $script:TempRoot) '-WhatIf on a capture changes nothing'
+    Assert-True ($res.Entries -gt 0) 'but it still reports what it would have recorded'
+    Assert-FileGone (Get-RigBaselineFilePath) 'and writes no manifest'
+
+    # ---- the store is pruned, so it never accumulates dead instances ----
+    Reset-TestHome
+    New-TestInstance -Name 'client1' -Role 'client' | Out-Null
+    New-TestInstance -Name 'doomed'  -Role 'client' | Out-Null
+    Invoke-Quiet { New-RigBaselineCapture } | Out-Null
+    $doomedStore = Get-RigBaselineStoredPath -Key 'client/doomed/bepinex-config/net.spraypaintplus.cfg'
+    Assert-FileExists $doomedStore 'fixture check: the doomed instance config was stored'
+    Remove-Item -Recurse -Force -ErrorAction SilentlyContinue (Get-InstanceDataDir 'doomed')
+    Remove-Item -Recurse -Force -ErrorAction SilentlyContinue (Get-InstanceTreeDir 'doomed')
+    Invoke-Quiet { New-RigBaselineCapture } | Out-Null
+    Assert-FileGone $doomedStore 'a re-capture drops stored content for an instance that no longer exists'
+}
+
+function Test-BaselineRestore {
+    if (-not (Test-SectionSelected 'baselinerestore')) { return }
+    Start-Section 'restoring TO the baseline (configs, and the worlds a session created)'
+    Reset-TestHome
+
+    # A clean rig, captured. Everything after this is "a session changed things".
+    $data = New-TestInstance -Name 'client1' -Role 'client'
+    $bep  = Get-InstanceBepInEx 'client1'
+    New-TestServerState -Scenario ''
+    # The fixture instance ships a value a previous test flipped; put the intended
+    # one in place BEFORE capturing, so the baseline is a clean rig and not a dirty one.
+    Set-Content -LiteralPath (Join-Path $bep 'config\net.spraypaintplus.cfg') -Encoding utf8 -Value @('[Client - Visual]', 'Beam Width = 0.05')
+    Set-Content -LiteralPath (Join-Path $bep 'config\net.equipmentplus.cfg') -Encoding utf8 -Value @('[Client]', 'Something = correct')
+    Remove-Item -LiteralPath (Join-Path $bep 'config\net.leftover.cfg') -Force -ErrorAction SilentlyContinue
+    Invoke-Quiet { New-RigBaselineCapture -CapturedBy 'test' } | Out-Null
+    Assert-False (Test-RigBaselineStale).Stale 'fixture check: the rig was captured clean'
+
+    # ---- a session moves a client config, invents one, and deletes one ----
+    Set-Content -LiteralPath (Join-Path $bep 'config\net.spraypaintplus.cfg') -Encoding utf8 -Value @('[Client - Visual]', 'Beam Width = 9.99')
+    Set-Content -LiteralPath (Join-Path $bep 'config\net.invented.cfg') -Value 'Invented = true' -Encoding utf8
+    Remove-Item -LiteralPath (Join-Path $bep 'config\net.equipmentplus.cfg') -Force -ErrorAction SilentlyContinue
+
+    $plan = Invoke-Quiet { Get-RigResetPlan }
+    Assert-Equal 0 (@($plan.Actions | Where-Object { $_.Kind -eq 'CopyConfigTree' })).Count `
+        'with a baseline covering the instance, the blanket copy from the developer install is NOT used'
+    $restores = @($plan.Actions | Where-Object { $_.Kind -eq 'RestoreBaselineFile' -and $_.Instance -eq 'client1' })
+    Assert-Equal 2 $restores.Count 'the changed config and the deleted one are both planned for restore'
+    Assert-Match (($restores | ForEach-Object { $_.Reason }) -join '; ') 'deleted since the baseline' `
+        'and the deleted one is named as deleted, not merely as changed'
+
+    Invoke-Quiet { Invoke-RigReset } | Out-Null
+    Assert-Match (Get-Content -Raw -LiteralPath (Join-Path $bep 'config\net.spraypaintplus.cfg')) 'Beam Width = 0\.05' `
+        'a config the session changed goes back to its BASELINE value'
+    Assert-FileExists (Join-Path $bep 'config\net.equipmentplus.cfg') 'a config the session DELETED is put back'
+    Assert-Match (Get-Content -Raw -LiteralPath (Join-Path $bep 'config\net.equipmentplus.cfg')) 'Something = correct' `
+        'with its baseline contents, not an empty placeholder'
+    Assert-FileGone (Join-Path $bep 'config\net.invented.cfg') 'a config the session invented is removed'
+    Assert-Equal (Join-Path $data 'userdata') (Get-RigSavePathOverride -BepInExDir $bep) `
+        'and SavePathOverride still survives, which is the one thing that must never regress'
+
+    # Idempotent: a second restore has nothing to do and breaks nothing.
+    $planAgain = Invoke-Quiet { Get-RigResetPlan }
+    Assert-Equal 0 (@($planAgain.Actions | Where-Object { $_.Kind -eq 'RestoreBaselineFile' })).Count `
+        'restoring an already-restored rig plans no restores at all (idempotent by construction)'
+    $res = Invoke-Quiet { Invoke-RigReset }
+    Assert-Equal 0 $res.Failures.Count 'and running it twice fails nothing'
+
+    # ---- the server half, which had NO answer before the baseline ----
+    $srvCfg = Join-Path $script:TempRoot 'DedicatedServer\install\BepInEx\config\net.powergridplus.cfg'
+    Set-Content -LiteralPath $srvCfg -Value 'Something = 999' -Encoding utf8
+    Invoke-Quiet { Invoke-RigReset } | Out-Null
+    Assert-Equal 'Something = 1' (Get-Content -Raw -LiteralPath $srvCfg).Trim() `
+        'THE FIX: a server config a session changed is restored, instead of only being reported'
+
+    # net.scenariorunner.cfg is exempt: it is handled by blanking one value.
+    $srCfg = Join-Path $script:TempRoot 'DedicatedServer\install\BepInEx\config\net.scenariorunner.cfg'
+    Set-Content -LiteralPath $srCfg -Encoding utf8 -Value @('[Probe]', 'Scenario = something', 'Delay Ticks = 77')
+    Invoke-Quiet { Invoke-RigReset } | Out-Null
+    Assert-True ([string]::IsNullOrEmpty((Get-RigConfigSettingValue -Path $srCfg -Setting 'Scenario'))) 'the ScenarioRunner scenario is still blanked'
+    Assert-Equal '77' (Get-RigConfigSettingValue -Path $srCfg -Setting 'Delay Ticks') `
+        'and the rest of that file is NOT restored over, because blanking already owns it'
+
+    # ---- worlds: the baseline is what tells a staged world from a test leftover ----
+    $saveRoot = Join-Path $script:TempRoot 'DedicatedServer\data\saves'
+    New-Item -ItemType Directory -Force -Path (Join-Path $saveRoot 'SessionWorld') | Out-Null
+    Set-Content -LiteralPath (Join-Path $saveRoot 'SessionWorld\SessionWorld.save') -Value 'made during a test' -Encoding utf8
+    $plan = Invoke-Quiet { Get-RigResetPlan }
+    Assert-True $plan.PruneWorlds 'a fresh baseline is trusted enough to prune worlds'
+    $prunes = @($plan.Actions | Where-Object { $_.Kind -eq 'DeleteTree' })
+    Assert-Equal 1 $prunes.Count 'exactly one world is planned for deletion'
+    Assert-Match $prunes[0].Path 'SessionWorld' 'and it is the one created after the capture'
+    Invoke-Quiet { Invoke-RigReset } | Out-Null
+    Assert-FileGone (Join-Path $saveRoot 'SessionWorld') "a world created during the session is gone at the session boundary"
+    Assert-FileExists (Join-Path $saveRoot 'Luna\Luna.save') 'and the world that was in the baseline is untouched'
+
+    # A STALE baseline must not delete anything. Destroying data on the strength
+    # of a manifest nobody trusts is the wrong way round.
+    New-Item -ItemType Directory -Force -Path (Join-Path $saveRoot 'AnotherWorld') | Out-Null
+    Set-Content -LiteralPath (Join-Path $saveRoot 'AnotherWorld\AnotherWorld.save') -Value 'x' -Encoding utf8
+    Remove-Item -Recurse -Force -ErrorAction SilentlyContinue $script:SourceDir
+    New-SourceInstall -Version '0.2.9999.00000'
+    Use-TestPaths
+    $plan = Invoke-Quiet { Get-RigResetPlan }
+    Assert-False $plan.PruneWorlds 'a STALE baseline is not trusted to delete worlds'
+    Assert-Equal 0 (@($plan.Actions | Where-Object { $_.Kind -eq 'DeleteTree' })).Count 'so no world is planned for deletion'
+    $kept = @($plan.Reports | Where-Object { $_.Kind -eq 'SavesRetained' })
+    Assert-Equal 1 $kept.Count 'and the kept worlds are reported instead'
+    Assert-Match $kept[0].Detail 'stale' 'with the reason named'
+    Invoke-Quiet { Invoke-RigReset } | Out-Null
+    Assert-FileExists (Join-Path $saveRoot 'AnotherWorld\AnotherWorld.save') 'and the world really does survive'
+    Remove-Item -Recurse -Force -ErrorAction SilentlyContinue $script:SourceDir
+    New-SourceInstall
+    Use-TestPaths
+
+    # ---- with NO baseline the old behaviour stands, exactly ----
+    Reset-TestHome
+    $data = New-TestInstance -Name 'client1' -Role 'client'
+    $bep  = Get-InstanceBepInEx 'client1'
+    New-TestServerState
+    $plan = Invoke-Quiet { Get-RigResetPlan }
+    Assert-Equal 1 (@($plan.Reports | Where-Object { $_.Kind -eq 'BaselineAbsent' })).Count 'a rig with no baseline says so, loudly'
+    Assert-Equal 1 (@($plan.Actions | Where-Object { $_.Kind -eq 'CopyConfigTree' })).Count 'and falls back to copying from the source install'
+    Assert-Equal 0 (@($plan.Actions | Where-Object { $_.Kind -eq 'DeleteTree' })).Count 'and prunes no worlds at all'
+    Invoke-Quiet { Invoke-RigReset } | Out-Null
+    Assert-Match (Get-Content -Raw -LiteralPath (Join-Path $bep 'config\net.spraypaintplus.cfg')) 'Beam Width = 0\.05' 'the pre-baseline config restore still works'
+    Assert-FileExists (Join-Path $script:TempRoot 'DedicatedServer\data\saves\Luna\Luna.save') 'and staged worlds are still kept'
+
+    # ---- a DELIBERATE instance-scoped change is not drift, and is never scrubbed ----
+    #
+    # The surface is an allow-list, so an agent that intentionally alters an
+    # instance's environment outside the captured classes keeps that change
+    # through every restore. The concrete case this exists for: dropping a real
+    # (never hard-linked) assembly into one instance's own
+    # rocketstation_Data\Managed\ to fix a per-instance load failure. That is a
+    # permanent property of the instance, not this session's garbage, and a reset
+    # that scrubbed it would undo the fix silently on the next lock.
+    Reset-TestHome
+    $data = New-TestInstance -Name 'client1' -Role 'client'
+    $managed = Join-Path (Get-InstanceTreeDir 'client1') 'rocketstation_Data\Managed'
+    New-Item -ItemType Directory -Force -Path $managed | Out-Null
+    $deliberate = Join-Path $managed 'System.Collections.Immutable.dll'
+    Set-Content -LiteralPath $deliberate -Value 'a deliberately placed real copy' -Encoding utf8
+    Invoke-Quiet { New-RigBaselineCapture } | Out-Null
+
+    Assert-Equal 0 (@(Get-RigMutableSurface | Where-Object { $_.Path -eq $deliberate })).Count `
+        'a deliberate change outside the captured classes is not part of the surface at all'
+    Assert-Equal 0 (@((Invoke-Quiet { Get-RigResetPlan }).Actions | Where-Object { $_.Path -eq $deliberate })).Count `
+        'so no reset action ever targets it'
+    Invoke-Quiet { Invoke-RigReset } | Out-Null
+    Assert-FileExists $deliberate 'and it survives a full restore untouched'
+    Assert-Equal 'a deliberately placed real copy' (Get-Content -Raw -LiteralPath $deliberate).Trim() `
+        'with its contents intact, not reverted to anything'
+    Assert-False (Test-RigBaselineStale).Stale `
+        'and it is not reported as staleness either: the baseline describes the rig as it is meant to be, deliberate deviations included'
+
+    # ---- an instance the baseline has never seen falls back, and says so ----
+    Reset-TestHome
+    New-TestInstance -Name 'client1' -Role 'client' | Out-Null
+    Invoke-Quiet { New-RigBaselineCapture } | Out-Null
+    New-TestInstance -Name 'fresh' -Role 'client' | Out-Null
+    $plan = Invoke-Quiet { Get-RigResetPlan }
+    $miss = @($plan.Reports | Where-Object { $_.Kind -eq 'BaselineMissesInstance' })
+    Assert-Equal 1 $miss.Count 'an instance provisioned after the capture is named'
+    Assert-Match $miss[0].Detail 'CaptureBaseline' 'and the report says how to fix it'
+    Assert-Equal 1 (@($plan.Actions | Where-Object { $_.Kind -eq 'CopyConfigTree' -and $_.Instance -eq 'fresh' })).Count `
+        'that instance falls back to the source-install copy'
+    Assert-Equal 0 (@($plan.Actions | Where-Object { $_.Kind -eq 'CopyConfigTree' -and $_.Instance -eq 'client1' })).Count `
+        'while the covered instance still uses the baseline'
+}
+
+function Test-RestoreOnRelease {
+    if (-not (Test-SectionSelected 'release')) { return }
+    Start-Section 'restore on RELEASE, with acquisition as the crash backstop'
+    Reset-TestHome
+    New-TestInstance -Name 'client1' -Role 'client' | Out-Null
+    $data = Get-InstanceDataDir 'client1'
+
+    # ---- the ordinary path: the session that made the mess cleans it up ----
+    $owner = Invoke-Quiet { New-RigLock -Purpose 'a tidy session' -Tool 'rig-reset.tests.ps1' }
+    Invoke-Quiet { Assert-RigLockHeld -Action 'Start' -CallerId $owner -Tool 'rig-reset.tests.ps1' }
+    Assert-True (Get-RigDirtyState).Dirty 'the first mutating action marked the rig dirty'
+    Set-Content -LiteralPath (Join-Path $data 'setting.xml') -Value '<SettingData />' -Encoding utf8
+    New-Item -ItemType Directory -Force -Path (Join-Path $data 'userdata\saves\MidTestWorld') | Out-Null
+    Set-Content -LiteralPath (Join-Path $data 'userdata\saves\MidTestWorld\MidTestWorld.save') -Value 'in progress' -Encoding utf8
+
+    Invoke-Quiet { Remove-RigLock -CallerId $owner } | Out-Null
+    Assert-FileGone (Join-Path $data 'setting.xml') 'RELEASING the lock restored the rig, without waiting for the next agent'
+    Assert-FileGone (Join-Path $data 'userdata\saves\MidTestWorld\MidTestWorld.save') 'the world this session made is gone at release'
+    Assert-False (Test-Path -LiteralPath (Get-RigLockFilePath)) 'and the lock really was released'
+    Assert-False (Get-RigDirtyState).Dirty 'a completed restore clears the dirty marker'
+
+    # ---- acquisition on an already-clean rig does not undo that ----
+    $owner2 = Invoke-Quiet { New-RigLock -Purpose 'the next session' -Tool 'rig-reset.tests.ps1' }
+    Assert-Match "$owner2" '^[0-9a-f]{8}$' 'the next session acquires normally'
+    Assert-False (Get-RigDirtyState).Dirty 'and the rig is still clean, because the restore ran twice for free'
+    Invoke-Quiet { Remove-RigLock -CallerId $owner2 } | Out-Null
+
+    # ---- -Unlock -KeepState: hand the rig over dirty, ON PURPOSE ----
+    Reset-TestHome
+    New-TestInstance -Name 'client1' -Role 'client' | Out-Null
+    $data  = Get-InstanceDataDir 'client1'
+    $owner = Invoke-Quiet { New-RigLock -Purpose 'staging for the next session' -Tool 'rig-reset.tests.ps1' }
+    Invoke-Quiet { Assert-RigLockHeld -Action 'Start' -CallerId $owner -Tool 'rig-reset.tests.ps1' }
+    Set-Content -LiteralPath (Join-Path $data 'setting.xml') -Value '<SettingData />' -Encoding utf8
+    $text = (Remove-RigLock -CallerId $owner -KeepState 3>&1 6>&1 | Out-String)
+    Assert-Match $text 'KeepState' '-Unlock -KeepState says which flag skipped the restore'
+    Assert-FileExists (Join-Path $data 'setting.xml') 'and the state really does survive the release'
+    Assert-True (Get-RigDirtyState).Dirty 'the marker stays set, so the debt is carried, not forgiven'
+    Assert-False (Test-Path -LiteralPath (Get-RigLockFilePath)) 'the lock is still released'
+
+    # The NEXT acquisition pays that debt.
+    $owner2 = Invoke-Quiet { New-RigLock -Purpose 'the next session, which cleans up' -Tool 'rig-reset.tests.ps1' }
+    Assert-FileGone (Join-Path $data 'setting.xml') 'the next acquisition restores what -Unlock -KeepState left behind'
+    Assert-False (Get-RigDirtyState).Dirty 'and clears the marker'
+    Invoke-Quiet { Remove-RigLock -CallerId $owner2 } | Out-Null
+
+    # ---- the crash case: no release path is ever reached ----
+    Reset-TestHome
+    New-TestInstance -Name 'client1' -Role 'client' | Out-Null
+    $data = Get-InstanceDataDir 'client1'
+    $owner = Invoke-Quiet { New-RigLock -Purpose 'a session that dies' -Tool 'rig-reset.tests.ps1' }
+    Invoke-Quiet { Assert-RigLockHeld -Action 'Provision' -CallerId $owner -Tool 'rig-reset.tests.ps1' }
+    Set-Content -LiteralPath (Join-Path $data 'setting.xml') -Value '<SettingData />' -Encoding utf8
+    # SIMULATED KILL: the process is gone, so no -Unlock happens and the lock file
+    # and marker are simply left on disk. Age the lock past the ceiling, which is
+    # what the next agent will find an hour later.
+    $lk = Read-RigLock
+    $lk['refreshed_at'] = [DateTime]::UtcNow.AddMinutes(-120).ToString("yyyy-MM-ddTHH:mm:ss'Z'")
+    $lk['active_at']    = [DateTime]::UtcNow.AddMinutes(-120).ToString("yyyy-MM-ddTHH:mm:ss'Z'")
+    Write-RigLock $lk
+    $m = Read-RigDirtyMarker
+    $m['writer_pid'] = "$script:DeadPid"
+    Write-RigFileDurable -Path (Get-RigDirtyFilePath) -Text (($m.Keys | ForEach-Object { "$_=$($m[$_])" }) -join "`n")
+
+    $d = Get-RigDirtyState
+    Assert-True $d.Dirty   'after the kill the rig is still marked dirty'
+    Assert-True $d.Crashed 'and the marker shows nothing is left of that session'
+    $owner2 = Invoke-Quiet { New-RigLock -Purpose 'the agent that turns up next' -Tool 'rig-reset.tests.ps1' }
+    Assert-True ($owner2 -and $owner2 -ne $owner) 'the next agent reclaims the rig from the dead session'
+    Assert-FileGone (Join-Path $data 'setting.xml') 'THE BACKSTOP: acquisition restored what the crashed session never got to'
+    Assert-False (Get-RigDirtyState).Dirty 'and cleared the marker'
+
+    # ---- SIMULATED REBOOT: the marker outlives the machine ----
+    Reset-TestHome
+    New-TestInstance -Name 'client1' -Role 'client' | Out-Null
+    $data = Get-InstanceDataDir 'client1'
+    $owner = Invoke-Quiet { New-RigLock -Purpose 'a session the machine outlived' -Tool 'rig-reset.tests.ps1' }
+    Invoke-Quiet { Assert-RigLockHeld -Action 'Start' -CallerId $owner -Tool 'rig-reset.tests.ps1' }
+    Set-Content -LiteralPath (Join-Path $data 'setting.xml') -Value '<SettingData />' -Encoding utf8
+    # The reboot: a different boot id, and this process id is alive (it is us),
+    # which is exactly the trap a bare pid would fall into.
+    Initialize-RigLockPaths -RigHome $script:TempRoot -ServerImageName 'pwsh' -ClientImageName 'pwsh' `
+        -InstanceRoot (Join-Path $script:TempRoot 'ClientRig\instances') -BootId 'boot:2099-01-01T00:00:00Z'
+    $d = Get-RigDirtyState
+    Assert-True  $d.Dirty       'the marker survived the reboot'
+    Assert-False $d.SameBoot    'and is known to predate it'
+    Assert-False $d.WriterAlive 'and its live-looking pid is not believed'
+    Assert-True  $d.Crashed     'so the rig is treated as needing a restore'
+    Use-TestPaths
+    Initialize-RigLockPaths -RigHome $script:TempRoot -ServerImageName 'pwsh' -ClientImageName 'pwsh' `
+        -InstanceRoot (Join-Path $script:TempRoot 'ClientRig\instances') -BootId 'boot:2099-01-01T00:00:00Z'
+    Invoke-Quiet { New-RigLock -Purpose 'first session after the reboot' -Tool 'rig-reset.tests.ps1' -BreakLock } | Out-Null
+    Assert-FileGone (Join-Path $data 'setting.xml') 'the first acquisition after a reboot restores the rig'
+    Assert-False (Get-RigDirtyState).Dirty 'and clears the marker'
+    Use-TestPaths
+
+    # ---- a FAILED restore does not clear the marker ----
+    Reset-TestHome
+    New-TestInstance -Name 'client1' -Role 'client' | Out-Null
+    Invoke-Quiet { Write-RigDirtyMarker -Owner 'SOMEONE' -Reason 'Start' } | Out-Null
+    $plan = Invoke-Quiet { Get-RigResetPlan }
+    $plan.Actions += (New-RigResetAction -Half 'client' -Instance 'client1' -Kind 'BlankSetting' `
+        -Path (Join-Path (Get-InstanceBepInEx 'client1') 'config\stationeers.launchpad.cfg') -Setting 'NoSuchSetting' `
+        -Label 'a deliberately impossible action' -Reason 'test fixture')
+    Assert-Throws { Invoke-RigReset -Plan $plan } 'a restore with a failing action still throws' 'HALF RESET'
+    Assert-True (Get-RigDirtyState).Dirty 'and leaves the rig MARKED, so the next acquisition tries again'
+
+    # ---- a refused restore (busy rig) does not clear it either ----
+    Reset-TestHome
+    New-TestInstance -Name 'live1' -Role 'client' -RawPid "$PID" | Out-Null
+    Invoke-Quiet { Write-RigDirtyMarker -Owner 'SOMEONE' -Reason 'Start' } | Out-Null
+    $res = Invoke-Quiet { Invoke-RigReset }
+    Assert-True $res.Refused 'a busy rig still refuses the restore'
+    Assert-True (Get-RigDirtyState).Dirty 'and the marker survives the refusal, so nothing forgets the rig is dirty'
+    Remove-Item -LiteralPath (Get-RigDirtyFilePath) -Force -ErrorAction SilentlyContinue
+}
+
 function Test-Robustness {
     if (-not (Test-SectionSelected 'robust')) { return }
     Start-Section 'robustness: broken inputs behave rather than throw'
@@ -1004,6 +1398,9 @@ try {
     Test-WhatIf
     Test-BusyRefusal
     Test-LockIntegration
+    Test-Baseline
+    Test-BaselineRestore
+    Test-RestoreOnRelease
     Test-SharedState
     Test-Robustness
 }

@@ -111,8 +111,10 @@ Web/_staging/
 ## -OutFile with a relative path resolves against the shell CWD, and a run from
 ## the rig root would land the artifact here where an ignore-a-few-things list
 ## would wave it straight through. The allowlist is the shared lock and state-reset
-## machinery, their test suites and the two docs. The active session.lock and the
-## session.state.json shared-state baseline are never tracked.
+## machinery, their test suites and the two docs. Every piece of live session state
+## stays untracked: session.lock, session.dirty (the crash marker), session.state.json
+## (the shared per-user snapshot) and baseline/ (the captured definition of a clean
+## rig, including the config file contents it stores).
 /TestRig/*
 !/TestRig/CLAUDE.md
 !/TestRig/rig-lock.ps1

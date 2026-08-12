@@ -141,12 +141,33 @@
     instance" override, and one flag name cannot mean both.
 
 .PARAMETER TtlMinutes
-    With -Lock / -RefreshLock: inactivity window before the lock timer lapses.
-    Default 10. A busy rig (a player connected to the running server, or a live
-    client-rig instance) keeps the lock live regardless of the timer.
+    With -Lock / -RefreshLock: the LIVENESS HEARTBEAT window, default 10. A busy
+    rig (a player connected to the running server, or a live client-rig instance)
+    keeps the lock live past this. See -IdleCeilingMinutes for the timer that a
+    busy rig does NOT get past.
+
+.PARAMETER IdleCeilingMinutes
+    With -Lock / -RefreshLock: the ABSOLUTE IDLE CEILING, default 60. After this
+    long with no action from the lock's owner, the lock is reclaimable whether or
+    not the rig is busy, and the reclaiming session stops what is running and
+    restores the rig. Only the owner's own commands reset this clock; the busy
+    self-renew does not, which is what stops one forgotten client instance from
+    holding the rig forever. Raise it when you will legitimately be idle longer
+    (waiting on a human), and tell the user. Rules:
+    TestRig/session.lock.template.
+
+.PARAMETER CaptureBaseline
+    Declare the rig as it stands to be the new definition of "clean", writing
+    TestRig/baseline/. Every later restore restores TO this. Requires the lock and
+    an idle rig; -Force overrides the idle refusal. Re-capture after a game
+    update, a mod rebuild or a re-provision; until then a stale baseline is
+    reported loudly on every reset.
 
 .PARAMETER KeepState
-    With -Lock: do NOT reset the rig's between-session state on acquisition.
+    With -Lock: do NOT restore the rig on acquisition. With -Unlock or
+    -Stop -Release: do NOT restore it on release either, so the next session
+    inherits exactly what you leave. Either way the dirty marker stays set, so the
+    debt is carried rather than forgiven.
     Taking a NEW lock normally clears what the last session left behind on both
     halves (the ScenarioRunner scenario selection, stray drop files, InspectorPlus
     requests and snapshots, the server's setting.xml, stale pid files, and each
@@ -211,7 +232,10 @@ param(
     [switch] $BreakLock,
     [switch] $Force,
     [int]    $TtlMinutes = 10,
+    [int]    $IdleCeilingMinutes = 60,
     [switch] $KeepState,
+
+    [switch] $CaptureBaseline,
 
     [switch] $HostMode
 )
@@ -909,6 +933,10 @@ function Invoke-Stop {
             Write-Host "[Stop] No rig session lock to release."
         }
         elseif (Test-RigLockReleasableOnStop -Lock $lock -CallerId $As -BreakLock:$BreakLock) {
+            # The restore runs BEFORE the lock file goes, so it happens while this
+            # session still owns the rig. Same order as -Unlock, through the same
+            # shared helper, so the two release paths cannot drift.
+            Invoke-RigReleaseRestore -KeepState:$KeepState
             Remove-Item -Force -ErrorAction SilentlyContinue (Get-RigLockFilePath)
             Write-Host "[Stop] Rig session lock released."
             # -Stop -Release is a session end too, so it gets the same shared-state
@@ -938,7 +966,8 @@ function Invoke-Lock {
     # -KeepState is forwarded because a NEW lock resets the rig's between-session
     # state (TestRig/rig-reset.ps1). Opting out is loud on purpose: staging a save
     # or a scenario deliberately has to stay possible without being the default.
-    New-RigLock -Purpose $Purpose -CallerId $As -TtlMinutes $TtlMinutes -BreakLock:$BreakLock `
+    New-RigLock -Purpose $Purpose -CallerId $As -TtlMinutes $TtlMinutes -IdleCeilingMinutes $IdleCeilingMinutes `
+        -BreakLock:$BreakLock `
         -KeepState:$KeepState -WaitSeconds $lockWait -Tool 'dedicated-server.ps1' -OnReclaim {
             if (Test-PidAlive (Get-PidFromFile $ServerPidFile)) {
                 Write-Warning "[Lock] Reclaimed an expired lock; stopping its orphaned server."
@@ -949,18 +978,38 @@ function Invoke-Lock {
 
 function Invoke-RefreshLock {
     if (-not $As) { throw "-RefreshLock requires -As <id> (the owner id printed by -Lock)." }
-    if ($InvokedWith.ContainsKey('TtlMinutes')) { Update-RigLock -CallerId $As -TtlMinutes $TtlMinutes }
-    else                                        { Update-RigLock -CallerId $As }
+    # $InvokedWith, not $PSBoundParameters: the latter is per-scope and a function
+    # gets its own (empty) copy, which is why -RefreshLock -TtlMinutes N silently
+    # did nothing until this was captured at script scope. The same trap applies to
+    # -IdleCeilingMinutes, so it is read the same way.
+    # NOT named $args: that is an automatic variable, and shadowing it inside a
+    # function is exactly the kind of quiet weirdness this file keeps having to
+    # undo.
+    $refreshArgs = @{ CallerId = $As }
+    if ($InvokedWith.ContainsKey('TtlMinutes'))         { $refreshArgs['TtlMinutes'] = $TtlMinutes }
+    if ($InvokedWith.ContainsKey('IdleCeilingMinutes')) { $refreshArgs['IdleCeilingMinutes'] = $IdleCeilingMinutes }
+    Update-RigLock @refreshArgs
 }
 
 function Invoke-Unlock {
-    Remove-RigLock -CallerId $As -BreakLock:$BreakLock -Force:$Force
+    # -KeepState is forwarded so a session can hand the rig over dirty ON PURPOSE.
+    # Without it the release restores, which is the point: the agent that made the
+    # changes undoes them while it is still the owner.
+    Remove-RigLock -CallerId $As -BreakLock:$BreakLock -Force:$Force -KeepState:$KeepState
     # Only after a SUCCESSFUL release: Remove-RigLock throws on a refusal, and a
     # drift report on a lock that is still held would be reporting on a session
     # that is not over. The shared per-user state (PlayerCookie-v2.xml,
     # PlayerPrefs, Blueprints) cannot be isolated and is never restored, so naming
     # what moved at the session boundary is all this can honestly do.
     Write-RigSharedStateDrift
+}
+
+function Invoke-CaptureBaseline {
+    # Declare the rig as it stands to be the new definition of clean. Gated on the
+    # lock like any other mutating action: it writes rig state, and capturing a rig
+    # somebody else is driving would bless their half-finished setup.
+    Assert-RigLockHeld -Action 'CaptureBaseline' -CallerId $As -Tool 'dedicated-server.ps1'
+    New-RigBaselineCapture -CapturedBy $As -Force:$Force | Out-Null
 }
 
 # ---- status & logs --------------------------------------------------------
@@ -1118,9 +1167,10 @@ function Invoke-SyncMods {
 # ---- dispatch -------------------------------------------------------------
 
 if ($HostMode)    { Invoke-HostMode;    return }
-if ($Lock)        { Invoke-Lock;        return }
-if ($RefreshLock) { Invoke-RefreshLock; return }
-if ($Unlock)      { Invoke-Unlock;      return }
+if ($Lock)            { Invoke-Lock;            return }
+if ($RefreshLock)     { Invoke-RefreshLock;     return }
+if ($Unlock)          { Invoke-Unlock;          return }
+if ($CaptureBaseline) { Invoke-CaptureBaseline; return }
 if ($Bootstrap)   { Invoke-Bootstrap;   return }
 if ($DeployMods)  { Invoke-DeployMods;  return }
 if ($SyncMods)    { Invoke-SyncMods;    return }
@@ -1140,9 +1190,13 @@ Session-lock rules: TestRig/session.lock.template (READ FIRST)
 
 Session lock (acquire before ANY mutating command; pass -As <id> thereafter).
 ONE lock covers BOTH halves, so this id is also what client-rig.ps1 expects:
-  TestRig/DedicatedServer/dedicated-server.ps1 -Lock -Purpose "<what you are testing>" [-TtlMinutes 10] [-WaitSeconds 0]
+  TestRig/DedicatedServer/dedicated-server.ps1 -Lock -Purpose "<what you are testing>" [-TtlMinutes 10] [-IdleCeilingMinutes 60] [-WaitSeconds 0]
   TestRig/DedicatedServer/dedicated-server.ps1 -RefreshLock -As <id>      (while actively testing)
-  TestRig/DedicatedServer/dedicated-server.ps1 -Unlock -As <id> [-Force]  (release when done)
+  TestRig/DedicatedServer/dedicated-server.ps1 -Unlock -As <id> [-Force]  (release when done; RESTORES the rig)
+  Two timers: -TtlMinutes is the liveness heartbeat (a busy rig renews it by itself);
+  -IdleCeilingMinutes is the absolute idle ceiling, and past it the lock is reclaimable
+  even on a busy rig, so a hung agent delays other agents instead of blocking them. Only
+  YOUR OWN commands reset the ceiling. -Status prints the countdown.
   -Lock -WaitSeconds N queues for up to N seconds instead of failing at once when another
   session holds the rig. It is a queue, not a reservation: no ordering fairness is promised.
   -Unlock refuses while a client-rig listen-host instance is live; -Force overrides that
@@ -1150,17 +1204,27 @@ ONE lock covers BOTH halves, so this id is also what client-rig.ps1 expects:
   Breaking another session's LIVE lock (-BreakLock) is human-gated: only on the user's say-so.
   -BreakLock is NOT -Force. -Force never breaks a lock on either launcher.
 
-State hygiene: taking a NEW lock RESETS what the previous session left behind on BOTH halves, so a
-test cannot fail on an unrelated test's leftovers. Here that is the ScenarioRunner Scenario value
-(blanked, the rest of the file untouched), the scenariorunner requests/ and give/ drop files, the
-InspectorPlus requests/ and snapshots/, data/setting.xml and any stale server.pid / host.pid /
-control.cmd. KEPT: data/saves (count and size are reported), data/mods, install/modconfig.xml, the
-deployed plugin DLLs and every other BepInEx config (ones that changed since the last reset are
-reported, not reset).
-  -Lock -KeepState   skip the reset, loudly, when something was staged on purpose.
-  The reset is refused while the rig is in use, and never happens when you re-assert a lock you
+State hygiene: RELEASING the lock restores the rig, and ACQUIRING one restores it again as a
+backstop for a session that crashed, so a test cannot fail on an unrelated test's leftovers. Here
+that is the ScenarioRunner Scenario value (blanked, the rest of the file untouched), the
+scenariorunner requests/ and give/ drop files, the InspectorPlus requests/ and snapshots/,
+data/setting.xml and any stale server.pid / host.pid / control.cmd. With a baseline captured, server
+configs go back to their baseline contents and worlds the baseline never saw are deleted; without
+one, both are only reported. KEPT either way: data/mods, the deployed plugin DLLs, the baseline's
+own worlds.
+  TestRig/DedicatedServer/dedicated-server.ps1 -CaptureBaseline -As <id> [-Force]
+                     make the rig as it stands the new definition of clean (writes TestRig/baseline/).
+                     Re-capture after a game update, a mod rebuild or a re-provision; a stale
+                     baseline is reported loudly on every reset and never blocks the lock.
+  -Lock -KeepState   start on the previous session's leftovers, loudly, when they were staged on purpose.
+  -Unlock -KeepState leave YOUR state for the next session, loudly. The rig stays marked dirty, so
+                     the next acquisition restores unless it also passes -KeepState.
+  A crash is covered: TestRig/session.dirty is written durably before the first mutating action and
+  cleared only by a completed restore, and it records the OS boot id so a pid from before a reboot is
+  never believed. -Status shows `rig state: clean` or `DIRTY`.
+  The restore is refused while the rig is in use, and never happens when you re-assert a lock you
   already hold, so an agent refreshing mid-test cannot wipe its own run.
-  IT RESETS BETWEEN SESSIONS ONLY. A session spans many start/stop cycles by design, so two
+  IT RESTORES BETWEEN SESSIONS ONLY. A session spans many start/stop cycles by design, so two
   unrelated tests under ONE lock get no reset between them. Release and re-take the lock when the
   subject changes.
   -Unlock and -Stop -Release print what moved in the shared per-user Unity state

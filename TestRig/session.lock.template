@@ -63,14 +63,128 @@
 #     one client-rig instance process is alive. A live lock you do not own
 #     blocks you. An expired lock with an idle rig is dead and is reclaimed
 #     automatically.
+#   - ...UNLESS the idle ceiling has been reached, which overrides all of that.
+#     See THE TWO TIMERS below. Past the ceiling a lock is reclaimable whether
+#     or not the rig is busy.
 #
-# STATE HYGIENE HANGS OFF ACQUISITION (this is why it is here and not in a rule)
-#   Taking a NEW lock RESETS the rig's between-session state, so a test cannot
-#   fail because of what an unrelated test left behind. The lock is the only
-#   mandatory choke point that already exists and is already enforced in code
-#   (Assert-RigLockHeld refuses every mutating action without it), so an agent
-#   cannot get the rig without getting it clean and cannot route around it. A
-#   rule in a document is a rule an agent skips.
+# THE TWO TIMERS, AND WHY THERE ARE TWO
+#   ttl_minutes (default 10) is a LIVENESS HEARTBEAT on refreshed_at. Its job is
+#   to free a rig nobody is using. A busy rig self-renews it, so a brief gap
+#   between two of your own commands cannot hand your live test to somebody else.
+#
+#   idle_ceiling_minutes (default 60) is an ABSOLUTE IDLE CEILING on active_at.
+#   Its job is to free a rig whose OWNER is gone, busy or not. active_at moves
+#   only on the owner's own actions (acquire, -RefreshLock, any mutating command,
+#   a -Wait barrier). The busy self-renew never touches it. That separation is
+#   the entire mechanism: anchoring the ceiling on refreshed_at would let a rig
+#   with one forgotten client instance renew itself past the ceiling for ever,
+#   which is precisely the hung-agent case the ceiling exists to end.
+#
+#   A session that keeps working is NEVER reclaimed, however long it runs: every
+#   command it issues moves active_at. What the ceiling ends is an hour of
+#   silence. Set it with -Lock -IdleCeilingMinutes N, change it mid-session with
+#   -RefreshLock -IdleCeilingMinutes N.
+#
+#   RECLAIMING A BUSY RIG IS DELIBERATE, AND IT IS THE ANSWER TO A REAL QUESTION.
+#   Before the ceiling existed, a busy rig kept its lock alive with no upper
+#   bound, so an agent that died holding one client instance held the WHOLE rig
+#   until a human authorized a -BreakLock. That makes a hung agent a blocker
+#   rather than a delay. The rule now is: a hung agent delays other agents by up
+#   to the ceiling, and then stops costing them anything. The price of that is
+#   real and is stated plainly: a reclaim past the ceiling can stop instances and
+#   restore state belonging to a session that was merely very quiet rather than
+#   dead. Everything about it is therefore loud, the reclaiming acquisition names
+#   the purpose it took the rig from and what was running on it, and -Status
+#   prints the countdown so an agent can see it coming. If you are about to be
+#   legitimately idle for longer than the ceiling (waiting on a human, say), pass
+#   a longer -IdleCeilingMinutes when you take the lock and tell the user.
+#
+#   Reclaiming past the ceiling is NOT a -BreakLock. -BreakLock takes a LIVE lock
+#   and stays human-gated. A lock past its ceiling is dead by these rules, in the
+#   same way an expired one with an idle rig is dead.
+#
+# STATE HYGIENE HANGS OFF BOTH ENDS OF THE SESSION
+#   RELEASING the lock RESTORES the rig, and ACQUIRING one restores it again as a
+#   backstop. Both, not either: the release is where the guarantee is earned (the
+#   agent that made the mess pays for it, while it is still the owner and the rig
+#   is provably idle), and the acquisition covers the one case a release can
+#   never cover, which is a session that crashed, was killed, or lost the machine
+#   to a reboot and so never reached its own release path. Restores are
+#   idempotent, so running both costs nothing and the pair leaves no gap.
+#
+#   The lock is the only mandatory choke point that already exists and is already
+#   enforced in code (Assert-RigLockHeld refuses every mutating action without
+#   it), so an agent cannot get the rig without getting it clean and cannot route
+#   around it. A rule in a document is a rule an agent skips.
+#
+# THE DIRTY MARKER (how acquisition knows the last session did not clean up)
+#   TestRig/session.dirty (gitignored) is written before the FIRST mutating
+#   action of a session, durably (write-through, flushed, atomic replace), and is
+#   cleared ONLY by a restore that completed. So:
+#       marker absent  = the rig was restored
+#       marker present = somebody mutated it and no restore has finished since
+#   It survives a process kill, a bugcheck and a power cut, which in-memory state
+#   would not, and it is what makes "restore before granting" possible at all.
+#
+#   It records the OS BOOT IDENTITY as well as the writing pid, because a pid on
+#   its own lies across a reboot: Windows reuses process ids, so "pid 8123 is
+#   alive" after a restart says nothing about the launcher that wrote the marker
+#   before it. A marker from a different boot means its writer is definitely
+#   gone. A marker from this boot has its pid checked the same way the rig checks
+#   a game pid: the process must still exist AND still be the image it claimed.
+#   Anything unverifiable counts as "that session is gone", because restoring
+#   twice is free and skipping a restore is not.
+#
+#   -Status prints this as `rig state: clean` or `rig state: DIRTY - ...`.
+#
+# WHAT THE CLEAN STATE ACTUALLY IS: THE BASELINE (TestRig/baseline/, gitignored)
+#   "Clean" used to be a hardcoded list of things to delete. That is enough to
+#   remove obvious garbage and not enough to say what the rig SHOULD look like,
+#   which is why server configs were left alone as "rig-owned versus mod-owned is
+#   undecided" and why every dedicated-server world was kept regardless of age.
+#
+#   A baseline is a capture of the rig at a moment somebody declared correct:
+#       <launcher> -CaptureBaseline -As <id>
+#   It is explicit, it is the ONLY thing that changes the definition of clean, and
+#   it never happens on its own (a baseline that re-captured itself would bless
+#   whatever mess triggered it). It refuses on a busy rig; -Force overrides that
+#   in the ordinary same-session sense.
+#
+#   THREE CLASSES, and the split is the design:
+#     config   every *.cfg under each instance's BepInEx/config and under the
+#              dedicated server's, plus each modconfig.xml. Bytes are STORED and
+#              the restore copies them back, so a value a session changed, or a
+#              file it deleted, goes back exactly. Kilobytes in total.
+#     payload  deployed plugins and seeded mods. Hashed and inventoried, NEVER
+#              stored and NEVER restored: rolling one back would silently undo a
+#              deliberate -DeployMods, and "my fix is not in the game" is the
+#              quietest possible failure. A payload that moved makes the baseline
+#              STALE instead, which is the correct signal (you deployed; re-take
+#              the baseline).
+#     world    dedicated-server saves, recorded by name and size, never hashed
+#              (they are hundreds of megabytes) and never stored. Their names are
+#              what lets the restore tell a world that was in the baseline from
+#              one this session created. New ones are DELETED at the session
+#              boundary; baseline ones are kept and reported.
+#
+#   THE SURFACE IS AN ALLOW-LIST. The reset only ever touches paths in these
+#   classes or in its hardcoded target list, so a deliberate instance-scoped
+#   change ANYWHERE ELSE in a tree (a real, never-hard-linked assembly dropped
+#   into one instance's own rocketstation_Data\Managed\ to fix a per-instance
+#   load failure, say) survives every restore untouched and is never reported as
+#   drift. That is a permanent property of the instance, not this session's
+#   garbage. A deny-list would have the opposite default and would scrub exactly
+#   those changes.
+#
+#   STALE IS LOUD, NEVER SILENT. A baseline is stale when the game version moved
+#   (version.txt in the install), when an instance appeared or disappeared, or
+#   when a plugin or seeded mod was rebuilt. Every reset then warns, names the
+#   exact reason, and names -CaptureBaseline as the fix. It does NOT block the
+#   lock: an unclean rig must not become an unlockable one, and a stale baseline
+#   is still better than none. The one thing staleness changes is world pruning,
+#   which is the only irreversible action here: a stale baseline REPORTS new
+#   worlds instead of deleting them. With NO baseline at all, behaviour is
+#   exactly what it was before baselines existed, and says so on every reset.
 #
 #   WHAT IT RESETS. Per client instance: setting.xml (it carries StartLocalHost,
 #   and an instance that silently comes up hosting when the test believes it is a
@@ -100,14 +214,35 @@
 #     - -Lock -KeepState skips it on purpose, and prints exactly what it skipped.
 #       Use it when a save, a config value or a scenario was staged deliberately.
 #     - A failed reset is loud and names the instance, then throws. You hold the
-#       lock; -Unlock and take it again to retry.
+#       lock; -Unlock and take it again to retry. A failed or refused restore does
+#       NOT clear the dirty marker, so the next acquisition tries again.
 #
-#   THE LIMIT, PLAINLY. This resets BETWEEN sessions, and a session deliberately
-#   spans many start/stop cycles, so two unrelated tests run under ONE lock get
-#   NO reset between them. If the next thing you test is unrelated to the last,
-#   release the lock and take it again. Per-test hygiene would make the unit of
-#   hygiene smaller than the unit of ownership, which is a lock-model change and
-#   its own piece of work.
+# THE LIFETIME OF A CHANGE YOU MAKE, IN THREE LEVELS
+#   You choose how long anything you do to the rig lasts. There are exactly three
+#   answers and they are all explicit:
+#
+#   1. UNTIL YOU RELEASE (the default, and it is not "until your next -Stop").
+#      The restore runs BETWEEN sessions only, and a session deliberately spans
+#      many start/stop cycles, so anything you set up survives your own restarts
+#      for as long as you hold the lock. This is the rule that is easiest to get
+#      wrong in the other direction too: two UNRELATED tests run under ONE lock
+#      get NO reset between them, so the second inherits the first's leftovers.
+#      If the next thing you test is unrelated to the last, release the lock and
+#      take it again. Per-test hygiene would make the unit of hygiene smaller
+#      than the unit of ownership, which is a lock-model change and its own piece
+#      of work.
+#
+#   2. UNTIL THE NEXT SESSION CLEANS UP: -Unlock -KeepState. Releases without
+#      restoring, loudly, so the next agent inherits exactly what you left. The
+#      dirty marker STAYS SET, so the debt is carried rather than forgiven: the
+#      next acquisition restores unless that agent also passes -KeepState. Use it
+#      to hand a staged rig to a follow-up session on purpose.
+#
+#   3. FOREVER: -CaptureBaseline. Promotes the rig as it stands to the permanent
+#      definition of clean, so from then on every restore restores TO your setup
+#      rather than away from it. This is how a deliberate rig change (a config
+#      the rig should always have, a world that should always be there) stops
+#      being something every session has to redo.
 #
 #   SHARED PER-USER STATE IS REPORTED, NEVER RESTORED. PlayerCookie-v2.xml, the
 #   HKCU\Software\Rocketwerkz\rocketstation PlayerPrefs key and Blueprints\ cannot
@@ -177,6 +312,10 @@
 #
 # RELEASE WHEN DONE (client-rig sessions especially)
 #   - Release explicitly: `-Unlock -As <id>`, or `-Stop -As <id> -Release`.
+#   - RELEASING RESTORES THE RIG. Both paths run the restore first and free the
+#     lock second, so the hand-over is to a clean rig rather than to your
+#     leftovers. `-Unlock -KeepState` skips it, loudly, and leaves the dirty
+#     marker set so the next acquisition cleans up instead.
 #   - A running client instance keeps the lock live on its own, with no timer to
 #     save you. Leaving instances up after a test therefore holds the WHOLE rig,
 #     dedicated server included, until somebody stops them. Always
@@ -231,12 +370,27 @@
 #   muscle memory. The dangerous one now has a name nobody types by accident.
 #
 # FIELDS (the active session.lock holds exactly these keys, one per line)
-#   owner         short id printed by -Lock; echo it back with -As
-#   purpose       short human-readable reason (see THE PURPOSE STRING)
-#   acquired_at   ISO 8601 UTC, when first acquired
-#   refreshed_at  ISO 8601 UTC, last refresh (drives the TTL)
-#   ttl_minutes   inactivity window before the timer lapses (default 10)
-#   host          machine name, for diagnostics
+#   owner                 short id printed by -Lock; echo it back with -As
+#   purpose               short human-readable reason (see THE PURPOSE STRING)
+#   acquired_at           ISO 8601 UTC, when first acquired
+#   refreshed_at          ISO 8601 UTC, last heartbeat (drives ttl_minutes). The
+#                         busy self-renew moves this and ONLY this.
+#   active_at             ISO 8601 UTC, last OWNER action (drives the ceiling).
+#                         Nothing but the owner's own commands move it.
+#   ttl_minutes           heartbeat window before the timer lapses (default 10)
+#   idle_ceiling_minutes  absolute idle window after which the lock is
+#                         reclaimable busy or not (default 60)
+#   host                  machine name, for diagnostics
+#
+#   A lock written before active_at existed still works: the ceiling falls back
+#   to acquired_at, which is older than any owner action and therefore never
+#   makes a lock look fresher than it is. Every timer field fails CLOSED: missing,
+#   unparseable or negative reads as expired or as past the ceiling.
+#
+# THE OTHER TWO STATE FILES (both gitignored, both beside the lock)
+#   session.dirty       the crash marker, above.
+#   session.state.json  the shared per-user state snapshot, below.
+#   baseline/           the captured definition of clean, above.
 #
 # TESTS
 #   TestRig/rig-lock.tests.ps1 exercises all of the above offline: no game, no
@@ -259,5 +413,7 @@ owner=EXAMPLE0
 purpose=Playtesting network paint for SprayPaintPlus
 acquired_at=2026-01-01T00:00:00Z
 refreshed_at=2026-01-01T00:00:00Z
+active_at=2026-01-01T00:00:00Z
 ttl_minutes=10
+idle_ceiling_minutes=60
 host=EXAMPLE-PC
