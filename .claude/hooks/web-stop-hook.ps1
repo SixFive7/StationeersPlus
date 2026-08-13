@@ -7,7 +7,22 @@
 # All-clean: nothing to do.
 #
 # This is the enforcement point. The earlier per-edit hooks are signals; this
-# one fires once per turn at the natural commit point.
+# one fires at the natural commit point.
+#
+# It fires once per distinct STATE, not once per turn. It records a signature
+# (each dirty publishable path plus its last-write time, and the Web/site/ file
+# count) and stays silent until that signature changes. Change a watched file and
+# the reminder returns; leave it alone and it does not.
+#
+# The debounce is not a nicety. Publishable source outside the two autonomous
+# commit lanes (anything under tools/, Web/content/, Web/overrides/) cannot be
+# cleared by the agent on its own: it needs the developer to approve a commit.
+# Without a debounce that produces a reminder the agent cannot act on and cannot
+# silence, repeated verbatim at every single turn end for as long as the file
+# sits there. That happened, for dozens of turns, over one two-line edit.
+#
+# The signature lives outside the repository, so it never shows up as an
+# untracked file and never becomes something this hook reports on.
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
@@ -57,6 +72,39 @@ foreach ($p in $paths) {
 if ($sourceChanged.Count -eq 0 -and $siteChanged.Count -eq 0) {
     # No publishable changes this turn; nothing to do.
     exit 0
+}
+
+# --- signature and debounce --------------------------------------------------
+# The signature is every dirty source path with its last-write time, plus the
+# Web/site/ file count. Editing a watched file moves its ticks and the reminder
+# returns. Committing it drops the path entirely, which exits above. Rebuilding
+# Web/site/ moves the count, which is a genuinely different state (the publish is
+# now half finished) and worth saying once more.
+$parts = @()
+foreach ($p in ($sourceChanged | Sort-Object -Unique)) {
+    $ticks = 'D'   # deleted or otherwise unreadable
+    try {
+        $item = Get-Item -LiteralPath $p -ErrorAction Stop
+        $ticks = [string]$item.LastWriteTimeUtc.Ticks
+    } catch { }
+    $parts += "$p=$ticks"
+}
+$parts += "site=$($siteChanged.Count)"
+$signature = ($parts -join ';')
+
+$stampDir  = Join-Path $env:LOCALAPPDATA 'claude-code-hooks'
+$stampFile = Join-Path $stampDir 'stationeersplus-web-publish.stamp'
+try {
+    if (Test-Path -LiteralPath $stampFile) {
+        $previous = (Get-Content -LiteralPath $stampFile -Raw -ErrorAction Stop).Trim()
+        if ($previous -eq $signature) { exit 0 }
+    }
+    if (-not (Test-Path -LiteralPath $stampDir)) {
+        New-Item -ItemType Directory -Path $stampDir -Force | Out-Null
+    }
+    Set-Content -LiteralPath $stampFile -Value $signature -Encoding UTF8 -NoNewline
+} catch {
+    # A stamp we cannot read or write only costs a repeated reminder. Carry on.
 }
 
 # Build state-aware reminder lines.

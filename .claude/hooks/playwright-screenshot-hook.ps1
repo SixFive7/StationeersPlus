@@ -1,4 +1,4 @@
-# playwright-screenshot-hook.ps1
+﻿# playwright-screenshot-hook.ps1
 # PreToolUse hook for the four Playwright MCP servers' browser_take_screenshot tool.
 # Denies a call that passes an explicit `filename` which is NOT under a Playwright
 # outputDir / workdir / absolute path. Upstream resolves an explicit filename via

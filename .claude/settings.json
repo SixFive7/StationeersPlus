@@ -127,52 +127,37 @@
         ]
       },
       {
-        "matcher": "Read|Bash|PowerShell|Edit|Write",
+        "matcher": "Bash|PowerShell",
         "hooks": [
           {
             "type": "command",
-            "if": "Bash(*TestRig*)",
-            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/rig-lock-hook.ps1"
+            "if": "Bash(*testrig.ps1*)",
+            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/rig-hook.ps1"
           },
           {
             "type": "command",
-            "if": "Bash(*dedicated-server.ps1*)",
-            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/rig-lock-hook.ps1"
+            "if": "Bash(*savepath*)",
+            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/rig-hook.ps1"
           },
           {
             "type": "command",
-            "if": "Bash(*client-rig.ps1*)",
-            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/rig-lock-hook.ps1"
+            "if": "Bash(*requireIsolatedSavePath*)",
+            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/rig-hook.ps1"
           },
           {
             "type": "command",
-            "if": "PowerShell(*TestRig*)",
-            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/rig-lock-hook.ps1"
+            "if": "PowerShell(*testrig.ps1*)",
+            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/rig-hook.ps1"
           },
           {
             "type": "command",
-            "if": "PowerShell(*dedicated-server.ps1*)",
-            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/rig-lock-hook.ps1"
+            "if": "PowerShell(*savepath*)",
+            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/rig-hook.ps1"
           },
           {
             "type": "command",
-            "if": "PowerShell(*client-rig.ps1*)",
-            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/rig-lock-hook.ps1"
-          },
-          {
-            "type": "command",
-            "if": "Read(*TestRig*)",
-            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/rig-lock-hook.ps1"
-          },
-          {
-            "type": "command",
-            "if": "Edit(*TestRig*)",
-            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/rig-lock-hook.ps1"
-          },
-          {
-            "type": "command",
-            "if": "Write(*TestRig*)",
-            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/rig-lock-hook.ps1"
+            "if": "PowerShell(*requireIsolatedSavePath*)",
+            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/rig-hook.ps1"
           }
         ]
       }
@@ -183,7 +168,7 @@
         "hooks": [
           {
             "type": "command",
-            "if": "Glob(*\\rocketstation_Data\\Managed\\\\\\\\*)",
+            "if": "Glob(*rocketstation_Data/Managed/*)",
             "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/research-hook-decompile.ps1"
           },
           {
@@ -193,7 +178,7 @@
           },
           {
             "type": "command",
-            "if": "Glob(*\\\\.work\\\\decomp\\\\\\\\*)",
+            "if": "Glob(*.work/decomp/*)",
             "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/research-hook-decompile.ps1"
           },
           {
@@ -465,6 +450,36 @@
             "type": "command",
             "if": "Write(*\\TODO.md)",
             "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/todo-content-hook.ps1"
+          },
+          {
+            "type": "command",
+            "if": "Read(*\\PLAYTEST.md)",
+            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/todo-content-hook.ps1"
+          },
+          {
+            "type": "command",
+            "if": "Edit(*\\PLAYTEST.md)",
+            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/todo-content-hook.ps1"
+          },
+          {
+            "type": "command",
+            "if": "Write(*\\PLAYTEST.md)",
+            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/todo-content-hook.ps1"
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "if": "Edit(*\\TestRig\\\\\\\\*)",
+            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/rig-hook.ps1"
+          },
+          {
+            "type": "command",
+            "if": "Write(*\\TestRig\\\\\\\\*)",
+            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/rig-hook.ps1"
           }
         ]
       }
@@ -475,6 +490,10 @@
           {
             "type": "command",
             "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/web-stop-hook.ps1"
+          },
+          {
+            "type": "command",
+            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/rig-stop-hook.ps1"
           }
         ]
       }

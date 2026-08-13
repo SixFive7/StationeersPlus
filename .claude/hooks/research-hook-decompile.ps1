@@ -1,6 +1,7 @@
 ﻿# research-hook-decompile.ps1
 # Curation reminder hook for decompiled-content access. Fires on:
-#   (a) Glob against rocketstation_Data/Managed/ (direct DLL listings).
+#   (a) Glob whose PATTERN argument names rocketstation_Data/Managed/
+#       (direct DLL listings). Partial coverage: see the note below.
 #   (b) Read or Glob against .work/decomp/ (canonical decompile output).
 #   (c) Read or Glob of any *.decompiled.cs file (suffix safety net).
 #   (d) Bash commands containing ilspycmd or ICSharpCode.Decompiler.
@@ -22,8 +23,22 @@
 #     full tool_input from stdin and decides for itself).
 #   * Read against rocketstation_Data/Managed/ is also NOT registered.
 #     All files there are binary; the Read tool rejects binaries
-#     pre-flight, so PostToolUse never fires. Glob covers the realistic
-#     access pattern for that directory.
+#     pre-flight, so PostToolUse never fires. The Glob rule is the
+#     substitute, and its coverage is PARTIAL rather than complete.
+#     Two corrections to what this comment used to claim:
+#       - The rule used to be written with Windows backslash separators,
+#         Glob(*\rocketstation_Data\Managed\\*), which decodes to a regex
+#         demanding literal backslashes. Glob `if` rules match the
+#         `pattern` ARGUMENT, which is idiomatically forward-slashed, so
+#         that rule could never fire. It never fired once. The same defect
+#         killed the .work/decomp/ Glob rule beside it. Both are now
+#         written with forward slashes and do fire.
+#       - Even fixed, the rule only sees the `pattern` argument. A Glob
+#         call that puts the directory in `path` and `*.dll` in `pattern`
+#         is invisible to it. The Bash matchers below (which do catch
+#         `rocketstation_Data/Managed/` in command text) are the wider
+#         net; treat the Glob rule as one lane, not as full coverage.
+#     Do not describe this as a complete safety net anywhere.
 #   * Bash matchers fail OPEN for compound commands. Per
 #     src/tools/BashTool/BashTool.tsx preparePermissionMatcher, when the
 #     bash AST parser cannot represent the command (pipes, &&, loops,

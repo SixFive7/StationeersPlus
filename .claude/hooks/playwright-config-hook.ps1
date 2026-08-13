@@ -1,4 +1,4 @@
-# playwright-config-hook.ps1
+﻿# playwright-config-hook.ps1
 # Fires BEFORE Read / Edit / Write on any file that is part of the four-server
 # Playwright MCP setup (matched via the `if` field in .claude/settings.json).
 # Injects the architectural context so the agent has it before interacting
