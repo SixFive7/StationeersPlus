@@ -82,7 +82,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#the-symptom" class="md-skip">
+        <a href="#the-worked-example-stopped-reproducing" class="md-skip">
           Skip to content
         </a>
       
@@ -6660,10 +6660,21 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#the-symptom" class="md-nav__link">
+  <a href="#the-worked-example-stopped-reproducing" class="md-nav__link">
     <span class="md-ellipsis">
       
-        The symptom
+        The worked example stopped reproducing
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-symptom-as-it-was-on-0950" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The symptom, as it was on 0.9.5.0
       
     </span>
   </a>
@@ -6715,10 +6726,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#the-two-per-frame-call-sites-and-what-each-one-costs" class="md-nav__link">
+  <a href="#the-two-per-frame-call-sites-on-0950-and-what-each-one-cost" class="md-nav__link">
     <span class="md-ellipsis">
       
-        The two per-frame call sites, and what each one costs
+        The two per-frame call sites on 0.9.5.0, and what each one cost
       
     </span>
   </a>
@@ -8729,10 +8740,21 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#the-symptom" class="md-nav__link">
+  <a href="#the-worked-example-stopped-reproducing" class="md-nav__link">
     <span class="md-ellipsis">
       
-        The symptom
+        The worked example stopped reproducing
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-symptom-as-it-was-on-0950" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The symptom, as it was on 0.9.5.0
       
     </span>
   </a>
@@ -8784,10 +8806,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#the-two-per-frame-call-sites-and-what-each-one-costs" class="md-nav__link">
+  <a href="#the-two-per-frame-call-sites-on-0950-and-what-each-one-cost" class="md-nav__link">
     <span class="md-ellipsis">
       
-        The two per-frame call sites, and what each one costs
+        The two per-frame call sites on 0.9.5.0, and what each one cost
       
     </span>
   </a>
@@ -8938,15 +8960,23 @@
       
         <p class="research-meta-verified">
           <strong>Verified</strong>
-           in game version <code>0.2.6403.27689</code>
-           on 2026-08-11.
+           in game version <code>0.2.6428.27798</code>
+           on 2026-08-13.
         </p>
       
       
+        <p class="research-meta-created">
+          <strong>First written</strong> against game version <code>0.2.6403.27689</code>.
+        </p>
+      
       
         <details class="research-meta-sources">
-          <summary><strong>Sources</strong> (8)</summary>
+          <summary><strong>Sources</strong> (10)</summary>
           <ul>
+            
+              <li><code>steamapps\workshop\content\544550\3659911735\ (StationeersLua 1.0.0.0, MessagePack 3.1.8.0, 2026-08-13)</code></li>
+            
+              <li><code>steamapps\workshop\content\544550\3666779631\ (ScriptedScreens 1.0.0.0, 2026-08-13)</code></li>
             
               <li><code>.work/decomp/0.2.6403.27689/BepInEx.Preloader.decompiled.cs</code></li>
             
@@ -9018,10 +9048,78 @@
 <p>A mod that ships a third-party NuGet dependency alongside its own assembly is relying on three
 different loaders agreeing: StationeersLaunchPad loads the files, BepInEx installs one process-wide
 <code>AppDomain.AssemblyResolve</code> handler, and Unity's Mono runtime resolves everything else from its own
-app base. This page documents what each of those actually does, using the worked example that is
-live in this developer's install: MessagePack 3.1.7.0 asking for
+app base. This page documents what each of those actually does, using the worked example it was
+written from: MessagePack 3.1.7.0 asking for
 <code>System.Collections.Immutable, Version=8.0.0.0</code> and not getting it, on every frame, forever.</p>
-<h2 id="the-symptom">The symptom<a class="headerlink" href="#the-symptom" title="Permanent link">&para;</a></h2>
+<p><strong>That worked example is now historical. It was fixed upstream on 2026-08-13 and no longer
+reproduces on this install; see "The worked example stopped reproducing" immediately below.</strong>
+Everything the page says about the three loaders is unaffected, because none of it was ever about
+these two mods: it is read out of <code>StationeersLaunchPad.dll</code>, <code>BepInEx.Preloader.dll</code> and Mono's
+own rules. Read the loader sections as current and the two named mods as the case that put them
+under a microscope.</p>
+<h2 id="the-worked-example-stopped-reproducing">The worked example stopped reproducing<a class="headerlink" href="#the-worked-example-stopped-reproducing" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6428.27798 @ 2026-08-13 -->
+
+<p>Both mods shipped <strong>1.0.0.0 on 2026-08-13</strong> (file timestamps 15:50,
+<code>&lt;Version&gt;1.0.0.0&lt;/Version&gt;</code> in each <code>About.xml</code>), and on that build the per-frame exception is
+gone. Measured on a fresh client boot with both mods enabled: zero occurrences of
+<code>DynamicAssemblyFactory</code>, zero of <code>TypeInitializationException</code>, zero of the
+<code>System.Collections.Immutable</code> load failure. StationeersLaunchPad still logs
+<code>Loading Assembly ...\System.Collections.Immutable.dll</code> for each mod folder and the assembly still
+appears in the domain dump, but the bind that used to fail now succeeds. The client reaches the
+menu and loads a save with both enabled.</p>
+<p>What changed in the shipped payload, read from the assembly reference tables the same way the
+tables below were:</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>0.9.5.0 (2026-08-11)</th>
+<th>1.0.0.0 (2026-08-13)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ScriptedScreens</code> / <code>StationeersLua</code> assembly version</td>
+<td>0.9.5.0</td>
+<td>1.0.0.0</td>
+</tr>
+<tr>
+<td><code>MessagePack</code> referenced and shipped</td>
+<td>3.1.7.0</td>
+<td><strong>3.1.8.0</strong></td>
+</tr>
+<tr>
+<td><code>MessagePack.Annotations</code></td>
+<td>3.1.7.0</td>
+<td>3.1.8.0</td>
+</tr>
+<tr>
+<td><code>MessagePack</code> still references <code>System.Collections.Immutable</code></td>
+<td>8.0.0.0</td>
+<td><strong>8.0.0.0, unchanged</strong></td>
+</tr>
+<tr>
+<td>Bundled <code>System.Collections.Immutable.dll</code></td>
+<td>8.0.0.0, 252,680 bytes, SHA-256 <code>5B1B1C83BA3D135C...</code></td>
+<td><strong>byte-identical, same hash and size</strong></td>
+</tr>
+<tr>
+<td>Per-frame <code>TypeLoadException</code></td>
+<td>yes</td>
+<td>no</td>
+</tr>
+</tbody>
+</table>
+<p>So the bundled dependency did not move and the reference that failed did not move. The only
+dependency-side change is the MessagePack patch bump, 3.1.7.0 to 3.1.8.0. That is a correlation,
+not a mechanism: this page never established why the bind failed in the first place (see Open
+questions), so it cannot claim to know why it now succeeds. Recorded as an observation.</p>
+<p><strong>What this does not retire.</strong> The three-loader analysis below is about BepInEx, StationeersLaunchPad
+and Mono, and stands. A mod shipping a NuGet dependency still gets <code>LocalResolve</code>'s simple-name
+match with its highest-version fallback, still gets no directory fallback into Workshop folders, and
+still cannot use a binding redirect. The next mod to hit this will hit it the same way.</p>
+<h2 id="the-symptom-as-it-was-on-0950">The symptom, as it was on 0.9.5.0<a class="headerlink" href="#the-symptom-as-it-was-on-0950" title="Permanent link">&para;</a></h2>
 <!-- verified: 0.2.6403.27689 @ 2026-08-11 -->
 
 <div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>TypeLoadException: Could not load type of field
@@ -9043,10 +9141,14 @@ whichever MessagePack entry point ran first. A failed type initializer is cached
 rethrown on every later access, which is why one bad load turns into a per-frame exception for the
 rest of the process lifetime.</p>
 <h2 id="which-mod-pulls-in-messagepack">Which mod pulls in MessagePack<a class="headerlink" href="#which-mod-pulls-in-messagepack" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6403.27689 @ 2026-08-11 -->
+<!-- verified: 0.2.6428.27798 @ 2026-08-13 -->
 
-<p>Read from the <code>AssemblyRef</code> tables, not guessed. Both Workshop mods are by the same author (zedle)
-and both are at version 0.9.5.0.</p>
+<p>Read from the <code>AssemblyRef</code> tables, not guessed. Both Workshop mods are by the same author (zedle).
+The table below was taken at 0.9.5.0; <strong>the shape is unchanged at 1.0.0.0</strong>, re-read on 2026-08-13,
+with <code>MessagePack</code> at 3.1.8.0 instead of 3.1.7.0 and every other column the same. StationeersLua is
+still the only one of the two carrying <code>MessagePack.dll</code>, ScriptedScreens still declares
+<code>StationeersLua, Version=1.0.0.0</code> as a reference, and both still bundle the same
+<code>System.Collections.Immutable.dll</code>.</p>
 <table>
 <thead>
 <tr>
@@ -9183,7 +9285,7 @@ with an exact version match, if it were consulted. The failure therefore happens
 copy being reached. Whether Mono suppresses the managed resolve event on the field-type-loading path,
 or caches the negative result per referencing image, was not established from the artifacts available
 here. See Open questions.</p>
-<h2 id="the-two-per-frame-call-sites-and-what-each-one-costs">The two per-frame call sites, and what each one costs<a class="headerlink" href="#the-two-per-frame-call-sites-and-what-each-one-costs" title="Permanent link">&para;</a></h2>
+<h2 id="the-two-per-frame-call-sites-on-0950-and-what-each-one-cost">The two per-frame call sites on 0.9.5.0, and what each one cost<a class="headerlink" href="#the-two-per-frame-call-sites-on-0950-and-what-each-one-cost" title="Permanent link">&para;</a></h2>
 <!-- verified: 0.2.6403.27689 @ 2026-08-11 -->
 
 <p>Both mods touch MessagePack from an unguarded per-frame Harmony patch, and the two sites have very
@@ -9295,6 +9397,10 @@ exception, and joins the developer's hosted world without trouble.</p>
 <!-- verified: 0.2.6403.27689 @ 2026-08-11 -->
 
 <p>The exception is a known, open, unfixed MessagePack issue and is not specific to Stationeers.</p>
+<p><strong>Not re-checked on 2026-08-13.</strong> The shipped MessagePack moved 3.1.7.0 to 3.1.8.0 in the mod
+update that made the exception stop reproducing here, so whether any of the issues below closed in
+that release is an open question rather than a recorded fact. The issue states below are as of
+2026-08-11.</p>
 <ul>
 <li><strong>MessagePack-CSharp issue 2174</strong>, opened 2025-03-10, still open, no maintainer response. Same
   exception text down to the field name, same missing identity
@@ -9319,6 +9425,10 @@ available in this session. Neither mod publishes a public source repository.</p>
 <h2 id="fix-options-in-order-of-how-little-they-depend-on-unexplained-behaviour">Fix options, in order of how little they depend on unexplained behaviour<a class="headerlink" href="#fix-options-in-order-of-how-little-they-depend-on-unexplained-behaviour" title="Permanent link">&para;</a></h2>
 <!-- verified: 0.2.6403.27689 @ 2026-08-11 -->
 
+<p><strong>None of these is needed for StationeersLua or ScriptedScreens any more</strong>, since 1.0.0.0 binds
+successfully with nothing added to the install. They are kept because the failure class is generic:
+the next mod that bundles a NuGet dependency Mono cannot bind gets the same five options, in the
+same order.</p>
 <ol>
 <li><strong>Put the assembly on Mono's own probing path.</strong> Copy the mods' own
    <code>System.Collections.Immutable.dll</code> (8.0.0.0, token <code>b03f5f7f11d50a3a</code>) into
@@ -9358,6 +9468,26 @@ available in this session. Neither mod publishes a public source repository.</p>
   <a href="../../Workflows/DrivingTheGameClientProgrammatically/">DrivingTheGameClientProgrammatically</a>,
   which has NOT been edited: correcting verified content on an existing page requires the fresh
   validator protocol in <code>Research/WORKFLOW.md</code> Rule 3, and that pass is still owed.</li>
+<li>2026-08-13: the "still owed" clause immediately above is superseded, and this entry records that
+  rather than rewriting it, because Verification History is append-only. The fresh-validator pass
+  DID run, on 2026-08-11, and
+  <a href="../../Workflows/DrivingTheGameClientProgrammatically/">DrivingTheGameClientProgrammatically</a> was
+  corrected in place the same day. Its own Verification History carries the entry
+  ("2026-08-11: conflict on how the <code>ScriptedScreens</code> static ctor reaches MessagePack ... Fresh
+  validator verdict: the new finding is correct"). The two pages agree; nothing is outstanding.</li>
+<li>2026-08-13, 0.2.6428.27798: additive, contradicting nothing above. Both mods shipped 1.0.0.0 on
+  2026-08-13 and the per-frame exception stopped reproducing on this install: a fresh client boot
+  with both enabled logs zero <code>DynamicAssemblyFactory</code>, zero <code>TypeInitializationException</code> and zero
+  <code>System.Collections.Immutable</code> load failures, and reaches the menu and a loaded save. Assembly
+  reference tables re-read from the shipped DLLs: <code>MessagePack</code> moved 3.1.7.0 to 3.1.8.0, its
+  reference to <code>System.Collections.Immutable, Version=8.0.0.0</code> is unchanged, and the bundled
+  <code>System.Collections.Immutable.dll</code> is byte-identical to the 0.9.5.0 copy (252,680 bytes, SHA-256
+  <code>5B1B1C83BA3D135C...</code>, still identical between the two mod folders). The loader analysis, the
+  <code>LocalResolve</code> reading, the two per-frame call sites and the conflict section are all unchanged
+  and were not re-derived; they are now historical for these two mods and current for the mechanism.
+  Recorded as an observation, not as a mechanism: this page never established why the bind failed,
+  so it makes no claim about why it now succeeds. The first Open question below is therefore no
+  longer answerable from this install.</li>
 </ul>
 <h2 id="open-questions">Open questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>
 <ul>
@@ -9367,14 +9497,21 @@ available in this session. Neither mod publishes a public source repository.</p>
   result per referencing image so a later successful load cannot help, was not determined. Settling
   it needs a runtime probe (subscribe an <code>AssemblyResolve</code> handler that logs every request, then
   force a MessagePack touch), not more decompiling.</li>
-<li>Which of the three readings in "The conflict" is correct. The cheapest discriminator is a runtime
+</ul>
+<p><strong>Unanswerable here as of 2026-08-13</strong>, because the reproducer is gone: MessagePack 3.1.8.0 binds
+  the same assembly successfully on the same install. Whoever picks this up needs a fresh case, and
+  the honest state of it is that the failure was observed, the fix was not diagnosed, and the two
+  are separated by a patch bump that nobody has read the diff of.
+- Whether MessagePack 3.1.8.0 is what fixed it, and if so what changed in it. The bump is the only
+  dependency-side difference between the failing and the working payload, but the mods' own code
+  changed in the same release and the correlation is one observation.
+- Which of the three readings in "The conflict" is correct. The cheapest discriminator is a runtime
   enter/exit counter on <code>KeyManager.ManagerUpdate</code> and on a manager known to sit late in the list,
   compared across frames while the exception is firing. The client rig already exposes that shape of
-  measurement for the input chain.</li>
-<li>Whether <code>Assembly.LoadFrom</code> on a ThreadPool thread (StationeersLaunchPad loads mod assemblies via
+  measurement for the input chain. Also unreachable now without an older copy of the mods.
+- Whether <code>Assembly.LoadFrom</code> on a ThreadPool thread (StationeersLaunchPad loads mod assemblies via
   <code>UniTask.RunOnThreadPool</code>, serial or parallel depending on the configured load strategy) changes
-  anything about which context the loaded assembly lands in. Not investigated.</li>
-</ul>
+  anything about which context the loaded assembly lands in. Not investigated.</p>
 
 
 

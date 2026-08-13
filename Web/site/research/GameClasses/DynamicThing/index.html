@@ -1675,10 +1675,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#known-callers-as-of-2026-08-12" class="md-nav__link">
+  <a href="#known-callers-two-for-one-day" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Known callers, as of 2026-08-12
+        Known callers: two, for one day
       
     </span>
   </a>
@@ -8687,10 +8687,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#known-callers-as-of-2026-08-12" class="md-nav__link">
+  <a href="#known-callers-two-for-one-day" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Known callers, as of 2026-08-12
+        Known callers: two, for one day
       
     </span>
   </a>
@@ -8802,19 +8802,27 @@
       
         <p class="research-meta-verified">
           <strong>Verified</strong>
-           in game version <code>0.2.6420.27780</code>
-           on 2026-08-12.
+           in game version <code>0.2.6428.27798</code>
+           on 2026-08-13.
         </p>
       
       
+        <p class="research-meta-created">
+          <strong>First written</strong> against game version <code>0.2.6420.27780</code>.
+        </p>
+      
       
         <details class="research-meta-sources">
-          <summary><strong>Sources</strong> (2)</summary>
+          <summary><strong>Sources</strong> (4)</summary>
           <ul>
             
               <li><code>{'$(StationeersPath)\\rocketstation_Data\\Managed\\Assembly-CSharp.dll :': 'Assets.Scripts.Objects.DynamicThing'}</code></li>
             
               <li><code>TestRig/ClientRig/data/hostie/logs/unity-20260812-131417.log (MissingMethodException, two independent stacks)</code></li>
+            
+              <li><code>steamapps\workshop\content\544550\3666779631\ScriptedScreens.dll (1.0.0.0, 2026-08-13)</code></li>
+            
+              <li><code>steamapps\workshop\content\544550\3659911735\StationeersLua.dll (1.0.0.0, 2026-08-13)</code></li>
             
           </ul>
         </details>
@@ -8868,7 +8876,12 @@
 be carried and can live in a slot. Only one property of it is recorded here so far,
 and it is a breaking change rather than a description of the class.</p>
 <h2 id="setslottypesslotclass-was-removed-in-02642027780"><code>SetSlotTypes(Slot.Class)</code> was REMOVED in 0.2.6420.27780<a class="headerlink" href="#setslottypesslotclass-was-removed-in-02642027780" title="Permanent link">&para;</a></h2>
-<p><strong>Verified 2026-08-12 in 0.2.6420.27780.</strong> The method
+<!-- verified: 0.2.6428.27798 @ 2026-08-13 -->
+
+<p><strong>Verified 2026-08-12 in 0.2.6420.27780, re-confirmed 2026-08-13 in 0.2.6428.27798</strong>
+(the same metadata string scan, with <code>DynamicThing</code> still passing as the control).
+The removal has held across two game builds, so treat it as permanent rather than as
+an accident of one release. The method
 <code>void Assets.Scripts.Objects.DynamicThing.SetSlotTypes(Assets.Scripts.Objects.Slot.Class)</code>
 existed in 0.2.6403.27689 and does not exist in 0.2.6420.27780.</p>
 <p>Evidence, two independent kinds:</p>
@@ -8926,19 +8939,55 @@ which is a different condition with a different signature:</p>
 </tr>
 </tbody>
 </table>
-<h3 id="known-callers-as-of-2026-08-12">Known callers, as of 2026-08-12<a class="headerlink" href="#known-callers-as-of-2026-08-12" title="Permanent link">&para;</a></h3>
+<h3 id="known-callers-two-for-one-day">Known callers: two, for one day<a class="headerlink" href="#known-callers-two-for-one-day" title="Permanent link">&para;</a></h3>
+<!-- verified: 0.2.6428.27798 @ 2026-08-13 -->
+
 <p>Scanning every Workshop assembly under <code>steamapps\workshop\content\544550</code> for the
-string finds exactly two, both by the same author, and both fail on this build:</p>
+string on 2026-08-12 found exactly two, both by the same author, and both failed on
+that build:</p>
 <ul>
 <li><code>ScriptedScreens.dll</code> (Workshop 3666779631), version 0.9.5.0</li>
 <li><code>StationeersLua.dll</code> (Workshop 3659911735), version 0.9.5.0</li>
 </ul>
-<p>Disabling only the first is not enough: the second then throws the same exception
-from <code>Prefab.LoadAll</code> instead of from its own entrypoint. Both must be disabled for
-the client to boot on this build, which is what the earlier "disable these two"
-workaround in this repository's rig notes amounts to.</p>
-<p>No replacement method was identified. <code>SetSlotType</code> (singular) is also absent, so
-this is not a rename to the obvious neighbouring name.</p>
+<p>Disabling only the first was not enough: the second then threw the same exception
+from <code>Prefab.LoadAll</code> instead of from its own entrypoint, so both had to be disabled
+for the client to boot.</p>
+<p><strong>Both shipped 1.0.0.0 on 2026-08-13 and neither calls the method any more.</strong> The
+same metadata string scan against the updated assemblies returns <code>SetSlotTypes</code>
+absent from both, with <code>DynamicThing</code> still present in each as the control. The
+window in which this stopped a client from booting was about one day wide, and the
+"disable these two" instruction that briefly lived in this repository's rig notes is
+retired. As of 2026-08-13 the scan finds <strong>no</strong> caller in any installed Workshop
+assembly.</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>0.9.5.0 (2026-08-12)</th>
+<th>1.0.0.0 (2026-08-13)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ScriptedScreens.dll</code> calls <code>SetSlotTypes</code></td>
+<td>yes</td>
+<td>no</td>
+</tr>
+<tr>
+<td><code>StationeersLua.dll</code> calls <code>SetSlotTypes</code></td>
+<td>yes</td>
+<td>no</td>
+</tr>
+<tr>
+<td>Client reaches a usable menu with both enabled</td>
+<td>no</td>
+<td>yes</td>
+</tr>
+</tbody>
+</table>
+<p>No replacement method was identified, and none was needed by either caller.
+<code>SetSlotType</code> (singular) is also absent from 0.2.6420.27780 and from
+0.2.6428.27798, so this was never a rename to the obvious neighbouring name.</p>
 <h2 id="verification-history">Verification History<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
 <ul>
 <li><strong>0.2.6420.27780, 2026-08-12</strong>: <code>SetSlotTypes</code> confirmed absent by metadata string
@@ -8946,6 +8995,15 @@ this is not a rename to the obvious neighbouring name.</p>
   <code>MissingMethodException</code> stacks. Callers enumerated across all installed Workshop
   assemblies. The <code>gameInitialized</code>-never-true consequence observed directly on two
   separate boots of a rig instance.</li>
+<li><strong>0.2.6428.27798, 2026-08-13</strong>: re-verified. The method is still absent from
+  <code>Assembly-CSharp.dll</code> on the newer build, so the removal held across the update.
+  Additive finding, contradicting nothing above: both known callers shipped 1.0.0.0
+  on 2026-08-13 (file timestamps 15:50, <code>&lt;Version&gt;1.0.0.0&lt;/Version&gt;</code> in each
+  <code>About.xml</code>) and the string scan now returns zero hits in either assembly. The
+  caller list for this build is therefore empty, and the "both must be disabled"
+  consequence no longer applies to any installed mod. The removal itself, its two
+  runtime stacks and the <code>Prefab.LoadAll</code> blast radius are unchanged and still
+  correct for any assembly compiled against the older API.</li>
 </ul>
 
 

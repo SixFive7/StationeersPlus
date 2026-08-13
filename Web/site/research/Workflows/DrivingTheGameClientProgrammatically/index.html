@@ -9070,10 +9070,14 @@
       
         <p class="research-meta-verified">
           <strong>Verified</strong>
-           in game version <code>0.2.6403.27689</code>
-           on 2026-08-11.
+           in game version <code>0.2.6428.27798</code>
+           on 2026-08-13.
         </p>
       
+      
+        <p class="research-meta-created">
+          <strong>First written</strong> against game version <code>0.2.6403.27689</code>.
+        </p>
       
       
         <details class="research-meta-sources">
@@ -9680,7 +9684,7 @@ mouse through a list. The <code>ModInfo</code> to pass is <code>LoadedMod.Info</
 <p>Because the seam is <code>OrbitalSimulation.Draw</code>, this only works once the real main menu is up; see
 the <code>RenderOverlay</code> branch above.</p>
 <h2 id="failure-modes-seen-on-a-live-client">Failure modes seen on a live client<a class="headerlink" href="#failure-modes-seen-on-a-live-client" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6403.27689 @ 2026-08-11 -->
+<!-- verified: 0.2.6428.27798 @ 2026-08-13 -->
 
 <p><strong>Transient Steam Workshop failure parks the client forever.</strong> When
 <code>StationeersLaunchPad.Steam.FetchWorkshopPage</code> throws (a <code>NullReferenceException</code> out of
@@ -9691,7 +9695,12 @@ relaunch; an unattended loop needs to detect it and retry.</p>
 <p><strong><code>ConfirmationPanel.IsVisible</code> is a false positive during boot.</strong> It is
 <code>gameObject.activeInHierarchy</code>, which is true for a window early in startup with an empty
 <code>_dataStack</code> behind it. Treat a dialog as showing only when the stack has data.</p>
-<p><strong><code>StationeersLua</code> and <code>ScriptedScreens</code> throw an exception every single frame.</strong> The
+<p><strong><code>StationeersLua</code> and <code>ScriptedScreens</code> threw an exception every single frame, on 0.9.5.0 only.</strong>
+<strong>Fixed upstream 2026-08-13: both shipped 1.0.0.0 and the exception no longer reproduces</strong> (a fresh
+client boot with both enabled logs zero <code>DynamicAssemblyFactory</code>, zero <code>TypeInitializationException</code>
+and zero <code>System.Collections.Immutable</code> load failures). The rest of this entry is the 0.9.5.0
+record, kept because the console-eviction consequence is what a rig operator needs to recognise if
+any mod does this again. The
 <code>ScriptedScreensScriptableUiSystem</code> static ctor reaches MessagePack directly, in one hop, with no
 intermediary type: its last statement is
 <code>MpOptions = MessagePackSerializerOptions.Standard.WithResolver(ContractlessStandardResolver.Instance).WithCompression(...)</code>,
@@ -9747,6 +9756,19 @@ scratch tree, and the real <code>saves</code> folder kept its original timestamp
 Lunar world's display name being "Moon: Great Mare".</p>
 <h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
 <ul>
+<li>2026-08-13, 0.2.6428.27798: additive, contradicting nothing below. Both mods shipped 1.0.0.0 on
+  2026-08-13 and the per-frame <code>System.Collections.Immutable</code> exception no longer reproduces: a
+  fresh client boot with both enabled logs zero <code>DynamicAssemblyFactory</code>, zero
+  <code>TypeInitializationException</code> and zero occurrences of the load failure, and the client reaches
+  the menu and loads a save. The 0.9.5.0 record, including the corrected static-ctor chain and the
+  "observationally log spam" framing, is unchanged and kept. The bundled
+  <code>System.Collections.Immutable.dll</code> is byte-identical to the 0.9.5.0 copy and <code>MessagePack</code> still
+  references the same 8.0.0.0 identity; only the MessagePack build moved, 3.1.7.0 to 3.1.8.0. No
+  mechanism is claimed. Detail:
+  <a href="../../Patterns/ModDependencyAssemblyResolution/">Patterns/ModDependencyAssemblyResolution.md</a>.
+  Separately verified on the same date: <code>DynamicThing.SetSlotTypes</code>, whose removal on 0.2.6420.27780
+  stopped these two mods reaching a usable menu at all, is no longer called by either
+  (<a href="../../GameClasses/DynamicThing/">GameClasses/DynamicThing.md</a>).</li>
 <li>2026-08-09: corrected the framing of the <code>System.Collections.Immutable</code> exception. It is
   observationally log spam: the developer hosts with both mods enabled and a second player joins
   normally while it fires. The mechanism invites a stronger conclusion, and the missing step is
@@ -9795,13 +9817,15 @@ Lunar world's display name being "Moon: Great Mare".</p>
   further console output, on a client whose mod set is not identical to the server's. Whether this
   is a mod-list mismatch, a verify-handshake stall, or something specific to that server's state
   was not determined. The client side of the join was verified as far as the game itself controls.</li>
-<li>Why the <code>System.Collections.Immutable</code> load fails when the correct assembly is both shipped and
-  loaded. It is neither a packaging bug nor a StationeersLaunchPad gap, which is what this entry
-  used to ask: both mods ship the exactly-correct 8.0.0.0 assembly and StationeersLaunchPad does
-  load it, so the loaded copy is present in the domain when the reference fails to bind. Whether
+<li>Why the <code>System.Collections.Immutable</code> load failed when the correct assembly was both shipped and
+  loaded. It was neither a packaging bug nor a StationeersLaunchPad gap, which is what this entry
+  used to ask: both mods shipped the exactly-correct 8.0.0.0 assembly and StationeersLaunchPad did
+  load it, so the loaded copy was present in the domain when the reference failed to bind. Whether
   Mono suppresses the managed <code>AssemblyResolve</code> event on the field-type-loading path, or caches the
   negative reference per image, is unresolved and needs a runtime probe rather than more
-  decompiling. Detail:
+  decompiling. <strong>No longer answerable from this install as of 2026-08-13</strong>: the mods' 1.0.0.0
+  release binds the same assembly successfully, so the reproducer is gone and a fresh case is
+  needed. Detail:
   <a href="../../Patterns/ModDependencyAssemblyResolution/">Patterns/ModDependencyAssemblyResolution.md</a>.</li>
 </ul>
 
