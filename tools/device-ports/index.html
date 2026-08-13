@@ -297,11 +297,11 @@ PIPELINE (4 stages)
      Writes <dediInstall>/BepInEx/device-port-dump.json.
   2) Run on the dedicated server WITH THE FULL MOD SET LOADED:
        dotnet build TestRig/DedicatedServer/dev-plugins/ScenarioRunner/ScenarioRunner.sln -c Release
-       TestRig/DedicatedServer/dedicated-server.ps1 -Lock -Purpose "device-port dump"
-       TestRig/DedicatedServer/dedicated-server.ps1 -Stop -As <id>
-       TestRig/DedicatedServer/dedicated-server.ps1 -DeployMods -As <id> -Mod ScenarioRunner -Configuration Release
+       pwsh -NoProfile -File TestRig/testrig.ps1 lock -Purpose "device-port dump"
+       testrig stop -Target server -As <id>
+       testrig deploy ScenarioRunner -Target server -As <id> -Configuration Release
        set TestRig/DedicatedServer/install/BepInEx/config/net.scenariorunner.cfg  [Probe] Scenario = device-port-dump
-       TestRig/DedicatedServer/dedicated-server.ps1 -Start -As <id> -New Lunar
+       testrig start -Target server -As <id> -New Lunar
        wait for "device-port-dump END" in TestRig/DedicatedServer/install/BepInEx/LogOutput.log
        copy TestRig/DedicatedServer/install/BepInEx/device-port-dump.json
      SANITY: a correct full-mod run logs ~ totalPrefabs=2041 emitted=378 mods=77 rocketFamily=92.
@@ -734,11 +734,11 @@ PIPELINE (4 stages)
      Writes <dediInstall>/BepInEx/device-port-dump.json.
   2) Run on the dedicated server WITH THE FULL MOD SET LOADED:
        dotnet build TestRig/DedicatedServer/dev-plugins/ScenarioRunner/ScenarioRunner.sln -c Release
-       TestRig/DedicatedServer/dedicated-server.ps1 -Lock -Purpose "device-port dump"
-       TestRig/DedicatedServer/dedicated-server.ps1 -Stop -As <id>
-       TestRig/DedicatedServer/dedicated-server.ps1 -DeployMods -As <id> -Mod ScenarioRunner -Configuration Release
+       pwsh -NoProfile -File TestRig/testrig.ps1 lock -Purpose "device-port dump"
+       testrig stop -Target server -As <id>
+       testrig deploy ScenarioRunner -Target server -As <id> -Configuration Release
        set TestRig/DedicatedServer/install/BepInEx/config/net.scenariorunner.cfg  [Probe] Scenario = device-port-dump
-       TestRig/DedicatedServer/dedicated-server.ps1 -Start -As <id> -New Lunar
+       testrig start -Target server -As <id> -New Lunar
        wait for "device-port-dump END" in TestRig/DedicatedServer/install/BepInEx/LogOutput.log
        copy TestRig/DedicatedServer/install/BepInEx/device-port-dump.json
      SANITY: a correct full-mod run logs ~ totalPrefabs=2041 emitted=378 mods=77 rocketFamily=92.

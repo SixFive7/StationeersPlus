@@ -263,11 +263,13 @@ station with 23 batteries, 41 transformers, 16 APCs, 121 cable networks, and
   `install/BepInEx/LogOutput.log`, NOT `data/server.log`. Commit:
   `1247d99`.
 
-- **`dedicated-server.ps1 -DeployMods -Mod <name>` accepts Plans/
-  targets.** 2026-05-25. When `Mods/<name>/` does not exist, falls
-  through to `Plans/<name>/`. Mods/ wins on a tie. Plans/ entries are
-  still not auto-deployed when `-Mod` is omitted (manual opt-in only).
-  Commit: `d688e3e`.
+- **A deploy by name accepts Plans/ targets.** 2026-05-25. When
+  `Mods/<name>/` does not exist, the lookup falls through to
+  `Plans/<name>/`. Mods/ wins on a tie. Plans/ entries are still not
+  auto-deployed when no name is given (manual opt-in only). Commit:
+  `d688e3e`. Spelled `dedicated-server.ps1 -DeployMods -Mod <name>` at
+  the time; the rig now has one launcher and it is
+  `testrig deploy <name> -Target server -As <id>`.
 
 - **Avoiding the BepInEx + StationeersLaunchPad duplicate-load trap.**
   2026-05-25. When the same plugin DLL exists at BOTH
