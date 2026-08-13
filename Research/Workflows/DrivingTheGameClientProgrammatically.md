@@ -2,8 +2,8 @@
 title: Driving the game client programmatically
 type: Workflows
 created_in: 0.2.6403.27689
-verified_in: 0.2.6403.27689
-verified_at: 2026-08-11
+verified_in: 0.2.6428.27798
+verified_at: 2026-08-13
 sources:
   - .work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs
   - .work/decomp/0.2.6403.27689/Assembly-CSharp.Human.decompiled.cs
@@ -538,7 +538,7 @@ Because the seam is `OrbitalSimulation.Draw`, this only works once the real main
 the `RenderOverlay` branch above.
 
 ## Failure modes seen on a live client
-<!-- verified: 0.2.6403.27689 @ 2026-08-11 -->
+<!-- verified: 0.2.6428.27798 @ 2026-08-13 -->
 
 **Transient Steam Workshop failure parks the client forever.** When
 `StationeersLaunchPad.Steam.FetchWorkshopPage` throws (a `NullReferenceException` out of
@@ -551,7 +551,12 @@ relaunch; an unattended loop needs to detect it and retry.
 `gameObject.activeInHierarchy`, which is true for a window early in startup with an empty
 `_dataStack` behind it. Treat a dialog as showing only when the stack has data.
 
-**`StationeersLua` and `ScriptedScreens` throw an exception every single frame.** The
+**`StationeersLua` and `ScriptedScreens` threw an exception every single frame, on 0.9.5.0 only.**
+**Fixed upstream 2026-08-13: both shipped 1.0.0.0 and the exception no longer reproduces** (a fresh
+client boot with both enabled logs zero `DynamicAssemblyFactory`, zero `TypeInitializationException`
+and zero `System.Collections.Immutable` load failures). The rest of this entry is the 0.9.5.0
+record, kept because the console-eviction consequence is what a rig operator needs to recognise if
+any mod does this again. The
 `ScriptedScreensScriptableUiSystem` static ctor reaches MessagePack directly, in one hop, with no
 intermediary type: its last statement is
 `MpOptions = MessagePackSerializerOptions.Standard.WithResolver(ContractlessStandardResolver.Instance).WithCompression(...)`,
@@ -615,6 +620,19 @@ Lunar world's display name being "Moon: Great Mare".
 
 ## Verification history
 
+- 2026-08-13, 0.2.6428.27798: additive, contradicting nothing below. Both mods shipped 1.0.0.0 on
+  2026-08-13 and the per-frame `System.Collections.Immutable` exception no longer reproduces: a
+  fresh client boot with both enabled logs zero `DynamicAssemblyFactory`, zero
+  `TypeInitializationException` and zero occurrences of the load failure, and the client reaches
+  the menu and loads a save. The 0.9.5.0 record, including the corrected static-ctor chain and the
+  "observationally log spam" framing, is unchanged and kept. The bundled
+  `System.Collections.Immutable.dll` is byte-identical to the 0.9.5.0 copy and `MessagePack` still
+  references the same 8.0.0.0 identity; only the MessagePack build moved, 3.1.7.0 to 3.1.8.0. No
+  mechanism is claimed. Detail:
+  [Patterns/ModDependencyAssemblyResolution.md](../Patterns/ModDependencyAssemblyResolution.md).
+  Separately verified on the same date: `DynamicThing.SetSlotTypes`, whose removal on 0.2.6420.27780
+  stopped these two mods reaching a usable menu at all, is no longer called by either
+  ([GameClasses/DynamicThing.md](../GameClasses/DynamicThing.md)).
 - 2026-08-09: corrected the framing of the `System.Collections.Immutable` exception. It is
   observationally log spam: the developer hosts with both mods enabled and a second player joins
   normally while it fires. The mechanism invites a stronger conclusion, and the missing step is
@@ -663,11 +681,13 @@ Lunar world's display name being "Moon: Great Mare".
   further console output, on a client whose mod set is not identical to the server's. Whether this
   is a mod-list mismatch, a verify-handshake stall, or something specific to that server's state
   was not determined. The client side of the join was verified as far as the game itself controls.
-- Why the `System.Collections.Immutable` load fails when the correct assembly is both shipped and
-  loaded. It is neither a packaging bug nor a StationeersLaunchPad gap, which is what this entry
-  used to ask: both mods ship the exactly-correct 8.0.0.0 assembly and StationeersLaunchPad does
-  load it, so the loaded copy is present in the domain when the reference fails to bind. Whether
+- Why the `System.Collections.Immutable` load failed when the correct assembly was both shipped and
+  loaded. It was neither a packaging bug nor a StationeersLaunchPad gap, which is what this entry
+  used to ask: both mods shipped the exactly-correct 8.0.0.0 assembly and StationeersLaunchPad did
+  load it, so the loaded copy was present in the domain when the reference failed to bind. Whether
   Mono suppresses the managed `AssemblyResolve` event on the field-type-loading path, or caches the
   negative reference per image, is unresolved and needs a runtime probe rather than more
-  decompiling. Detail:
+  decompiling. **No longer answerable from this install as of 2026-08-13**: the mods' 1.0.0.0
+  release binds the same assembly successfully, so the reproducer is gone and a fresh case is
+  needed. Detail:
   [Patterns/ModDependencyAssemblyResolution.md](../Patterns/ModDependencyAssemblyResolution.md).

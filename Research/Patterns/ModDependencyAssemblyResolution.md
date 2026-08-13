@@ -2,9 +2,11 @@
 title: Mod dependency assembly resolution under BepInEx 5 and Mono
 type: Patterns
 created_in: 0.2.6403.27689
-verified_in: 0.2.6403.27689
-verified_at: 2026-08-11
+verified_in: 0.2.6428.27798
+verified_at: 2026-08-13
 sources:
+  - steamapps\workshop\content\544550\3659911735\ (StationeersLua 1.0.0.0, MessagePack 3.1.8.0, 2026-08-13)
+  - steamapps\workshop\content\544550\3666779631\ (ScriptedScreens 1.0.0.0, 2026-08-13)
   - .work/decomp/0.2.6403.27689/BepInEx.Preloader.decompiled.cs
   - .work/decomp/0.2.6403.27689/BepInEx.decompiled.cs
   - .work/decomp/0.2.6403.27689/StationeersLaunchPad.decompiled.cs
@@ -23,11 +25,52 @@ tags: [packaging, launchpad, harmony]
 A mod that ships a third-party NuGet dependency alongside its own assembly is relying on three
 different loaders agreeing: StationeersLaunchPad loads the files, BepInEx installs one process-wide
 `AppDomain.AssemblyResolve` handler, and Unity's Mono runtime resolves everything else from its own
-app base. This page documents what each of those actually does, using the worked example that is
-live in this developer's install: MessagePack 3.1.7.0 asking for
+app base. This page documents what each of those actually does, using the worked example it was
+written from: MessagePack 3.1.7.0 asking for
 `System.Collections.Immutable, Version=8.0.0.0` and not getting it, on every frame, forever.
 
-## The symptom
+**That worked example is now historical. It was fixed upstream on 2026-08-13 and no longer
+reproduces on this install; see "The worked example stopped reproducing" immediately below.**
+Everything the page says about the three loaders is unaffected, because none of it was ever about
+these two mods: it is read out of `StationeersLaunchPad.dll`, `BepInEx.Preloader.dll` and Mono's
+own rules. Read the loader sections as current and the two named mods as the case that put them
+under a microscope.
+
+## The worked example stopped reproducing
+<!-- verified: 0.2.6428.27798 @ 2026-08-13 -->
+
+Both mods shipped **1.0.0.0 on 2026-08-13** (file timestamps 15:50,
+`<Version>1.0.0.0</Version>` in each `About.xml`), and on that build the per-frame exception is
+gone. Measured on a fresh client boot with both mods enabled: zero occurrences of
+`DynamicAssemblyFactory`, zero of `TypeInitializationException`, zero of the
+`System.Collections.Immutable` load failure. StationeersLaunchPad still logs
+`Loading Assembly ...\System.Collections.Immutable.dll` for each mod folder and the assembly still
+appears in the domain dump, but the bind that used to fail now succeeds. The client reaches the
+menu and loads a save with both enabled.
+
+What changed in the shipped payload, read from the assembly reference tables the same way the
+tables below were:
+
+| | 0.9.5.0 (2026-08-11) | 1.0.0.0 (2026-08-13) |
+|---|---|---|
+| `ScriptedScreens` / `StationeersLua` assembly version | 0.9.5.0 | 1.0.0.0 |
+| `MessagePack` referenced and shipped | 3.1.7.0 | **3.1.8.0** |
+| `MessagePack.Annotations` | 3.1.7.0 | 3.1.8.0 |
+| `MessagePack` still references `System.Collections.Immutable` | 8.0.0.0 | **8.0.0.0, unchanged** |
+| Bundled `System.Collections.Immutable.dll` | 8.0.0.0, 252,680 bytes, SHA-256 `5B1B1C83BA3D135C...` | **byte-identical, same hash and size** |
+| Per-frame `TypeLoadException` | yes | no |
+
+So the bundled dependency did not move and the reference that failed did not move. The only
+dependency-side change is the MessagePack patch bump, 3.1.7.0 to 3.1.8.0. That is a correlation,
+not a mechanism: this page never established why the bind failed in the first place (see Open
+questions), so it cannot claim to know why it now succeeds. Recorded as an observation.
+
+**What this does not retire.** The three-loader analysis below is about BepInEx, StationeersLaunchPad
+and Mono, and stands. A mod shipping a NuGet dependency still gets `LocalResolve`'s simple-name
+match with its highest-version fallback, still gets no directory fallback into Workshop folders, and
+still cannot use a binding redirect. The next mod to hit this will hit it the same way.
+
+## The symptom, as it was on 0.9.5.0
 <!-- verified: 0.2.6403.27689 @ 2026-08-11 -->
 
 ```
@@ -55,10 +98,14 @@ rethrown on every later access, which is why one bad load turns into a per-frame
 rest of the process lifetime.
 
 ## Which mod pulls in MessagePack
-<!-- verified: 0.2.6403.27689 @ 2026-08-11 -->
+<!-- verified: 0.2.6428.27798 @ 2026-08-13 -->
 
-Read from the `AssemblyRef` tables, not guessed. Both Workshop mods are by the same author (zedle)
-and both are at version 0.9.5.0.
+Read from the `AssemblyRef` tables, not guessed. Both Workshop mods are by the same author (zedle).
+The table below was taken at 0.9.5.0; **the shape is unchanged at 1.0.0.0**, re-read on 2026-08-13,
+with `MessagePack` at 3.1.8.0 instead of 3.1.7.0 and every other column the same. StationeersLua is
+still the only one of the two carrying `MessagePack.dll`, ScriptedScreens still declares
+`StationeersLua, Version=1.0.0.0` as a reference, and both still bundle the same
+`System.Collections.Immutable.dll`.
 
 | Assembly | Ships `MessagePack.dll` | References `MessagePack` | Ships `System.Collections.Immutable.dll` |
 |---|---|---|---|
@@ -199,7 +246,7 @@ copy being reached. Whether Mono suppresses the managed resolve event on the fie
 or caches the negative result per referencing image, was not established from the artifacts available
 here. See Open questions.
 
-## The two per-frame call sites, and what each one costs
+## The two per-frame call sites on 0.9.5.0, and what each one cost
 <!-- verified: 0.2.6403.27689 @ 2026-08-11 -->
 
 Both mods touch MessagePack from an unguarded per-frame Harmony patch, and the two sites have very
@@ -330,6 +377,11 @@ exception, and joins the developer's hosted world without trouble.
 
 The exception is a known, open, unfixed MessagePack issue and is not specific to Stationeers.
 
+**Not re-checked on 2026-08-13.** The shipped MessagePack moved 3.1.7.0 to 3.1.8.0 in the mod
+update that made the exception stop reproducing here, so whether any of the issues below closed in
+that release is an open question rather than a recorded fact. The issue states below are as of
+2026-08-11.
+
 - **MessagePack-CSharp issue 2174**, opened 2025-03-10, still open, no maintainer response. Same
   exception text down to the field name, same missing identity
   (`System.Collections.Immutable, Version=8.0.0.0, PublicKeyToken=b03f5f7f11d50a3a`), same cascade
@@ -353,6 +405,11 @@ available in this session. Neither mod publishes a public source repository.
 
 ## Fix options, in order of how little they depend on unexplained behaviour
 <!-- verified: 0.2.6403.27689 @ 2026-08-11 -->
+
+**None of these is needed for StationeersLua or ScriptedScreens any more**, since 1.0.0.0 binds
+successfully with nothing added to the install. They are kept because the failure class is generic:
+the next mod that bundles a NuGet dependency Mono cannot bind gets the same five options, in the
+same order.
 
 1. **Put the assembly on Mono's own probing path.** Copy the mods' own
    `System.Collections.Immutable.dll` (8.0.0.0, token `b03f5f7f11d50a3a`) into
@@ -392,6 +449,26 @@ available in this session. Neither mod publishes a public source repository.
   [DrivingTheGameClientProgrammatically](../Workflows/DrivingTheGameClientProgrammatically.md),
   which has NOT been edited: correcting verified content on an existing page requires the fresh
   validator protocol in `Research/WORKFLOW.md` Rule 3, and that pass is still owed.
+- 2026-08-13: the "still owed" clause immediately above is superseded, and this entry records that
+  rather than rewriting it, because Verification History is append-only. The fresh-validator pass
+  DID run, on 2026-08-11, and
+  [DrivingTheGameClientProgrammatically](../Workflows/DrivingTheGameClientProgrammatically.md) was
+  corrected in place the same day. Its own Verification History carries the entry
+  ("2026-08-11: conflict on how the `ScriptedScreens` static ctor reaches MessagePack ... Fresh
+  validator verdict: the new finding is correct"). The two pages agree; nothing is outstanding.
+- 2026-08-13, 0.2.6428.27798: additive, contradicting nothing above. Both mods shipped 1.0.0.0 on
+  2026-08-13 and the per-frame exception stopped reproducing on this install: a fresh client boot
+  with both enabled logs zero `DynamicAssemblyFactory`, zero `TypeInitializationException` and zero
+  `System.Collections.Immutable` load failures, and reaches the menu and a loaded save. Assembly
+  reference tables re-read from the shipped DLLs: `MessagePack` moved 3.1.7.0 to 3.1.8.0, its
+  reference to `System.Collections.Immutable, Version=8.0.0.0` is unchanged, and the bundled
+  `System.Collections.Immutable.dll` is byte-identical to the 0.9.5.0 copy (252,680 bytes, SHA-256
+  `5B1B1C83BA3D135C...`, still identical between the two mod folders). The loader analysis, the
+  `LocalResolve` reading, the two per-frame call sites and the conflict section are all unchanged
+  and were not re-derived; they are now historical for these two mods and current for the mechanism.
+  Recorded as an observation, not as a mechanism: this page never established why the bind failed,
+  so it makes no claim about why it now succeeds. The first Open question below is therefore no
+  longer answerable from this install.
 
 ## Open questions
 
@@ -401,10 +478,18 @@ available in this session. Neither mod publishes a public source repository.
   result per referencing image so a later successful load cannot help, was not determined. Settling
   it needs a runtime probe (subscribe an `AssemblyResolve` handler that logs every request, then
   force a MessagePack touch), not more decompiling.
+
+  **Unanswerable here as of 2026-08-13**, because the reproducer is gone: MessagePack 3.1.8.0 binds
+  the same assembly successfully on the same install. Whoever picks this up needs a fresh case, and
+  the honest state of it is that the failure was observed, the fix was not diagnosed, and the two
+  are separated by a patch bump that nobody has read the diff of.
+- Whether MessagePack 3.1.8.0 is what fixed it, and if so what changed in it. The bump is the only
+  dependency-side difference between the failing and the working payload, but the mods' own code
+  changed in the same release and the correlation is one observation.
 - Which of the three readings in "The conflict" is correct. The cheapest discriminator is a runtime
   enter/exit counter on `KeyManager.ManagerUpdate` and on a manager known to sit late in the list,
   compared across frames while the exception is firing. The client rig already exposes that shape of
-  measurement for the input chain.
+  measurement for the input chain. Also unreachable now without an older copy of the mods.
 - Whether `Assembly.LoadFrom` on a ThreadPool thread (StationeersLaunchPad loads mod assemblies via
   `UniTask.RunOnThreadPool`, serial or parallel depending on the configured load strategy) changes
   anything about which context the loaded assembly lands in. Not investigated.
