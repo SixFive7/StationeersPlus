@@ -121,7 +121,7 @@ Net: the game's dispatcher is usable if you guard `UnityMainThreadDispatcher.Exi
 ## Headless dedicated server: Update does not pump after world load
 <!-- verified: 0.2.6228.27061 @ 2026-05-28 -->
 
-A `MonoBehaviour.Update`-drained queue stalls server-side on a headless dedicated server once the world has loaded. The repo's dedicated-server doc captures this constraint (`TestRig/DedicatedServer/CLAUDE.md`, "Path B: in-game scenario plugin" section):
+A `MonoBehaviour.Update`-drained queue stalls server-side on a headless dedicated server once the world has loaded. The rig manual captures this constraint (`TestRig/MANUAL.md`, "The dedicated server half"):
 
 > on a headless dedicated server `MonoBehaviour.Update` does not fire after world load, and the top-level `GameManager.GameTick` is an async UniTask state machine that switches to a ThreadPool worker
 
@@ -137,6 +137,7 @@ When choosing between these, weigh whether ANY enqueue can originate server-side
 ## Verification history
 <!-- verified: 0.2.6228.27061 @ 2026-05-28 -->
 
+- 2026-08-13: the two TestRig launchers were replaced by one, `TestRig/testrig.ps1`, with positional verbs and `-Target`, and the rig's per-half documents were consolidated into `TestRig/CLAUDE.md`, `TestRig/MANUAL.md` and `TestRig/RESEARCH.md`. Pointers and command spellings on this page follow. No game-internals claim changed and none was re-verified, so no section stamp moved.
 - 2026-04-20: page created from the Research migration; implementation verbatim from F0308, with underlying-cause detail from F0032 and the main-thread-capture addendum from F0350.
 - 2026-05-28: added "The game's UnityMainThreadDispatcher, and why mods roll their own". Read `UnityMainThreadDispatcher : ManagerBase` (decompile line 219184): `Instance()` throws when the MainThreadExecutor manager is absent; `Enqueue(Action)` wraps in an `ActionWrapper` coroutine and drains under an `if (action.Target != null)` guard that drops target-less delegates; the execution queue is shared with engine `ChunkThread` tasks. Documents the game-vs-mod-local trade-off. Additive (the page previously covered only the mod-local recipe); no existing claim contradicted, so no fresh validator.
 - 2026-05-28: added "Headless dedicated server: Update does not pump after world load". Documents the constraint already captured in `TestRig/DedicatedServer/CLAUDE.md` (the dedicated-server doc points at `Research/Patterns/ThingEnumerationOffMainThread.md` for the `GameTick` worker-thread half but is the only place the no-`Update` half lives). Cites ScenarioRunner's `ElectricityManager.ElectricityTick` postfix as the in-repo precedent for the sim-tick pump workaround. Surfaced while running the Power Grid Plus passthrough-refresh dedi playtest on a copy of `APC-Luna.save`: the mod's cascade-refresh queue is enqueued from `PassthroughModeStore.RestoreFromSideCar` and the cascade engine, but the dedi has no rendering motherboard consumer to notify, so the stalled-queue case is invisible from snapshots; the constraint is documented as repo lore, not independently re-verified this session. Additive; no existing claim contradicted; no fresh validator.

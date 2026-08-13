@@ -70,10 +70,11 @@ On a dedicated server started with `-new <Map>`, `XmlSaveLoad.Instance.CurrentSt
 Consequences:
 
 - A `-new` world produces NO real autosaves until it gets a name. The stdin console `save "<name>"` path would assign one, but stdin console commands are a no-op on the batch-mode dedicated server (observed at 0.2.6228.27061 and re-confirmed at 0.2.6403.27689: `save` queued via the launcher control file produced no save folder, no log response). Starting with `-load <SaveName>` instead gives the world a name from the start and autosaves work normally.
-- When a test plan uses "an AutoSave line" as the world-is-ticking readiness marker (`TestRig/DedicatedServer/CLAUDE.md`, "First-autosave grep"), on a `-new` world watch for the `Save Failed: Folder name is empty.` line instead; it is emitted at the same cadence and implies the same unpaused-and-running state.
+- When a test plan uses "an AutoSave line" as the world-is-ticking readiness marker (`TestRig/RESEARCH.md`, "Dedicated-server internals worth knowing"), on a `-new` world watch for the `Save Failed: Folder name is empty.` line instead; it is emitted at the same cadence and implies the same unpaused-and-running state.
 
 ## Verification history
 
+- 2026-08-13: the two TestRig launchers were replaced by one, `TestRig/testrig.ps1`, with positional verbs and `-Target`, and the rig's per-half documents were consolidated into `TestRig/CLAUDE.md`, `TestRig/MANUAL.md` and `TestRig/RESEARCH.md`. Pointers and command spellings on this page follow. No game-internals claim changed and none was re-verified, so no section stamp moved.
 - 2026-07-02: page created during the headless-tick investigation. Timer/gate code quoted verbatim from the 0.2.6403.27689 client decompile (lines 267571-267633); the empty-folder failure and its exact +interval timing observed live on the dedicated server the same day. The "stdin save no-op" cross-check is the launcher `-Save` command timing out with no `Saved` line and no folder appearing under `data/saves/`.
 
 ## Open questions

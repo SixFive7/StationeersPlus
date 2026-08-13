@@ -53,7 +53,7 @@ Run A log markers:
 03:55:38: successfully loaded the 'Power Grid Plus' mod
 ```
 
-No `[Error]` / `[Fatal]` entries attributable to PGP. Harmony `PatchAll` succeeded; the `CableCostPatches.ApplyRecipeCost()` runtime override fired for the configured `Super-Heavy Cable Cost Multiplier`. PGP was loaded only from `<DedicatedServer>/data/mods/Local_PowerGridPlus/PowerGridPlus.dll`; the `install/BepInEx/plugins/PowerGridPlus/PowerGridPlus.dll` overlay (deployed earlier via `-DeployMods`) was NOT a second load — StationeersLaunchPad's LocalModSource owned the load and BepInEx's Chainloader silently deduplicated the install/plugins copy. **Recommendation**: prefer `-SyncMods` alone when testing cross-mod compat (per `TestRig/DedicatedServer/CLAUDE.md`'s duplicate-load guidance), and skip `-DeployMods` unless the user's modconfig entry points at a stale build.
+No `[Error]` / `[Fatal]` entries attributable to PGP. Harmony `PatchAll` succeeded; the `CableCostPatches.ApplyRecipeCost()` runtime override fired for the configured `Super-Heavy Cable Cost Multiplier`. PGP was loaded only from `<DedicatedServer>/data/mods/Local_PowerGridPlus/PowerGridPlus.dll`; the `install/BepInEx/plugins/PowerGridPlus/PowerGridPlus.dll` overlay (deployed earlier by a `deploy` verb) was NOT a second load — StationeersLaunchPad's LocalModSource owned the load and BepInEx's Chainloader silently deduplicated the install/plugins copy. **Recommendation**: prefer `update-mods -Target server` alone when testing cross-mod compat (per `TestRig/MANUAL.md`'s duplicate-load guidance), and skip the per-mod `deploy` unless the user's modconfig entry points at a stale build.
 
 ### MorePowerMod (3243132734) NRE on fresh-world spawn -- not PGP's fault
 
@@ -189,6 +189,7 @@ The rest of Appendix B (recipe / content / economy / QoL mods, IC10 scripts) is 
 ## Verification history
 <!-- verified: 0.2.6228.27061 @ 2026-05-22 -->
 
+- 2026-08-13: the two TestRig launchers were replaced by one, `TestRig/testrig.ps1`, with positional verbs and `-Target`, and the rig's per-half documents were consolidated into `TestRig/CLAUDE.md`, `TestRig/MANUAL.md` and `TestRig/RESEARCH.md`. Pointers and command spellings on this page follow. No game-internals claim changed and none was re-verified, so no section stamp moved.
 - 2026-05-22: page created as the eighth-verification-task result for Power Grid Plus. Live tests on `TestRig/DedicatedServer/` with fresh Mars2 worlds in game version 0.2.6228.27061. Two runs (with and without PGP) isolated the MorePowerMod `StationBatteryNuclear.PoweredChanged` NRE as a pre-existing MorePowerMod bug. Re-Volt assessment is code-analytical against `.work/revolt-source/Assets/Scripts/Patches/*.cs` (`PowerTickPatches.cs`, `CableNetworkPatches.cs`, `StationaryBatteryPatches.cs`, `TransformerExploitPatch.cs`, `AreaPowerControllerPatches.cs`, `DevicePatches.cs`, `BatteryLogicPatch.cs`). The remaining 15 priority mods could not be live-tested because they are not subscribed in the developer's modconfig.xml; their assessments are taken from `Mods/PowerGridPlus/RESEARCH.md` Appendix B and the public Workshop descriptions.
 
 ## Open questions
