@@ -2,8 +2,7 @@
 # TestRig session lock - shared implementation
 # =============================================================================
 # Dot-sourced by BOTH launchers:
-#     TestRig/DedicatedServer/dedicated-server.ps1
-#     TestRig/ClientRig/client-rig.ps1
+#     TestRig/testrig.ps1 (through TestRig/lib/server.ps1 and TestRig/lib/client.ps1)
 #
 # There is ONE lock for the whole rig, at TestRig/session.lock, because the two
 # halves are not independent resources. They share the developer's single game
@@ -15,7 +14,7 @@
 # make an agent acquire two locks in an order that can deadlock against an agent
 # acquiring them the other way round.
 #
-# The rules are in TestRig/session.lock.template (single source of truth). This
+# The rules are in TestRig/CLAUDE.md and TestRig/MANUAL.md. This
 # file is only the mechanism. Keeping the mechanism in one place is deliberate:
 # a second copy of the timer, ownership and force-break logic would drift, and
 # the half that drifted would be the half with the weaker guarantee.
@@ -60,6 +59,16 @@
 #   marker applies the same rule to its own writer, and treats "not from this
 #   boot" as proof the writer is gone.
 #
+#   IT ALSO RECORDS THE DEDICATED-SERVER WORLD SET, and that is what makes a
+#   world's lifetime session-scoped. Because the marker is written BEFORE the
+#   session's first mutating action and left alone by every later one, the worlds
+#   it lists are exactly the ones that predate the session, so the restore can
+#   delete the others and nothing else. Baselines used to make that call and
+#   could not: staleness cannot see a world, so a world staged deliberately after
+#   a capture read as "created by a session that is over" and was deleted.
+#   Get-RigSessionWorldSnapshot reads it back, and every way of not getting a
+#   clean answer keeps every world and says which way it was.
+#
 # TWO TIMERS, DOING DIFFERENT JOBS (do not collapse them into one)
 #   1. ttl_minutes (default 10) is a LIVENESS HEARTBEAT on refreshed_at. Its job
 #      is to free a rig nobody is using. A busy rig self-renews it, because a
@@ -103,7 +112,7 @@ function Initialize-RigLockPaths {
 
     $script:RigLockHome  = $RigHome
     $script:RigLockFile  = Join-Path $RigHome 'session.lock'
-    $script:RigLockRules = Join-Path $RigHome 'session.lock.template'
+    $script:RigLockRules = Join-Path $RigHome 'CLAUDE.md'
 
     # The crash marker. It lives beside the lock rather than inside either half,
     # because one session dirties both halves and one restore cleans both.
@@ -123,12 +132,18 @@ function Initialize-RigLockPaths {
     $script:RigClientDataDir = Join-Path $RigHome 'ClientRig\data'
     $script:RigDediInstallDir = Join-Path $RigHome 'DedicatedServer\install'
 
+    # The dedicated server's world tree. This library reads it for ONE reason: the
+    # session marker records which worlds existed before the session touched
+    # anything, and that recording has to happen at the same moment the marker is
+    # written. See Get-RigServerWorlds.
+    $script:RigDediSaveRoot = Join-Path $RigHome 'DedicatedServer\data\saves'
+
     # Process identity. A pid file alone is not proof that the rig is busy; see
     # Get-RigLiveProcess.
     $script:RigServerImage = $ServerImageName
     $script:RigClientImage = $ClientImageName
 
-    # Where client instance trees live. Mirrors client-rig.ps1's own resolution
+    # Where client instance trees live. Mirrors the launcher's own resolution
     # order, because instances normally sit on the game install's volume rather
     # than inside TestRig/.
     $script:RigClientInstanceRoot =
@@ -256,10 +271,58 @@ function Read-RigDirtyMarker {
     return $fields
 }
 
+function Get-RigServerWorlds {
+    # Every dedicated-server world on disk, as { Name, Key, Path }.
+    #
+    # ONE definition of what a world is and how it is keyed, and it lives in the
+    # LOWER of the two libraries because three things now have to agree on it:
+    # the baseline manifest, the reset's mutable surface, and the session marker
+    # written below. The marker is this file's, so a second copy of the key shape
+    # over in rig-reset.ps1 would be the copy that drifts, and what it would
+    # drift into is a delete decision about somebody's world.
+    #
+    # The key is rig-relative ('server/saves/<name>'), not an absolute path, for
+    # the same reason Get-RigMutableSurface's keys are: an absolute path stops
+    # matching the moment the rig moves.
+    $out = New-Object System.Collections.Generic.List[object]
+    if (-not $script:RigDediSaveRoot) { return $out.ToArray() }
+    foreach ($d in @(Get-ChildItem -LiteralPath $script:RigDediSaveRoot -Directory -ErrorAction SilentlyContinue | Sort-Object Name)) {
+        $out.Add([pscustomobject]@{ Name = $d.Name; Key = "server/saves/$($d.Name)"; Path = $d.FullName })
+    }
+    # PLAIN array, deliberately NOT comma-wrapped: every caller writes
+    # @(Get-RigServerWorlds), and @() around a comma-wrapped array keeps the outer
+    # wrapper, so the caller gets ONE element that is the whole array. Same trap
+    # Get-RigMutableSurface documents at length.
+    return $out.ToArray()
+}
+
+function Test-RigMarkerSameBoot {
+    # Was this marker written since the machine last started. Fails CLOSED in
+    # every direction: a missing boot id, an unidentifiable current boot, or any
+    # mismatch all read as "not this boot", because everything that consults it
+    # treats "not this boot" as the cheap answer (restore again, keep the world)
+    # and "this boot" as the one that costs something.
+    #
+    # It is a function rather than an expression repeated twice because both
+    # readers, Get-RigDirtyState and Get-RigSessionWorldSnapshot, must apply the
+    # same rule, and one of them decides whether a world is deleted.
+    param($Marker)
+    if (-not $Marker) { return $false }
+    $boot = Get-RigBootId
+    return [bool](($Marker['boot_id']) -and ($boot -ne 'unknown') -and ($Marker['boot_id'] -eq $boot))
+}
+
 function Write-RigDirtyMarker {
     # Mark the rig dirty. Idempotent for one session: a marker this owner already
     # wrote in this boot is left exactly as it is, so the FIRST mutation's
     # timestamp survives and every later gated command costs one Test-Path.
+    #
+    # THE WORLD SET IS RECORDED HERE, AND THE IDEMPOTENCE IS WHY IT IS CORRECT.
+    # The marker goes down before the session's first mutating action, so the
+    # worlds it lists are the ones that existed before this session could have
+    # created any. Later commands leave the marker alone, so a world the session
+    # goes on to create can never sneak into its own "was already here" set. The
+    # restore deletes exactly the worlds that are NOT in it.
     param(
         [Parameter(Mandatory)] [string] $Owner,
         [string] $Purpose = '',
@@ -270,12 +333,20 @@ function Write-RigDirtyMarker {
 
     $me   = $null
     try { $me = (Get-Process -Id $PID -ErrorAction Stop).Name } catch { }
+    # '|' is illegal in a Windows directory name, so it can never appear inside a
+    # world's own name and the list needs no escaping. A separator that CAN
+    # appear (a space, a comma, a semicolon) would split one world into two names
+    # that match nothing, and a world that matches nothing gets deleted.
+    $worlds = @(@(Get-RigServerWorlds) | ForEach-Object { $_.Key }) -join '|'
     $sb = [System.Text.StringBuilder]::new()
     [void]$sb.AppendLine('# Stationeers TestRig - DIRTY MARKER (auto-managed; do not hand-edit).')
     [void]$sb.AppendLine('# Written before the first mutating action of a session; cleared only by a')
     [void]$sb.AppendLine('# COMPLETED state restore. Present at acquisition means the last session did')
     [void]$sb.AppendLine('# not clean up (it crashed, was killed, or the machine went down).')
-    [void]$sb.AppendLine('# Rules: session.lock.template.')
+    [void]$sb.AppendLine('# worlds= is the dedicated-server world set as it stood at that moment. A world')
+    [void]$sb.AppendLine('# absent from it was created by this session and is deleted at the boundary; a')
+    [void]$sb.AppendLine('# world in it is kept. No worlds= key at all means keep every world.')
+    [void]$sb.AppendLine('# Rules: TestRig/CLAUDE.md.')
     foreach ($kv in @(
         @{ k = 'owner';      v = $Owner }
         @{ k = 'purpose';    v = $Purpose }
@@ -285,6 +356,7 @@ function Write-RigDirtyMarker {
         @{ k = 'writer_pid'; v = "$PID" }
         @{ k = 'writer_image'; v = "$me" }
         @{ k = 'host';       v = "$env:COMPUTERNAME" }
+        @{ k = 'worlds';     v = $worlds }
     )) {
         [void]$sb.AppendLine("$($kv.k)=$($kv.v)")
     }
@@ -319,7 +391,7 @@ function Get-RigDirtyState {
             Owner = ''; Purpose = ''; Reason = ''; MarkedAt = ''; BootId = ''; Marker = $null
         }
     }
-    $sameBoot = ($m['boot_id'] -eq (Get-RigBootId)) -and ($m['boot_id']) -and ((Get-RigBootId) -ne 'unknown')
+    $sameBoot = Test-RigMarkerSameBoot -Marker $m
     $alive    = $false
     if ($sameBoot) {
         $p = 0
@@ -348,6 +420,77 @@ function Format-RigDirtyState {
            elseif ($State.WriterAlive) { "its launcher process is STILL RUNNING (pid $($State.Marker['writer_pid']))" }
            else { 'its launcher process is gone' }
     return "dirty since $($State.MarkedAt) by owner $($State.Owner) ($($State.Reason)); $how"
+}
+
+# ---- the session's world set ----------------------------------------------
+# Which dedicated-server worlds existed BEFORE this session touched anything.
+# The restore deletes a world if and only if it is absent from this set, so this
+# is the whole of what decides a world's lifetime; the baseline has no say in it
+# any more and never should have had one (Test-RigBaselineStale cannot see a
+# world at all, so a world staged deliberately after a capture read as "created
+# by a session that is over" and was deleted).
+
+function New-RigSessionWorldSnapshot {
+    # The shape both the recorded and the every-degraded-case answers use, so a
+    # caller never has to null-check its way through the difference.
+    param(
+        [switch] $Recorded,
+        [string[]] $Keys = @(),
+        [string] $Reason = '',
+        [switch] $Degraded
+    )
+    $set = @{}
+    foreach ($k in @($Keys | Where-Object { $_ })) { $set[$k] = $true }
+    [pscustomobject]@{
+        Recorded = [bool]$Recorded    # may a world be deleted on this answer at all
+        Keys     = $set               # 'server/saves/<name>' -> $true, for an O(1) lookup
+        Count    = $set.Count
+        Reason   = $Reason            # why not, in words a report can print verbatim
+        Degraded = [bool]$Degraded    # not merely absent: something is WRONG with the marker
+    }
+}
+
+function Get-RigSessionWorldSnapshot {
+    # Read the world set out of the marker, or say precisely why there is none.
+    #
+    # EVERY PATH THAT IS NOT "recorded, this boot, and it parsed" FAILS CLOSED to
+    # "keep every world", because deleting one is the only irreversible thing the
+    # restore does and it is hundreds of megabytes of somebody's test state. The
+    # opposite mistake costs one stale world that a human or the next session can
+    # delete deliberately. Those two are not close.
+    #
+    # The four degraded cases are kept separate rather than collapsed into one
+    # "no" because the reset prints the reason, and "there is no marker" (the
+    # ordinary state of a clean rig) means something entirely different to an
+    # agent than "the marker is unreadable".
+    $file = Get-RigDirtyFilePath
+    if (-not $file -or -not (Test-Path -LiteralPath $file)) {
+        # NOT a degradation. No marker means nothing has mutated the rig since the
+        # last completed restore, and creating a world is a mutating action, so no
+        # world here can belong to a session.
+        return New-RigSessionWorldSnapshot -Reason 'there is no session marker, so nothing has mutated this rig since the last completed restore and no world on it belongs to a session'
+    }
+    $m = Read-RigDirtyMarker
+    if (-not $m) {
+        return New-RigSessionWorldSnapshot -Degraded -Reason "the session marker at $file is present but could not be read as a marker, so the world set it should carry is unavailable"
+    }
+    if (-not (Test-RigMarkerSameBoot -Marker $m)) {
+        # The names on disk did not change over a reboot, but nothing here can
+        # vouch for a marker whose writer cannot be identified any more, and the
+        # rig's standing rule for an unverifiable marker is to take the cheap
+        # side. For a restore that is "run it again"; for a world it is "keep it".
+        return New-RigSessionWorldSnapshot -Degraded -Reason 'the session marker was written before the machine last started, so nothing here can vouch for the world set it recorded'
+    }
+    if (-not $m.Contains('worlds')) {
+        return New-RigSessionWorldSnapshot -Degraded -Reason 'the session marker records no world set at all (it was written before the rig tracked them), so which worlds predate this session is unknown'
+    }
+    # A present but EMPTY value is a real answer, not a missing one: the rig had
+    # no worlds when the session started. Keeping the two apart is the whole
+    # reason the key's presence is what is tested rather than its value.
+    $raw  = [string]$m['worlds']
+    $keys = @()
+    if ($raw) { $keys = @($raw -split '\|' | ForEach-Object { $_.Trim() } | Where-Object { $_ }) }
+    return New-RigSessionWorldSnapshot -Recorded -Keys $keys
 }
 
 # ---- the critical section -------------------------------------------------
@@ -526,7 +669,7 @@ function Write-RigLock {
     $sb = [System.Text.StringBuilder]::new()
     [void]$sb.AppendLine('# Stationeers TestRig - ACTIVE session lock (auto-managed; do not hand-edit).')
     [void]$sb.AppendLine('# Covers BOTH halves: TestRig/DedicatedServer/ and TestRig/ClientRig/.')
-    [void]$sb.AppendLine('# Mechanism and rules: session.lock.template (single source of truth).')
+    [void]$sb.AppendLine('# Mechanism and rules: TestRig/CLAUDE.md and TestRig/MANUAL.md.')
     foreach ($k in $Fields.Keys) {
         [void]$sb.AppendLine("$k=$($Fields[$k])")
     }
@@ -1045,7 +1188,7 @@ function Assert-RigLockHeld {
     param(
         [Parameter(Mandatory)] [string] $Action,
         [string] $CallerId,
-        [Parameter(Mandatory)] [string] $Tool   # 'dedicated-server.ps1' or 'client-rig.ps1'
+        [Parameter(Mandatory)] [string] $Tool   # the launcher name, for the message
     )
     $st = Get-RigLockState -CallerId $CallerId -RefreshIfMine
     switch ($st.State) {
@@ -1073,13 +1216,13 @@ function Assert-RigLockHeld {
             return
         }
         'None' {
-            throw "[$Action] No rig session lock is held. Acquire one first:`n    $Tool -Lock -Purpose `"<what you are testing>`"`nthen pass -As <id> on every mutating command. One lock covers BOTH TestRig halves. See TestRig/session.lock.template."
+            throw "[$Action] No rig session lock is held. Acquire one first:`n    $Tool lock -Purpose `"<what you are testing>`"`nthen pass -As <id> on every mutating command. One lock covers BOTH TestRig halves. See TestRig/CLAUDE.md."
         }
         'DeadForeign' {
-            throw "[$Action] No live rig session lock is held (a previous lock expired). Re-acquire:`n    $Tool -Lock -Purpose `"<what you are testing>`"`nSee TestRig/session.lock.template."
+            throw "[$Action] No live rig session lock is held (a previous lock expired). Re-acquire:`n    $Tool lock -Purpose `"<what you are testing>`"`nSee TestRig/CLAUDE.md."
         }
         'LiveForeign' {
-            throw "[$Action] The test rig is locked by another session.`n$(Format-ForeignRigLock $st)`nDo NOT proceed. Report this purpose to the user and let the user decide. Only the user may authorize -BreakLock. See TestRig/session.lock.template."
+            throw "[$Action] The test rig is locked by another session.`n$(Format-ForeignRigLock $st)`nDo NOT proceed. Report this purpose to the user and let the user decide. Only the user may authorize -BreakLock. See TestRig/CLAUDE.md."
         }
     }
 }
@@ -1182,7 +1325,7 @@ function New-RigLock {
         if ($outcome.Result -eq 'Blocked') {
             if ((Get-Date) -ge $deadline) {
                 $waited = if ($WaitSeconds -gt 0) { " after waiting ${WaitSeconds}s" } else { '' }
-                throw "Cannot acquire${waited}: the test rig is locked by another session.`n$(Format-ForeignRigLock $outcome.State)`nReport this purpose to the user. Only the user may authorize -BreakLock. See TestRig/session.lock.template."
+                throw "Cannot acquire${waited}: the test rig is locked by another session.`n$(Format-ForeignRigLock $outcome.State)`nReport this purpose to the user. Only the user may authorize -BreakLock. See TestRig/CLAUDE.md."
             }
             if (-not $announced) {
                 Write-Host "[Lock] Rig is held by another session; queueing for up to ${WaitSeconds}s (no ordering fairness is promised)."
@@ -1229,11 +1372,11 @@ function New-RigLock {
             if ($OnReclaim) { & $OnReclaim }
         }
         Write-Host "[Lock] Acquired the rig session lock (covers BOTH TestRig halves)."
-        Write-Host "[Lock]   owner   : $($outcome.Owner)   (pass -As $($outcome.Owner) on every mutating command, on either launcher)"
+        Write-Host "[Lock]   owner   : $($outcome.Owner)   (pass -As $($outcome.Owner) on every mutating command)"
         Write-Host "[Lock]   purpose : $Purpose"
-        Write-Host "[Lock]   ttl     : $TtlMinutes min heartbeat (refresh with -RefreshLock -As $($outcome.Owner) while actively testing)"
+        Write-Host "[Lock]   ttl     : $TtlMinutes min heartbeat (refresh with: testrig refresh-lock -As $($outcome.Owner), while actively testing)"
         Write-Host "[Lock]   idle    : $IdleCeilingMinutes min ceiling; after that long with no action from you, another agent may reclaim the rig even if it is busy"
-        Write-Host "[Lock] Rules: TestRig/session.lock.template."
+        Write-Host "[Lock] Rules: TestRig/CLAUDE.md."
 
         # STATE HYGIENE, at the one choke point an agent cannot route around.
         #
@@ -1278,9 +1421,9 @@ function Update-RigLock {
     )
     $msg = Invoke-WithRigLockMutex -Context 'refresh the rig lock' -Body {
         $lock = Read-RigLock
-        if (-not $lock) { throw "No rig session lock to refresh. Acquire one: -Lock -Purpose `"<reason>`"." }
+        if (-not $lock) { throw "No rig session lock to refresh. Acquire one: testrig lock -Purpose `"<reason>`"." }
         if ($lock['owner'] -ne $CallerId) {
-            throw "Refresh refused: the rig lock is held by owner '$($lock['owner'])' (purpose: $($lock['purpose'])), not '$CallerId'. Your reservation has lapsed. Report to the user; do not touch the rig. See TestRig/session.lock.template."
+            throw "Refresh refused: the rig lock is held by owner '$($lock['owner'])' (purpose: $($lock['purpose'])), not '$CallerId'. Your reservation has lapsed. Report to the user; do not touch the rig. See TestRig/CLAUDE.md."
         }
         # An explicit refresh is the owner saying "I am still here", so it moves
         # both clocks. It is the one command whose whole purpose is to answer the
@@ -1329,10 +1472,10 @@ function Remove-RigLock {
         $l = Read-RigLock
         if (-not $l) { return $null }
         if (-not ($CallerId -and $l['owner'] -eq $CallerId) -and -not $BreakLock) {
-            throw "Unlock refused: the rig lock is held by owner '$($l['owner'])' (purpose: $($l['purpose'])), not '$CallerId'. Report to the user. Only the user may authorize -BreakLock. See TestRig/session.lock.template."
+            throw "Unlock refused: the rig lock is held by owner '$($l['owner'])' (purpose: $($l['purpose'])), not '$CallerId'. Report to the user. Only the user may authorize -BreakLock. See TestRig/CLAUDE.md."
         }
         if ($busy.HostLive -and -not $Force) {
-            throw "Unlock refused: a listen-host instance is still live ($($busy.HostNames -join ', ')). Releasing now leaves a hosted world running with no session owning it, and the next agent's -Stop -All takes it down mid-test. Stop the instances first (client-rig.ps1 -Stop -All -As <id>), or pass -Force if you really mean to release while it runs. Rig state: $($busy.Detail)"
+            throw "Unlock refused: a listen-host instance is still live ($($busy.HostNames -join ', ')). Releasing now leaves a hosted world running with no session owning it, and the next agent stopping the rig takes it down mid-test. Stop the instances first (testrig stop -Target clients -As <id>), or pass -Force if you really mean to release while it runs. Rig state: $($busy.Detail)"
         }
         return $l
     }
@@ -1449,7 +1592,7 @@ function Write-RigLockStatus {
                 else { '' }
         Write-Host "  rig busy:   $($busy.Detail)$note"
         if ($busy.HostLive) {
-            Write-Host "  hosting:    $($busy.HostNames -join ', ')  (-Unlock refuses while a host is live; -Force overrides)"
+            Write-Host "  hosting:    $($busy.HostNames -join ', ')  (unlock refuses while a host is live; -Force overrides)"
         }
     }
     elseif ($ceiling) {
@@ -1473,7 +1616,18 @@ function Write-RigDirtyStatus {
     }
     Write-Host "  rig state:  DIRTY - $(Format-RigDirtyState $d)"
     if ($d.Crashed) {
-        Write-Host "  rig state:  nothing is left of that session, so the next -Lock restores the rig before granting it."
+        Write-Host "  rig state:  nothing is left of that session, so the next lock restores the rig before granting it."
+    }
+    # What the marker protects, said out loud: which dedicated-server worlds the
+    # restore will KEEP, and therefore that anything else on the save tree is
+    # about to be deleted at the boundary. A world count is not something an
+    # agent should have to reconstruct from a file it is told not to hand-edit.
+    $sw = Get-RigSessionWorldSnapshot
+    if ($sw.Recorded) {
+        Write-Host "  worlds:     $($sw.Count) dedicated-server world(s) were here when that session started and are kept; any other world is that session's and the restore deletes it."
+    }
+    else {
+        Write-Host "  worlds:     no dedicated-server world will be deleted ($($sw.Reason))."
     }
 }
 

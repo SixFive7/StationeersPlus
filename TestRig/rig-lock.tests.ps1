@@ -387,7 +387,7 @@ function Test-PathInjection {
     Reset-TestHome
 
     Assert-Equal (Join-Path $script:TempRoot 'session.lock') (Get-RigLockFilePath) 'lock file follows the injected home'
-    Assert-Equal (Join-Path $script:TempRoot 'session.lock.template') (Get-RigLockRulesPath) 'rules path follows the injected home'
+    Assert-Equal (Join-Path $script:TempRoot 'CLAUDE.md') (Get-RigLockRulesPath) 'rules path follows the injected home'
     Assert-Equal $script:TempRoot (Get-RigLockHomePath) 'home accessor reports the injected home'
 
     # The mutex must follow the lock file, or a test run would serialise against
@@ -419,12 +419,12 @@ function Test-StateMachine {
 
     # Assert-RigLockHeld across all four states.
     Reset-TestHome
-    Assert-Throws { Assert-RigLockHeld -Action 'Start' -CallerId 'X' -Tool 'dedicated-server.ps1' } 'Assert-RigLockHeld: None throws and points at -Lock' '-Lock -Purpose'
+    Assert-Throws { Assert-RigLockHeld -Action 'Start' -CallerId 'X' -Tool 'testrig.ps1' } 'Assert-RigLockHeld: None throws and points at lock' 'lock -Purpose'
     Set-TestLock -Owner 'AAA11111'
-    Assert-NoThrow { Assert-RigLockHeld -Action 'Start' -CallerId 'AAA11111' -Tool 'dedicated-server.ps1' } 'Assert-RigLockHeld: Mine passes'
-    Assert-Throws  { Assert-RigLockHeld -Action 'Start' -CallerId 'BBB22222' -Tool 'dedicated-server.ps1' } 'Assert-RigLockHeld: LiveForeign throws and names -BreakLock' 'BreakLock'
+    Assert-NoThrow { Assert-RigLockHeld -Action 'Start' -CallerId 'AAA11111' -Tool 'testrig.ps1' } 'Assert-RigLockHeld: Mine passes'
+    Assert-Throws  { Assert-RigLockHeld -Action 'Start' -CallerId 'BBB22222' -Tool 'testrig.ps1' } 'Assert-RigLockHeld: LiveForeign throws and names -BreakLock' 'BreakLock'
     Set-TestLock -Owner 'AAA11111' -AgeMinutes 30
-    Assert-Throws  { Assert-RigLockHeld -Action 'Start' -CallerId 'BBB22222' -Tool 'dedicated-server.ps1' } 'Assert-RigLockHeld: DeadForeign throws and says re-acquire' 'expired'
+    Assert-Throws  { Assert-RigLockHeld -Action 'Start' -CallerId 'BBB22222' -Tool 'testrig.ps1' } 'Assert-RigLockHeld: DeadForeign throws and says re-acquire' 'expired'
 
     # New-RigLock across all four states.
     Reset-TestHome

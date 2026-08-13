@@ -1,480 +1,131 @@
 <#
-.SYNOPSIS
-    Provisions, launches and fans out across N isolated Stationeers game-client instances.
+    The client-instance half of TestRig/testrig.ps1.
 
-.DESCRIPTION
-    The launcher half of the client rig. The other half is the ClientDriver plugin, which is the
-    control plane inside each instance.
+    This file was TestRig/ClientRig/client-rig.ps1. It provisions and drives N
+    isolated Stationeers game clients; the other half of the pair is the
+    ClientDriver plugin, which is the control plane inside each instance.
 
-    The boundary between the two is process creation. This script owns everything outside a game
-    process, and everything that must keep working when a process is dead or wedged: provisioning
-    an instance tree, creating the isolated Win32 desktop, starting and stopping, PID files, and
-    fanning one command out across the rig. The plugin owns everything inside a process, which is
-    everything that needs the Unity main thread or the game's own types. There is no third category.
+    The boundary between launcher and plugin is process creation. This file owns
+    everything outside a game process, and everything that must keep working when
+    a process is dead or wedged: building an instance tree, the isolated Win32
+    desktop, starting and stopping, PID files, and fanning one request across the
+    rig. The plugin owns everything inside a process, which is everything needing
+    the Unity main thread or the game's own types. There is no third category.
 
-    An instance is a hard-linked copy of the developer's real install on the same NTFS volume, so it
-    costs a few megabytes instead of seven gigabytes. Nothing the game or a mod writes to is ever a
-    hard link, because a hard link shares the file data and a write would reach back into the
-    developer's install.
+    An instance is a hard-linked copy of the developer's real install on the same
+    NTFS volume, so it costs a few megabytes instead of seven gigabytes. Nothing
+    the game or a mod writes to is ever a hard link, because a hard link shares the
+    file data and a write would reach back into the developer's install.
 
-    Every instance runs on a separate Win32 desktop that is created but never switched to. That is
-    what stops the game taking the developer's foreground: the no-activate show flag alone loses
-    (measured 40 focus steals out of 40 samples), a separate desktop wins (0 out of 55).
+    Every instance runs on a separate Win32 desktop that is created but never
+    switched to. That is what stops the game taking the developer's foreground: the
+    no-activate show flag alone loses (measured 40 focus steals out of 40 samples),
+    a separate desktop wins (0 out of 55).
 
     The source install is treated as strictly read-only.
 
-    Every mutating action needs the RIG SESSION LOCK. One lock at TestRig/session.lock covers this
-    half and the dedicated server together, because the two share the developer's one game install
-    and per-Windows-user Unity state that nothing separates (PlayerCookie-v2.xml, the PlayerPrefs
-    registry key). Acquire once with -Lock, then pass -As <id> on every mutating command, on either
-    launcher. Rules: TestRig/session.lock.template.
+    Everything here is a function. There is no param block and no dispatch: the
+    verb surface, the target resolution and the refusal matrix live in testrig.ps1,
+    and the session lock lives in TestRig/rig-lock.ps1.
 
-    Operating manual: README.md next to this script.
-    Durable internals:  RESEARCH.md next to this script.
-    Rig conventions: TestRig/CLAUDE.md.
-    Repository conventions: CLAUDE.md (root).
-    Developer environment: DEV.md.
+    Script variables are prefixed Cli because both halves share one script scope
+    once testrig.ps1 has dot-sourced them, and both halves used to declare a
+    $script:CliDataDir and a $script:CliRepoRoot of their own.
 
-.PARAMETER Provision
-    Build or rebuild an instance: hard-link the game tree, point it at its own save root, seed its
-    mod set, write its manifest and a provision stamp.
-
-    A rebuild (-Force) replaces the instance TREE. It does NOT reset data/<instance>/: the save root,
-    the logs, the PID file and the game-written setting.xml all survive, and only userdata/mods is
-    rewritten. That is deliberate (a staged save must not evaporate on a plugin rebuild) but it does
-    mean a rebuild is not a clean slate. -Stop clears StartLocalHost out of setting.xml for the one
-    case where a stale value would silently change what the next run is.
-
-.PARAMETER Instance
-    Instance name, or a comma-separated list where an action accepts several.
-
-.PARAMETER Port
-    Control-plane TCP port for the instance. Defaults to 27700 plus the instance's index.
-
-.PARAMETER Role
-    What the instance is for: 'client' (joins a session someone else hosts, the default) or 'host'
-    (a listen host that runs the world in its own process and that other instances join). It is
-    advisory for the plugin and load-bearing here: a host is saved before it is stopped, is stopped
-    after every joiner, and refuses to be stopped or removed while a joiner is attached. On a
-    rebuild (-Provision -Force) the existing role is kept unless -Role is given.
-
-.PARAMETER GamePort
-    UDP port a listen host binds RakNet to, and the port a joiner reaches it on. Defaults to 27800
-    plus the instance's index, so it never collides with the control plane at 27700 plus index.
-    Refused when it collides with another instance, with this repository's dedicated server
-    (28015/28016), or with the Stationeers client's own defaults (27015/27016). That is not
-    fussiness: two RakNet bindings coexist happily on one port and route by destination address, so
-    a joiner connects to something and the test is confidently wrong.
-
-.PARAMETER ClientId
-    Decimal ulong this instance presents as its player identity. Must be non-zero and unique across
-    the rig. Defaults to 900000000000 plus the instance's index.
-
-.PARAMETER Username
-    Player name this instance presents. Defaults to the instance name.
-
-.PARAMETER Width
-    Window width in pixels. Default 800.
-
-.PARAMETER Height
-    Window height in pixels. Default 600.
-
-.PARAMETER ForceGameplayInput
-    Provision the instance with the cursor gate held open, so synthetic input reaches the game's
-    per-frame consumers. Correct only for an instance nobody is sitting at, which is every instance
-    this script creates, so it defaults on.
-
-.PARAMETER SeedMods
-    Copy the developer's local mod folders into the instance and repoint its modconfig.xml at the
-    copy. On by default; the instance loads no local mods without it.
-
-.PARAMETER Force
-    Rebuild an instance that already exists, or override a refusal that is safe to override inside
-    your own session. It is routine and it NEVER touches the rig lock: taking a lock off another
-    session is -BreakLock, which is human-gated. Both launchers agree on both meanings.
-
-    On -Stop and -Remove it overrides the host-safety refusals: tearing down or deleting a host
-    while a joiner is attached, tearing down a live instance whose control plane cannot be reached
-    and which therefore cannot be ruled out as a host, and continuing past a save that was not
-    confirmed. Each of those loses a world if the guess was wrong, so -Force there means "I accept
-    that", not "try harder".
-
-.PARAMETER All
-    Apply the action to every provisioned instance.
-
-.PARAMETER Start
-    Launch the instance on the rig's isolated desktop. Hosts are launched before joiners, and
-    starting an instance that is already running is an error rather than a skip: a silent no-op
-    leaves a host in whatever world it was already in and every later assertion runs against the
-    wrong state.
-
-.PARAMETER Stop
-    Terminate the instance and clean up its PID file. Host-aware: joiners are disconnected first
-    and confirmed, then any instance holding a world saves and is confirmed, then the host quits and
-    is killed if it outlasts -TimeoutSeconds. A failure at any step stops the sequence rather than
-    tearing the rest of the rig down on top of it.
-
-.PARAMETER Save
-    Ask an instance to write its world to disk through POST /save, then wait for the plugin's
-    confirmation. Same contract as dedicated-server.ps1 -Save: on timeout it WARNS rather than
-    claiming success, because "the request was accepted" and "the world is on disk" are different
-    facts and only the second one is worth anything after a teardown.
-
-.PARAMETER Name
-    With -Save: the save name to write. Omit to let the instance save the world under its current
-    name.
-
-.PARAMETER Status
-    Report each instance: provisioned, running, control-plane answering, phase, identity, role,
-    hosting state, game port and connected clients.
-
-.PARAMETER List
-    List provisioned instances with their registry entry, plus live role, hosting state and
-    connected-client count for the ones that are running.
-
-.PARAMETER Remove
-    Delete an instance tree and its save root. Refuses while the instance is running, and refuses to
-    delete a host's world while another instance is joined to it (-Force overrides).
-
-.PARAMETER Desktop
-    Name of the Win32 desktop to run instances on. Pass an empty string to run on the developer's
-    desktop, which reintroduces the focus theft and is for debugging only.
-
-.PARAMETER Wait
-    Block until every selected instance reaches a readiness stage. The barrier across the rig.
-
-.PARAMETER Stage
-    Readiness stage for -Wait: ping, modsLoaded, menu, or inWorld.
-
-.PARAMETER Broadcast
-    Send one HTTP request to every selected instance and report each answer. The fan-out.
-
-.PARAMETER Call
-    Send one HTTP request to one instance.
-
-.PARAMETER Path
-    Control-plane path for -Broadcast or -Call, for example /config/set.
-
-.PARAMETER Body
-    JSON request body for -Broadcast or -Call. Omit for a GET.
-
-.PARAMETER Snapshot
-    Fetch /status from every selected instance in one go.
-
-.PARAMETER OutFile
-    Write the -Snapshot result to this path instead of the console. A relative path is rooted at the
-    rig folder, which is gitignored deny-all, not at the shell's working directory, which for an
-    agent is the repository root where nothing would catch a stray snapshot. A relative path that
-    climbs back out of the rig folder with '..' is REFUSED rather than rooted, since it would land
-    somewhere no rule catches. An absolute path is the caller's explicit choice and is honoured,
-    with a warning when it falls outside the rig folder.
-
-.PARAMETER TimeoutSeconds
-    Process-teardown grace for -Stop: how long a client gets to quit cleanly before it is killed.
-    Default 30, the same meaning and the same default as on dedicated-server.ps1. It used to double
-    as the -Wait barrier timeout, which made one flag name mean two different things across the two
-    launchers; the barrier is -WaitSeconds now.
-
-.PARAMETER WaitSeconds
-    How long a blocking wait waits, which is the same meaning it has on dedicated-server.ps1. Three
-    actions take it: -Wait (the readiness barrier, default 300), -Save (how long to wait for the
-    save confirmation, default 300), and -Lock (how long to queue for a rig held by another session,
-    default 0, meaning do not queue at all).
-
-.PARAMETER CallTimeoutSeconds
-    How long ONE -Call or -Broadcast request may take before the HTTP client gives up. This is a
-    third, separate flag on purpose: -TimeoutSeconds is process-teardown grace and -WaitSeconds is
-    how long a blocking wait waits, and overloading either one with a transport timeout is how a
-    flag name comes to mean two things.
-
-    Default 0, meaning "work it out from the request", which is what a caller wants nearly always:
-    the endpoint's own timeoutMs (from the body or the query string) plus a margin, floored at 120 s
-    and at 300 s for the endpoints that block for minutes (/host, /connect, /save, /load, /newworld,
-    /waitfor). Pass a number only to override that. The old fixed 120 s meant a body asking for
-    timeoutMs 300000 was cut off by the launcher at 120 s, so every long endpoint was unusable
-    through -Call and the plugin's own answer (its refusal, or its confirmation) was never seen.
-
-.PARAMETER Lock
-    Acquire the RIG session lock for this whole test session. Requires -Purpose. Prints a short owner
-    id to reuse via -As. The lock covers TestRig/DedicatedServer/ too, so the id works on both
-    launchers. Pass -WaitSeconds N to queue for up to N seconds when another session holds it; the
-    default of 0 keeps the immediate refusal. A queue promises no ordering fairness. Rules:
-    TestRig/session.lock.template.
-
-.PARAMETER RefreshLock
-    Bump the lock timer while actively driving a test. Requires -As.
-
-.PARAMETER Unlock
-    Release the rig session lock. Requires -As, or human-authorized -BreakLock.
-
-.PARAMETER Purpose
-    With -Lock: short human-readable reason, e.g. "Two-client paint check for SprayPaintPlus". Shown
-    to the user when another session is blocked.
-
-.PARAMETER As
-    The owner id printed by -Lock. Pass it on every mutating command.
-
-.PARAMETER BreakLock
-    Break a LIVE lock held by another session (with -Lock / -Unlock / -Stop). Agents may use this
-    ONLY when the user explicitly authorizes it. Deliberately not spelled -Force.
-
-.PARAMETER TtlMinutes
-    With -Lock / -RefreshLock: inactivity window before the lock timer lapses. Default 10. A running
-    client instance keeps the lock live regardless of the timer, so stop the rig before releasing.
-
-.PARAMETER KeepState
-    With -Lock: do NOT reset the rig's between-session state on acquisition. Taking a NEW lock
-    normally clears what the last session left behind (per-instance settings, worlds, logs, BepInEx
-    config, InspectorPlus request and snapshot files, stale pid files) so a test cannot fail on an
-    unrelated test's leftovers. Pass this only when something was staged on purpose. It is loud: the
-    launcher prints exactly what it skipped. Note the limit either way, the reset is BETWEEN
-    sessions, and a session spans many start/stop cycles, so two unrelated tests under one lock get
-    no reset between them. Release and re-take the lock when the subject changes.
-
-.PARAMETER Release
-    With -Stop: also release the rig session lock after stopping.
-
-.PARAMETER Logs
-    Tail the instance's BepInEx log.
-
-.PARAMETER Tail
-    Lines for -Logs. Default 50.
-
-.PARAMETER Grep
-    Regex filter for -Logs, applied to the whole file.
-
-.PARAMETER InstancesRoot
-    Where the hard-linked instance trees live. MUST be on the same NTFS volume as the game install,
-    because hard links cannot cross volumes. For a NEW instance the order is -InstancesRoot, then the
-    STATIONEERS_CLIENTRIG_ROOT environment variable, then instances/ beside this script. Set the
-    environment variable in DEV.md when the repository and the game install are on different drives,
-    which is the common case.
-
-    An instance that already exists uses the root RECORDED IN ITS REGISTRY ENTRY at provision time,
-    so the flag does not have to be re-passed on every later command. -InstancesRoot still overrides
-    that when it is typed, which is how a tree gets moved. Before the root was recorded, -Provision
-    honoured the flag and every later action silently fell back to instances/ beside this script:
-    -Start reported a provisioned instance as having no tree, and the state reset could not find the
-    instance's BepInEx config and skipped re-copying it (half of what the reset is for) while
-    reporting only that there was no tree.
-
-    An entry written before the field existed still works: it falls back to today's order and says
-    so once, naming -Provision -Force as the fix.
-
-.EXAMPLE
-    A listen host plus one joiner, in the only order that works. The constraint runs the other way
-    from teardown: the HOST must be in its world before any joiner connects, because /connect has
-    nothing to reach until the host is hosting.
-
-    client-rig.ps1 -Lock -Purpose "Two-client paint check for SprayPaintPlus"
-    client-rig.ps1 -Provision -As <id> -Instance host1   -Role host
-    client-rig.ps1 -Provision -As <id> -Instance client1 -Role client
-
-    # 1. the host first, all the way into its world
-    client-rig.ps1 -Start -As <id> -Instance host1
-    client-rig.ps1 -Wait  -Instance host1 -Stage menu
-    client-rig.ps1 -Call  -As <id> -Instance host1 -Path /host -Body '{"world":"Lunar"}'
-    client-rig.ps1 -Wait  -Instance host1 -Stage inWorld -WaitSeconds 600
-
-    # 2. only now the joiner, at the host's game port (-Status prints it)
-    client-rig.ps1 -Start -As <id> -Instance client1
-    client-rig.ps1 -Wait  -Instance client1 -Stage menu
-    client-rig.ps1 -Call  -As <id> -Instance client1 -Path /connect -Body '{"address":"127.0.0.1","port":27801}'
-    client-rig.ps1 -Wait  -Instance client1 -Stage inWorld -WaitSeconds 600
-    client-rig.ps1 -Status -As <id> -All          # host1 should report 1 connected client
-
-    # 3. teardown, which -Stop already orders for you
-    client-rig.ps1 -Stop -As <id> -All -Release
+    Operating manual: TestRig/MANUAL.md.
+    Durable internals: TestRig/RESEARCH.md.
+    Rig conventions:   TestRig/CLAUDE.md.
 #>
-[CmdletBinding()]
-param(
-    [switch] $Provision,
-    [string] $Instance,
-    [int]    $Port = 0,
-    [ValidateSet('client', 'host')]
-    [string] $Role = 'client',
-    [int]    $GamePort = 0,
-    [string] $ClientId,
-    [string] $Username,
-    [int]    $Width  = 800,
-    [int]    $Height = 600,
-    [bool]   $ForceGameplayInput = $true,
-    [bool]   $SeedMods = $true,
-    [switch] $Force,
 
-    [switch] $All,
+function Initialize-RigClient {
+    <#
+        Point this half at a TestRig-shaped root.
 
-    [switch] $Start,
-    [string] $Desktop = 'StationeersRig',
+        -InstancesRoot is the launcher flag, and -InstancesRootTyped says whether
+        the caller actually typed it, which is a different question from whether it
+        has a value: a typed root wins over the one recorded in an instance's
+        registry entry (that is how a tree gets moved), and an untyped one must not.
+        That distinction used to be read out of $PSBoundParameters, which is
+        per-scope and therefore empty inside any function that asked.
+    #>
+    param(
+        [Parameter(Mandatory)] [string] $RigHome,
+        [string] $InstancesRoot,
+        [switch] $InstancesRootTyped
+    )
+    $script:CliRigHome  = $RigHome
+    $script:CliRoot     = Join-Path $RigHome 'ClientRig'
+    $script:CliRepoRoot = Split-Path -Parent $RigHome
 
-    [switch] $Stop,
+    # Per-instance state (manifest, settings, save root, logs, PID file) is
+    # ordinary files, not links, so it stays under the rig folder regardless of
+    # which volume the trees are on.
+    $script:CliDataDir  = Join-Path $script:CliRoot 'data'
+    $script:CliRegistry = Join-Path $script:CliDataDir 'rig.json'
 
-    [switch] $Save,
-    [string] $Name,
+    # Dev-plugin layout, identical to the server half's: dev-plugins/<Name>/<Name>.sln
+    # beside dev-plugins/<Name>/<Name>/ source. See TestRig/CLAUDE.md.
+    $script:CliPluginSln = Join-Path $script:CliRoot 'dev-plugins\ClientDriver\ClientDriver.sln'
+    $script:CliPluginDll = Join-Path $script:CliRoot 'dev-plugins\ClientDriver\ClientDriver\bin\Release\ClientDriver.dll'
 
-    [switch] $Status,
-    [switch] $List,
-    [switch] $Remove,
+    # The instance trees are hard links into the game install, so they must sit on
+    # the install's volume. The repository frequently does not, so this is
+    # relocatable and the volume check turns a wrong setting into a clear message
+    # rather than a 7 GB copy.
+    $resolved = Get-RigDefaultInstancesRoot -Override $InstancesRoot
+    $script:CliInstancesDir       = $resolved.Root
+    $script:CliInstancesDirSource = $resolved.Source
+    $script:CliInstancesRootTyped = [bool]$InstancesRootTyped
 
-    [switch] $Wait,
-    [ValidateSet('ping', 'modsLoaded', 'menu', 'inWorld')]
-    [string] $Stage = 'menu',
+    # Port bands and timeouts come from lib/common.ps1 so the two halves cannot
+    # disagree about the dedicated server's ports. They are copied into script
+    # scope here because they appear inside message strings all over this file.
+    $script:CliControlPortBase = Get-RigControlPortBase
+    $script:CliGamePortBase    = Get-RigGamePortBase
+    $script:CliReservedGamePorts = Get-RigReservedGamePorts
 
-    [switch] $Broadcast,
-    [switch] $Call,
-    [string] $Path,
-    [string] $Body,
+    # Control-plane HTTP timeout bounds. Invoke-RestMethod defaults to 100 s and
+    # this launcher used to pin 120 s, which meant the CALLER's own timeoutMs was
+    # ignored: -Path /connect with timeoutMs 300000 died at 120 s and the plugin's
+    # answer, the only thing that says WHY a join or a host attempt failed, was
+    # never read. The timeout is derived from the request instead, between these.
+    $script:CliControlTimeoutFloorSeconds   = $script:RigControlTimeoutFloorSeconds
+    $script:CliControlTimeoutMarginSeconds  = $script:RigControlTimeoutMarginSeconds
+    $script:CliControlTimeoutCeilingSeconds = $script:RigControlTimeoutCeilingSeconds
+    $script:CliControlLongPathSeconds       = $script:RigControlLongPathSeconds
+    $script:CliControlLongPaths             = $script:RigControlLongPaths
 
-    [switch] $Snapshot,
-    [string] $OutFile,
+    $script:RootFallbackAnnounced = @{}
 
-    [int]    $TimeoutSeconds = 30,
-    [int]    $WaitSeconds    = 300,
-    [int]    $CallTimeoutSeconds = 0,
-
-    [switch] $Logs,
-    [int]    $Tail = 50,
-    [string] $Grep,
-
-    [string] $InstancesRoot,
-
-    [switch] $Lock,
-    [switch] $RefreshLock,
-    [switch] $Unlock,
-    [string] $Purpose,
-    [string] $As,
-    [switch] $BreakLock,
-    [int]    $TtlMinutes = 10,
-    [int]    $IdleCeilingMinutes = 60,
-    [switch] $Release,
-    [switch] $KeepState,
-
-    [switch] $CaptureBaseline
-)
-
-$ErrorActionPreference = 'Stop'
-
-# $PSBoundParameters is per-scope: a function gets its OWN, so a function body reading it sees an
-# empty dictionary and every ContainsKey test there silently answers false. Anything below that
-# needs to know whether a switch was actually TYPED (as opposed to sitting on its default) reads
-# this capture instead. -Role and -GamePort need it so a rebuild does not silently demote a host,
-# and -TtlMinutes / -WaitSeconds need it so an untyped default is not mistaken for a real value.
-$ScriptBoundParams = $PSBoundParameters
-
-$RigRoot       = $PSScriptRoot
-# <repo>/TestRig/ClientRig -> <repo>/TestRig -> <repo>
-$TestRigRoot   = Split-Path -Parent $RigRoot
-$RepoRoot      = Split-Path -Parent $TestRigRoot
-$BuildPropsXml = Join-Path $RepoRoot 'Directory.Build.props'
-
-# The session lock is rig-wide (it covers TestRig/DedicatedServer/ too) and its whole mechanism lives
-# in one shared file, so the two halves cannot drift apart on the timer, ownership or break-lock
-# rules. Rules: TestRig/session.lock.template.
-$RigLockLib = Join-Path $TestRigRoot 'rig-lock.ps1'
-if (-not (Test-Path $RigLockLib)) {
-    throw "Shared rig-lock implementation not found at $RigLockLib. It is committed alongside this launcher; restore it before driving the rig."
+    # Both shared libraries default to the rig root, which is right for everything
+    # except the instance tree location: the instances root is a launcher flag
+    # neither of them can see. Re-point them here, so the reset looks inside the
+    # trees this rig actually has and the lock's orphan scan watches the same ones.
+    # Initialize-RigResetPaths re-points the lock library too.
+    #
+    # A RECORDED root wins over the launcher default here, and only here: the
+    # shared libraries take ONE root, and a rig whose instances were built under an
+    # explicit root has its trees there whether or not this shell happens to have
+    # the environment variable set. $script:CliInstancesDir itself is deliberately
+    # NOT touched, so the launcher's own fallback for an entry that records nothing
+    # stays what it was and the note it prints names the real source.
+    $libInstanceRoot = $script:CliInstancesDir
+    if (-not $script:CliInstancesRootTyped) {
+        $recordedRoots = @(Read-Registry |
+            ForEach-Object { [string](Get-EntryValue $_ 'instancesRoot' '') } |
+            Where-Object { $_ } | Select-Object -Unique)
+        if ($recordedRoots.Count -ge 1) { $libInstanceRoot = $recordedRoots[0] }
+    }
+    Initialize-RigResetPaths -RigHome $RigHome -InstanceRoot $libInstanceRoot `
+        -ServerImageName (Get-RigServerImageName) -ClientImageName (Get-RigClientImageName)
 }
-. $RigLockLib
 
-# State hygiene, dot-sourced AFTER the lock library because it extends it: a new
-# lock resets what the previous session left behind. It also owns
-# Set-RigSavePathOverride, which this launcher calls from -Provision. That
-# function is not duplicated here on purpose: it writes the one setting standing
-# between a driven instance and the developer's tier-1 save folder, and two
-# copies of a safety write is how one of them stops matching the other.
-$RigResetLib = Join-Path $TestRigRoot 'rig-reset.ps1'
-if (-not (Test-Path $RigResetLib)) {
-    throw "Shared rig-reset implementation not found at $RigResetLib. It is committed alongside this launcher and carries the SavePathOverride write that keeps a driven instance out of the developer's saves; restore it before driving the rig."
-}
-. $RigResetLib
-
-# The instance trees are hard links into the game install, so they must sit on the install's
-# volume. The repository frequently does not, so this is relocatable and the volume check below
-# turns a wrong setting into a clear message rather than a 7 GB copy.
-#
-# This is the root a NEW instance is built in. An instance that already exists uses the root
-# recorded in its registry entry instead (Resolve-InstanceRoot), because -InstancesRoot used to be
-# honoured by -Provision and forgotten by everything after it: -Start reported a provisioned
-# instance as having no tree, and the state reset could not find its BepInEx config.
-$InstancesRootTyped = $ScriptBoundParams.ContainsKey('InstancesRoot') -and $InstancesRoot
-$InstancesDir  = if ($InstancesRoot) { $InstancesRoot }
-                 elseif ($env:STATIONEERS_CLIENTRIG_ROOT) { $env:STATIONEERS_CLIENTRIG_ROOT }
-                 else { Join-Path $RigRoot 'instances' }
-$InstancesDirSource = if ($InstancesRoot) { '-InstancesRoot' }
-                      elseif ($env:STATIONEERS_CLIENTRIG_ROOT) { '$env:STATIONEERS_CLIENTRIG_ROOT' }
-                      else { 'the default instances/ folder beside this script' }
-
-# Per-instance state (manifest, settings, save root, logs, PID file) is ordinary files, not links,
-# so it stays beside the script regardless of which volume the trees are on.
-$DataDir       = Join-Path $RigRoot 'data'
-$RigRegistry   = Join-Path $DataDir 'rig.json'
-
-# Dev-plugin layout, identical to the dedicated server's: dev-plugins/<Name>/<Name>.sln beside
-# dev-plugins/<Name>/<Name>/ source. See TestRig/CLAUDE.md.
-$PluginSln     = Join-Path $RigRoot 'dev-plugins\ClientDriver\ClientDriver.sln'
-$PluginDll     = Join-Path $RigRoot 'dev-plugins\ClientDriver\ClientDriver\bin\Release\ClientDriver.dll'
-
-# Default port bands. Two per instance, both derived from the index so a rig provisioned with no
-# flags never collides with itself: control plane on TCP 27700+index, RakNet game port on UDP
-# 27800+index. Both bands are clear of Steam (27000-27050), of the Stationeers client's own
-# defaults, and of this repository's dedicated server.
-$ControlPortBase = 27700
-$GamePortBase    = 27800
-
-# What Get-Process reports for a running instance (rocketstation.exe, minus the extension). Used to
-# tell a live instance from a pid file whose number was recycled; see Test-PidAlive. The lock library
-# and the state reset use the same name for the same check.
-$GameImageName   = 'rocketstation'
-
-# Control-plane HTTP timeouts for -Call and -Broadcast.
-#
-# Invoke-RestMethod defaults to 100 s and the launcher used to pin 120 s (-Call) and 60 s
-# (-Broadcast), which meant the CALLER's own timeoutMs was ignored: -Path /connect with
-# timeoutMs 300000 died at 120 s with a client-side timeout, and the plugin's answer, which is the
-# only thing that says WHY a join or a host attempt failed, was never read. So the timeout is
-# derived from the request instead, and these are the bounds it moves between.
-$ControlTimeoutFloorSeconds  = 120   # short endpoints: no shorter than the old fixed value
-$ControlTimeoutMarginSeconds = 30    # the launcher must outlive the plugin's own deadline, not race it
-$ControlTimeoutCeilingSeconds = 3600 # a typo in timeoutMs must not wedge the launcher for days
-# Endpoints that legitimately block for minutes. Their plugin-side default timeoutMs is 120000 to
-# 300000 (Routes.Session.cs, Routes.Host.cs), and a caller that names none gets the plugin's default
-# rather than the launcher's, so the floor here has to cover the LARGEST of them.
-$ControlLongPathSeconds = 300
-$ControlLongPaths = @('/host', '/connect', '/save', '/load', '/newworld', '/waitfor')
-
-# Ports a rig instance's game port must never take. A second RakNet socket on an already-bound
-# port does not fail: both bindings coexist and traffic is routed by destination address, so the
-# joiner reaches SOMETHING and the test is confidently wrong. The refusal is the only warning
-# there will ever be.
-$ReservedGamePorts = @{
-    27015 = "the Stationeers client's own default UpdatePort"
-    27016 = "the Stationeers client's own default GamePort"
-    28015 = "this repository's dedicated server UpdatePort (TestRig/DedicatedServer)"
-    28016 = "this repository's dedicated server GamePort (TestRig/DedicatedServer)"
-}
+function Get-RigClientInstancesDir       { return $script:CliInstancesDir }
+function Get-RigClientInstancesDirSource { return $script:CliInstancesDirSource }
+function Get-RigClientRegistryPath       { return $script:CliRegistry }
+function Get-RigClientPluginDllPath      { return $script:CliPluginDll }
 
 # ---- environment helpers --------------------------------------------------
-
-function Get-StationeersPath {
-    if (-not (Test-Path $BuildPropsXml)) {
-        throw "Directory.Build.props not found at repo root. Copy Directory.Build.props.template to Directory.Build.props and set <StationeersPath>. See DEV.md."
-    }
-    $xml  = [xml](Get-Content -Raw $BuildPropsXml)
-    $path = $xml.Project.PropertyGroup.StationeersPath
-    if ([string]::IsNullOrWhiteSpace($path)) {
-        throw "<StationeersPath> in Directory.Build.props is empty. Set it to your Stationeers client install. See DEV.md."
-    }
-    if (-not (Test-Path (Join-Path $path 'rocketstation.exe'))) {
-        throw "<StationeersPath>=$path does not contain rocketstation.exe. This rig links the CLIENT install, not the dedicated server. See DEV.md."
-    }
-    return $path
-}
-
-function Get-UserDataPath {
-    # The game's own user-data root: Documents\My Games\Stationeers. Resolved from the Windows
-    # shell folder rather than hardcoded, so nothing here is tied to one developer's layout.
-    return (Join-Path ([Environment]::GetFolderPath('MyDocuments')) 'My Games\Stationeers')
-}
 
 function Assert-SameVolume {
     param([string] $A, [string] $B)
@@ -493,46 +144,34 @@ or pass -InstancesRoot '${ra}StationeersRig' on every call. Record the choice in
     }
 }
 
-function Get-PidFromFile {
-    param([string] $File)
-    if (-not (Test-Path $File)) { return $null }
-    $raw = (Get-Content -Raw -ErrorAction SilentlyContinue $File)
-    if (-not $raw) { return $null }
-    $val = $raw.Trim()
-    if (-not $val) { return $null }
-    [int]$val
-}
-
-function Test-PidAlive {
-    # Is the process this pid file names really THIS instance's game client.
-    #
-    # The image name is checked, not just the number, and that is load bearing in both directions.
-    # Windows recycles process ids and these pid files outlive their processes on a force-kill, a
-    # crash or a reboot, so a bare Get-Process answers "alive" for whatever unrelated program
-    # inherited the number. Every caller here then draws the wrong conclusion: -Start THROWS rather
-    # than launching ("already running"), -Provision and -Remove refuse, and -Status reports a
-    # stopped instance as up. The same reasoning, and the same helper, as rig-lock.ps1 and the
-    # state reset, which is why this calls Get-RigLiveProcess rather than repeating it.
-    param([Nullable[int]] $TargetPid)
-    return ($null -ne (Get-RigLiveProcess -TargetPid $TargetPid -ImageName $GameImageName))
-}
+# The pid reader and the "is that pid alive" check used to live here, one copy per
+# launcher plus the library's. Both launcher copies cast with [int], which THROWS
+# on a corrupt pid file where the library's TryParse returns $null; the server
+# half's liveness check had no image test at all, so a recycled process id made it
+# refuse to start and report a dead server as up. Both are gone. This half now
+# calls Get-RigPidFromFile (rig-lock.ps1) and Test-RigClientProcessAlive
+# (lib/common.ps1), which is the same image-checking implementation the lock's busy
+# probe and the state reset already used.
 
 # ---- session lock ---------------------------------------------------------
 #
-# Rules: TestRig/session.lock.template. Implementation: TestRig/rig-lock.ps1,
-# dot-sourced above and shared with dedicated-server.ps1.
+# Rules: TestRig/CLAUDE.md. Implementation: TestRig/rig-lock.ps1,
+# dot-sourced by testrig.ps1 before this file and shared with the server half.
 #
 # Every action that changes rig state goes through this gate, for the same reason the dedicated
-# server has one. Without it, -Stop -All tears down another agent's live test with no trace, -Remove
-# deletes an instance's save root out from under a run, and two concurrent -Provision calls read the
-# registry before either writes it, pick the same free index, and hand two instances one ClientId.
-# That last one is the failure this script already refuses to allow within a single call, and for
-# the same stated reason: the server keys a player's body on ClientId, so a test that believes it
-# has two players actually has one, and the results look plausible and mean nothing.
+# server has one. Without it, a stop of the whole rig tears down another agent's live test with no
+# trace, a remove deletes an instance's save root out from under a run, and two concurrent creates
+# read the registry before either writes it, pick the same free index, and hand two instances one
+# ClientId. That last one is the failure this file already refuses to allow within a single call,
+# and for the same stated reason: the server keys a player's body on ClientId, so a test that
+# believes it has two players actually has one, and the results look plausible and mean nothing.
 
-function Assert-MutatingAllowed {
-    param([Parameter(Mandatory)] [string] $Action)
-    Assert-RigLockHeld -Action $Action -CallerId $As -Tool 'client-rig.ps1'
+function Assert-RigClientMutatingAllowed {
+    param(
+        [Parameter(Mandatory)] [string] $Action,
+        [string] $As
+    )
+    Assert-RigLockHeld -Action $Action -CallerId $As -Tool 'testrig.ps1'
 }
 
 # ---- the rig registry -----------------------------------------------------
@@ -542,9 +181,9 @@ function Assert-MutatingAllowed {
 # same ClientId.
 
 function Read-Registry {
-    if (-not (Test-Path $RigRegistry)) { return @() }
+    if (-not (Test-Path $script:CliRegistry)) { return @() }
     try {
-        $json = Get-Content -Raw $RigRegistry | ConvertFrom-Json
+        $json = Get-Content -Raw $script:CliRegistry | ConvertFrom-Json
         if ($null -eq $json) { return @() }
         return @($json)
     }
@@ -556,10 +195,10 @@ function Read-Registry {
 
 function Write-Registry {
     param([Parameter(Mandatory)] $Entries)
-    New-Item -ItemType Directory -Force -Path $DataDir | Out-Null
-    $tmp = "$RigRegistry.tmp"
+    New-Item -ItemType Directory -Force -Path $script:CliDataDir | Out-Null
+    $tmp = "$script:CliRegistry.tmp"
     ,@($Entries) | ConvertTo-Json -Depth 8 | Set-Content -Path $tmp -Encoding utf8
-    Move-Item -Path $tmp -Destination $RigRegistry -Force
+    Move-Item -Path $tmp -Destination $script:CliRegistry -Force
 }
 
 function Get-InstanceEntry {
@@ -579,29 +218,33 @@ function Get-EntryValue {
     return $prop.Value
 }
 
-function Resolve-Targets {
-    # Which instances an action applies to: -All, an explicit -Instance list, or a refusal.
-    #
-    # The local is deliberately NOT named $all. PowerShell variable names are case-insensitive, so
-    # `$all = Read-Registry` silently overwrites the -All switch parameter with a non-empty array,
-    # and every action then behaves as though -All had been passed. That bug shipped once and made
-    # `-Stop -Instance nope` stop the whole rig instead of refusing.
-    $registry = Read-Registry
-    if ($All) {
-        if ($registry.Count -eq 0) { throw "No instances are provisioned. Run: client-rig.ps1 -Provision -Instance client1" }
-        return $registry
-    }
-    if (-not $Instance) {
-        throw "Specify -Instance <name[,name]> or -All. Run -List to see what is provisioned."
-    }
-    $wanted = $Instance.Split(',') | ForEach-Object { $_.Trim() } | Where-Object { $_ }
-    $hits = @()
-    foreach ($w in $wanted) {
+function Get-RigClientEntries {
+    <#
+        Registry entries for a set of instance names, in registry order.
+
+        testrig.ps1 has already turned -Target into names by the time this is
+        called; this is the lookup, and the refusal when a name matches nothing.
+        The old version took the target set off script scope, which is what let a
+        typo widen the blast radius: an unknown -Instance once fell through to
+        stopping the whole rig, because the local holding the registry was named
+        $all and PowerShell variable names are case-insensitive, so it overwrote the
+        -All switch. Names come in as a parameter now and there is no switch to
+        overwrite.
+    #>
+    param([string[]] $Names = @(), [switch] $All)
+    $registry = @(Read-Registry)
+    if ($All) { return $registry }
+    $hits = New-Object System.Collections.Generic.List[object]
+    foreach ($w in @($Names)) {
         $e = $registry | Where-Object { $_.instanceName -eq $w } | Select-Object -First 1
-        if (-not $e) { throw "Instance '$w' is not provisioned. Run -List, or provision it with -Provision -Instance $w." }
-        $hits += $e
+        if (-not $e) {
+            $known = (@($registry | ForEach-Object { $_.instanceName }) -join ', ')
+            if (-not $known) { $known = '(none)' }
+            throw "Instance '$w' is not provisioned. Known instances: $known. Create it with: testrig create -Target $w [-Role host], or list them with: testrig list"
+        }
+        $hits.Add($e)
     }
-    return $hits
+    return $hits.ToArray()
 }
 
 $script:RootFallbackAnnounced = @{}
@@ -628,8 +271,8 @@ function Resolve-InstanceRoot {
         $Entry,
         [switch] $NoEntryLookup
     )
-    if ($InstancesRootTyped) {
-        return [pscustomobject]@{ Root = $InstancesDir; Source = '-InstancesRoot (typed on this command)' }
+    if ($script:CliInstancesRootTyped) {
+        return [pscustomobject]@{ Root = $script:CliInstancesDir; Source = '-InstancesRoot (typed on this command)' }
     }
     if (-not $PSBoundParameters.ContainsKey('Entry') -and -not $NoEntryLookup) {
         $Entry = Get-InstanceEntry -Name $Name
@@ -640,9 +283,9 @@ function Resolve-InstanceRoot {
     }
     if ($Entry -and -not $script:RootFallbackAnnounced.ContainsKey($Name)) {
         $script:RootFallbackAnnounced[$Name] = $true
-        Write-Host "[Rig] Instance '$Name' was provisioned before the instances root was recorded; using $InstancesDirSource ($InstancesDir). Re-record it with: client-rig.ps1 -Provision -Force -As <id> -Instance $Name"
+        Write-Host "[Rig] Instance '$Name' was provisioned before the instances root was recorded; using $($script:CliInstancesDirSource) ($($script:CliInstancesDir)). Re-record it with: testrig create -Target $Name -Force -As <id>"
     }
-    return [pscustomobject]@{ Root = $InstancesDir; Source = $InstancesDirSource }
+    return [pscustomobject]@{ Root = $script:CliInstancesDir; Source = $script:CliInstancesDirSource }
 }
 
 function Get-InstancePaths {
@@ -671,40 +314,27 @@ function Get-InstancePaths {
         BepInEx    = Join-Path $tree 'BepInEx'
         Root       = $resolved.Root
         RootSource = $resolved.Source
-        Data       = Join-Path $DataDir $Name
-        Manifest   = Join-Path $DataDir "$Name\instance.json"
-        PidFile    = Join-Path $DataDir "$Name\game.pid"
-        Settings   = Join-Path $DataDir "$Name\setting.xml"
-        UserData   = Join-Path $DataDir "$Name\userdata"
-        LogDir     = Join-Path $DataDir "$Name\logs"
+        Data       = Join-Path $script:CliDataDir $Name
+        Manifest   = Join-Path $script:CliDataDir "$Name\instance.json"
+        PidFile    = Join-Path $script:CliDataDir "$Name\game.pid"
+        Settings   = Join-Path $script:CliDataDir "$Name\setting.xml"
+        UserData   = Join-Path $script:CliDataDir "$Name\userdata"
+        LogDir     = Join-Path $script:CliDataDir "$Name\logs"
     }
 }
 
-# Both shared libraries default to the rig root, which is right for everything except the instance
-# tree location: -InstancesRoot is a launcher flag neither of them can see. Re-point them here, once
-# the registry helpers above exist, so the reset looks inside the trees this rig actually has and the
-# lock's orphan scan watches the same ones. Initialize-RigResetPaths re-points the lock library too.
+# The shared libraries are re-pointed at the rig's real instance root inside
+# Initialize-RigClient, which testrig.ps1 calls after dot-sourcing this file. It
+# used to happen here, at dot-source time, which meant the reset's view of the rig
+# depended on the ORDER the launcher's own statements ran in.
 #
-# A recorded root wins over the launcher default here, and only here: the shared libraries take ONE
-# root, and a rig whose instances were built under -InstancesRoot has its trees there whether or not
-# this shell happens to have the environment variable set. $InstancesDir itself is deliberately NOT
-# touched, so the launcher's own fallback for an entry that records nothing stays exactly what it was
-# and the note it prints names the real source rather than a sibling's root.
-#
-# The reset resolves each instance's tree from the registry itself, so a rig split across two roots
-# (only reachable by moving one instance with -InstancesRoot) still resets correctly; what the single
-# value costs there is the orphan scan missing a stray process out of the second root, which is a
-# reporting gap rather than a safety one.
-$LibInstanceRoot = $InstancesDir
-if (-not $InstancesRootTyped) {
-    $recordedRoots = @(Read-Registry |
-        ForEach-Object { [string](Get-EntryValue $_ 'instancesRoot' '') } |
-        Where-Object { $_ } | Select-Object -Unique)
-    if ($recordedRoots.Count -ge 1) { $LibInstanceRoot = $recordedRoots[0] }
-}
-Initialize-RigResetPaths -RigHome $TestRigRoot -InstanceRoot $LibInstanceRoot
+# The reset resolves each instance's tree from the registry itself, so a rig split
+# across two roots (only reachable by moving one instance with -InstancesRoot)
+# still resets correctly; what the single value costs there is the orphan scan
+# missing a stray process out of the second root, which is a reporting gap rather
+# than a safety one.
 
-# ---- provisioning ---------------------------------------------------------
+# ---- create (provisioning) ------------------------------------------------
 
 function Copy-LinkedTree {
     param(
@@ -749,10 +379,10 @@ function Assert-GamePortFree {
         [Parameter(Mandatory)] [int] $Candidate
     )
     if ($Candidate -lt 1024 -or $Candidate -gt 65535) {
-        throw "-GamePort $Candidate is out of range. Use 1024-65535; the rig's own band is $GamePortBase plus the instance index."
+        throw "-GamePort $Candidate is out of range. Use 1024-65535; the rig's own band is $script:CliGamePortBase plus the instance index."
     }
-    if ($ReservedGamePorts.ContainsKey($Candidate)) {
-        throw "-GamePort $Candidate is $($ReservedGamePorts[$Candidate]). Two RakNet sockets on one port do not conflict, they coexist and route by destination address, so a joiner would reach whichever one won and the test would be wrong with no error anywhere. Pick another port; the rig's own band is $GamePortBase plus the instance index."
+    if ($script:CliReservedGamePorts.ContainsKey($Candidate)) {
+        throw "-GamePort $Candidate is $($script:CliReservedGamePorts[$Candidate]). Two RakNet sockets on one port do not conflict, they coexist and route by destination address, so a joiner would reach whichever one won and the test would be wrong with no error anywhere. Pick another port; the rig's own band is $script:CliGamePortBase plus the instance index."
     }
     foreach ($e in $Registry) {
         if ($e.instanceName -eq $InstanceName) { continue }
@@ -766,14 +396,47 @@ function Assert-GamePortFree {
     }
 }
 
-function Invoke-Provision {
-    if (-not $Instance) { throw "-Provision requires -Instance <name>." }
-    if ($Instance.Contains(',')) { throw "-Provision takes one instance at a time." }
-    # Held across the whole read-modify-write of the registry below, which is what stops two
-    # concurrent provisions from selecting the same index and therefore the same ClientId.
-    Assert-MutatingAllowed -Action 'Provision'
+function Invoke-RigClientCreate {
+    <#
+        Build or rebuild ONE instance: hard-link the game tree, point it at its own
+        save root, seed its mod set, write its manifest and a provision stamp.
 
-    $source = Get-StationeersPath
+        A rebuild (-Force) replaces the instance TREE. It does NOT reset
+        data/<instance>/: the save root, the logs, the PID file and the game-written
+        setting.xml all survive, and only userdata/mods is rewritten. That is
+        deliberate (a staged save must not evaporate on a plugin rebuild) but it
+        does mean a rebuild is not a clean slate. Stopping an instance clears
+        StartLocalHost out of setting.xml for the one case where a stale value would
+        silently change what the next run is.
+
+        -Typed is the caller's "which flags were actually passed" map. It has to be
+        a parameter because $PSBoundParameters is per-scope: a function gets its own
+        empty copy, and every ContainsKey test inside one silently answers false.
+        -Role and -GamePort need it so a rebuild does not demote a host or move its
+        port out from under a joiner.
+    #>
+    param(
+        [string] $As,
+        [Parameter(Mandatory)] [string] $Instance,
+        [switch] $Force,
+        [hashtable] $Typed = @{},
+        [string] $Role = 'client',
+        [int] $Port = 0,
+        [int] $GamePort = 0,
+        [string] $ClientId,
+        [string] $Username,
+        [int] $Width = 800,
+        [int] $Height = 600,
+        [bool] $ForceGameplayInput = $true,
+        [bool] $SeedMods = $true,
+        [string] $Desktop = 'StationeersRig'
+    )
+    if ($Instance.Contains(',')) { throw "'create' takes one instance at a time." }
+    # Held across the whole read-modify-write of the registry below, which is what stops two
+    # concurrent creates from selecting the same index and therefore the same ClientId.
+    Assert-RigClientMutatingAllowed -Action 'create' -As $As
+
+    $source = Get-RigStationeersPath
 
     # Index decides the defaults for port and identity, so provisioning three instances with no
     # flags produces three distinct, non-colliding ones. Read before the paths, because a rebuild
@@ -790,34 +453,34 @@ function Invoke-Provision {
     # root for the same reason it keeps -Role and -GamePort: -Provision -Force is the routine way to
     # pick up a new plugin build, and relocating an instance in passing would be a trap.
     $recordedRoot = [string](Get-EntryValue $existing 'instancesRoot' '')
-    $effRoot = if ($InstancesRootTyped) { $InstancesDir }
+    $effRoot = if ($script:CliInstancesRootTyped) { $script:CliInstancesDir }
                elseif ($recordedRoot)   { $recordedRoot }
-               else                     { $InstancesDir }
-    if ($InstancesRootTyped -and $recordedRoot -and $recordedRoot -ne $effRoot) {
+               else                     { $script:CliInstancesDir }
+    if ($script:CliInstancesRootTyped -and $recordedRoot -and $recordedRoot -ne $effRoot) {
         Write-Warning "[Provision] '$Instance' was built under $recordedRoot and -InstancesRoot moves it to $effRoot. The old tree at $(Join-Path $recordedRoot $Instance) is NOT deleted (this launcher only ever removes the tree it is about to rebuild); delete it by hand once the rebuild succeeds."
     }
 
     $p = Get-InstancePaths -Name $Instance -Root $effRoot
     if ((Test-Path $p.Tree) -and -not $Force) {
-        throw "Instance '$Instance' already exists at $($p.Tree). Pass -Force to rebuild it, or -Remove -Instance $Instance to delete it first."
+        throw "Instance '$Instance' already exists at $($p.Tree). Pass -Force to rebuild it, or delete it first: testrig remove -Target $Instance -As <id>"
     }
-    if (Test-PidAlive (Get-PidFromFile $p.PidFile)) {
-        throw "Instance '$Instance' is running. Stop it first: client-rig.ps1 -Stop -Instance $Instance"
+    if (Test-RigClientProcessAlive (Get-RigPidFromFile $p.PidFile)) {
+        throw "Instance '$Instance' is running. Stop it first: testrig stop -Target $Instance -As <id>"
     }
 
-    $effPort = if ($Port -gt 0) { $Port } else { $ControlPortBase + $index }
+    $effPort = if ($Port -gt 0) { $Port } else { $script:CliControlPortBase + $index }
     $effId   = if ($ClientId) { $ClientId } else { (900000000000 + $index).ToString() }
     $effName = if ($Username) { $Username } else { $Instance }
 
     # Role and game port are KEPT across a rebuild unless they are typed again. -Provision -Force is
     # the routine way to pick up a new plugin build, and silently demoting a host to a client (or
     # moving its game port out from under a joiner's -Body) on the way through would be a trap.
-    $effRole = if ($ScriptBoundParams.ContainsKey('Role')) { $Role }
+    $effRole = if ($Typed.ContainsKey('Role')) { $Role }
                elseif ($existing) { [string](Get-EntryValue $existing 'role' $Role) }
                else { $Role }
     $effGamePort = if ($GamePort -gt 0) { $GamePort }
-                   elseif ($existing) { [int](Get-EntryValue $existing 'gamePort' ($GamePortBase + $index)) }
-                   else { $GamePortBase + $index }
+                   elseif ($existing) { [int](Get-EntryValue $existing 'gamePort' ($script:CliGamePortBase + $index)) }
+                   else { $script:CliGamePortBase + $index }
 
     [uint64]$parsedId = 0
     if (-not [uint64]::TryParse($effId, [ref]$parsedId)) {
@@ -927,7 +590,7 @@ function Invoke-Provision {
     }
     $registry = @($registry | Where-Object { $_.instanceName -ne $Instance }) + $entry
     Write-Registry $registry
-    Write-AllManifests
+    Write-AllManifests -Desktop $Desktop
     Write-ProvisionStamp -Paths $p -Entry $entry -SourceInstall $source
 
     Write-Host ""
@@ -943,23 +606,25 @@ function Invoke-Provision {
     Write-Host "[Provision]   saveRoot    : $($p.UserData)"
     Write-Host "[Provision]   manifest    : $($p.Manifest)"
     if ($effRole -eq 'host') {
-        Write-Host "[Provision] Next: -Start, -Wait -Stage menu, then -Call -Path /host. Joiners reach it at 127.0.0.1:$effGamePort."
-        Write-Host "[Provision]       The host must be in its world BEFORE any joiner connects."
+        Write-Host "[Provision] Next: testrig start -Target $Instance, testrig wait -Target $Instance -Stage menu,"
+        Write-Host "[Provision]       then testrig call -Target $Instance -Path /host -Body '{`"world`":`"Lunar`"}'."
+        Write-Host "[Provision]       Joiners reach it at 127.0.0.1:$effGamePort, and the host must be in its world BEFORE any joiner connects."
     }
     else {
-        Write-Host "[Provision] Next: client-rig.ps1 -Start -Instance $Instance"
+        Write-Host "[Provision] Next: testrig start -Target $Instance -As <id>"
     }
+    return $entry
 }
 
 function Invoke-DeployPlugin {
     param([Parameter(Mandatory)] $Paths)
-    if (-not (Test-Path $PluginDll)) {
-        Write-Warning "[$($Paths.Name)] ClientDriver.dll not found at $PluginDll. Build it first: dotnet build $PluginSln -c Release. The instance will run without a control plane."
+    if (-not (Test-Path $script:CliPluginDll)) {
+        Write-Warning "[$($Paths.Name)] ClientDriver.dll not found at $($script:CliPluginDll). Build it first: dotnet build $($script:CliPluginSln) -c Release. The instance will run without a control plane."
         return
     }
     $dst = Join-Path $Paths.BepInEx 'plugins\ClientDriver'
     New-Item -ItemType Directory -Force -Path $dst | Out-Null
-    Copy-Item $PluginDll (Join-Path $dst 'ClientDriver.dll') -Force
+    Copy-Item $script:CliPluginDll (Join-Path $dst 'ClientDriver.dll') -Force
     # BepInEx/plugins/ is loaded by the Chainloader directly, before StationeersLaunchPad runs.
     # The DLL must not ALSO sit under a StationeersLaunchPad mod folder: two loaders means Awake
     # twice and every Harmony patch registered twice.
@@ -969,7 +634,7 @@ function Invoke-DeployPlugin {
 function Invoke-SeedMods {
     param([Parameter(Mandatory)] $Paths)
 
-    $userData = Get-UserDataPath
+    $userData = Get-RigUserDataPath
     $srcMods  = Join-Path $userData 'mods'
     $srcCfg   = Join-Path $userData 'modconfig.xml'
     if (-not (Test-Path $srcCfg)) {
@@ -979,15 +644,26 @@ function Invoke-SeedMods {
 
     Write-Host "[Provision] Seeding mods from the user data folder (read-only source) ..."
     $dstMods = Join-Path $Paths.UserData 'mods'
+    $srcModsPresent = Test-Path $srcMods
     if (Test-Path $dstMods) { Remove-Item $dstMods -Recurse -Force }
-    if (Test-Path $srcMods) { Copy-Item $srcMods $dstMods -Recurse -Force }
+    if ($srcModsPresent)    { Copy-Item $srcMods $dstMods -Recurse -Force }
     else { New-Item -ItemType Directory -Force -Path $dstMods | Out-Null }
 
     # Local mod entries are absolute paths, and StationeersLaunchPad prunes entries whose folder is
     # not under the active save path, so each instance needs its own copy and its own modconfig.
-    $xml = Get-Content $srcCfg -Raw
-    if (Test-Path $srcMods) { $xml = $xml.Replace($srcMods, $dstMods) }
-    Set-Content -Path (Join-Path $Paths.UserData 'modconfig.xml') -Value $xml -Encoding utf8 -NoNewline
+    #
+    # Parsed and rewritten through the one shared reader and writer rather than
+    # string-replaced, which is what made this a third modconfig format. DISABLED
+    # entries are carried through as disabled rather than dropped: re-enabling one
+    # is a normal thing to do, and the server half's bake filters them out itself.
+    $entries = @(Get-RigModConfigEntries -Path $srcCfg | ForEach-Object {
+        $path = [string]$_.Path
+        if ($srcModsPresent -and $path -and $path.StartsWith($srcMods, [StringComparison]::OrdinalIgnoreCase)) {
+            $path = $dstMods + $path.Substring($srcMods.Length)
+        }
+        [pscustomobject]@{ Kind = $_.Kind; Enabled = $_.Enabled; Path = $path; WorkshopId = $_.WorkshopId }
+    })
+    Write-RigModConfigFile -Path (Join-Path $Paths.UserData 'modconfig.xml') -Entries $entries
 
     foreach ($f in @('modrepos.xml', 'PlayerCosmetics_0.xml')) {
         $src = Join-Path $userData $f
@@ -1002,26 +678,13 @@ function Invoke-SeedMods {
 # the developer's tier-1 save folder is exactly the drift that ends with somebody's saves overwritten.
 # Do not re-add a local copy here.
 
-function Get-SourceInstallVersion {
-    # The game version the instance was linked from. version.txt is the same string the repository
-    # keys .work/decomp/<game-version>/ off; the executable's own version is the fallback.
-    param([Parameter(Mandatory)] [string] $SourceInstall)
-    try {
-        $versionTxt = Join-Path $SourceInstall 'version.txt'
-        if (Test-Path $versionTxt) {
-            $v = (Get-Content -Raw -ErrorAction Stop $versionTxt).Trim()
-            if ($v) { return $v }
-        }
-    } catch { }
-    try {
-        $exe = Join-Path $SourceInstall 'rocketstation.exe'
-        if (Test-Path $exe) {
-            $v = (Get-Item $exe).VersionInfo.FileVersion
-            if ($v) { return $v.Trim() }
-        }
-    } catch { }
-    return 'unknown'
-}
+# The local game-version reader is gone. It read a version.txt at the install root
+# FIRST and fell back to the executable's Unity FileVersion. No Stationeers install
+# has ever contained a version.txt, so every stamp this rig has ever written
+# recorded the engine version, while the baseline recorded the version.ini string.
+# The two are different strings, so nothing could compare a stamp against a
+# baseline and a game update could never mark anything stale. Get-RigInstallVersion
+# in lib/common.ps1 reads version.ini, which is where the number actually is.
 
 function Write-ProvisionStamp {
     # When this instance was built, and out of what. Nothing used to record either, so "is this
@@ -1035,8 +698,8 @@ function Write-ProvisionStamp {
     )
     $pluginBuilt = ''
     try {
-        if (Test-Path $PluginDll) {
-            $pluginBuilt = (Get-Item $PluginDll).LastWriteTimeUtc.ToString("yyyy-MM-ddTHH:mm:ss'Z'")
+        if (Test-Path $script:CliPluginDll) {
+            $pluginBuilt = (Get-Item $script:CliPluginDll).LastWriteTimeUtc.ToString("yyyy-MM-ddTHH:mm:ss'Z'")
         }
     } catch { }
 
@@ -1050,7 +713,7 @@ function Write-ProvisionStamp {
         # for a human diagnosing an instance whose tree is not where they expected.
         tree            = [string]$Paths.Tree
         sourceInstall   = $SourceInstall
-        sourceVersion   = (Get-SourceInstallVersion -SourceInstall $SourceInstall)
+        sourceVersion   = (Get-RigInstallVersion -InstallDir $SourceInstall)
         pluginBuiltUtc  = $pluginBuilt
         launcherHostname = $env:COMPUTERNAME
     }
@@ -1065,6 +728,7 @@ function Write-AllManifests {
     # Every manifest carries the whole rig's port list, so an instance can ask its siblings who
     # they are. Rewritten for every instance whenever the registry changes, which is why this is
     # one function rather than a step inside provisioning.
+    param([string] $Desktop = 'StationeersRig')
     $registry = Read-Registry
     $ports = @($registry | ForEach-Object { [int]$_.port })
     foreach ($e in $registry) {
@@ -1083,7 +747,7 @@ function Write-AllManifests {
             gameplayInput = [ordered]@{ force = [bool]$e.forceGameplayInput; everywhere = $false }
             savePath      = $p.UserData
             desktop       = $Desktop
-            rigRoot       = $RigRoot
+            rigRoot       = $script:CliRoot
             peerPorts     = $ports
         }
         $tmp = "$($p.Manifest).tmp"
@@ -1183,23 +847,36 @@ public static class ClientRigLauncher
 '@
 }
 
-function Format-Arg {
-    param([string] $Value)
-    if ($Value -match '[\s"]') { return '"' + ($Value -replace '"', '\"') + '"' }
-    return $Value
-}
+function Invoke-RigClientStart {
+    <#
+        Launch each selected instance on the rig's isolated desktop.
 
-function Invoke-Start {
-    Assert-MutatingAllowed -Action 'Start'
+        A client instance boots TO THE MENU and no further. It has no way to take a
+        world on its command line (-settings SavePath is forbidden here, because
+        StationeersLaunchPad then rewrites the developer's shared modconfig.xml with
+        every Local entry deleted), so entering a world is a separate step over the
+        control plane. That is the opposite of the dedicated server, which cannot
+        start without a world at all, and it is why the two halves cannot share one
+        meaning for 'start'.
+    #>
+    param(
+        [string] $As,
+        $Entries = @(),
+        [string] $Desktop = 'StationeersRig',
+        [int] $Width = 800,
+        [int] $Height = 600
+    )
+    Assert-RigClientMutatingAllowed -Action 'start' -As $As
     Add-LauncherType
-    $targets = Resolve-Targets
+    $targets = @($Entries)
+    if ($targets.Count -eq 0) { Write-Host "[Start] No client instances selected."; return }
 
     # Pre-flight the whole set BEFORE launching anything, and refuse rather than skip.
     #
     # Both of these used to be a warning and a `continue`. A skipped start is the worst possible
     # outcome: -Start -All comes back looking successful, the instance that was skipped is still in
     # whatever world it was already in (or is not there at all), and every assertion afterwards runs
-    # against a rig that is not the one the caller asked for. dedicated-server.ps1 -Start throws on
+    # against a rig that is not the one the caller asked for. The server half throws on
     # an already-running server for exactly this reason; this half now agrees.
     foreach ($e in $targets) {
         $p = Get-InstancePaths -Name $e.instanceName -Entry $e
@@ -1208,15 +885,15 @@ function Invoke-Start {
             # message is that the tree is somewhere else entirely: an instance built under
             # -InstancesRoot used to be looked for under instances/ beside this script, and the
             # message read as "unprovisioned" when the tree was sitting on another volume.
-            throw "[Start] Instance '$($e.instanceName)' is in the registry but has no tree at $($p.Exe). That location came from $($p.RootSource). Rebuild it there (client-rig.ps1 -Provision -Force -As <id> -Instance $($e.instanceName)), or name the root the tree actually has with -InstancesRoot <root>, which also records it for every later command."
+            throw "[Start] Instance '$($e.instanceName)' is in the registry but has no tree at $($p.Exe). That location came from $($p.RootSource). Rebuild it there (testrig create -Target $($e.instanceName) -Force -As <id>), or name the root the tree actually has with -InstancesRoot <root>, which also records it for every later command."
         }
-        $running = Get-PidFromFile $p.PidFile
-        if (Test-PidAlive $running) {
-            throw "[Start] Instance '$($e.instanceName)' is already running (PID $running). Nothing was started. Stop it first (client-rig.ps1 -Stop -As <id> -Instance $($e.instanceName)) or check -Status. A start that silently skipped would leave it in whatever world it is already in."
+        $running = Get-RigPidFromFile $p.PidFile
+        if (Test-RigClientProcessAlive $running) {
+            throw "[Start] Instance '$($e.instanceName)' is already running (PID $running). Nothing was started. Stop it first (testrig stop -Target $($e.instanceName) -As <id>) or check: testrig status. A start that silently skipped would leave it in whatever world it is already in."
         }
         if ($null -ne $running) {
             # A pid file whose process is gone, or whose number now belongs to something that is not
-            # the game. Test-PidAlive checks the process image for exactly this case: refusing to
+            # the game. Test-RigClientProcessAlive checks the process image for exactly this case: refusing to
             # start over a recycled id would make a crashed instance unstartable until somebody
             # deleted the file by hand.
             Write-Host "[$($e.instanceName)] Stale game.pid ignored: PID $running is not a live game client. This start replaces it."
@@ -1240,7 +917,7 @@ function Invoke-Start {
         $p = Get-InstancePaths -Name $e.instanceName -Entry $e
 
         New-Item -ItemType Directory -Force -Path $p.Data, $p.UserData, $p.LogDir | Out-Null
-        Write-AllManifests
+        Write-AllManifests -Desktop $Desktop
 
         $stamp    = Get-Date -Format 'yyyyMMdd-HHmmss'
         $unityLog = Join-Path $p.LogDir "unity-$stamp.log"
@@ -1260,7 +937,7 @@ function Invoke-Start {
             '-screen-width', $Width, '-screen-height', $Height, '-screen-fullscreen', '0'
         )
 
-        $commandLine = ((@($p.Exe) + $argv) | ForEach-Object { Format-Arg ([string]$_) }) -join ' '
+        $commandLine = ConvertTo-RigCommandLine -Arguments (@($p.Exe) + $argv)
 
         # The plugin finds its manifest through this variable first, and through the working
         # directory second. CreateProcessW with a null environment block inherits ours.
@@ -1283,7 +960,7 @@ function Invoke-Start {
     }
 
     Write-Host "[Start] Boot to the main menu takes roughly 100 seconds. Wait for it with:"
-    Write-Host "[Start]   client-rig.ps1 -Wait -All -Stage menu"
+    Write-Host "[Start]   testrig wait -Target clients -Stage menu"
 
     # The one ordering rule that cannot be enforced from out here, stated where it is needed rather
     # than left to a document nobody opens: a joiner has nothing to reach until the host is hosting,
@@ -1295,9 +972,9 @@ function Invoke-Start {
         $h  = $hostTargets[0]
         $hp = [int](Get-EntryValue $h 'gamePort' 0)
         Write-Host "[Start] This set contains a host. The host must be IN ITS WORLD before any joiner connects:"
-        Write-Host "[Start]   client-rig.ps1 -Wait -Instance $($h.instanceName) -Stage menu"
-        Write-Host "[Start]   client-rig.ps1 -Call -As <id> -Instance $($h.instanceName) -Path /host -Body '{`"world`":`"Lunar`"}'"
-        Write-Host "[Start]   client-rig.ps1 -Wait -Instance $($h.instanceName) -Stage inWorld -WaitSeconds 600"
+        Write-Host "[Start]   testrig wait -Target $($h.instanceName) -Stage menu"
+        Write-Host "[Start]   testrig call -Target $($h.instanceName) -As <id> -Path /host -Body '{`"world`":`"Lunar`"}'"
+        Write-Host "[Start]   testrig wait -Target $($h.instanceName) -Stage inWorld -WaitSeconds 600"
         Write-Host "[Start]   then each joiner: -Path /connect -Body '{`"address`":`"127.0.0.1`",`"port`":$hp}'"
     }
 }
@@ -1375,8 +1052,8 @@ function Get-InstanceRuntime {
     # Pass 1: process liveness plus one /status, with no interpretation beyond the live role.
     param([Parameter(Mandatory)] $Entry)
     $paths  = Get-InstancePaths -Name $Entry.instanceName -Entry $Entry
-    $procId = Get-PidFromFile $paths.PidFile
-    $alive  = Test-PidAlive $procId
+    $procId = Get-RigPidFromFile $paths.PidFile
+    $alive  = Test-RigClientProcessAlive $procId
     $status = $null
     $err    = ''
     if ($alive) {
@@ -1582,7 +1259,7 @@ function Disconnect-Instance {
 function Save-InstanceWorld {
     # Ask an instance to write its world, then wait for the plugin to say it saw the save land.
     #
-    # Same contract as dedicated-server.ps1 -Save, for the same reason: "the request was accepted"
+    # Same contract as the server half's save, for the same reason: "the request was accepted"
     # and "the world is on disk" are different facts, and only the second one survives a teardown.
     # With no confirmation this WARNS and returns $false. It never reports a success it did not see;
     # a caller that must not proceed without a saved world checks the return value.
@@ -1605,7 +1282,7 @@ function Save-InstanceWorld {
         # A refusal and a timeout both come back as 409 with the plugin's own explanation in the
         # body, so that explanation is what gets reported rather than the status code.
         Write-Warning "[$($Runtime.Name)] Save NOT confirmed: $(Get-ControlErrorDetail -ErrorRecord $_)"
-        Write-Warning "[$($Runtime.Name)] Treat this world as NOT saved. client-rig.ps1 -Logs -Instance $($Runtime.Name), or GET /console/log?contains=Saved, shows what the game actually did."
+        Write-Warning "[$($Runtime.Name)] Treat this world as NOT saved. testrig logs -Target $($Runtime.Name), or GET /console/log?contains=Saved, shows what the game actually did."
         return $false
     }
     if ($null -ne $r.ok -and -not $r.ok) {
@@ -1642,8 +1319,8 @@ function Stop-InstanceProcess {
     # Ask through the control plane, then kill after the grace period. Lifted out of Invoke-Stop
     # unchanged so the ordered teardown can call it after the role-specific steps.
     param([Parameter(Mandatory)] $Runtime, [int] $TimeoutSec = 30)
-    $procId = Get-PidFromFile $Runtime.Paths.PidFile
-    if (-not (Test-PidAlive $procId)) {
+    $procId = Get-RigPidFromFile $Runtime.Paths.PidFile
+    if (-not (Test-RigClientProcessAlive $procId)) {
         Remove-Item -Force -ErrorAction SilentlyContinue $Runtime.Paths.PidFile
         Write-Host "[$($Runtime.Name)] Not running."
         return
@@ -1658,9 +1335,9 @@ function Stop-InstanceProcess {
     }
 
     $deadline = (Get-Date).AddSeconds($TimeoutSec)
-    while ((Get-Date) -lt $deadline -and (Test-PidAlive $procId)) { Start-Sleep -Milliseconds 500 }
+    while ((Get-Date) -lt $deadline -and (Test-RigClientProcessAlive $procId)) { Start-Sleep -Milliseconds 500 }
 
-    if (Test-PidAlive $procId) {
+    if (Test-RigClientProcessAlive $procId) {
         Write-Warning "[$($Runtime.Name)] Still alive after ${TimeoutSec}s; killing PID $procId."
         Stop-Process -Id $procId -Force -ErrorAction SilentlyContinue
         Start-Sleep -Milliseconds 500
@@ -1698,19 +1375,34 @@ function Reset-StartLocalHostFlag {
     }
 }
 
-function Invoke-Stop {
-    # -Stop is gated exactly like the rest. It is the single most destructive action here: -Stop -All
-    # ends every instance in the rig, and a torn-down client cannot report afterwards that its run
-    # was interrupted, so the results of the interrupted test simply look wrong.
-    $st = Get-RigLockState -CallerId $As
-    if ($st.State -eq 'LiveForeign') {
-        if (-not $BreakLock) {
-            throw "[Stop] Refusing to stop clients held by another live session.`n$(Format-ForeignRigLock $st)`nReport to the user. Only the user may authorize -BreakLock. See TestRig/session.lock.template."
-        }
-        Write-Warning "[Stop] -BreakLock: stopping clients held by another live session ('$($st.Lock['purpose'])')."
-    }
+function Invoke-RigClientStop {
+    <#
+        Host-aware ordered teardown of the selected instances.
 
-    $targets = Resolve-Targets
+        The lock-state gate and the -Release handling are NOT here. testrig.ps1 owns
+        both, because they are rig-wide and because the ordering between them (ask
+        for the lock state BEFORE releasing) has to hold across a stop that touches
+        both halves. This half used to carry its own inline copy of the release
+        predicate, untested, next to the tested Test-RigLockReleasableOnStop the
+        server half called.
+
+        Stopping is the single most destructive action here: a stop of every
+        instance ends whatever was running, and a torn-down client cannot report
+        afterwards that its run was interrupted, so the results of the interrupted
+        test simply look wrong.
+    #>
+    param(
+        [string] $As,
+        $Entries = @(),
+        [int] $TimeoutSeconds = 0,
+        [int] $WaitSeconds = 0,
+        [string] $SaveName,
+        [switch] $Force
+    )
+    if (-not $TimeoutSeconds) { $TimeoutSeconds = Get-RigTimeoutDefaultSeconds }
+    if (-not $WaitSeconds)    { $WaitSeconds    = Get-RigWaitDefaultSeconds }
+    $targets = @($Entries)
+    if ($targets.Count -eq 0) { return }
     $timeout = $TimeoutSeconds
 
     # Classify the WHOLE rig before touching any of it. Registry insertion order used to decide the
@@ -1729,7 +1421,7 @@ function Invoke-Stop {
         if ($reasons.Count -eq 0) { continue }
         $text = "[Stop] '$($rt.Name)' is hosting and something that is not part of this teardown is still attached to it:`n    " + ($reasons -join "`n    ")
         if (-not $Force) {
-            throw "$text`nNothing was stopped. Take the joiners down too (-All, or name them with -Instance), or pass -Force to end the world under them. -Force is the same-session override and never touches the rig lock; taking a lock off another session is -BreakLock."
+            throw "$text`nNothing was stopped. Take the joiners down too (-Target clients, or name them), or pass -Force to end the world under them. -Force is the same-session override and never touches the rig lock; taking a lock off another session is -BreakLock."
         }
         Write-Warning "$text`n[Stop] -Force: ending it under them anyway."
     }
@@ -1776,9 +1468,9 @@ function Invoke-Stop {
         }
 
         if ($rt.OwnsWorld) {
-            if (-not (Save-InstanceWorld -Runtime $rt -SaveName $Name -WaitSec $WaitSeconds)) {
+            if (-not (Save-InstanceWorld -Runtime $rt -SaveName $SaveName -WaitSec $WaitSeconds)) {
                 if (-not $Force) {
-                    throw "[Stop] '$($rt.Name)' holds a world and its save was not confirmed. Stopping the sequence here rather than quitting on top of it. Retry, save it by hand (client-rig.ps1 -Save -As <id> -Instance $($rt.Name)), or pass -Force to quit and accept the loss."
+                    throw "[Stop] '$($rt.Name)' holds a world and its save was not confirmed. Stopping the sequence here rather than quitting on top of it. Retry, save it by hand (testrig save -Target $($rt.Name) -As <id>), or pass -Force to quit and accept the loss."
                 }
                 Write-Warning "[$($rt.Name)] Save not confirmed; -Force, quitting anyway. Treat that world as lost."
             }
@@ -1788,32 +1480,31 @@ function Invoke-Stop {
         Reset-StartLocalHostFlag -Runtime $rt
     }
 
-    if ($Release) {
-        $lock = Read-RigLock
-        if (-not $lock) {
-            Write-Host "[Stop] No rig session lock to release."
-        }
-        elseif (($As -and $lock['owner'] -eq $As) -or $BreakLock -or (Test-RigLockTimerExpired $lock) -or (Test-RigLockIdleCeilingExceeded $lock)) {
-            # The restore runs BEFORE the lock file goes, so it happens while this session still
-            # owns the rig, through the same shared helper -Unlock uses.
-            Invoke-RigReleaseRestore -KeepState:$KeepState
-            Remove-Item -Force -ErrorAction SilentlyContinue (Get-RigLockFilePath)
-            Write-Host "[Stop] Rig session lock released."
-            # -Stop -Release is a session end too, so it gets the same shared-state
-            # drift report -Unlock prints.
-            Write-RigSharedStateDrift
-        }
-        else {
-            Write-Warning "[Stop] -Release ignored: lock held by '$($lock['owner'])', not you. Use -Unlock -As <id>, or get user authorization for -BreakLock."
-        }
-    }
 }
 
-function Invoke-Save {
-    # The client rig's answer to dedicated-server.ps1 -Save, and until now the biggest guarantee gap
-    # between the two halves: this half could create a world and had no way to persist one.
-    Assert-MutatingAllowed -Action 'Save'
-    $targets = Resolve-Targets
+function Invoke-RigClientSave {
+    <#
+        Ask each selected instance to write its world, and wait for the plugin to
+        confirm it landed.
+
+        -SaveName is OPTIONAL here and required on the server half. That asymmetry
+        is real rather than sloppy: a client instance knows the world's current name
+        and can save under it, and a dedicated server's console cannot.
+
+        The confirmation mechanism cannot merge either. This half asks the plugin,
+        which reports 'confirmed', a resolved path and a size; the server half can
+        only grep its log. What IS identical, and stays identical, is the contract:
+        confirmed or warn, never both.
+    #>
+    param(
+        [string] $As,
+        $Entries = @(),
+        [string] $SaveName,
+        [int] $WaitSeconds = 0
+    )
+    Assert-RigClientMutatingAllowed -Action 'save' -As $As
+    if (-not $WaitSeconds) { $WaitSeconds = Get-RigWaitDefaultSeconds }
+    $targets = @($Entries)
     $failed  = 0
     foreach ($e in $targets) {
         $rt = Get-InstanceRuntime -Entry $e
@@ -1830,22 +1521,28 @@ function Invoke-Save {
         if ($rt.LiveRole -eq 'joinedClient') {
             Write-Warning "[$($rt.Name)] is a joined client: the world belongs to whoever hosts it, so saving from here does not persist it. Save on the host instead."
         }
-        if (-not (Save-InstanceWorld -Runtime $rt -SaveName $Name -WaitSec $WaitSeconds)) { $failed++ }
+        if (-not (Save-InstanceWorld -Runtime $rt -SaveName $SaveName -WaitSec $WaitSeconds)) { $failed++ }
     }
     if ($failed -gt 0) {
-        Write-Warning "[Save] $failed of $($targets.Count) instance(s) did not confirm a save. Do not treat those worlds as persisted: -Logs and /console/log show what each instance actually did."
+        Write-Warning "[Save] $failed of $($targets.Count) instance(s) did not confirm a save. Do not treat those worlds as persisted: testrig logs -Target <name>, and GET /console/log, show what each instance actually did."
     }
 }
 
-function Invoke-Remove {
-    if (-not $Instance) { throw "-Remove requires -Instance <name>." }
-    if ($Instance.Contains(',')) { throw "-Remove takes one instance at a time." }
-    # -Remove deletes the instance's own save root under data/<name>/userdata/ along with the tree.
-    # That is tier 3 (agent-managed) by design, but it belongs to whoever holds the lock.
-    Assert-MutatingAllowed -Action 'Remove'
+function Invoke-RigClientRemove {
+    # Deletes the instance's own save root under data/<name>/userdata/ along with the
+    # tree. That is tier 3 (agent-managed) by design, but it belongs to whoever holds
+    # the lock, and for a host that save root IS the world every joiner was in.
+    param(
+        [string] $As,
+        [Parameter(Mandatory)] [string] $Instance,
+        [switch] $Force,
+        [string] $Desktop = 'StationeersRig'
+    )
+    if ($Instance.Contains(',')) { throw "'remove' takes one instance at a time." }
+    Assert-RigClientMutatingAllowed -Action 'remove' -As $As
     $p = Get-InstancePaths -Name $Instance
-    if (Test-PidAlive (Get-PidFromFile $p.PidFile)) {
-        throw "Instance '$Instance' is running. Stop it first: client-rig.ps1 -Stop -Instance $Instance"
+    if (Test-RigClientProcessAlive (Get-RigPidFromFile $p.PidFile)) {
+        throw "Instance '$Instance' is running. Stop it first: testrig stop -Target $Instance -As <id>"
     }
 
     # Same refusal -Stop applies to a host, for the stronger reason: a stopped host can be started
@@ -1874,7 +1571,7 @@ function Invoke-Remove {
     if (Test-Path $p.Tree) { Remove-Item $p.Tree -Recurse -Force }
     if (Test-Path $p.Data) { Remove-Item $p.Data -Recurse -Force }
     Write-Registry (Read-Registry | Where-Object { $_.instanceName -ne $Instance })
-    Write-AllManifests
+    Write-AllManifests -Desktop $Desktop
     Write-Host "[Remove] Instance '$Instance' deleted. The source install is untouched: only hard links and per-instance copies were removed."
 }
 
@@ -1929,18 +1626,18 @@ function Get-ControlTimeoutSeconds {
     #
     # The rule now: the caller's own timeoutMs plus a margin, never below a floor. The margin is what
     # makes the difference between "the plugin gave up and told us why" and "we gave up first".
-    param([string] $Path, [string] $BodyJson)
-    if ($CallTimeoutSeconds -gt 0) { return $CallTimeoutSeconds }
+    param([string] $Path, [string] $BodyJson, [int] $Override = 0)
+    if ($Override -gt 0) { return $Override }
 
     $bare  = ([string]$Path).Split('?')[0].TrimEnd('/')
-    $floor = if ($ControlLongPaths -contains $bare.ToLowerInvariant()) { $ControlLongPathSeconds }
-             else { $ControlTimeoutFloorSeconds }
+    $floor = if ($script:CliControlLongPaths -contains $bare.ToLowerInvariant()) { $script:CliControlLongPathSeconds }
+             else { $script:CliControlTimeoutFloorSeconds }
 
     $asked = Get-RequestedTimeoutMs -Path $Path -BodyJson $BodyJson
     if ($asked -gt 0) {
-        $derived = [int][Math]::Min($ControlTimeoutCeilingSeconds,
-                                    [Math]::Ceiling($asked / 1000.0) + $ControlTimeoutMarginSeconds)
-        if ($derived -ge $ControlTimeoutCeilingSeconds) {
+        $derived = [int][Math]::Min($script:CliControlTimeoutCeilingSeconds,
+                                    [Math]::Ceiling($asked / 1000.0) + $script:CliControlTimeoutMarginSeconds)
+        if ($derived -ge $script:CliControlTimeoutCeilingSeconds) {
             Write-Warning "[Call] The request asks for timeoutMs $asked; capping the launcher's HTTP timeout at ${ControlTimeoutCeilingSeconds}s. The instance may still be working when this returns."
         }
         if ($derived -gt $floor) { return $derived }
@@ -1956,24 +1653,30 @@ function Test-InstanceStage {
         [Parameter(Mandatory)] [int] $Port,
         [Parameter(Mandatory)] [string] $Want
     )
+    # The thresholds themselves live in Test-RigStageReached (lib/common.ps1), pure
+    # and testable, so the magic plugin count is declared once instead of being
+    # copied next to every reader of /status.
     try {
         if ($Want -eq 'ping') { Invoke-Control -Port $Port -Path '/ping' -TimeoutSec 3 | Out-Null; return $true }
         $s = Invoke-Control -Port $Port -Path '/status' -TimeoutSec 5
-        switch ($Want) {
-            'modsLoaded' { return ([int]$s.loadedPluginCount -gt 10) }
-            'menu'       { return ($s.gameInitialized -eq $true -and $s.phase -eq 'menu') }
-            'inWorld'    { return ($s.phase -eq 'inWorld') }
-        }
-        return $false
+        return (Test-RigStageReached -Status $s -Stage $Want)
     }
     catch { return $false }
 }
 
-function Invoke-Wait {
-    $targets = Resolve-Targets
+function Invoke-RigClientWait {
     # Read-only, so it is not gated. It does refresh a lock you already hold, because a barrier can
     # legitimately run longer than the TTL (600 s for inWorld against a 10 min default) and losing
     # the rig halfway through a wait would be absurd. Silent no-op when you hold nothing.
+    param(
+        [string] $As,
+        $Entries = @(),
+        [ValidateSet('ping', 'modsLoaded', 'menu', 'inWorld')] [string] $Stage = 'menu',
+        [int] $WaitSeconds = 0
+    )
+    if (-not $WaitSeconds) { $WaitSeconds = Get-RigWaitDefaultSeconds }
+    $targets = @($Entries)
+    if ($targets.Count -eq 0) { Write-Host "[Wait] No client instances selected."; return }
     Update-RigLockIfMine -CallerId $As
     $timeout = $WaitSeconds
     $deadline = (Get-Date).AddSeconds($timeout)
@@ -2010,16 +1713,44 @@ function Invoke-Wait {
     Write-Host "[Wait] All instances reached '$Stage'."
 }
 
-function Invoke-Broadcast {
-    if (-not $Path) { throw "-Broadcast requires -Path <control-plane path>, for example -Path /config/set." }
-    # Gated because it drives LIVE clients. /quit ends one, and /savepath retargets where one writes
-    # its saves (it only refuses the real user-data folder, and only without force=true).
-    Assert-MutatingAllowed -Action 'Broadcast'
-    $targets = Resolve-Targets
-    # Same derived timeout as -Call, and for the same reason: the fixed 60 s here was even shorter
-    # than -Call's 120 s, so a fan-out of anything that blocks gave up on every instance at once.
-    $timeoutSec = Get-ControlTimeoutSeconds -Path $Path -BodyJson $Body
-    Write-Host "[Broadcast] $Path -> $($targets.Count) instance(s), up to ${timeoutSec}s each"
+function Invoke-RigClientCall {
+    <#
+        One HTTP request to each selected instance's control plane.
+
+        This is the old -Call and -Broadcast in one function, because they were one
+        operation over a different number of targets and the only real difference
+        was that the fan-out had its own, shorter, hardcoded timeout. Naming one
+        target prints the parsed answer; naming several prints one line and one
+        compact object each, and throws if any of them failed, because a partial
+        fan-out leaves the rig in mixed state.
+
+        Gated because it drives LIVE clients: /quit ends one, and /savepath retargets
+        where one writes its saves (it refuses the developer's real user-data folder
+        only while the caller omits force=true).
+    #>
+    param(
+        [string] $As,
+        $Entries = @(),
+        [Parameter(Mandatory)] [string] $Path,
+        [string] $Body,
+        [int] $CallTimeoutSeconds = 0
+    )
+    Assert-RigClientMutatingAllowed -Action 'call' -As $As
+    $targets = @($Entries)
+    if ($targets.Count -eq 0) { throw "'call' needs at least one instance. Name one with -Target <name>, or fan out with -Target clients." }
+    # Derived from the request rather than pinned, so -Path /connect with a body
+    # asking for timeoutMs 300000 actually gets its five minutes.
+    $timeoutSec = Get-ControlTimeoutSeconds -Path $Path -BodyJson $Body -Override $CallTimeoutSeconds
+
+    if ($targets.Count -eq 1) {
+        $e = $targets[0]
+        Write-Host "[Call] $($e.instanceName) $Path (up to ${timeoutSec}s)"
+        $r = Invoke-Control -Port ([int]$e.port) -Path $Path -BodyJson $Body -TimeoutSec $timeoutSec
+        $r | ConvertTo-Json -Depth 10
+        return
+    }
+
+    Write-Host "[Call] $Path -> $($targets.Count) instance(s), up to ${timeoutSec}s each"
     $failed = 0
     foreach ($e in $targets) {
         try {
@@ -2035,22 +1766,8 @@ function Invoke-Broadcast {
         }
     }
     if ($failed -gt 0) {
-        throw "[Broadcast] $failed of $($targets.Count) instance(s) failed. A partial broadcast leaves the rig in mixed state; fix and re-run before drawing any conclusion from a test."
+        throw "[Call] $failed of $($targets.Count) instance(s) failed. A partial fan-out leaves the rig in mixed state; fix and re-run before drawing any conclusion from a test."
     }
-}
-
-function Invoke-Call {
-    if (-not $Path) { throw "-Call requires -Path <control-plane path>." }
-    if (-not $Instance) { throw "-Call requires -Instance <name>." }
-    Assert-MutatingAllowed -Action 'Call'
-    $e = Get-InstanceEntry -Name $Instance
-    if (-not $e) { throw "Instance '$Instance' is not provisioned. Run -List." }
-    # Derived from the request rather than pinned, so -Path /connect -Body '{"timeoutMs":300000}'
-    # actually gets its five minutes. See Get-ControlTimeoutSeconds.
-    $timeoutSec = Get-ControlTimeoutSeconds -Path $Path -BodyJson $Body
-    Write-Host "[Call] $Instance $Path (up to ${timeoutSec}s)"
-    $r = Invoke-Control -Port ([int]$e.port) -Path $Path -BodyJson $Body -TimeoutSec $timeoutSec
-    $r | ConvertTo-Json -Depth 10
 }
 
 function Test-PathFullyQualified {
@@ -2083,15 +1800,15 @@ function Resolve-RigOutFile {
     param([Parameter(Mandatory)] [string] $Value)
     $qualified = Test-PathFullyQualified $Value
     if (-not $qualified -and $Value.Contains(':')) {
-        throw "[Snapshot] -OutFile '$Value' is drive-relative: Windows resolves it against a per-drive working directory, so nothing here can say where it would land. Pass a path relative to the rig folder ($RigRoot), or a full path including the leading backslash."
+        throw "[Snapshot] -OutFile '$Value' is drive-relative: Windows resolves it against a per-drive working directory, so nothing here can say where it would land. Pass a path relative to the rig folder ($script:CliRoot), or a full path including the leading backslash."
     }
-    $target  = if ($qualified) { $Value } else { Join-Path $RigRoot $Value }
+    $target  = if ($qualified) { $Value } else { Join-Path $script:CliRoot $Value }
     $full    = [IO.Path]::GetFullPath($target)
-    $rigBase = [IO.Path]::GetFullPath($RigRoot).TrimEnd('\', '/') + '\'
+    $rigBase = [IO.Path]::GetFullPath($script:CliRoot).TrimEnd('\', '/') + '\'
     $inside  = $full.StartsWith($rigBase, [StringComparison]::OrdinalIgnoreCase)
 
     if (-not $qualified -and -not $inside) {
-        throw "[Snapshot] -OutFile '$Value' climbs out of the rig folder (it resolves to $full). A relative -OutFile is rooted at $RigRoot, which is gitignored deny-all, precisely so a stray snapshot cannot be committed by accident. Drop the '..' segments, or pass a full path if you really mean to write outside the rig."
+        throw "[Snapshot] -OutFile '$Value' climbs out of the rig folder (it resolves to $full). A relative -OutFile is rooted at $script:CliRoot, which is gitignored deny-all, precisely so a stray snapshot cannot be committed by accident. Drop the '..' segments, or pass a full path if you really mean to write outside the rig."
     }
     if (-not $inside) {
         Write-Warning "[Snapshot] $full is outside the rig folder, so the deny-all gitignore does not cover it. Make sure it is not somewhere that gets committed."
@@ -2099,8 +1816,9 @@ function Resolve-RigOutFile {
     return $full
 }
 
-function Invoke-Snapshot {
-    $targets = Resolve-Targets
+function Invoke-RigClientSnapshot {
+    param($Entries = @(), [string] $OutFile)
+    $targets = @($Entries)
     $rows = @()
     foreach ($e in $targets) {
         $row = [ordered]@{ instanceName = $e.instanceName; port = [int]$e.port }
@@ -2122,22 +1840,18 @@ function Invoke-Snapshot {
 
 # ---- status and logs ------------------------------------------------------
 
-function Invoke-Status {
-    # The lock is rig-wide, so this is the same block dedicated-server.ps1 -Status prints.
-    Write-RigLockStatus -CallerId $As
-    Write-Host ""
-
-    $registry = Read-Registry
-    if ($registry.Count -eq 0) {
-        Write-Host "No instances are provisioned. Create one: client-rig.ps1 -Provision -Instance client1"
-        return
-    }
-    $wanted   = if ($Instance) { @($Instance.Split(',') | ForEach-Object { $_.Trim() }) } else { $null }
-    $selected = @($registry | Where-Object { -not $wanted -or ($wanted -contains $_.instanceName) })
+function Write-RigClientStatus {
+    # Per-instance detail only. The rig-wide lock block is printed once by
+    # testrig.ps1, above both halves; printing it here as well is what made "the
+    # first line of status" mean something different depending on which launcher an
+    # agent happened to ask.
+    param($Entries = @())
+    $selected = @($Entries)
     if ($selected.Count -eq 0) {
-        Write-Host "No provisioned instance matches -Instance '$Instance'. Run -List to see what is provisioned."
+        Write-Host "clients: none provisioned. Create one: testrig create -Target client1 -As <id>"
         return
     }
+    Write-Host "clients ($($selected.Count)):"
     $rts = @($selected | ForEach-Object { Get-InstanceRuntime -Entry $_ })
     Set-InstanceRoles -Runtimes $rts | Out-Null
 
@@ -2184,14 +1898,12 @@ function Invoke-Status {
     }
 }
 
-function Invoke-List {
-    $registry = Read-Registry
-    if ($registry.Count -eq 0) {
-        Write-Host "No instances are provisioned."
-        return
-    }
-    # Only instances whose process is alive are probed, so -List on a cold rig makes no HTTP call at
+function Get-RigClientListRows {
+    # Only instances whose process is alive are probed, so listing a cold rig makes no HTTP call at
     # all and still answers instantly. The live columns are '-' for those.
+    param($Entries = @())
+    $registry = @($Entries)
+    if ($registry.Count -eq 0) { return @() }
     $rts = @($registry | Sort-Object index | ForEach-Object { Get-InstanceRuntime -Entry $_ })
     Set-InstanceRoles -Runtimes $rts | Out-Null
 
@@ -2215,13 +1927,18 @@ function Invoke-List {
             provisionedUtc = [string]$rt.Entry.provisionedUtc
         }
     }
-    $rows | Format-Table -AutoSize
+    return $rows
 }
 
-function Invoke-Logs {
-    if (-not $Instance) { throw "-Logs requires -Instance <name>." }
+function Invoke-RigClientLogs {
+    param(
+        [Parameter(Mandatory)] [string] $Instance,
+        [int] $Tail = 50,
+        [string] $Grep
+    )
     $p = Get-InstancePaths -Name $Instance
     $log = Join-Path $p.BepInEx 'LogOutput.log'
+    Write-Host "== $Instance : $log"
     if (-not (Test-Path $log)) {
         Write-Host "No BepInEx log at $log."
         return
@@ -2230,255 +1947,277 @@ function Invoke-Logs {
     else       { Get-Content -Tail $Tail $log }
 }
 
-# ---- session lock actions -------------------------------------------------
 
-function Invoke-Lock {
-    if (-not $Purpose) {
-        throw "-Lock requires -Purpose `"<short reason>`", e.g. -Purpose `"Two-client paint check for SprayPaintPlus`". See TestRig/session.lock.template."
+# ---- update-game / update-mods / deploy -----------------------------------
+#
+# The three concepts the two halves used to spell differently. On this half they
+# were all one flag, -Provision -Force, which is how "refresh the game binaries"
+# and "refresh the mod set" became indistinguishable from each other AND from the
+# server half's -Bootstrap and -SyncMods. Three verbs now, each meaning the same
+# thing on both halves even though the mechanism differs.
+
+function Invoke-RigClientUpdateGame {
+    <#
+        Re-link every selected instance from the developer's install.
+
+        The mechanism is genuinely different from the server half's (a hard-link
+        rebuild here, a SteamCMD download there) and so is the source (the
+        developer's already-updated client install, versus Steam app 600760). What is
+        the same is the intent, so testrig.ps1 fans one verb out over both.
+
+        A rebuild replaces the TREE and keeps data/<instance>/, so saves, logs and the
+        game-written setting.xml survive. Role, ports and identity are kept because
+        they come out of the registry entry.
+    #>
+    param(
+        [string] $As,
+        $Entries = @(),
+        [string] $Desktop = 'StationeersRig'
+    )
+    $targets = @($Entries)
+    if ($targets.Count -eq 0) {
+        Write-Host "[UpdateGame] No client instances are provisioned; nothing to re-link."
+        return
     }
-    # -OnReclaim TEARS DOWN, and it exists now because the idle ceiling changed what "reclaimable"
-    # means on this half. The old comment here said a reclaim could never find an instance running,
-    # because a live instance kept the lock LIVE regardless of the timer. That is still true of the
-    # TTL and is no longer true of the ceiling: past it, a rig is reclaimable BUSY OR NOT, which is
-    # the whole point (a hung agent must delay other agents, not block them). So a reclaim on this
-    # half really can arrive with another session's instances still up, and leaving them running
-    # would hand the next agent a rig with foreign processes on its ports.
-    # -KeepState is forwarded because a NEW lock resets the rig's between-session state
-    # (TestRig/rig-reset.ps1). Opting out is loud on purpose: staging a save or a config value
-    # deliberately has to stay possible without becoming the silent default.
-    $lockArgs = @{
-        Purpose            = $Purpose
-        CallerId           = $As
-        TtlMinutes         = $TtlMinutes
-        IdleCeilingMinutes = $IdleCeilingMinutes
-        BreakLock          = [bool]$BreakLock
-        KeepState          = [bool]$KeepState
-        Tool               = 'client-rig.ps1'
-        OnReclaim          = {
-            # Deliberately NOT the ordered teardown Invoke-Stop performs. That
-            # ordering (joiners disconnect, the world holder saves, the host quits
-            # last) exists to end a test cleanly and preserve its world. Here the
-            # session that owned those instances has been silent for at least the
-            # idle ceiling, there is no test left to preserve, and a hung client's
-            # control plane is exactly the thing likely not to answer. So this
-            # stops them by verified pid and moves on.
-            $live = @(Get-RigClientInstanceStates)
-            if ($live.Count -eq 0) { return }
-            Write-Warning "[Lock] Reclaimed the rig from a session that left $($live.Count) instance(s) running: $(($live | ForEach-Object { $_.Name }) -join ', '). Stopping them, because the restore cannot clear files a running game holds open."
-            foreach ($i in $live) {
-                try {
-                    Stop-Process -Id $i.ProcessId -Force -ErrorAction Stop
-                    Write-Host "[Lock]   stopped $($i.Name) (pid $($i.ProcessId))."
-                }
-                catch { Write-Warning "[Lock]   could not stop $($i.Name) (pid $($i.ProcessId)): $($_.Exception.Message)" }
+    $source = Get-RigStationeersPath
+    Write-Host "[UpdateGame] Re-linking $($targets.Count) instance(s) from $source (game $(Get-RigInstallVersion -InstallDir $source))."
+    # Pre-flight the whole set before rebuilding any of it, for the same reason
+    # starting does: a half-updated rig is worse than one that refused.
+    foreach ($e in $targets) {
+        $name = [string]$e.instanceName
+        $p    = Get-InstancePaths -Name $name -Entry $e
+        if (Test-RigClientProcessAlive (Get-RigPidFromFile $p.PidFile)) {
+            throw "[UpdateGame] Instance '$name' is running. Stop it first: testrig stop -Target $name -As <id>"
+        }
+    }
+    foreach ($e in $targets) {
+        $name = [string]$e.instanceName
+        Write-Host "[UpdateGame] --- $name"
+        Invoke-RigClientCreate -As $As -Instance $name -Force -Desktop $Desktop | Out-Null
+    }
+    Write-Host "[UpdateGame] $($targets.Count) instance(s) re-linked."
+}
+
+function Invoke-RigClientUpdateMods {
+    <#
+        Re-seed each selected instance's mod set from the developer's mod folder.
+
+        Same concept as the server half's update-mods, different destination: each
+        instance gets its own copy under data/<instance>/userdata/mods/ with its own
+        modconfig.xml, because StationeersLaunchPad prunes Local entries whose folder
+        is not under the active save path.
+
+        THIS WIPES userdata/mods/, so anything a deploy put there goes with it. The
+        removal is named rather than left to be discovered.
+    #>
+    param(
+        [string] $As,
+        $Entries = @()
+    )
+    Assert-RigClientMutatingAllowed -Action 'update-mods' -As $As
+    $targets = @($Entries)
+    if ($targets.Count -eq 0) {
+        Write-Host "[UpdateMods] No client instances are provisioned; nothing to seed."
+        return
+    }
+    $repoMods = @(Get-RigDeployableMods)
+    foreach ($e in $targets) {
+        $name = [string]$e.instanceName
+        $p    = Get-InstancePaths -Name $name -Entry $e
+        if (Test-RigClientProcessAlive (Get-RigPidFromFile $p.PidFile)) {
+            throw "[UpdateMods] Instance '$name' is running and holds its mod files open. Stop it first: testrig stop -Target $name -As <id>"
+        }
+        $before = @(Get-ChildItem -LiteralPath (Join-Path $p.UserData 'mods') -Directory -ErrorAction SilentlyContinue | ForEach-Object { $_.Name })
+        Write-Host "[UpdateMods] --- $name"
+        Invoke-SeedMods -Paths $p
+        $lost = @($before | Where-Object { $_ -match '^Local_(.+)$' -and $repoMods -contains $Matches[1] })
+        if ($lost.Count -gt 0) {
+            Write-Warning "[UpdateMods] [$name] the re-seed removed $($lost.Count) folder(s) this repository had deployed: $($lost -join ', '). Re-deploy them: testrig deploy <Mod> -Target $name -As <id>"
+        }
+    }
+    Write-Host "[UpdateMods] $($targets.Count) instance(s) re-seeded."
+}
+
+function Invoke-RigClientDeploy {
+    <#
+        Put one of THIS repository's built mods into each selected instance.
+
+        This did not exist. There was no path at all from Mods/<X>/<X>/bin/<C>/<X>.dll
+        into an instance: a provision seeded from the developer's OWN mod folder, so a
+        driven test measured whatever build happened to be sitting there. A live run
+        did exactly that with a weeks-old copy, and the only reason it was caught is
+        that the file sizes happened to differ visibly. The playtest harness grew
+        Assert-BinaryUnderTest because of it, and that check's remedy text was a
+        manual instruction ("copy the build in after provisioning and before start")
+        because no command did the copy.
+
+        DESTINATION, and why it differs from the server half's. An instance has the
+        same two load paths and the same duplicate-load fatal: BepInEx/plugins/ is
+        loaded by the Chainloader, userdata/mods/Local_<X>/ by StationeersLaunchPad,
+        and a DLL in both makes Awake fire twice and every Harmony patch register
+        twice. ClientDriver takes the plugins path (it has to load before
+        StationeersLaunchPad runs), so a repository mod takes the StationeersLaunchPad
+        path with an About/ mirror and a Local entry in the instance's own
+        modconfig.xml. Any stale copy under BepInEx/plugins/<X>/ is removed, so a tree
+        deployed the other way by hand self-heals.
+    #>
+    param(
+        [string] $As,
+        $Entries = @(),
+        [string[]] $Mods = @(),
+        [string] $Configuration = 'Release'
+    )
+    Assert-RigClientMutatingAllowed -Action 'deploy' -As $As
+    $targets = @($Entries)
+    if ($targets.Count -eq 0) {
+        Write-Host "[Deploy] No client instances selected."
+        return [pscustomobject]@{ Deployed = 0; Skipped = 0 }
+    }
+    $names = @($Mods)
+    if ($names.Count -eq 0) { $names = @(Get-RigDeployableMods) }
+    if ($names.Count -eq 0) { throw "No mods to deploy: Mods/ has no mod folders other than Template." }
+
+    $deployed = 0
+    $skipped  = 0
+    foreach ($e in $targets) {
+        $name = [string]$e.instanceName
+        $p    = Get-InstancePaths -Name $name -Entry $e
+        if (Test-RigClientProcessAlive (Get-RigPidFromFile $p.PidFile)) {
+            throw "[Deploy] Instance '$name' is running and holds its loaded plugin DLLs open; a deploy would fail or leave a half-written file. Stop it first: testrig stop -Target $name -As <id>"
+        }
+        foreach ($modName in $names) {
+            $build = Get-RigModBuild -Mod $modName -Configuration $Configuration
+            if (-not $build) {
+                Write-Warning "[$name] '$modName' not found under Mods/, Plans/ or either half's dev-plugins/. Skipping."
+                $skipped++
+                continue
             }
-            Start-Sleep -Milliseconds 500
+            if (-not (Test-Path -LiteralPath $build.Dll)) {
+                Write-Warning "[$name] the $Configuration build of '$modName' is not at $($build.Dll). Skipping. Build it first."
+                $skipped++
+                continue
+            }
+            $localModDir = Join-Path $p.UserData "mods\Local_$modName"
+            New-Item -ItemType Directory -Force -Path $localModDir | Out-Null
+            if (Test-Path -LiteralPath $build.About) {
+                $aboutDst = Join-Path $localModDir 'About'
+                if (Test-Path $aboutDst) { Remove-Item -Recurse -Force $aboutDst }
+                Copy-Item -Recurse -Path $build.About -Destination $localModDir
+            }
+            else {
+                Write-Warning "[$name] '$modName' has no About/ folder at $($build.About); StationeersLaunchPad may not load it without About.xml."
+            }
+            Copy-Item -Path $build.Dll -Destination (Join-Path $localModDir "$modName.dll") -Force
+
+            $stale = Join-Path $p.BepInEx "plugins\$modName\$modName.dll"
+            if (Test-Path -LiteralPath $stale) {
+                Remove-Item -Force $stale
+                Write-Host "[$name] removed a stale duplicate at BepInEx/plugins/$modName/$modName.dll (two loaders double every Harmony patch)."
+            }
+
+            $added = Add-RigModConfigLocalEntry -Path (Join-Path $p.UserData 'modconfig.xml') -LocalModDir $localModDir
+            if ($added) { Write-Host "[$name] added a modconfig.xml Local entry -> $localModDir" }
+            Write-Host "[$name] $modName -> $localModDir (StationeersLaunchPad load path)"
+            $deployed++
         }
     }
-    if ($ScriptBoundParams.ContainsKey('WaitSeconds')) {
-        # Queueing is opt-in and lives in the shared implementation, so -WaitSeconds is forwarded
-        # only when it was actually typed: its default here is 300 (the readiness barrier), while
-        # the lock's default must stay 0, meaning refuse immediately. Forwarding the default would
-        # silently turn every -Lock into a five-minute wait.
-        #
-        # The two files are versioned together but not written atomically, so a copy of
-        # rig-lock.ps1 without queueing gets a message that names the problem instead of a
-        # parameter-binding error about a switch nobody typed.
-        $newLock = Get-Command New-RigLock -ErrorAction SilentlyContinue
-        if (-not $newLock -or -not $newLock.Parameters.ContainsKey('WaitSeconds')) {
-            throw "-Lock -WaitSeconds needs queueing support in the shared lock implementation at $RigLockLib, and this copy does not have it. Drop -WaitSeconds for the immediate refusal, or update TestRig/rig-lock.ps1."
+    Write-Host "[Deploy] clients: $deployed deployed, $skipped skipped."
+    return [pscustomobject]@{ Deployed = $deployed; Skipped = $skipped }
+}
+
+# ---- version and staleness reporting --------------------------------------
+
+function Get-RigClientVersionReport {
+    # What game version each instance was built from, against what the developer's
+    # install carries now. The provision stamp is the record, and until the version
+    # reader was fixed that stamp recorded the Unity engine version, so this
+    # comparison was not merely absent: it could not have worked.
+    param($Entries = @())
+    $source = 'unknown'
+    try { $source = Get-RigInstallVersion -InstallDir (Get-RigStationeersPath) } catch { $source = 'unknown' }
+    $rows = New-Object System.Collections.Generic.List[object]
+    foreach ($e in @($Entries)) {
+        $name  = [string]$e.instanceName
+        $p     = Get-InstancePaths -Name $name -Entry $e
+        $stamp = Join-Path $p.Data 'provision.stamp'
+        $ver   = 'unknown'
+        if (Test-Path -LiteralPath $stamp) {
+            try { $ver = [string]((Get-Content -Raw -LiteralPath $stamp | ConvertFrom-Json).sourceVersion) } catch { $ver = 'unknown' }
         }
-        $lockArgs['WaitSeconds'] = $WaitSeconds
+        if (-not $ver) { $ver = 'unknown' }
+        $rows.Add([pscustomobject]@{
+            Half    = 'client'
+            Name    = $name
+            Present = (Test-Path $p.Exe)
+            Version = $ver
+            Source  = $source
+            Stale   = ($ver -ne 'unknown' -and $source -ne 'unknown' -and $ver -ne $source)
+            Remedy  = "testrig update-game -Target $name -As <id>"
+        })
     }
-    New-RigLock @lockArgs | Out-Null
+    return $rows.ToArray()
 }
 
-function Invoke-RefreshLock {
-    if (-not $As) { throw "-RefreshLock requires -As <id> (the owner id printed by -Lock)." }
-    # $ScriptBoundParams, not $PSBoundParameters: the latter is per-scope and a function gets its
-    # own (empty) copy, so the test here silently answered false and -RefreshLock -TtlMinutes N
-    # never actually changed the TTL.
-    $refreshArgs = @{ CallerId = $As }
-    if ($ScriptBoundParams.ContainsKey('TtlMinutes'))         { $refreshArgs['TtlMinutes'] = $TtlMinutes }
-    if ($ScriptBoundParams.ContainsKey('IdleCeilingMinutes')) { $refreshArgs['IdleCeilingMinutes'] = $IdleCeilingMinutes }
-    Update-RigLock @refreshArgs
-}
-
-function Invoke-Unlock {
-    $lock = Read-RigLock
-    if ($lock -and ($As -and $lock['owner'] -eq $As)) {
-        $busy = Get-RigBusySignal
-        if ($busy.Busy) {
-            Write-Warning "[Unlock] Releasing while the rig is still busy ($($busy.Detail)). Stop it first: client-rig.ps1 -Stop -All -As $As"
+function Get-RigClientModStaleness {
+    # Seeded mods older than the developer's source tree, and deployed repository
+    # mods older than their build. Reported, never fixed here: the remedy is an
+    # update or a deploy, and deleting a payload to signal staleness would break a
+    # rig rather than describe it.
+    param($Entries = @())
+    $srcMods = Join-Path (Get-RigUserDataPath) 'mods'
+    $rows = New-Object System.Collections.Generic.List[object]
+    foreach ($e in @($Entries)) {
+        $name = [string]$e.instanceName
+        $p    = Get-InstancePaths -Name $name -Entry $e
+        foreach ($d in @(Get-ChildItem -LiteralPath (Join-Path $p.UserData 'mods') -Directory -ErrorAction SilentlyContinue)) {
+            $bare  = $d.Name -replace '^(Workshop|Local)_', ''
+            $build = Get-RigModBuild -Mod $bare -Configuration 'Release'
+            if ($build -and (Test-Path -LiteralPath $build.Dll)) {
+                $srcTime = (Get-Item -LiteralPath $build.Dll).LastWriteTimeUtc
+                $dstTime = Get-RigNewestBuildTime -Path $d.FullName
+                if ($dstTime -and $srcTime -gt $dstTime) {
+                    $rows.Add([pscustomobject]@{
+                        Half = 'client'; Instance = $name; Kind = 'deployed mod'; Name = $d.Name
+                        Deployed = $dstTime; Source = $srcTime
+                        Remedy = "testrig deploy $bare -Target $name -As <id>"
+                    })
+                }
+                continue
+            }
+            $src = Join-Path $srcMods $bare
+            if (-not (Test-Path -LiteralPath $src)) { continue }
+            $srcTime = Get-RigNewestBuildTime -Path $src
+            $dstTime = Get-RigNewestBuildTime -Path $d.FullName
+            if ($srcTime -and $dstTime -and $srcTime -gt $dstTime) {
+                $rows.Add([pscustomobject]@{
+                    Half = 'client'; Instance = $name; Kind = 'seeded mod'; Name = $d.Name
+                    Deployed = $dstTime; Source = $srcTime
+                    Remedy = "testrig update-mods -Target $name -As <id>"
+                })
+            }
         }
     }
-    # -Force is forwarded so the host refusal inside Remove-RigLock can be
-    # overridden from THIS launcher too. Without it the refusal was only
-    # escapable from dedicated-server.ps1, which is the half that has no hosts.
-    # -KeepState is forwarded so a session can hand the rig over dirty ON PURPOSE.
-    # Without it the release restores, which is where the between-session guarantee is actually
-    # earned: the agent that changed things undoes them while it is still the owner and the rig is
-    # provably idle, instead of leaving the bill for whoever turns up next.
-    Remove-RigLock -CallerId $As -BreakLock:$BreakLock -Force:$Force -KeepState:$KeepState
-
-    # Only after a SUCCESSFUL release, because Remove-RigLock throws on a refusal
-    # and a drift report on a lock that is still held would be reporting on a
-    # session that is not over. The shared per-user state (PlayerCookie-v2.xml,
-    # PlayerPrefs, Blueprints) cannot be isolated and is never restored, so naming
-    # what moved at the session boundary is all this can honestly do.
-    Write-RigSharedStateDrift
+    return $rows.ToArray()
 }
 
-function Invoke-CaptureBaseline {
-    # Declare the rig as it stands to be the new definition of clean. The same action exists on
-    # dedicated-server.ps1 and does the same thing: one baseline covers both halves, exactly as one
-    # lock does.
-    Assert-RigLockHeld -Action 'CaptureBaseline' -CallerId $As -Tool 'client-rig.ps1'
-    New-RigBaselineCapture -CapturedBy $As -Force:$Force | Out-Null
+function Stop-RigClientInstancesByPid {
+    # The lock's reclaim path, deliberately NOT the ordered teardown.
+    #
+    # That ordering (joiners disconnect, the world holder saves, the host quits last)
+    # exists to end a test cleanly and preserve its world. Here the session that owned
+    # these instances has been silent for at least the idle ceiling, there is no test
+    # left to preserve, and a hung client's control plane is exactly the thing likely
+    # not to answer. So this stops them by verified pid and moves on.
+    $live = @(Get-RigClientInstanceStates)
+    if ($live.Count -eq 0) { return 0 }
+    Write-Warning "[Lock] Reclaimed the rig from a session that left $($live.Count) instance(s) running: $(($live | ForEach-Object { $_.Name }) -join ', '). Stopping them, because the restore cannot clear files a running game holds open."
+    foreach ($i in $live) {
+        try {
+            Stop-Process -Id $i.ProcessId -Force -ErrorAction Stop
+            Write-Host "[Lock]   stopped $($i.Name) (pid $($i.ProcessId))."
+        }
+        catch { Write-Warning "[Lock]   could not stop $($i.Name) (pid $($i.ProcessId)): $($_.Exception.Message)" }
+    }
+    Start-Sleep -Milliseconds 500
+    return $live.Count
 }
-
-# ---- dispatch -------------------------------------------------------------
-
-if ($Lock)            { Invoke-Lock;            return }
-if ($RefreshLock)     { Invoke-RefreshLock;     return }
-if ($Unlock)          { Invoke-Unlock;          return }
-if ($CaptureBaseline) { Invoke-CaptureBaseline; return }
-if ($Provision)   { Invoke-Provision;   return }
-if ($Start)       { Invoke-Start;       return }
-if ($Stop)        { Invoke-Stop;        return }
-if ($Save)        { Invoke-Save;        return }
-if ($Remove)      { Invoke-Remove;      return }
-if ($Wait)        { Invoke-Wait;        return }
-if ($Broadcast)   { Invoke-Broadcast;   return }
-if ($Call)        { Invoke-Call;        return }
-if ($Snapshot)    { Invoke-Snapshot;    return }
-if ($Status)      { Invoke-Status;      return }
-if ($List)        { Invoke-List;        return }
-if ($Logs)        { Invoke-Logs;        return }
-
-@"
-Stationeers client rig. Provisions and drives N isolated game clients.
-
-Rig conventions:    $(Join-Path $TestRigRoot 'CLAUDE.md')
-Operating manual:   $(Join-Path $RigRoot 'README.md')
-Durable internals:  $(Join-Path $RigRoot 'RESEARCH.md')
-Session-lock rules: $(Join-Path $TestRigRoot 'session.lock.template') (READ FIRST)
-
-Session lock (acquire before ANY mutating command; pass -As <id> thereafter).
-ONE lock covers BOTH TestRig halves, so this id is also what dedicated-server.ps1 expects:
-    client-rig.ps1 -Lock -Purpose "<what you are testing>" [-TtlMinutes 10] [-IdleCeilingMinutes 60] [-WaitSeconds N]
-    client-rig.ps1 -RefreshLock -As <id>                        (while actively testing)
-    client-rig.ps1 -Unlock -As <id>                             (release when done; RESTORES the rig)
-    client-rig.ps1 -CaptureBaseline -As <id> [-Force]           (make this rig the definition of clean)
-    Gated: -Provision, -Start, -Stop, -Save, -Remove, -Broadcast, -Call, -CaptureBaseline.
-    Free:  -Status, -List, -Logs, -Snapshot, -Wait.
-    Two timers: -TtlMinutes is the liveness heartbeat, which a busy rig renews by itself.
-    -IdleCeilingMinutes is the absolute idle ceiling, and past it the lock is reclaimable EVEN ON A
-    BUSY RIG: the reclaiming session stops the instances it finds and restores the rig, so a hung
-    agent delays others instead of blocking them. Only your own commands reset the ceiling, so a
-    forgotten instance can no longer hold the whole rig. -Status prints the countdown.
-    -Lock -WaitSeconds N queues for up to N seconds when another session holds the rig. Default 0,
-    which is today's immediate refusal. It is a queue, not a reservation: no fairness is promised.
-    Breaking another session's LIVE lock (-BreakLock) is human-gated: only on the user's say-so.
-    -BreakLock is NOT -Force. -Force overrides refusals inside your own session and never a lock.
-
-State hygiene: RELEASING the lock restores the rig and ACQUIRING one restores it again as a crash
-backstop, so a test cannot fail on an unrelated test's leftovers. -Unlock -KeepState hands the rig
-over dirty on purpose (the marker stays set, so the next session cleans up); -CaptureBaseline makes
-your current setup the permanent definition of clean instead. Per instance the restore clears
-setting.xml (it carries StartLocalHost),
-data/<instance>/userdata/saves/, the logs, imgui.ini, a stale game.pid, BepInEx config (re-copied
-from the source install, with SavePathOverride re-applied), LogOutput.log, the assembly cache and
-the InspectorPlus request and snapshot folders. Kept: rig.json, instance.json, provision.stamp,
-userdata/mods (staleness is REPORTED, the fix is -Provision -Force) and the hard links.
-    -Lock -KeepState   skip the reset, loudly, when something was staged on purpose.
-    The reset is refused while the rig is in use, and never happens when you re-assert a lock you
-    already hold, so an agent refreshing mid-test cannot wipe its own run.
-    IT RESETS BETWEEN SESSIONS ONLY. A session spans many start/stop cycles by design, so two
-    unrelated tests under ONE lock get no reset between them. Release and re-take the lock when
-    the subject changes.
-
-Instance trees are hard links into the game install, so they must be on the install's volume.
-Set this once per shell (or record it in DEV.md) when the repository is on a different drive:
-    `$env:STATIONEERS_CLIENTRIG_ROOT = '<drive of the game install>\StationeersRig'
-Current instances root: $InstancesDir
-    ($InstancesDirSource)
-    -Provision records the resolved root in the registry entry, so -InstancesRoot is typed once and
-    every later command finds the tree without it. Typing it again overrides the recorded value,
-    which is how a tree is moved. An instance provisioned before the root was recorded falls back to
-    the order above and says so; -Provision -Force records it.
-
-Build the plugin first (the instances get whatever is in bin/Release):
-    dotnet build $PluginSln -c Release
-
-Provision (once per instance; ports and identity default off the instance index):
-    client-rig.ps1 -Provision -As <id> -Instance client1
-    client-rig.ps1 -Provision -As <id> -Instance host1 -Role host        (a listen host; -Role client is the default)
-    client-rig.ps1 -Provision -As <id> -Instance client1 -Force          (rebuild, picks up a new plugin build)
-    Defaults per instance index: control plane $ControlPortBase+i (TCP), game port $GamePortBase+i (UDP),
-    clientId 900000000000+i. Override with -Port / -GamePort / -ClientId / -Username.
-    A game port colliding with another instance, with the dedicated server (28015/28016) or with the
-    Stationeers client's own defaults (27015/27016) is refused: two RakNet sockets on one port do not
-    conflict, they coexist and route by destination address, and the test comes out wrong silently.
-    -Force rebuilds the instance TREE. Everything under data/<instance>/ except userdata/mods is kept,
-    including its saves, its logs and its setting.xml.
-
-Lifecycle:
-    client-rig.ps1 -Start  -As <id> -All                         (isolated desktop, never takes focus)
-    client-rig.ps1 -Wait   -All -Stage menu                      (barrier; roughly 100 s from cold)
-    client-rig.ps1 -Status -As <id> -All                         (role, hosting, game port, connected clients)
-    client-rig.ps1 -Save   -As <id> -Instance host1 [-Name <SaveName>]   (waits for the plugin's confirmation)
-    client-rig.ps1 -Stop   -As <id> -All [-Release]
-    client-rig.ps1 -Remove -As <id> -Instance client1
-    -Start refuses to run over an instance that is already up, rather than skipping it.
-    -Stop is host-aware: joiners leave first (confirmed), then a world holder saves (confirmed), then
-    the host quits. Stopping or removing a host while a joiner is attached is refused; -Force overrides.
-
-Hosting a world from a driven client (a listen host), in the only order that works.
-The host must be IN ITS WORLD before any joiner connects:
-    client-rig.ps1 -Start -As <id> -Instance host1
-    client-rig.ps1 -Wait  -Instance host1 -Stage menu
-    client-rig.ps1 -Call  -As <id> -Instance host1 -Path /host -Body '{"world":"Lunar"}'
-    client-rig.ps1 -Wait  -Instance host1 -Stage inWorld -WaitSeconds 600
-    client-rig.ps1 -Start -As <id> -Instance client1
-    client-rig.ps1 -Wait  -Instance client1 -Stage menu
-    client-rig.ps1 -Call  -As <id> -Instance client1 -Path /connect -Body '{"address":"127.0.0.1","port":$($GamePortBase + 1)}'
-    client-rig.ps1 -Wait  -Instance client1 -Stage inWorld -WaitSeconds 600
-
-Fan-out:
-    client-rig.ps1 -Broadcast -As <id> -All -Path /config/set -Body '{"guid":"net.example","section":"S","key":"K","value":"true"}'
-    client-rig.ps1 -Call -As <id> -Instance client1 -Path /input/scroll -Body '{"notches":1}'
-    client-rig.ps1 -Snapshot -All -OutFile before.json
-    client-rig.ps1 -Wait -All -Stage inWorld -WaitSeconds 600
-
-Timeouts (the first two mean exactly what they mean on dedicated-server.ps1):
-    -WaitSeconds N     how long a blocking wait waits: the -Wait barrier (default 300), the -Save
-                       confirmation (default 300), the -Lock queue (default 0, meaning no queue).
-    -TimeoutSeconds N  process-teardown grace for -Stop before a kill. Default 30.
-    -CallTimeoutSeconds N  how long ONE -Call or -Broadcast request may take. Default 0, meaning
-                       derive it from the request: its own timeoutMs (body or query) plus $ControlTimeoutMarginSeconds s,
-                       floored at $ControlTimeoutFloorSeconds s and at $ControlLongPathSeconds s for $($ControlLongPaths -join ', ').
-                       It was a fixed $ControlTimeoutFloorSeconds s, which cut off every long endpoint before the
-                       instance could answer, so -Path /host and -Path /connect were unusable here.
-
-Diagnosis:
-    client-rig.ps1 -Call -As <id> -Instance client1 -Path /diag/input
-    client-rig.ps1 -Logs -Instance client1 -Grep 'ClientDriver'
-
-Traps this script already handles for you, documented in README.md:
-    -settings SavePath is never passed (it makes StationeersLaunchPad delete the developer's local mods)
-    -logFile is always unique (otherwise the developer's Player-prev.log is zeroed)
-    -nographics is never passed (Unity refuses it without -batchmode and pops a modal error)
-    SavePathOverride is written on EVERY provision, never behind the mod seed, so an instance can
-      never come up writing into the developer's own save folder. A host refuses to provision at all
-      without it; a client warns, and that warning is a stop rather than a note.
-    A relative -Snapshot -OutFile is rooted at the rig folder, which is gitignored deny-all, rather
-      than at the shell's working directory, which for an agent is the repository root. One that
-      climbs back out with '..', or a drive-relative 'C:name.json', is refused rather than written.
-    -Call and -Broadcast take their HTTP timeout from the request's own timeoutMs, so a long
-      endpoint is no longer cut off by the launcher before the instance can answer.
-    -InstancesRoot is recorded at provision time, so -Start, -Stop, -Call and the state reset find
-      an instance built on another volume instead of reporting it as unprovisioned.
-    A pid file whose process is dead, or whose number now belongs to something that is not the game,
-      does not make -Start refuse: the process image is checked, not just the number.
-"@

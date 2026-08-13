@@ -626,7 +626,7 @@ namespace ClientDriver
         ///     instance's own save root WAS refused.
         ///
         ///     The formula is the game's own unpatched one (<c>StationSaveUtils.DefaultPath</c> for a
-        ///     non-batch build) and the same one <c>client-rig.ps1 Get-UserDataPath</c> computes, so
+        ///     non-batch build) and the same one <c>Get-RigUserDataPath</c> in the launcher computes, so
         ///     the launcher and the plugin agree on which folder is off limits. Resolved from the
         ///     Windows shell folder rather than hardcoded, so it carries no developer-specific path.
         ///

@@ -3459,7 +3459,7 @@ namespace ScenarioRunner
                 // Writes the in-memory snapshot to a temp ZIP, then reads it back, then asserts the
                 // count + values match. This exercises Write + Read + the ZipArchive open/append/close
                 // dance without depending on the game's SaveHelper.Save UniTask, which on a batch-mode
-                // dedicated server can no-op on stdin save commands (see TestRig/DedicatedServer/CLAUDE.md
+                // dedicated server can no-op on stdin save commands (see TestRig/RESEARCH.md
                 // "Stdin console commands can be a no-op in batch mode").
                 var writeMethod = sideCarType?.GetMethod("WriteSideCar",
                     System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);

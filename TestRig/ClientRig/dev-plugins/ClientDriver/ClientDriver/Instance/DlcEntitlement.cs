@@ -259,7 +259,7 @@ namespace ClientDriver
                                   "DLCManager.Initialize() has not run yet, so DLCManager._ownedDLC is " +
                                   "still 0: the removal would be a no-op that reports success and would " +
                                   "then be overwritten from Steam. Wait for the menu first " +
-                                  "(client-rig.ps1 -Wait -Stage menu, or POST /waitfor), then remove. " +
+                                  "(testrig wait -Target <instance> -Stage menu, or POST /waitfor), then remove. " +
                                   "Nothing was changed.")
                     .Raw("epoch", Epoch.Json())
                     .Raw("state", DescribeState())
@@ -496,7 +496,7 @@ namespace ClientDriver
                 "Remove AFTER the instance reaches the menu and BEFORE it enters a world. That window " +
                 "is the whole of the sequencing. DLCManager.Initialize() runs inside GameManager.Start() " +
                 "and would overwrite an earlier removal from Steam; GameManager.IsInitialized is set at " +
-                "the end of the same method, so waiting for it (client-rig.ps1 -Wait -Stage menu) is an " +
+                "the end of the same method, so waiting for it (testrig wait -Stage menu) is an " +
                 "exact guarantee that Initialize() is done. POST /dlc/remove refuses before that.",
 
                 "Remove BEFORE world entry, on every instance that must not have the DLC. " +

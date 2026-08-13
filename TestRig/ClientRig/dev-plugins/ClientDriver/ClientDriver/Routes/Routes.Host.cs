@@ -261,7 +261,7 @@ namespace ClientDriver
         /// <summary>
         ///     Persists the world this instance is holding, and waits for evidence that it landed.
         ///
-        ///     The contract mirrors <c>dedicated-server.ps1 -Save</c>: request the save, wait for
+        ///     The contract mirrors the launcher's <c>save</c> verb on the server half: request the save, wait for
         ///     confirmation, and on a timeout WARN rather than claim success. A fire-and-forget call
         ///     that answered 200 would be worse than having no endpoint, because a test would then
         ///     tear the rig down believing a world it never wrote is on disk.

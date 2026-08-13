@@ -2,8 +2,7 @@
 # TestRig state hygiene - shared implementation
 # =============================================================================
 # Dot-sourced by BOTH launchers, immediately after rig-lock.ps1:
-#     TestRig/DedicatedServer/dedicated-server.ps1
-#     TestRig/ClientRig/client-rig.ps1
+#     TestRig/testrig.ps1 (through TestRig/lib/server.ps1 and TestRig/lib/client.ps1)
 #
 # WHAT THIS IS FOR
 #   One rig is shared by every agent on this machine, and the rig keeps state
@@ -34,11 +33,11 @@
 #   read-only hard links into the developer's install. So a full reset is a
 #   handful of deletes plus a small config copy, not a re-provision.
 #
-# THE TWO FACTS THAT MAKE THIS DANGEROUS IF DONE CARELESSLY
+# THE THREE FACTS THAT MAKE THIS DANGEROUS IF DONE CARELESSLY
 #   1. Re-copying BepInEx/config WIPES SavePathOverride, and an instance without
 #      it writes its worlds into the developer's tier-1 save folder. The re-apply
 #      after the copy is the single most important line in this file, and
-#      Set-RigSavePathOverride lives here (not in client-rig.ps1) so provisioning
+#      Set-RigSavePathOverride lives here (not in lib/client.ps1) so provisioning
 #      and resetting write that redirect through ONE implementation. Two copies
 #      of a tier-1 safety write is exactly the drift that overwrites somebody's
 #      saves.
@@ -47,6 +46,29 @@
 #      reboot, so every pid here goes through the same process-image check
 #      rig-lock.ps1 uses. A live instance's game.pid must survive; a recycled id
 #      must not be trusted in either direction.
+#   3. Deleting a dedicated-server world is the ONLY irreversible thing here, and
+#      it is hundreds of megabytes of somebody's test state. See the next block.
+#
+# A WORLD'S LIFETIME IS SESSION-SCOPED, AND THE SESSION SAYS SO ITSELF
+#   TestRig/session.dirty is written before a session's first mutating action and
+#   records the dedicated-server world set as it stood at that moment. This file
+#   deletes a world if and only if the marker recorded a set and the world is not
+#   in it, which makes the rule exactly "this session created it". A world that
+#   was on the rig when the session started is ALWAYS kept.
+#
+#   The baseline used to decide this, and it was wrong in a way that read as safe.
+#   Test-RigBaselineStale inspects the game version, the instance-name set and
+#   files of class 'payload'; it never looks at class 'world'. So staging a world
+#   deliberately (copying a tier-2 source over tier 3, which is what the repo's
+#   save rules prescribe for restoring a save under test) left the baseline
+#   reading FRESH while the staged world was absent from it, and the next session
+#   boundary deleted the very thing the test was about.
+#
+#   Every way of not getting a clean answer out of the marker keeps every world
+#   and names which way it was: no marker, an unreadable one, one with no world
+#   set (written before this existed), or one from before the last reboot. Keeping
+#   a stale world costs a manual delete; deleting a live one costs the test.
+#   Get-RigSessionWorldSnapshot in rig-lock.ps1 is where those four cases live.
 #
 # WHAT IT MAY TOUCH, AND WHAT IT MAY NOT
 #   Writes are confined to two places: the rig's own state under TestRig/, and the
@@ -187,16 +209,21 @@ function Get-RigResetSourceInstall {
 # ===========================================================================
 # Before this existed, "clean" was a hardcoded list of things to delete inside
 # this file. That is enough to remove obvious garbage and not enough to answer
-# the question that matters: what SHOULD the rig look like. Two consequences
-# were visible in the code itself. Server configs were left alone with the
-# comment "rig-owned versus mod-owned is undecided", because nothing knew what
-# their correct values were. And dedicated-server worlds were all kept, because
-# nothing could tell a world staged deliberately last week from one this
-# session's test created ten minutes ago.
+# the question that matters: what SHOULD the rig look like. The visible
+# consequence was that server configs were left alone with the comment
+# "rig-owned versus mod-owned is undecided", because nothing knew what their
+# correct values were.
 #
 # A baseline is a capture of the rig at a moment somebody declared correct. With
-# one, both questions have answers: a config's baseline bytes ARE its correct
-# value, and a world absent from the baseline IS this session's.
+# one, that question has an answer: a config's baseline bytes ARE its correct
+# value.
+#
+# WHAT A BASELINE DOES NOT DECIDE: WORLDS. It once did, and the argument was
+# "a world absent from the baseline is this session's". That is false whenever a
+# world is staged deliberately after a capture, and staleness cannot notice
+# because it never looks at class 'world'. Worlds are now decided by the session
+# marker instead (see the block at the top of this file); their records here are
+# kept for the record only, and nothing reads them to delete anything.
 #
 # WHAT IS STORED, AND WHY NOT EVERYTHING
 #   Two representations were on the table.
@@ -221,18 +248,20 @@ function Get-RigResetSourceInstall {
 #              plugins and seeded mods. This is the class where rolling back
 #              would undo a deliberate deploy, so it is only ever REPORTED.
 #     worlds   dedicated-server saves, recorded by name and size, never hashed
-#              (a world is hundreds of megabytes) and never stored. Their names
-#              are what lets the restore tell a baseline world from a new one.
+#              (a world is hundreds of megabytes) and never stored. INFORMATIONAL
+#              ONLY: they document what was on the rig when somebody declared it
+#              correct, and nothing reads them back. They are still captured
+#              because they cost a directory listing and answer "what was there",
+#              which is the question a human asks of an old baseline.
 #
 # STALENESS IS LOUD, NEVER SILENT
 #   A baseline captured before a game update or a mod rebuild describes a rig
 #   that no longer exists. That is reported at every acquisition, names the exact
 #   reason, and names -CaptureBaseline as the fix. It does NOT block the lock:
 #   an unclean rig must not become an unlockable one, and a stale baseline is
-#   still better than none. The one thing staleness DOES change is the world
-#   pruning, which is the only irreversible action here: a stale baseline reports
-#   new worlds instead of deleting them, because destroying data on the strength
-#   of a manifest nobody trusts is the wrong way round.
+#   still better than none. Staleness no longer changes what happens to a world
+#   either way: worlds are not the baseline's business any more, and a stale
+#   baseline restores configs exactly as a fresh one does.
 
 function Get-RigGameVersion {
     # The game version string. Used as the baseline's staleness anchor: when this
@@ -348,7 +377,6 @@ function Get-RigMutableSurface {
     }
 
     $install = $script:RigResetDediInstall
-    $sdata   = $script:RigResetDediData
     foreach ($f in @(Get-ChildItem -LiteralPath (Join-Path $install 'BepInEx\config') -Filter '*.cfg' -File -ErrorAction SilentlyContinue)) {
         $out.Add((New-RigSurfaceRecord -Key "server/bepinex-config/$($f.Name)" -Path $f.FullName -Class 'config' -Half 'server'))
     }
@@ -360,8 +388,14 @@ function Get-RigMutableSurface {
         $rel = $f.FullName.Substring((Join-Path $install 'BepInEx\plugins').Length).TrimStart('\', '/').Replace('\', '/')
         $out.Add((New-RigSurfaceRecord -Key "server/plugins/$rel" -Path $f.FullName -Class 'payload' -Half 'server'))
     }
-    foreach ($d in @(Get-ChildItem -LiteralPath (Join-Path $sdata 'saves') -Directory -ErrorAction SilentlyContinue)) {
-        $out.Add((New-RigSurfaceRecord -Key "server/saves/$($d.Name)" -Path $d.FullName -Class 'world' -Half 'server'))
+    # The world set comes from Get-RigServerWorlds (rig-lock.ps1) rather than a
+    # second enumeration here. The session marker records the SAME set with the
+    # SAME keys, and a world is deleted on the two agreeing, so there must not be
+    # two places that decide what a world is called. Both libraries are pointed at
+    # one rig home by Initialize-RigResetPaths, so they cannot be looking at
+    # different save trees either.
+    foreach ($w in @(Get-RigServerWorlds)) {
+        $out.Add((New-RigSurfaceRecord -Key $w.Key -Path $w.Path -Class 'world' -Half 'server'))
     }
     # PLAIN array, deliberately NOT comma-wrapped, and the difference matters.
     # `return ,$arr` protects a single-element result from being unrolled into a
@@ -487,11 +521,15 @@ function New-RigBaselineCapture {
     foreach ($rec in $surface) {
         $entry = [ordered]@{ key = $rec.Key; class = $rec.Class; half = $rec.Half; instance = $rec.Instance }
         if ($rec.Class -eq 'world') {
+            # Recorded, never hashed (a world is hundreds of MB), never stored,
+            # and INFORMATIONAL: no restore reads this back. A world's lifetime is
+            # decided by the session marker, which knows what predates the session
+            # rather than what predates a capture somebody took last month.
             $bytes = 0
             $m = Get-ChildItem -LiteralPath $rec.Path -Recurse -File -ErrorAction SilentlyContinue | Measure-Object Length -Sum
             if ($m.Sum) { $bytes = [long]$m.Sum }
             $entry['bytes']  = $bytes
-            $entry['sha256'] = ''      # never hashed: a world is hundreds of MB
+            $entry['sha256'] = ''
         }
         else {
             $fi = Get-Item -LiteralPath $rec.Path -ErrorAction SilentlyContinue
@@ -542,6 +580,7 @@ function New-RigBaselineCapture {
     Write-Host "[Baseline]   recorded  : $($files.Count) entries ($byClass)"
     Write-Host "[Baseline]   stored    : $stored config file(s) kept by content, so a restore can put their exact bytes back"
     Write-Host "[Baseline] Plugins and seeded mods are recorded but NEVER restored: rolling one back would undo a deliberate deploy."
+    Write-Host "[Baseline] Worlds are recorded for the record only. What happens to a world is decided by TestRig/session.dirty, which records the worlds that predate each session; a capture does not protect a world and never did reliably."
     Write-Host "[Baseline] Re-capture after a game update, a mod rebuild or a re-provision. Until then the rig restores to THIS."
     return [pscustomobject]@{ WhatIf = $false; Entries = $files.Count; Stored = $stored; Record = $record }
 }
@@ -609,7 +648,7 @@ function Set-RigSavePathOverride {
     $who   = if ($InstanceName) { "[$InstanceName] " } else { '' }
     $lpCfg = Join-Path $BepInExDir 'config\stationeers.launchpad.cfg'
     if (-not (Test-Path -LiteralPath $lpCfg)) {
-        $why = "${who}stationeers.launchpad.cfg not found at $lpCfg, so SavePathOverride could not be written and this instance has NO separate save root: everything it writes lands in the developer's own user-data folder, which is tier 1 and off-limits. Launch the instance once to generate the config, then re-run -Provision -Force."
+        $why = "${who}stationeers.launchpad.cfg not found at $lpCfg, so SavePathOverride could not be written and this instance has NO separate save root: everything it writes lands in the developer's own user-data folder, which is tier 1 and off-limits. Launch the instance once to generate the config, then rebuild it: testrig create -Target <name> -Force -As <id>."
         if ($InstanceRole -eq 'host') {
             throw "$why`nRefusing to leave a host without the redirect: a host creates a world, and that world would be created inside the developer's saves."
         }
@@ -763,7 +802,7 @@ function Get-RigInstanceTree {
     }
     return [pscustomobject]@{
         Path   = (Join-Path $script:RigResetClientInstances $Name)
-        Source = 'the configured instances root (this entry records none; -Provision -Force records it)'
+        Source = 'the configured instances root (this entry records none; a rebuild with testrig create -Force records it)'
     }
 }
 
@@ -883,19 +922,23 @@ function Get-RigResetPlan {
     $baseState  = Test-RigBaselineStale -Baseline $base
     if (-not $baseState.Present) {
         $reports.Add((New-RigResetReport -Half 'rig' -Kind 'BaselineAbsent' -Warn `
-            -Detail "no baseline has been captured, so 'clean' falls back to the built-in delete list. Server configs are not restored and new dedicated-server worlds are not pruned, because nothing here knows what they should look like. Capture one on an idle rig: dedicated-server.ps1 -CaptureBaseline -As <id>"))
+            -Detail "no baseline has been captured, so 'clean' falls back to the built-in delete list. Server configs are not restored, because nothing here knows what they should look like. Capture one on an idle rig: testrig capture-baseline -As <id>"))
     }
     elseif ($baseState.Stale) {
         $reports.Add((New-RigResetReport -Half 'rig' -Kind 'BaselineStale' -Warn `
-            -Detail "the baseline (captured $($base.CapturedUtc), game $($base.GameVersion)) no longer describes this rig: $($baseState.Reasons -join '; '). Config files are still restored from it, but new worlds are only reported, not deleted. Re-capture on an idle rig: dedicated-server.ps1 -CaptureBaseline -As <id>"))
+            -Detail "the baseline (captured $($base.CapturedUtc), game $($base.GameVersion)) no longer describes this rig: $($baseState.Reasons -join '; '). Config files are still restored from it. Re-capture on an idle rig: testrig capture-baseline -As <id>"))
     }
     else {
         $reports.Add((New-RigResetReport -Half 'rig' -Kind 'BaselineUsed' `
             -Detail "restoring to the baseline captured $($base.CapturedUtc) (game $($base.GameVersion), $($base.Files.Count) entries)"))
     }
-    # A world may only be DELETED on the strength of a baseline nobody has reason
-    # to doubt. Everything else the baseline drives is reversible; this is not.
-    $pruneWorlds = ($baseState.Present -and -not $baseState.Stale)
+
+    # ---- which dedicated-server worlds belong to THIS session ----
+    # Read once, here, next to the baseline it used to be part of, so the two are
+    # visibly separate now: the baseline says what a CONFIG should contain, the
+    # session marker says which WORLDS predate the session. Nothing about a
+    # baseline (present, absent, fresh or stale) changes a world's fate any more.
+    $sessionWorlds = Get-RigSessionWorldSnapshot
 
     # ---- client half, per provisioned instance ----
     # Read once, used for every instance: the trees are wherever -Provision put them, which is
@@ -1068,7 +1111,7 @@ function Get-RigResetPlan {
                 $their = Get-RigNewestBuildTime -Path $peer
                 if ($mine -and $their -and $their -gt $mine) {
                     $reports.Add((New-RigResetReport -Half 'client' -Instance $name -Kind 'StaleMod' -Warn `
-                        -Detail "seeded mod '$($d.Name)' is older than the source tree ($($mine.ToString('u')) vs $($their.ToString('u'))). Re-provision to refresh it: -Provision -Force -Instance $name"))
+                        -Detail "seeded mod '$($d.Name)' is older than the source tree ($($mine.ToString('u')) vs $($their.ToString('u'))). Re-seed it: testrig create -Target $name -Force -As <id>"))
                 }
             }
         }
@@ -1143,28 +1186,49 @@ function Get-RigResetPlan {
             -Label 'setting.xml' -Reason 'carries stale SavePath and UseSteamP2P; -Start passes every flag it needs'))
     }
 
-    # ---- server worlds: keep the baseline's, prune this session's ----
+    # ---- server worlds: keep everything that predates this session ----
     #
-    # This is the one place the baseline makes an IRREVERSIBLE decision, so it is
-    # the one place it has to be beyond doubt. With a fresh baseline, a world it
-    # does not list was created after the capture, which means this session (or an
-    # unreleased one) made it, which means its lifetime ends with the lock. With no
-    # baseline, or a stale one, nothing here can tell a deliberately staged world
-    # from a test's leftover, and the old behaviour stands: keep everything, say so.
+    # THE RULE, and it is the whole rule: a world is deleted if and only if the
+    # session marker recorded a world set and this world is not in it. A world
+    # that was on disk when the session started is ALWAYS kept, baseline or no
+    # baseline, fresh or stale.
+    #
+    # The baseline used to decide this, and the failure is worth writing down
+    # because the code read as safe. Test-RigBaselineStale inspects the game
+    # version, the instance-name set and files of class 'payload'. Worlds are
+    # class 'world', so THE WORLD SET IS INVISIBLE TO STALENESS. Stage a world
+    # deliberately (copy a tier-2 source over tier 3, which is exactly what the
+    # repo's own save rules prescribe for restoring a save under test) and the
+    # baseline still read FRESH, still did not list that world, and the next
+    # session boundary deleted it as "a session that is over". The staged save
+    # WAS the test.
+    #
+    # The marker cannot make that mistake: it is written before the session's
+    # first mutating action, so everything it lists is older than the session by
+    # construction, and a world staged before the lock is in it. Everything else
+    # about this decision fails closed, in Get-RigSessionWorldSnapshot.
     $saveRoot = Join-Path $dediData 'saves'
     if (Test-Path -LiteralPath $saveRoot) {
-        $worlds = @(Get-ChildItem -LiteralPath $saveRoot -Directory -ErrorAction SilentlyContinue)
+        $worlds = @(Get-RigServerWorlds)
         if ($worlds.Count -gt 0) {
+            if (-not $sessionWorlds.Recorded) {
+                # Named as its own report rather than buried in the kept line,
+                # because "nothing is being deleted" is exactly the sentence an
+                # agent needs when it expected a cleanup and did not get one. A
+                # genuine degradation warns; a rig with no marker at all is the
+                # ordinary clean state and is merely stated.
+                $reports.Add((New-RigResetReport -Half 'server' -Kind 'WorldsNotTracked' -Warn:$sessionWorlds.Degraded `
+                    -Detail "no dedicated-server world is deleted by this restore: $($sessionWorlds.Reason)"))
+            }
             $keptCount = 0
             $keptBytes = 0
             foreach ($w in $worlds) {
-                $m = Get-ChildItem -LiteralPath $w.FullName -Recurse -File -ErrorAction SilentlyContinue | Measure-Object Length -Sum
+                $m = Get-ChildItem -LiteralPath $w.Path -Recurse -File -ErrorAction SilentlyContinue | Measure-Object Length -Sum
                 $wb = if ($m.Sum) { [long]$m.Sum } else { 0 }
-                $inBaseline = ($base -and $base.Files.ContainsKey("server/saves/$($w.Name)"))
-                if ($pruneWorlds -and -not $inBaseline) {
-                    $actions.Add((New-RigResetAction -Half 'server' -Kind 'DeleteTree' -Path $w.FullName `
+                if ($sessionWorlds.Recorded -and -not $sessionWorlds.Keys.ContainsKey($w.Key)) {
+                    $actions.Add((New-RigResetAction -Half 'server' -Kind 'DeleteTree' -Path $w.Path `
                         -Label ("world '{0}' deleted ({1:N1} MB)" -f $w.Name, ($wb / 1MB)) `
-                        -Reason 'it did not exist when the baseline was captured, so it belongs to a session that is over'))
+                        -Reason 'it was not on the rig when this session first touched it, so this session created it and its lifetime ends with the lock'))
                 }
                 else {
                     $keptCount++
@@ -1172,9 +1236,8 @@ function Get-RigResetPlan {
                 }
             }
             if ($keptCount -gt 0) {
-                $why = if ($pruneWorlds) { 'they are in the baseline' }
-                       elseif ($baseState.Present) { 'the baseline is stale, so nothing is deleted on its say-so' }
-                       else { 'there is no baseline, so nothing here can tell a staged world from a leftover' }
+                $why = if ($sessionWorlds.Recorded) { "they were already here when this session started ($($sessionWorlds.Count) world(s) recorded)" }
+                       else { $sessionWorlds.Reason }
                 $reports.Add((New-RigResetReport -Half 'server' -Kind 'SavesRetained' `
                     -Detail ("data/saves kept: {0} world(s), {1:N1} MB ({2})" -f $keptCount, ($keptBytes / 1MB), $why)))
             }
@@ -1236,7 +1299,7 @@ function Get-RigResetPlan {
         KeepState     = [bool]$KeepState
         LastResetUtc  = $lastReset
         Baseline      = $baseState
-        PruneWorlds   = $pruneWorlds
+        SessionWorlds = $sessionWorlds
     }
 }
 
@@ -1487,7 +1550,7 @@ function Invoke-RigReset {
     if (-not $gate.Allowed) {
         $result.Refused = $true
         $result.RefusalReason = $gate.Reason
-        Write-Warning "[Reset] State reset SKIPPED: the rig is in use ($($gate.Reason)). Nothing was deleted. Stop what is running (client-rig.ps1 -Stop -All -As <id>, dedicated-server.ps1 -Stop -As <id>, or kill an untracked pid), then release and re-take the lock to get a clean rig. This session starts on whatever the previous one left behind."
+        Write-Warning "[Reset] State reset SKIPPED: the rig is in use ($($gate.Reason)). Nothing was deleted. Stop what is running (testrig stop -Target all -As <id>, or kill an untracked pid), then release and re-take the lock to get a clean rig. This session starts on whatever the previous one left behind."
         # The baseline is still captured. Without it, this session's unlock would
         # diff against a PREVIOUS session's snapshot and report that session's
         # changes as this one's, which is worse than no report at all.
@@ -1496,8 +1559,13 @@ function Invoke-RigReset {
     }
 
     if ($KeepState) {
+        # The marker is deliberately NOT cleared here (only a completed restore
+        # clears it, further down), and that is what carries the debt: the next
+        # session restores unless it also passes -KeepState. It is also what keeps
+        # every dedicated-server world, since nothing is deleted on this path at
+        # all and the world set that session recorded stays on disk with it.
         $result.Skipped = $true
-        Write-Warning "[Reset] -KeepState: the between-session state reset was SKIPPED on purpose. This session inherits whatever the previous one left behind."
+        Write-Warning "[Reset] -KeepState: the between-session state reset was SKIPPED on purpose. This session inherits whatever the previous one left behind, dedicated-server worlds included, and the dirty marker stays set so the next session cleans up."
         Write-RigResetPlanSummary -Plan $Plan -Prefix '[Reset]   would have reset' -IncludeReports
         Save-RigSharedStateBaseline -LastResetUtc $prevResetUtc
         return $result
@@ -1640,7 +1708,7 @@ function Invoke-RigResetAction {
                 if ($Action.AfterCopy) {
                     throw "SavePathOverride could not be written back after the config re-copy, so this instance now has NO separate save root and would write worlds into the developer's tier-1 save folder."
                 }
-                $Action.Label = 'SavePathOverride NOT written (no StationeersLaunchPad config; launch once, then -Provision -Force)'
+                $Action.Label = 'SavePathOverride NOT written (no StationeersLaunchPad config; launch once, then: testrig create -Target <name> -Force -As <id>)'
             }
         }
         'BlankSetting' {
@@ -1695,9 +1763,18 @@ function Write-RigResetOutcome {
     if ($Plan.PSObject.Properties['Baseline'] -and $Plan.Baseline) {
         $b = $Plan.Baseline
         $how = if (-not $b.Present) { 'no baseline (built-in delete list only)' }
-               elseif ($b.Stale)    { 'a STALE baseline (config restored from it, worlds only reported)' }
+               elseif ($b.Stale)    { 'a STALE baseline (config still restored from it)' }
                else                 { 'the captured baseline' }
         Write-Host "[Reset]   clean state: $how."
+    }
+    # Worlds get their own line whatever happened, including "nothing", because
+    # this is the only irreversible thing here and a silent delete of somebody's
+    # world is precisely the failure the session snapshot exists to prevent.
+    if ($Plan.PSObject.Properties['SessionWorlds'] -and $Plan.SessionWorlds) {
+        $sw  = $Plan.SessionWorlds
+        $how = if ($sw.Recorded) { "$($sw.Count) dedicated-server world(s) predated this session and are kept; any world this session created is deleted" }
+               else             { "no dedicated-server world was deleted ($($sw.Reason))" }
+        Write-Host "[Reset]   worlds: $how."
     }
     Write-RigResetReports -Plan $Plan
     Write-Host "[Reset] This resets BETWEEN sessions only. A session spans many start/stop cycles, so two unrelated tests under THIS one lock get no reset between them: release and re-take the lock when the subject changes."

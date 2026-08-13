@@ -239,7 +239,7 @@ function Get-InstanceTreeDir { param([string] $Name) return (Join-Path $script:T
 function Get-InstanceBepInEx { param([string] $Name) return (Join-Path (Get-InstanceTreeDir $Name) 'BepInEx') }
 
 function Set-TestRegistry {
-    # ClientRig/data/rig.json, written the way client-rig.ps1 -Provision writes it. The reset reads
+    # ClientRig/data/rig.json, written the way 'testrig create' writes it. The reset reads
     # the instances root out of this file, so a fixture that puts a tree somewhere other than the
     # default root has to record it here too, exactly as a real provision would.
     param([Parameter(Mandatory)] $Entries)
@@ -250,7 +250,7 @@ function Set-TestRegistry {
 
 function New-TestInstance {
     # A provisioned instance, dirty in every way the reset is supposed to clean,
-    # laid out exactly as client-rig.ps1 lays one out.
+    # laid out exactly as 'testrig create' lays one out.
     #
     # -TreeRoot puts the hard-linked tree somewhere other than ClientRig/instances/, which is the
     # normal case on a real rig: hard links cannot cross volumes, so the trees sit on the game
@@ -363,6 +363,18 @@ function New-TestServerState {
     New-Item -ItemType Directory -Force -Path (Join-Path $data 'saves\Luna'), (Join-Path $data 'mods\Local_Example') | Out-Null
     Set-Content -LiteralPath (Join-Path $data 'saves\Luna\Luna.save') -Value 'zip bytes' -Encoding utf8
     Set-Content -LiteralPath (Join-Path $data 'mods\Local_Example\Example.dll') -Value 'dll bytes' -Encoding utf8
+}
+
+function New-TestWorld {
+    # One dedicated-server world, shaped the way the loader expects: a folder with
+    # a same-named .save inside. Worlds are the only thing the restore destroys, so
+    # the suite needs to stage one BEFORE a session and create one DURING it and
+    # tell the two apart afterwards.
+    param([Parameter(Mandatory)] [string] $Name)
+    $dir = Join-Path $script:TempRoot "DedicatedServer\data\saves\$Name"
+    New-Item -ItemType Directory -Force -Path $dir | Out-Null
+    Set-Content -LiteralPath (Join-Path $dir "$Name.save") -Value 'zip bytes' -Encoding utf8
+    return $dir
 }
 
 function Get-TreeFingerprint {
@@ -639,7 +651,7 @@ function Test-SavePathOverride {
     Assert-False $act.AfterCopy 'with no source install the re-apply is not marked as following a config copy'
 
     # Nothing was wiped: warn, relabel, and let the session start. Failing here
-    # would make the lock unobtainable, and -Provision -Force needs the lock, so
+    # would make the lock unobtainable, and a rebuild needs the lock, so
     # the rig would be unrepairable.
     Assert-NoThrow { Invoke-RigResetAction -Action $act } 'a missing redirect that this reset did NOT cause is a warning, not a hard stop (the rig must stay lockable)'
     Assert-Match $act.Label 'NOT written' 'the printed summary says the redirect was not written, rather than claiming it was'
@@ -999,7 +1011,7 @@ function Test-Baseline {
     $r = @($plan.Reports | Where-Object { $_.Kind -eq 'BaselineStale' })
     Assert-Equal 1 $r.Count 'a stale baseline is reported on every reset'
     Assert-True  $r[0].Warn 'as a warning, not a quiet note'
-    Assert-Match $r[0].Detail 'CaptureBaseline' 'and the report names the command that fixes it'
+    Assert-Match $r[0].Detail 'capture-baseline' 'and the report names the command that fixes it'
     Assert-NoThrow { Invoke-RigReset } 'a stale baseline never blocks the reset'
 
     # ---- re-capture is the fix, and it is explicit ----
@@ -1100,32 +1112,42 @@ function Test-BaselineRestore {
     Assert-Equal '77' (Get-RigConfigSettingValue -Path $srCfg -Setting 'Delay Ticks') `
         'and the rest of that file is NOT restored over, because blanking already owns it'
 
-    # ---- worlds: the baseline is what tells a staged world from a test leftover ----
+    # ---- worlds: the baseline does NOT decide them, and that IS the fix ----
+    #
+    # These four assertions used to read "a fresh baseline is trusted enough to
+    # prune worlds" and "a STALE baseline is not". Both encoded the bug rather
+    # than a guarantee: Test-RigBaselineStale looks at the game version, the
+    # instance set and class 'payload' only, so "fresh" was never evidence about
+    # a WORLD at all, and a world staged after the capture was deleted by a
+    # baseline that had every reason to look trustworthy. They are kept here,
+    # turned around to assert what the baseline may now do about a world, which
+    # is nothing. The session-scoped behaviour they used to stand for is covered
+    # in full by the 'session worlds' section.
     $saveRoot = Join-Path $script:TempRoot 'DedicatedServer\data\saves'
     New-Item -ItemType Directory -Force -Path (Join-Path $saveRoot 'SessionWorld') | Out-Null
     Set-Content -LiteralPath (Join-Path $saveRoot 'SessionWorld\SessionWorld.save') -Value 'made during a test' -Encoding utf8
     $plan = Invoke-Quiet { Get-RigResetPlan }
-    Assert-True $plan.PruneWorlds 'a fresh baseline is trusted enough to prune worlds'
-    $prunes = @($plan.Actions | Where-Object { $_.Kind -eq 'DeleteTree' })
-    Assert-Equal 1 $prunes.Count 'exactly one world is planned for deletion'
-    Assert-Match $prunes[0].Path 'SessionWorld' 'and it is the one created after the capture'
+    Assert-False $plan.SessionWorlds.Recorded 'a fresh baseline is NOT on its own permission to delete a world (no session said so)'
+    Assert-Equal 0 (@($plan.Actions | Where-Object { $_.Kind -eq 'DeleteTree' })).Count 'so a world the baseline never saw is not planned for deletion'
     Invoke-Quiet { Invoke-RigReset } | Out-Null
-    Assert-FileGone (Join-Path $saveRoot 'SessionWorld') "a world created during the session is gone at the session boundary"
-    Assert-FileExists (Join-Path $saveRoot 'Luna\Luna.save') 'and the world that was in the baseline is untouched'
+    Assert-FileExists (Join-Path $saveRoot 'SessionWorld\SessionWorld.save') `
+        'a world absent from a FRESH baseline survives the restore, which is the whole behaviour change'
+    Assert-FileExists (Join-Path $saveRoot 'Luna\Luna.save') 'and so does the one that was in the baseline'
 
-    # A STALE baseline must not delete anything. Destroying data on the strength
-    # of a manifest nobody trusts is the wrong way round.
+    # A STALE baseline changes nothing about worlds either, in either direction.
     New-Item -ItemType Directory -Force -Path (Join-Path $saveRoot 'AnotherWorld') | Out-Null
     Set-Content -LiteralPath (Join-Path $saveRoot 'AnotherWorld\AnotherWorld.save') -Value 'x' -Encoding utf8
     Remove-Item -Recurse -Force -ErrorAction SilentlyContinue $script:SourceDir
     New-SourceInstall -Version '0.2.9999.00000'
     Use-TestPaths
     $plan = Invoke-Quiet { Get-RigResetPlan }
-    Assert-False $plan.PruneWorlds 'a STALE baseline is not trusted to delete worlds'
+    Assert-True  (Test-RigBaselineStale).Stale 'fixture check: the baseline really is stale now'
+    Assert-False $plan.SessionWorlds.Recorded 'a STALE baseline is no more and no less a world authority than a fresh one'
     Assert-Equal 0 (@($plan.Actions | Where-Object { $_.Kind -eq 'DeleteTree' })).Count 'so no world is planned for deletion'
     $kept = @($plan.Reports | Where-Object { $_.Kind -eq 'SavesRetained' })
-    Assert-Equal 1 $kept.Count 'and the kept worlds are reported instead'
-    Assert-Match $kept[0].Detail 'stale' 'with the reason named'
+    Assert-Equal 1 $kept.Count 'and the kept worlds are reported'
+    Assert-Match $kept[0].Detail 'session marker' 'with the reason naming the session marker, not the baseline'
+    Assert-Match $plan.Baseline.Reasons[0] 'game moved' 'the staleness reason is still reported, it just no longer touches worlds'
     Invoke-Quiet { Invoke-RigReset } | Out-Null
     Assert-FileExists (Join-Path $saveRoot 'AnotherWorld\AnotherWorld.save') 'and the world really does survive'
     Remove-Item -Recurse -Force -ErrorAction SilentlyContinue $script:SourceDir
@@ -1186,6 +1208,222 @@ function Test-BaselineRestore {
         'that instance falls back to the source-install copy'
     Assert-Equal 0 (@($plan.Actions | Where-Object { $_.Kind -eq 'CopyConfigTree' -and $_.Instance -eq 'client1' })).Count `
         'while the covered instance still uses the baseline'
+}
+
+function Test-SessionWorlds {
+    if (-not (Test-SectionSelected 'sessionworlds')) { return }
+    Start-Section 'session worlds: only what THIS session created is ever deleted'
+    $saveRoot = Join-Path $script:TempRoot 'DedicatedServer\data\saves'
+
+    # ---- what the marker records, and how it reads back ----
+    Reset-TestHome
+    New-TestServerState                 # gives data/saves/Luna
+    New-TestWorld -Name 'Staged' | Out-Null
+    Invoke-Quiet { Write-RigDirtyMarker -Owner 'AAA11111' -Reason 'Start' } | Out-Null
+    Assert-Equal 'server/saves/Luna|server/saves/Staged' ([string](Read-RigDirtyMarker)['worlds']) `
+        'the marker records the world set, pipe separated (a pipe is illegal in a Windows directory name, so no escaping is needed)'
+    $snap = Get-RigSessionWorldSnapshot
+    Assert-True  $snap.Recorded 'and it reads back as a recorded set'
+    Assert-False $snap.Degraded 'with nothing degraded about it'
+    Assert-Equal 2 $snap.Count  'holding both worlds'
+    Assert-True  $snap.Keys.ContainsKey('server/saves/Luna') 'keyed the way the mutable surface keys a world'
+    Assert-Equal 0 (@(Get-RigMutableSurface | Where-Object { $_.Class -eq 'world' -and -not $snap.Keys.ContainsKey($_.Key) })).Count `
+        'and every live world record matches a marker key, so the two definitions cannot drift apart'
+
+    # An EMPTY recorded set is a real answer and not a missing one. That
+    # distinction is the whole reason the KEY is what gets tested, not the value.
+    Reset-TestHome
+    Invoke-Quiet { Write-RigDirtyMarker -Owner 'AAA11111' -Reason 'Start' } | Out-Null
+    Assert-Equal '' ([string](Read-RigDirtyMarker)['worlds']) 'a rig with no worlds at all records an empty set'
+    $snap = Get-RigSessionWorldSnapshot
+    Assert-True  $snap.Recorded 'which still counts as RECORDED, not as missing'
+    Assert-Equal 0 $snap.Count  'with nothing in it'
+    New-TestWorld -Name 'BornThisSession' | Out-Null
+    Assert-Equal 1 (@((Invoke-Quiet { Get-RigResetPlan }).Actions | Where-Object { $_.Kind -eq 'DeleteTree' })).Count `
+        'so a world created after an empty recorded set is still this session and is planned for deletion'
+    Invoke-Quiet { Invoke-RigReset } | Out-Null
+    Assert-FileGone (Join-Path $saveRoot 'BornThisSession') 'and it is deleted'
+
+    # ---- a world created DURING the session goes at the boundary ----
+    Reset-TestHome
+    New-TestServerState
+    $owner = Invoke-Quiet { New-RigLock -Purpose 'a session that makes a world' -Tool 'rig-reset.tests.ps1' }
+    Invoke-Quiet { Assert-RigLockHeld -Action 'Start' -CallerId $owner -Tool 'rig-reset.tests.ps1' }
+    New-TestWorld -Name 'SessionWorld' | Out-Null
+    # A later mutating command must NOT re-record the set. If it did, a session's
+    # own world would join its "was already here" list and become undeletable.
+    Invoke-Quiet { Assert-RigLockHeld -Action 'Save' -CallerId $owner -Tool 'rig-reset.tests.ps1' }
+    Assert-False ((Get-RigSessionWorldSnapshot).Keys.ContainsKey('server/saves/SessionWorld')) `
+        'a world created mid-session never joins the set the FIRST mutating action recorded'
+    Invoke-Quiet { Remove-RigLock -CallerId $owner } | Out-Null
+    Assert-FileGone   (Join-Path $saveRoot 'SessionWorld') 'a world this session created is deleted at the session boundary'
+    Assert-FileExists (Join-Path $saveRoot 'Luna\Luna.save') 'and one that predates the session is kept'
+
+    # ---- a world that predates the session is kept, WITH a fresh baseline ----
+    Reset-TestHome
+    New-TestInstance -Name 'client1' -Role 'client' | Out-Null
+    New-TestServerState
+    Invoke-Quiet { New-RigBaselineCapture -CapturedBy 'test' } | Out-Null
+    Assert-False (Test-RigBaselineStale).Stale 'fixture check: a FRESH baseline is in place'
+    $owner = Invoke-Quiet { New-RigLock -Purpose 'a session under a fresh baseline' -Tool 'rig-reset.tests.ps1' }
+    Invoke-Quiet { Assert-RigLockHeld -Action 'Start' -CallerId $owner -Tool 'rig-reset.tests.ps1' }
+    Invoke-Quiet { Remove-RigLock -CallerId $owner } | Out-Null
+    Assert-FileExists (Join-Path $saveRoot 'Luna\Luna.save') 'a world that predates the session is kept WITH a fresh baseline present'
+
+    # ---- ... and kept with NO baseline at all ----
+    Reset-TestHome
+    New-TestServerState
+    Assert-False (Test-RigBaselineStale).Present 'fixture check: there is no baseline at all'
+    $owner = Invoke-Quiet { New-RigLock -Purpose 'a session with no baseline' -Tool 'rig-reset.tests.ps1' }
+    Invoke-Quiet { Assert-RigLockHeld -Action 'Start' -CallerId $owner -Tool 'rig-reset.tests.ps1' }
+    Invoke-Quiet { Remove-RigLock -CallerId $owner } | Out-Null
+    Assert-FileExists (Join-Path $saveRoot 'Luna\Luna.save') 'a world that predates the session is kept with NO baseline at all'
+
+    # ---- THE DATA-LOSS CASE THIS CHANGE EXISTS FOR ----
+    #
+    # Capture a baseline, THEN stage a world by hand (the root CLAUDE.md's own
+    # recipe for restoring a save under test: copy a tier-2 source over tier 3),
+    # THEN run a session. The baseline still reads FRESH, because staleness looks
+    # at the game version, the instance set and payload hashes and never at a
+    # world, and it still does not list the staged one. That is exactly the shape
+    # that used to delete it at the next session boundary.
+    Reset-TestHome
+    New-TestInstance -Name 'client1' -Role 'client' | Out-Null
+    New-TestServerState
+    Invoke-Quiet { New-RigBaselineCapture -CapturedBy 'test' } | Out-Null
+    New-TestWorld -Name 'StagedByHand' | Out-Null
+    Assert-False ((Get-RigBaseline).Files.ContainsKey('server/saves/StagedByHand')) 'fixture check: the staged world is NOT in the baseline'
+    Assert-False (Test-RigBaselineStale).Stale 'fixture check: and the baseline still reads FRESH, because staleness cannot see a world'
+    $owner = Invoke-Quiet { New-RigLock -Purpose 'a session on top of a staged save' -Tool 'rig-reset.tests.ps1' }
+    Invoke-Quiet { Assert-RigLockHeld -Action 'Start' -CallerId $owner -Tool 'rig-reset.tests.ps1' }
+    New-TestWorld -Name 'MadeByTheTest' | Out-Null
+    Invoke-Quiet { Remove-RigLock -CallerId $owner } | Out-Null
+    Assert-FileExists (Join-Path $saveRoot 'StagedByHand\StagedByHand.save') `
+        'THE DATA-LOSS CASE: a world staged before the session and absent from a FRESH baseline survives the session boundary'
+    Assert-FileGone (Join-Path $saveRoot 'MadeByTheTest') `
+        'while a world the same session created in the same tree is still deleted, so the fix did not simply stop deleting'
+
+    # ---- every degraded case keeps every world, and says which case it was ----
+
+    # 1. No marker at all. Not a degradation: nothing has mutated the rig since
+    #    the last completed restore, and creating a world is a mutating action.
+    Reset-TestHome
+    New-TestServerState
+    New-TestWorld -Name 'Extra' | Out-Null
+    Assert-False (Test-Path -LiteralPath (Get-RigDirtyFilePath)) 'fixture check: there is no marker'
+    $plan = Invoke-Quiet { Get-RigResetPlan }
+    Assert-False $plan.SessionWorlds.Recorded 'with NO marker, nothing may be deleted'
+    Assert-Equal 0 (@($plan.Actions | Where-Object { $_.Kind -eq 'DeleteTree' })).Count 'so no world is planned for deletion'
+    $r = @($plan.Reports | Where-Object { $_.Kind -eq 'WorldsNotTracked' })
+    Assert-Equal 1 $r.Count 'and the plan reports that no world is being deleted'
+    Assert-Match $r[0].Detail 'no session marker' 'naming that reason specifically'
+    Assert-False $r[0].Warn 'as a plain statement: an unmutated rig has no session worlds by definition'
+    Invoke-Quiet { Invoke-RigReset } | Out-Null
+    Assert-FileExists (Join-Path $saveRoot 'Extra\Extra.save') 'and every world survives'
+
+    # 2. A marker with no world set: written by a build from before this existed.
+    Reset-TestHome
+    New-TestServerState
+    Invoke-Quiet { Write-RigDirtyMarker -Owner 'OLDBUILD' -Reason 'Start' } | Out-Null
+    $m = Read-RigDirtyMarker
+    $m.Remove('worlds')
+    Write-RigFileDurable -Path (Get-RigDirtyFilePath) -Text (($m.Keys | ForEach-Object { "$_=$($m[$_])" }) -join "`n")
+    New-TestWorld -Name 'Extra' | Out-Null
+    $plan = Invoke-Quiet { Get-RigResetPlan }
+    Assert-False $plan.SessionWorlds.Recorded 'a marker with no world set authorises no deletion'
+    Assert-True  $plan.SessionWorlds.Degraded 'and counts as a degradation, unlike a missing marker'
+    Assert-Equal 0 (@($plan.Actions | Where-Object { $_.Kind -eq 'DeleteTree' })).Count 'so no world is planned for deletion'
+    $r = @($plan.Reports | Where-Object { $_.Kind -eq 'WorldsNotTracked' })
+    Assert-Match $r[0].Detail 'records no world set' 'and the report names that reason'
+    Assert-True  $r[0].Warn 'as a warning, because something is wrong with the marker'
+    Invoke-Quiet { Invoke-RigReset } | Out-Null
+    Assert-FileExists (Join-Path $saveRoot 'Extra\Extra.save') 'and every world survives'
+
+    # 3. An unreadable marker: present on disk, not parseable as a marker.
+    Reset-TestHome
+    New-TestServerState
+    New-TestWorld -Name 'Extra' | Out-Null
+    Set-Content -LiteralPath (Get-RigDirtyFilePath) -Encoding utf8 -Value @('# nothing but a comment', 'this is not a marker')
+    $plan = Invoke-Quiet { Get-RigResetPlan }
+    Assert-False $plan.SessionWorlds.Recorded 'an unreadable marker authorises no deletion'
+    Assert-True  $plan.SessionWorlds.Degraded 'and is a degradation'
+    Assert-Equal 0 (@($plan.Actions | Where-Object { $_.Kind -eq 'DeleteTree' })).Count 'so no world is planned for deletion'
+    $r = @($plan.Reports | Where-Object { $_.Kind -eq 'WorldsNotTracked' })
+    Assert-Match $r[0].Detail 'could not be read as a marker' 'and the report names that reason'
+    Assert-True  $r[0].Warn 'as a warning'
+    Invoke-Quiet { Invoke-RigReset } | Out-Null
+    Assert-FileExists (Join-Path $saveRoot 'Extra\Extra.save') 'and every world survives'
+    Remove-Item -LiteralPath (Get-RigDirtyFilePath) -Force -ErrorAction SilentlyContinue
+
+    # 4. A marker from before the last reboot. The names on disk did not change,
+    #    but nothing can vouch for a marker whose writer cannot be identified, and
+    #    the rig's rule for an unverifiable marker is to take the cheap side.
+    Reset-TestHome
+    New-TestServerState
+    Invoke-Quiet { Write-RigDirtyMarker -Owner 'PREREBOOT' -Reason 'Start' } | Out-Null
+    New-TestWorld -Name 'Extra' | Out-Null
+    Initialize-RigLockPaths -RigHome $script:TempRoot -ServerImageName 'pwsh' -ClientImageName 'pwsh' `
+        -InstanceRoot (Join-Path $script:TempRoot 'ClientRig\instances') -BootId 'boot:2099-01-01T00:00:00Z'
+    $plan = Invoke-Quiet { Get-RigResetPlan }
+    Assert-False $plan.SessionWorlds.Recorded 'a marker from before the last reboot authorises no deletion'
+    Assert-True  $plan.SessionWorlds.Degraded 'and is a degradation'
+    Assert-Equal 0 (@($plan.Actions | Where-Object { $_.Kind -eq 'DeleteTree' })).Count 'so no world is planned for deletion'
+    $r = @($plan.Reports | Where-Object { $_.Kind -eq 'WorldsNotTracked' })
+    Assert-Match $r[0].Detail 'before the machine last started' 'and the report names that reason'
+    Assert-True  $r[0].Warn 'as a warning'
+    Invoke-Quiet { Invoke-RigReset } | Out-Null
+    Assert-FileExists (Join-Path $saveRoot 'Extra\Extra.save') 'and every world survives'
+    Use-TestPaths
+
+    # ---- -KeepState leaves worlds alone at BOTH ends, and carries the debt ----
+    Reset-TestHome
+    New-TestServerState
+    $owner = Invoke-Quiet { New-RigLock -Purpose 'staging a world for the next session' -Tool 'rig-reset.tests.ps1' }
+    Invoke-Quiet { Assert-RigLockHeld -Action 'Start' -CallerId $owner -Tool 'rig-reset.tests.ps1' }
+    New-TestWorld -Name 'KeptOnPurpose' | Out-Null
+    Invoke-Quiet { Remove-RigLock -CallerId $owner -KeepState } | Out-Null
+    Assert-FileExists (Join-Path $saveRoot 'KeptOnPurpose\KeptOnPurpose.save') '-Unlock -KeepState leaves the session world on the rig'
+    Assert-True (Get-RigDirtyState).Dirty 'and leaves the marker set, so the debt is carried rather than forgiven'
+    Assert-True (Get-RigSessionWorldSnapshot).Recorded 'with its world set still readable by whoever turns up next'
+
+    $ownerK = Invoke-Quiet { New-RigLock -Purpose 'inheriting the staged world on purpose' -Tool 'rig-reset.tests.ps1' -KeepState }
+    Assert-FileExists (Join-Path $saveRoot 'KeptOnPurpose\KeptOnPurpose.save') '-Lock -KeepState does not delete the inherited world either'
+    Assert-True (Get-RigDirtyState).Dirty 'and still leaves the marker set'
+    Invoke-Quiet { Remove-RigLock -CallerId $ownerK -KeepState } | Out-Null
+
+    $owner2 = Invoke-Quiet { New-RigLock -Purpose 'the session that cleans up' -Tool 'rig-reset.tests.ps1' }
+    Assert-FileGone   (Join-Path $saveRoot 'KeptOnPurpose') 'the next acquisition without -KeepState pays the debt and deletes it'
+    Assert-FileExists (Join-Path $saveRoot 'Luna\Luna.save') 'while still keeping the world that predates every one of those sessions'
+    Invoke-Quiet { Remove-RigLock -CallerId $owner2 } | Out-Null
+
+    # ---- the restore is idempotent, worlds included ----
+    Reset-TestHome
+    New-TestServerState
+    $owner = Invoke-Quiet { New-RigLock -Purpose 'idempotence' -Tool 'rig-reset.tests.ps1' }
+    Invoke-Quiet { Assert-RigLockHeld -Action 'Start' -CallerId $owner -Tool 'rig-reset.tests.ps1' }
+    New-TestWorld -Name 'SessionWorld' | Out-Null
+    Invoke-Quiet { Invoke-RigReset } | Out-Null
+    Assert-FileGone (Join-Path $saveRoot 'SessionWorld') 'the first restore deletes the session world'
+    $before = Get-TreeFingerprint (Join-Path $script:TempRoot 'DedicatedServer')
+    $res    = Invoke-Quiet { Invoke-RigReset }
+    Assert-Equal $before (Get-TreeFingerprint (Join-Path $script:TempRoot 'DedicatedServer')) `
+        'running the restore a second time changes nothing on the server half'
+    Assert-Equal 0 $res.Failures.Count 'and fails nothing'
+    Assert-Equal 0 (@((Invoke-Quiet { Get-RigResetPlan }).Actions | Where-Object { $_.Kind -eq 'DeleteTree' })).Count `
+        'and plans no further world deletion, because a completed restore cleared the marker'
+    Assert-FileExists (Join-Path $saveRoot 'Luna\Luna.save') 'with the pre-session world still there after both runs'
+    Invoke-Quiet { Remove-RigLock -CallerId $owner } | Out-Null
+
+    # ---- the outcome is printed, because a silent world delete is the failure ----
+    Reset-TestHome
+    New-TestServerState
+    $owner = Invoke-Quiet { New-RigLock -Purpose 'reporting' -Tool 'rig-reset.tests.ps1' }
+    Invoke-Quiet { Assert-RigLockHeld -Action 'Start' -CallerId $owner -Tool 'rig-reset.tests.ps1' }
+    New-TestWorld -Name 'SessionWorld' | Out-Null
+    $text = (Invoke-RigReset 3>&1 6>&1 | Out-String)
+    Assert-Match $text "world 'SessionWorld' deleted" 'the reset names the world it deleted, by name'
+    Assert-Match $text 'worlds: 1 dedicated-server world' 'and says how many predated the session and were kept'
+    Invoke-Quiet { Remove-RigLock -CallerId $owner } | Out-Null
 }
 
 function Test-RestoreOnRelease {
@@ -1347,7 +1585,7 @@ function Test-Robustness {
     $plan = Invoke-Quiet { Get-RigResetPlan }
     $stale = @($plan.Reports | Where-Object { $_.Kind -eq 'StaleMod' })
     Assert-Equal 1 $stale.Count 'a seeded mod older than its source is reported'
-    Assert-Match $stale[0].Detail 'Provision -Force' 'the stale-mod report names the fix'
+    Assert-Match $stale[0].Detail 'create -Target client1 -Force' 'the stale-mod report names the fix'
     Invoke-Quiet { Invoke-RigReset } | Out-Null
     Assert-FileExists (Join-Path (Get-InstanceDataDir 'client1') 'userdata\mods\Local_Example\Example.dll') 'the stale mod is NOT deleted, only named'
 
@@ -1400,6 +1638,7 @@ try {
     Test-LockIntegration
     Test-Baseline
     Test-BaselineRestore
+    Test-SessionWorlds
     Test-RestoreOnRelease
     Test-SharedState
     Test-Robustness

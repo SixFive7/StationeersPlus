@@ -7,11 +7,11 @@
     wires the two seams the library refuses to reach for by itself, loads the
     check files, and runs them.
 
-      - the control-plane transport, from client-rig.ps1's Invoke-Control, which
-        returns an OBJECT. The launcher's own -Call only prints JSON, so a
-        harness built on it would be parsing its own stdout;
-      - the launcher seam, one child pwsh per client-rig.ps1 action, so a lock, a
-        start or a stop behaves exactly as it does when a human types it;
+      - the control-plane transport, from the client library's Invoke-Control,
+        which returns an OBJECT. The launcher's own 'call' verb only prints JSON,
+        so a harness built on it would be parsing its own stdout;
+      - the launcher seam, one child pwsh per testrig.ps1 verb, so a lock, a start
+        or a stop behaves exactly as it does when a human types it;
       - the rig registry, so an instance NAME resolves to a control-plane port;
       - the tier-1 save folder, for the read-only listing hash taken on either
         side of a run.
@@ -30,6 +30,11 @@
 .PARAMETER Suite
     A check file, or a directory of *.playtest.ps1 files. Default: the checks/
     folder beside this script.
+
+.PARAMETER SuiteName
+    Names the run's evidence folder. Default: the leaf of -Suite. It was -Name,
+    which on the rig launcher means a save name, so one word meant two things
+    across two files a check author reads together.
 
 .PARAMETER Only
     Wildcard over check names. Default: all of them.
@@ -59,7 +64,7 @@
 [CmdletBinding()]
 param(
     [string] $Suite,
-    [string] $Name,
+    [string] $SuiteName,
     [string] $Only = '*',
     [string] $EvidenceRoot,
     [int]    $LockWaitSeconds = 0,
@@ -72,7 +77,7 @@ $ErrorActionPreference = 'Stop'
 $PlaytestRoot   = $PSScriptRoot
 $TestRigRoot    = Split-Path -Parent $PlaytestRoot
 $RepoRoot       = Split-Path -Parent $TestRigRoot
-$ClientRigScript = Join-Path $TestRigRoot 'ClientRig\client-rig.ps1'
+$RigLauncher    = Join-Path $TestRigRoot 'testrig.ps1'
 
 . (Join-Path $PlaytestRoot 'playtest-lib.ps1')
 
@@ -89,21 +94,31 @@ if ($ListFlakes) {
     return
 }
 
-# The launcher, dot-sourced rather than shelled out to, for exactly one function:
-# Invoke-Control returns the parsed response. Doing this here and not in the
-# library is what keeps the library offline-testable.
-if (-not (Test-Path -LiteralPath $ClientRigScript)) {
-    throw "client-rig.ps1 not found at $ClientRigScript. The playtest harness drives the client rig and cannot run without it."
+# The launcher's LIBRARIES are dot-sourced, not the launcher itself: testrig.ps1
+# is a dispatcher and running it with no verb would print its whole surface. Two
+# functions are wanted from them, Invoke-Control (which returns the parsed
+# response, where the 'call' verb only prints JSON) and Read-Registry. Doing this
+# here and not in playtest-lib.ps1 is what keeps the library offline-testable.
+foreach ($lib in @('rig-lock.ps1', 'rig-reset.ps1', 'lib\common.ps1', 'lib\client.ps1')) {
+    $libPath = Join-Path $TestRigRoot $lib
+    if (-not (Test-Path -LiteralPath $libPath)) {
+        throw "The rig library $lib is not at $libPath. The playtest harness drives the rig and cannot run without it."
+    }
+    . $libPath
 }
-. $ClientRigScript | Out-Null
+Initialize-RigCommon -RigHome $TestRigRoot
+Initialize-RigClient -RigHome $TestRigRoot
+if (-not (Test-Path -LiteralPath $RigLauncher)) {
+    throw "testrig.ps1 is not at $RigLauncher. The playtest harness shells out to it for every rig action."
+}
 
 $PwshExe = if ($PSHOME -and (Test-Path -LiteralPath (Join-Path $PSHOME 'pwsh.exe'))) { Join-Path $PSHOME 'pwsh.exe' }
            else { 'pwsh' }
 
-$Tier1SaveRoot = try { Join-Path (Get-UserDataPath) 'saves' }
+$Tier1SaveRoot = try { Join-Path (Get-RigUserDataPath) 'saves' }
                  catch { Join-Path ([Environment]::GetFolderPath('MyDocuments')) 'My Games\Stationeers\saves' }
 
-$suiteName = if ($Name) { $Name }
+$suiteName = if ($SuiteName) { $SuiteName }
              elseif ($Suite) { Split-Path -Leaf ($Suite.TrimEnd('\', '/')) }
              else { 'playtest' }
 $suiteSlug = ConvertTo-PlaytestSlug $suiteName
@@ -143,10 +158,10 @@ Initialize-PlaytestLib `
             # one argument that always contains spaces: the lock purpose defaults
             # to the check's own name, so `-Purpose the first-use notice cap ...`
             # arrived at the launcher as `-Purpose the` followed by `first-use`
-            # positionally, which binds to the int $Port. Every check in every
+            # positionally, which bound to an int parameter. Every check in every
             # suite therefore died at `rig-unavailable` with a type-conversion
             # message, and the harness could not take the lock at all.
-            $full = @('-NoProfile', '-NonInteractive', '-File', $ClientRigScript) + $ArgList
+            $full = @('-NoProfile', '-NonInteractive', '-File', $RigLauncher) + $ArgList
             $full = @($full | ForEach-Object { ConvertTo-PlaytestArgument $_ })
             # -NoNewWindow inherits this console instead of allocating one, so
             # nothing flashes and nothing takes the developer's foreground. The
@@ -186,7 +201,7 @@ elseif (Test-Path -LiteralPath $suitePath -PathType Container) {
     $files = @(Get-ChildItem -LiteralPath $suitePath -Recurse -File -Filter '*.playtest.ps1' | Sort-Object FullName | ForEach-Object { $_.FullName })
 }
 if (@($files).Count -eq 0) {
-    throw "No check files at '$suitePath'. A check file is named <something>.playtest.ps1 and calls Register-PlaytestCheck. See TestRig/playtest/README.md."
+    throw "No check files at '$suitePath'. A check file is named <something>.playtest.ps1 and calls Register-PlaytestCheck. See TestRig/playtest/CLAUDE.md."
 }
 
 Clear-PlaytestChecks

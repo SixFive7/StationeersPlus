@@ -307,22 +307,23 @@ $script:FakeRigCommand = {
     $action = if (@($ArgList).Count -gt 0) { "$($ArgList[0])" } else { '' }
     $target = ''
     for ($i = 0; $i -lt @($ArgList).Count - 1; $i++) {
-        if ("$($ArgList[$i])" -eq '-Instance') { $target = "$($ArgList[$i + 1])" }
+        if ("$($ArgList[$i])" -eq '-Target') { $target = "$($ArgList[$i + 1])" }
     }
     switch ($action) {
-        '-Lock' {
+        'lock' {
             $out = if ($script:Fake.LockStdOut) { $script:Fake.LockStdOut } else {
                 @(
                     '[Lock] Acquired the rig session lock (covers BOTH TestRig halves).'
-                    "[Lock]   owner   : $($script:Fake.LockOwner)   (pass -As $($script:Fake.LockOwner) on every mutating command, on either launcher)"
+                    "[Lock]   owner   : $($script:Fake.LockOwner)   (pass -As $($script:Fake.LockOwner) on every mutating command)"
                     '[Reset] client hostie: deleted setting.xml, re-copied BepInEx/config, re-applied SavePathOverride'
                     '[Reset] client joiner: deleted setting.xml, re-copied BepInEx/config, re-applied SavePathOverride'
+                    "TESTRIG-OWNER $($script:Fake.LockOwner)"
                 ) -join "`n"
             }
             return [pscustomobject]@{ ExitCode = $script:Fake.LockExit; StdOut = $out; StdErr = '' }
         }
-        '-Unlock' { return [pscustomobject]@{ ExitCode = $script:Fake.UnlockExit; StdOut = '[Unlock] released'; StdErr = '' } }
-        '-Start'  {
+        'unlock' { return [pscustomobject]@{ ExitCode = $script:Fake.UnlockExit; StdOut = '[Unlock] released'; StdErr = '' } }
+        'start'  {
             # A started instance comes up at the menu with an empty roster, which
             # is what makes a per-check lock and restart meaningful: check two
             # must not inherit check one's world.
@@ -338,7 +339,7 @@ $script:FakeRigCommand = {
             }
             return [pscustomobject]@{ ExitCode = [int]$script:Fake.StartExit[$target]; StdOut = "[Start] $target"; StdErr = '' }
         }
-        '-Stop'   { return [pscustomobject]@{ ExitCode = [int]$script:Fake.StopExit[$target];  StdOut = "[Stop] $target";  StdErr = '' } }
+        'stop'   { return [pscustomobject]@{ ExitCode = [int]$script:Fake.StopExit[$target];  StdOut = "[Stop] $target";  StdErr = '' } }
         default   { return [pscustomobject]@{ ExitCode = 0; StdOut = ''; StdErr = '' } }
     }
 }
@@ -643,7 +644,7 @@ function Test-Authority {
 
     # Argument quoting across the process boundary. This is not decoration: with
     # it missing, the lock purpose (which defaults to the CHECK NAME and so always
-    # has spaces) reached client-rig.ps1 as several arguments, the second landed
+    # has spaces) reached the launcher as several arguments, the second landed
     # positionally on the launcher's int $Port, and EVERY check in EVERY suite
     # reported inconclusive/rig-unavailable. The harness could not take the lock.
     Assert-Equal 'plain' (ConvertTo-PlaytestArgument 'plain') 'an argument with no space is passed through untouched'
@@ -818,7 +819,7 @@ function Test-Actions {
     Initialize-PlaytestLib -RigCommand {
         param([string[]] $ArgList)
         $script:Fake.Calls += , @($ArgList)
-        if ("$($ArgList[0])" -eq '-RefreshLock') { return [pscustomobject]@{ ExitCode = 1; StdOut = ''; StdErr = 'Refresh refused: the rig is locked by another session.' } }
+        if ("$($ArgList[0])" -eq 'refresh-lock') { return [pscustomobject]@{ ExitCode = 1; StdOut = ''; StdErr = 'Refresh refused: the rig is locked by another session.' } }
         return [pscustomobject]@{ ExitCode = 0; StdOut = ''; StdErr = '' }
     }
     $r = Get-OutcomeRecord { Invoke-RigAction -On 'hostie' -Path '/status' -Context $ctx }
@@ -835,7 +836,7 @@ function Test-Actions {
     $r = Get-OutcomeRecord { Read-RigValue -From 'ghost' -Reader status -Context $ctx }
     Assert-Equal 'inconclusive' $r.Outcome 'an unprovisioned instance is inconclusive'
     Assert-Equal 'instance-not-provisioned' $r.Detector 'and names the reason'
-    Assert-Match $r.Message '-Provision' 'and names the command that fixes it'
+    Assert-Match $r.Message 'testrig create -Target' 'and names the command that fixes it'
 }
 
 function Test-BinaryGate {
@@ -875,7 +876,7 @@ function Test-BinaryGate {
     New-TestInstanceData -Name 'hostie' -NoStamp | Out-Null
     $r = Get-OutcomeRecord { Assert-BinaryUnderTest -On @('hostie') -Mod 'net.example' -Context $ctx }
     Assert-Equal 'provision-stamp-missing' $r.Detector 'an instance with no provision stamp cannot be attested'
-    Assert-Match $r.Message '-Provision -Force' 'and the message names the fix'
+    Assert-Match $r.Message 'testrig create -Target' 'and the message names the fix'
 
     Reset-TestHome
     $ctx = New-TestContext
@@ -912,17 +913,17 @@ function Test-Teardown {
     $ctx = New-TestContext
     Invoke-Quiet { Use-Rig -Purpose 'a test' -Context $ctx -Body { param($c) $c.Started = @('joiner', 'hostie'); 'body ran' } } | Out-Null
     $calls = Get-FakeCallStrings
-    Assert-Equal $script:Fake.LockOwner $ctx.Owner 'the owner id is parsed out of the launcher output'
-    Assert-True  (@($calls | Where-Object { $_ -like '-Lock *' }).Count -eq 1) 'the lock is taken once'
-    Assert-True  (@($calls | Where-Object { $_ -like '-Unlock *' }).Count -eq 1) 'the lock is released once'
-    Assert-True  (@($calls | Where-Object { $_ -like '*-Stop -Instance joiner*' }).Count -eq 1) 'the joiner is stopped by NAME'
-    Assert-True  (@($calls | Where-Object { $_ -like '*-Stop -Instance hostie*' }).Count -eq 1) 'the host is stopped by NAME'
-    Assert-Equal 0 (@($calls | Where-Object { $_ -match '(^|\s)-All(\s|$)' }).Count) 'NOTHING ever ran -Stop -All (it would reach another session live test)'
+    Assert-Equal $script:Fake.LockOwner $ctx.Owner 'the owner id is read from the TESTRIG-OWNER line'
+    Assert-True  (@($calls | Where-Object { $_ -like 'lock *' }).Count -eq 1) 'the lock is taken once'
+    Assert-True  (@($calls | Where-Object { $_ -like 'unlock *' }).Count -eq 1) 'the lock is released once'
+    Assert-True  (@($calls | Where-Object { $_ -like '*stop -Target joiner*' }).Count -eq 1) 'the joiner is stopped by NAME'
+    Assert-True  (@($calls | Where-Object { $_ -like '*stop -Target hostie*' }).Count -eq 1) 'the host is stopped by NAME'
+    Assert-Equal 0 (@($calls | Where-Object { $_ -match '(^|\s)-Target\s+(all|clients)(\s|$)' }).Count) 'NOTHING ever targeted all or clients (either would reach another session live test)'
 
     $stopIdx = @()
     for ($i = 0; $i -lt @($script:Fake.Calls).Count; $i++) {
         $s = ($script:Fake.Calls[$i] -join ' ')
-        if ($s -like '*-Stop -Instance*') { $stopIdx += "$s" }
+        if ($s -like '*stop -Target*') { $stopIdx += "$s" }
     }
     Assert-Match $stopIdx[0] 'joiner' 'the joiner is stopped FIRST'
     Assert-Match $stopIdx[1] 'hostie' 'the host is stopped LAST (it holds the world)'
@@ -938,8 +939,8 @@ function Test-Teardown {
     $calls = Get-FakeCallStrings
     Assert-True  $threw 'a throwing body still throws out of Use-Rig'
     Assert-Equal 'fail' $kind 'and its classification is not lost by the teardown'
-    Assert-True  (@($calls | Where-Object { $_ -like '*-Stop -Instance hostie*' }).Count -eq 1) 'the instance is stopped even though the body threw'
-    Assert-True  (@($calls | Where-Object { $_ -like '-Unlock *' }).Count -eq 1) 'THE LOCK IS RELEASED even though the body threw'
+    Assert-True  (@($calls | Where-Object { $_ -like '*stop -Target hostie*' }).Count -eq 1) 'the instance is stopped even though the body threw'
+    Assert-True  (@($calls | Where-Object { $_ -like 'unlock *' }).Count -eq 1) 'THE LOCK IS RELEASED even though the body threw'
 
     # A stop that fails must not stop the release: an instance left up holds the
     # whole rig, but a lock left held blocks every other agent as well.
@@ -948,8 +949,8 @@ function Test-Teardown {
     $script:Fake.StopExit['hostie'] = 1
     Invoke-Quiet { Use-Rig -Purpose 'a test' -Context $ctx -Body { param($c) $c.Started = @('joiner', 'hostie') } } | Out-Null
     $calls = Get-FakeCallStrings
-    Assert-True (@($calls | Where-Object { $_ -like '*-Stop -Instance joiner*' }).Count -eq 1) 'a failing stop does not skip the other instances'
-    Assert-True (@($calls | Where-Object { $_ -like '-Unlock *' }).Count -eq 1) 'a failing stop does not skip the release'
+    Assert-True (@($calls | Where-Object { $_ -like '*stop -Target joiner*' }).Count -eq 1) 'a failing stop does not skip the other instances'
+    Assert-True (@($calls | Where-Object { $_ -like 'unlock *' }).Count -eq 1) 'a failing stop does not skip the release'
     Assert-True (@($ctx.TeardownNotes).Count -ge 1) 'the failed stop is recorded rather than swallowed'
     Assert-Match (@($ctx.TeardownNotes) -join ' ') "stop of 'hostie' failed" 'and the note names the instance'
 
@@ -969,7 +970,7 @@ function Test-Teardown {
     $r = Get-OutcomeRecord { Use-Rig -Purpose 'a test' -Context $ctx -Body { param($c) $c.Started = @('hostie') } }
     Assert-Equal 'inconclusive' $r.Outcome 'a rig held by another session is inconclusive'
     Assert-Equal 'rig-unavailable' $r.Detector 'and is named as such'
-    Assert-Equal 0 (@(Get-FakeCallStrings | Where-Object { $_ -like '-Start*' }).Count) 'and nothing was started without the lock'
+    Assert-Equal 0 (@(Get-FakeCallStrings | Where-Object { $_ -like 'start*' }).Count) 'and nothing was started without the lock'
 
     # A lock whose owner id cannot be read is refused rather than driven blind:
     # nothing could be released afterwards.
@@ -983,9 +984,9 @@ function Test-Teardown {
     # A re-asserted lock prints a different line, and that one parses too.
     Reset-TestHome
     $ctx = New-TestContext
-    $script:Fake.LockStdOut = '[Lock] Re-asserted the rig session lock (owner a1b2c3d4). Pass -As a1b2c3d4 on mutating commands.'
+    $script:Fake.LockStdOut = "[Lock] Re-asserted the rig session lock (owner a1b2c3d4). Pass -As a1b2c3d4 on mutating commands.`nTESTRIG-OWNER a1b2c3d4"
     Invoke-Quiet { Use-Rig -Purpose 'a test' -Context $ctx -Body { param($c) 'ok' } } | Out-Null
-    Assert-Equal 'a1b2c3d4' $ctx.Owner 'the owner id parses out of the re-assert line too'
+    Assert-Equal 'a1b2c3d4' $ctx.Owner 'the owner token is read on a re-assert too'
 }
 
 function Test-BringUp {
@@ -997,7 +998,7 @@ function Test-BringUp {
 
     Assert-NoThrow { Start-RigInstances -Context $ctx -BootWaitSeconds 60 -WorldWaitSeconds 60 } 'a healthy rig comes up'
     $calls = Get-FakeCallStrings
-    $startIdx = @($calls | Where-Object { $_ -like '-Start *' })
+    $startIdx = @($calls | Where-Object { $_ -like 'start *' })
     Assert-Match $startIdx[0] 'hostie' 'the HOST is started first (a joiner has nothing to reach until it hosts)'
     Assert-Match $startIdx[1] 'joiner' 'the joiner is started second'
     Assert-True  (@($script:Fake.Requests | Where-Object { $_.Path -eq '/host' }).Count -eq 1) 'the host was told to host'
@@ -1049,7 +1050,7 @@ function Test-BringUp {
     $r = Get-OutcomeRecord { Wait-RigStage -Name 'hostie' -Stage 'menu' -WaitSeconds 60 -PollSeconds 5 -Context $ctx }
     Assert-Equal 'inconclusive' $r.Outcome 'an instance parked on the Workshop error screen is inconclusive'
     Assert-Equal 'launchpad-workshop-park' $r.Detector 'and is named as the Workshop park'
-    Assert-True (@(Get-FakeCallStrings | Where-Object { $_ -like '*-Stop -Instance hostie*' }).Count -ge 1) 'the park remedy restarted that ONE instance'
+    Assert-True (@(Get-FakeCallStrings | Where-Object { $_ -like '*stop -Target hostie*' }).Count -ge 1) 'the park remedy restarted that ONE instance'
     Assert-Equal 0 (@(Get-FakeCallStrings | Where-Object { $_ -match '(^|\s)-All(\s|$)' }).Count) 'the restart never reached for -All'
 
     # A boot that times out for a reason that is NOT the park: the remedy is a
@@ -1063,7 +1064,7 @@ function Test-BringUp {
     Assert-NoThrow { Wait-RigStage -Name 'hostie' -Stage 'menu' -WaitSeconds 60 -PollSeconds 5 -Context $ctx } 'a boot timeout that a restart fixes does not end the check'
     Assert-True  $ctx.Degraded 'but it does mark the check degraded'
     Assert-True  ($ctx.Detectors -contains 'boot-timeout') 'and records the detector that fired'
-    Assert-True  (@(Get-FakeCallStrings | Where-Object { $_ -like '*-Start -Instance hostie*' }).Count -ge 1) 'the remedy restarted that instance'
+    Assert-True  (@(Get-FakeCallStrings | Where-Object { $_ -like '*start -Target hostie*' }).Count -ge 1) 'the remedy restarted that instance'
 
     # And when the restart does NOT fix it, the bounded retry gives up and the
     # check is inconclusive rather than hanging on the rig forever.
@@ -1254,7 +1255,7 @@ function Test-Evidence {
 
     $launcher = @(Get-ChildItem -LiteralPath (Join-Path $dir 'launcher') -File)
     Assert-True (@($launcher).Count -ge 2) 'every launcher invocation is recorded'
-    Assert-Match (Get-Content -Raw -LiteralPath $launcher[0].FullName) 'client-rig.ps1' 'with the command line as it was run'
+    Assert-Match (Get-Content -Raw -LiteralPath $launcher[0].FullName) 'testrig' 'with the command line as it was run'
 
     # Ordering: the sequence numbers make the run replayable in order.
     $names = @($requests | ForEach-Object { $_.Name } | Sort-Object)
@@ -1365,8 +1366,8 @@ function Test-Suite {
     # The lock is released and re-taken PER CHECK, which is what buys each check
     # the state-hygiene reset that hangs off a new lock.
     $calls = Get-FakeCallStrings
-    Assert-Equal 3 (@($calls | Where-Object { $_ -like '-Lock *' }).Count) 'the lock is taken once per check, not once per suite'
-    Assert-Equal 3 (@($calls | Where-Object { $_ -like '-Unlock *' }).Count) 'and released once per check'
+    Assert-Equal 3 (@($calls | Where-Object { $_ -like 'lock *' }).Count) 'the lock is taken once per check, not once per suite'
+    Assert-Equal 3 (@($calls | Where-Object { $_ -like 'unlock *' }).Count) 'and released once per check'
     Assert-Equal 0 (@($calls | Where-Object { $_ -match '(^|\s)-All(\s|$)' }).Count) 'no -All anywhere in a whole suite run'
 
     $root = Join-Path $script:TempRoot 'evidence'
@@ -1497,8 +1498,8 @@ function Test-Surface {
     $ctx = New-TestContext
     Invoke-Quiet { Restart-RigInstance -Name 'joiner' -Reason 'a test' -Context $ctx }
     $calls = Get-FakeCallStrings
-    Assert-Equal 1 (@($calls | Where-Object { $_ -like '*-Stop -Instance joiner*' }).Count) 'a restart stops that one instance'
-    Assert-Equal 1 (@($calls | Where-Object { $_ -like '*-Start -Instance joiner*' }).Count) 'and starts it again'
+    Assert-Equal 1 (@($calls | Where-Object { $_ -like '*stop -Target joiner*' }).Count) 'a restart stops that one instance'
+    Assert-Equal 1 (@($calls | Where-Object { $_ -like '*start -Target joiner*' }).Count) 'and starts it again'
     Assert-Equal 0 (@($calls | Where-Object { $_ -match '(^|\s)-All(\s|$)' }).Count) 'and never reaches for -All'
     Assert-True  (@($ctx.Started) -contains 'joiner') 'a restarted instance is registered for teardown'
     $ctxNoLock = New-PlaytestContext -CheckName 'x' -Instances @(@{ Name = 'joiner' })
@@ -1510,12 +1511,12 @@ function Test-Surface {
     Reset-TestHome
     $ctx = New-TestContext
     Invoke-Quiet { Update-PlaytestLockIfDue -Context $ctx }
-    Assert-Equal 0 (@(Get-FakeCallStrings | Where-Object { $_ -like '-RefreshLock*' }).Count) 'a refresh inside the last minute is skipped'
+    Assert-Equal 0 (@(Get-FakeCallStrings | Where-Object { $_ -like 'refresh-lock*' }).Count) 'a refresh inside the last minute is skipped'
     $ctx.LastRefreshUtc = $script:FakeNow.AddMinutes(-2)
     Invoke-Quiet { Update-PlaytestLockIfDue -Context $ctx }
-    Assert-Equal 1 (@(Get-FakeCallStrings | Where-Object { $_ -like '-RefreshLock*' }).Count) 'a refresh past the minute happens'
+    Assert-Equal 1 (@(Get-FakeCallStrings | Where-Object { $_ -like 'refresh-lock*' }).Count) 'a refresh past the minute happens'
     Invoke-Quiet { Update-PlaytestLockIfDue -Context $ctx }
-    Assert-Equal 1 (@(Get-FakeCallStrings | Where-Object { $_ -like '-RefreshLock*' }).Count) 'and immediately re-checking does not refresh again'
+    Assert-Equal 1 (@(Get-FakeCallStrings | Where-Object { $_ -like 'refresh-lock*' }).Count) 'and immediately re-checking does not refresh again'
     $ctxNoOwner = New-PlaytestContext -CheckName 'x' -Instances @(@{ Name = 'joiner' })
     Assert-NoThrow { Update-PlaytestLockIfDue -Context $ctxNoOwner } 'a context with no lock owner refreshes nothing and does not throw'
 
@@ -1523,7 +1524,7 @@ function Test-Surface {
     Reset-TestHome
     $ctx = New-TestContext
     Invoke-Quiet { Stop-RigInstances -Context $ctx }
-    Assert-Equal 0 (@(Get-FakeCallStrings | Where-Object { $_ -like '*-Stop*' }).Count) 'teardown with nothing started issues no stops'
+    Assert-Equal 0 (@(Get-FakeCallStrings | Where-Object { $_ -like '*stop *' }).Count) 'teardown with nothing started issues no stops'
 
     # Detector bookkeeping is a set, not a list: one flaky endpoint retried three
     # times is one detector on the report.

@@ -6,7 +6,7 @@
 # deliberately mod-agnostic: nothing here names a mod, a prefab, a setting or a
 # guid, and nothing may be added that does. A check supplies all of that.
 #
-# Read TestRig/playtest/README.md first if you are writing a check. This header
+# Read TestRig/playtest/CLAUDE.md first if you are writing a check. This header
 # states only the four decisions that shape every function below.
 #
 # 1. THREE OUTCOMES, NEVER TWO: pass, fail, inconclusive.
@@ -51,9 +51,9 @@
 #
 # COMPOSITION ROOT. This library talks to nothing by itself. Two seams are
 # injected through Initialize-PlaytestLib: -Transport (one HTTP call to one
-# instance's control plane) and -RigCommand (one client-rig.ps1 invocation).
+# instance's control plane) and -RigCommand (one testrig.ps1 invocation).
 # TestRig/playtest/playtest.ps1 is the composition root that wires the real ones;
-# it dot-sources client-rig.ps1 for Invoke-Control, which returns an object,
+# it dot-sources the launcher's client library for Invoke-Control, which returns an object,
 # rather than parsing the stdout of -Call, which only prints JSON. The offline
 # suite wires fakes. Unwired, every driving verb throws a message naming the
 # runner, which is what keeps this file honestly testable without a game.
@@ -371,7 +371,7 @@ $script:PlaytestFlakes = @(
         Remedy      = 'retry'
         MaxAttempts = 3
         GapSeconds  = 10
-        Reference   = 'TestRig/ClientRig/README.md, Gotchas'
+        Reference   = 'TestRig/RESEARCH.md, Plugin lifecycle traps'
         Test        = {
             param($Probe)
             if ($Probe.Kind -ne 'action' -and $Probe.Kind -ne 'transport') { return $false }
@@ -389,7 +389,7 @@ $script:PlaytestFlakes = @(
         Remedy      = 'restart-instance'
         MaxAttempts = 2
         GapSeconds  = 5
-        Reference   = 'TestRig/ClientRig/README.md, Gotchas'
+        Reference   = 'TestRig/RESEARCH.md, Plugin lifecycle traps'
         Test        = {
             param($Probe)
             $s = $Probe.Status
@@ -404,7 +404,7 @@ $script:PlaytestFlakes = @(
         Remedy      = 'abort'
         MaxAttempts = 1
         GapSeconds  = 0
-        Reference   = 'TestRig/ClientRig/README.md, Hosting a world'
+        Reference   = 'TestRig/MANUAL.md, Working sequences'
         Test        = {
             param($Probe)
             if ($Probe.Kind -ne 'poststate') { return $false }
@@ -420,7 +420,7 @@ $script:PlaytestFlakes = @(
         Remedy      = 'abort'
         MaxAttempts = 1
         GapSeconds  = 0
-        Reference   = 'TestRig/ClientRig/README.md, What to assert on'
+        Reference   = 'TestRig/MANUAL.md, the /status fields a multiplayer test reads'
         Test        = {
             param($Probe)
             if ($Probe.Kind -ne 'poststate') { return $false }
@@ -433,7 +433,7 @@ $script:PlaytestFlakes = @(
         Remedy      = 'abort'
         MaxAttempts = 1
         GapSeconds  = 0
-        Reference   = 'TestRig/session.lock.template'
+        Reference   = 'TestRig/CLAUDE.md, The session lock covers the whole rig'
         Test        = { param($Probe) return ($Probe.Kind -eq 'lock') }
     }
     [ordered]@{
@@ -442,7 +442,7 @@ $script:PlaytestFlakes = @(
         Remedy      = 'wait'
         MaxAttempts = 6
         GapSeconds  = 10
-        Reference   = 'TestRig/ClientRig/README.md, Timeouts'
+        Reference   = 'TestRig/MANUAL.md, Flags'
         Test        = {
             param($Probe)
             return (($Probe.Kind -eq 'transport') -and ($Probe.Blocking -eq $true))
@@ -454,7 +454,7 @@ $script:PlaytestFlakes = @(
         Remedy      = 'restart-instance'
         MaxAttempts = 1
         GapSeconds  = 5
-        Reference   = 'TestRig/ClientRig/README.md, Gotchas'
+        Reference   = 'TestRig/RESEARCH.md, Plugin lifecycle traps'
         Test        = {
             param($Probe)
             if ($Probe.Kind -ne 'transport') { return $false }
@@ -467,7 +467,7 @@ $script:PlaytestFlakes = @(
         Remedy      = 'restart-instance'
         MaxAttempts = 2
         GapSeconds  = 5
-        Reference   = 'TestRig/ClientRig/README.md, Readiness has three distinct stages'
+        Reference   = 'TestRig/MANUAL.md, Readiness'
         Test        = { param($Probe) return ($Probe.Kind -eq 'barrier') }
     }
     [ordered]@{
@@ -476,7 +476,7 @@ $script:PlaytestFlakes = @(
         Remedy      = 'retry'
         MaxAttempts = 3
         GapSeconds  = 3
-        Reference   = 'TestRig/ClientRig/README.md, Endpoints'
+        Reference   = 'TestRig/MANUAL.md, the endpoint catalogue'
         Test        = { param($Probe) return ($Probe.Kind -eq 'transport') }
     }
 )
@@ -767,7 +767,7 @@ function Compare-PlaytestSaveInventory {
 function Invoke-PlaytestTransport {
     param([int] $Port, [string] $Path, [string] $BodyJson, [int] $TimeoutSec)
     if (-not $script:PlaytestTransport) {
-        throw "No control-plane transport is wired. Run checks through TestRig/playtest/playtest.ps1, which dot-sources client-rig.ps1 and wires its Invoke-Control (an object) rather than parsing the stdout of -Call (only printed JSON). A library that reaches the network by itself cannot be tested offline, which is why this is a hard error and not a fallback."
+        throw "No control-plane transport is wired. Run checks through TestRig/playtest/playtest.ps1, which dot-sources the launcher's client library and wires its Invoke-Control (an object) rather than parsing the stdout of the 'call' verb (only printed JSON). A library that reaches the network by itself cannot be tested offline, which is why this is a hard error and not a fallback."
     }
     return (& $script:PlaytestTransport $Port $Path $BodyJson $TimeoutSec)
 }
@@ -775,7 +775,7 @@ function Invoke-PlaytestTransport {
 function Invoke-RigCommand {
     <#
     .SYNOPSIS
-        One client-rig.ps1 invocation, recorded in the evidence bundle.
+        One testrig.ps1 invocation, recorded in the evidence bundle.
     .DESCRIPTION
         Returns the wired command's result object (ExitCode, StdOut, StdErr) and
         never throws on a non-zero exit: the caller decides what a launcher
@@ -788,7 +788,7 @@ function Invoke-RigCommand {
         $Context
     )
     if (-not $script:PlaytestRigCommand) {
-        throw "No launcher seam is wired. Run checks through TestRig/playtest/playtest.ps1, which wires client-rig.ps1. See the composition-root note at the top of playtest-lib.ps1."
+        throw "No launcher seam is wired. Run checks through TestRig/playtest/playtest.ps1, which wires testrig.ps1. See the composition-root note at the top of playtest-lib.ps1."
     }
     $started = Get-PlaytestNowUtc
     $res = & $script:PlaytestRigCommand $ArgList
@@ -797,7 +797,7 @@ function Invoke-RigCommand {
         $seq  = Get-PlaytestNextSequence -Context $ctx
         $name = '{0:d4}-{1}.txt' -f $seq, (ConvertTo-PlaytestSlug ($Label ? $Label : ($ArgList -join ' ')))
         $body = @(
-            "# client-rig.ps1 $($ArgList -join ' ')"
+            "# testrig $($ArgList -join ' ')"
             "# started : $(Get-PlaytestStamp $started)"
             "# exit    : $($res.ExitCode)"
             ''
@@ -825,7 +825,7 @@ function Resolve-RigInstancePort {
     if (-not $e) {
         $known = ($entries | ForEach-Object { "$($_.instanceName)" }) -join ', '
         throw (New-PlaytestSignal -Kind 'inconclusive' -Detector 'instance-not-provisioned' `
-            -Message "Instance '$Name' is not in the client rig registry, so this check cannot run. Provision it first: client-rig.ps1 -Provision -As <id> -Instance $Name [-Role host]. Known instances: $known" `
+            -Message "Instance '$Name' is not in the client rig registry, so this check cannot run. Create it first: testrig create -Target $Name -As <id> [-Role host]. Known instances: $known" `
             -Detail @{ requested = $Name; known = $known })
     }
     return [int]$e.port
@@ -845,7 +845,7 @@ function Resolve-RigInstanceEntry {
     if (-not $e) {
         $known = ($entries | ForEach-Object { "$($_.instanceName)" }) -join ', '
         throw (New-PlaytestSignal -Kind 'inconclusive' -Detector 'instance-not-provisioned' `
-            -Message "Instance '$Name' is not in the client rig registry, so this check cannot run. Provision it first: client-rig.ps1 -Provision -As <id> -Instance $Name [-Role host]. Known instances: $known" `
+            -Message "Instance '$Name' is not in the client rig registry, so this check cannot run. Create it first: testrig create -Target $Name -As <id> [-Role host]. Known instances: $known" `
             -Detail @{ requested = $Name; known = $known })
     }
     return $e
@@ -866,7 +866,13 @@ function Resolve-RigInstanceLogPath {
     $e = Resolve-RigInstanceEntry -Name $Name
     $root = "$($e.instancesRoot)"
     if (-not $root) {
-        $root = Join-Path (Join-Path (Get-PlaytestRigHome) 'ClientRig') 'instances'
+        # The same fallback order the launcher uses, environment variable
+        # included. This step used to be missing here, so an entry written before
+        # the root was recorded resolved to a path under TestRig/ that a rig built
+        # on the install's volume has never had, and the log read came back
+        # "absent" rather than wrong, which is the hardest kind of wrong to notice.
+        $root = if ($env:STATIONEERS_CLIENTRIG_ROOT) { $env:STATIONEERS_CLIENTRIG_ROOT }
+                else { Join-Path (Join-Path (Get-PlaytestRigHome) 'ClientRig') 'instances' }
     }
     return (Join-Path (Join-Path (Join-Path $root $Name) 'BepInEx') 'LogOutput.log')
 }
@@ -957,7 +963,7 @@ function Update-PlaytestLockIfDue {
     $now = Get-PlaytestNowUtc
     if ($ctx.LastRefreshUtc -and ($now - $ctx.LastRefreshUtc).TotalSeconds -lt 60) { return }
     $ctx.LastRefreshUtc = $now
-    $res = Invoke-RigCommand -ArgList @('-RefreshLock', '-As', $ctx.Owner) -Label 'refresh-lock' -Context $ctx
+    $res = Invoke-RigCommand -ArgList @('refresh-lock', '-As', $ctx.Owner) -Label 'refresh-lock' -Context $ctx
     if ([int]$res.ExitCode -ne 0) {
         $probe = New-PlaytestProbe -Kind 'lock' -ErrorText "$($res.StdErr)$($res.StdOut)"
         $flake = Resolve-PlaytestFlake $probe
@@ -1133,8 +1139,8 @@ function Restart-RigInstance {
         throw "Cannot restart '$Name' without the rig lock owner id. Restarts only happen inside Use-Rig."
     }
     Write-Host "[Playtest]   restarting '$Name' ($Reason)"
-    Invoke-RigCommand -ArgList @('-Stop', '-Instance', $Name, '-As', $ctx.Owner, '-TimeoutSeconds', '60') -Label "restart-stop-$Name" -Context $ctx | Out-Null
-    $res = Invoke-RigCommand -ArgList @('-Start', '-Instance', $Name, '-As', $ctx.Owner) -Label "restart-start-$Name" -Context $ctx
+    Invoke-RigCommand -ArgList @('stop', '-Target', $Name, '-As', $ctx.Owner, '-TimeoutSeconds', '60') -Label "restart-stop-$Name" -Context $ctx | Out-Null
+    $res = Invoke-RigCommand -ArgList @('start', '-Target', $Name, '-As', $ctx.Owner) -Label "restart-start-$Name" -Context $ctx
     if ([int]$res.ExitCode -ne 0) {
         throw (New-PlaytestSignal -Kind 'inconclusive' -Detector 'instance-restart-failed' `
             -Message "Restarting '$Name' after a $Reason failed, so this check is inconclusive. Launcher exit $($res.ExitCode): $(("$($res.StdErr)$($res.StdOut)" -split "`n")[0])" `
@@ -1621,7 +1627,7 @@ function Assert-BinaryUnderTest {
         }
         if (-not $row['stamp']) {
             throw (New-PlaytestSignal -Kind 'inconclusive' -Detector 'provision-stamp-missing' `
-                -Message "Instance '$name' has no readable provision.stamp, so there is no way to say what it was built from and the check is inconclusive. Re-provision it: client-rig.ps1 -Provision -Force -As <id> -Instance $name" `
+                -Message "Instance '$name' has no readable provision.stamp, so there is no way to say what it was built from and the check is inconclusive. Rebuild it: testrig create -Target $name -Force -As <id>" `
                 -Detail @{ instance = $name; stamp = "$stampPath" })
         }
 
@@ -1722,12 +1728,12 @@ function Use-Rig {
 
     .DESCRIPTION
         Acquires the session lock, runs the body, and in a finally stops the
-        instances this call started, ONE -Stop -Instance <name> at a time, then
+        instances this call started, ONE 'stop -Target <name>' at a time, then
         releases the lock.
 
-        It never runs -Stop -All. That flag reaches every instance on the machine
-        including another session's live test, and a harness that reaches outside
-        its own reservation is a harness nobody can leave running.
+        It never stops by 'all' or 'clients'. Either reaches every instance on the
+        machine including another session's live test, and a harness that reaches
+        outside its own reservation is a harness nobody can leave running.
 
         The stop order is joiners first and hosts last, matching the launcher's
         own teardown rule: whoever holds the world saves and quits after everyone
@@ -1746,7 +1752,7 @@ function Use-Rig {
         [switch] $KeepState
     )
     $ctx = $Context
-    $lockArgs = @('-Lock', '-Purpose', $Purpose, '-TtlMinutes', "$TtlMinutes")
+    $lockArgs = @('lock', '-Purpose', $Purpose, '-TtlMinutes', "$TtlMinutes")
     if ($WaitSeconds -gt 0) { $lockArgs += @('-WaitSeconds', "$WaitSeconds") }
     if ($KeepState)         { $lockArgs += '-KeepState' }
 
@@ -1760,9 +1766,16 @@ function Use-Rig {
             -Message "Could not take the rig session lock, so this check did not run and is inconclusive rather than failed. Another agent may hold it; the lock names its purpose. Launcher said: $((($text -split "`n") | Where-Object { $_.Trim() } | Select-Object -First 3) -join ' ')" `
             -Detail @{ exit = $lockRes.ExitCode })
     }
+    # ONE machine-readable line, by contract with the launcher.
+    #
+    # This used to scrape the owner id out of the launcher's human-readable block
+    # with two regexes over two different sentences, so any rewording of that
+    # prose would silently have broken every check in every suite with
+    # 'rig-unavailable' and nothing would have said why. testrig.ps1 prints
+    # 'TESTRIG-OWNER <id>' as the last line of a successful acquisition precisely
+    # so a harness never has to read prose.
     $owner = ''
-    $m = [regex]::Match($text, '\[Lock\]\s+owner\s*:\s*([0-9a-fA-F]{6,16})')
-    if (-not $m.Success) { $m = [regex]::Match($text, 'lock\s+\(owner\s+([0-9a-fA-F]{6,16})\)') }
+    $m = [regex]::Match($text, '(?m)^\s*TESTRIG-OWNER\s+([0-9a-fA-F]{6,16})\s*$')
     if ($m.Success) { $owner = $m.Groups[1].Value }
     if (-not $owner) {
         throw (New-PlaytestSignal -Kind 'inconclusive' -Detector 'rig-unavailable' `
@@ -1786,9 +1799,9 @@ function Use-Rig {
     }
     finally {
         Stop-RigInstances -Context $ctx
-        $unlock = Invoke-RigCommand -ArgList @('-Unlock', '-As', $owner) -Label 'unlock' -Context $ctx
+        $unlock = Invoke-RigCommand -ArgList @('unlock', '-As', $owner) -Label 'unlock' -Context $ctx
         if ([int]$unlock.ExitCode -ne 0) {
-            $note = "RELEASE FAILED (exit $($unlock.ExitCode)). The lock expires on its own timer, but until then the rig is held. Check: client-rig.ps1 -Status -As $owner"
+            $note = "RELEASE FAILED (exit $($unlock.ExitCode)). The lock expires on its own timer, but until then the rig is held. Check: testrig status -As $owner"
             $ctx.TeardownNotes += $note
             Write-Warning "[Playtest] $note"
         }
@@ -1805,7 +1818,7 @@ function Use-Rig {
 }
 
 function Stop-RigInstances {
-    # By NAME, joiners before hosts, one command each, never -All. Every failure
+    # By NAME, joiners before hosts, one command each, never -Target all/clients. Every failure
     # is recorded and none of them stops the loop: the release that follows
     # matters more than any single stop, and an instance left up would hold the
     # whole rig for every other agent.
@@ -1817,7 +1830,7 @@ function Stop-RigInstances {
     $hosts   = @($ctx.Instances | Where-Object { "$($_.Role)" -eq 'host' }   | ForEach-Object { "$($_.Name)" })
     $ordered = @(@($started | Where-Object { $hosts -notcontains $_ }) + @($started | Where-Object { $hosts -contains $_ }))
     foreach ($name in $ordered) {
-        $res = Invoke-RigCommand -ArgList @('-Stop', '-Instance', $name, '-As', $ctx.Owner, '-TimeoutSeconds', '60') -Label "stop-$name" -Context $ctx
+        $res = Invoke-RigCommand -ArgList @('stop', '-Target', $name, '-As', $ctx.Owner, '-TimeoutSeconds', '60') -Label "stop-$name" -Context $ctx
         if ([int]$res.ExitCode -ne 0) {
             # The launcher REFUSES to quit on top of a world whose save it could
             # not confirm, which is right for a world somebody wants to keep and
@@ -1831,7 +1844,7 @@ function Stop-RigInstances {
             # in its own body first.
             $first = (("$($res.StdErr)$($res.StdOut)" -split "`n") | Where-Object { $_.Trim() } | Select-Object -First 1)
             Write-Host "[Playtest]   stop of '$name' refused, retrying with -Force (the check's world is disposable)"
-            $forced = Invoke-RigCommand -ArgList @('-Stop', '-Instance', $name, '-As', $ctx.Owner, '-TimeoutSeconds', '60', '-Force') -Label "stop-forced-$name" -Context $ctx
+            $forced = Invoke-RigCommand -ArgList @('stop', '-Target', $name, '-As', $ctx.Owner, '-TimeoutSeconds', '60', '-Force') -Label "stop-forced-$name" -Context $ctx
             if ([int]$forced.ExitCode -ne 0) {
                 $note = "stop of '$name' failed even with -Force (exit $($forced.ExitCode)): $((("$($forced.StdErr)$($forced.StdOut)" -split "`n") | Where-Object { $_.Trim() } | Select-Object -First 1))"
                 $ctx.TeardownNotes += $note
@@ -2141,7 +2154,7 @@ function Start-RigInstanceProcess {
     param($Spec, $Context)
     $ctx = if ($Context) { $Context } else { $script:PlaytestContext }
     $name = "$($Spec.Name)"
-    $res = Invoke-RigCommand -ArgList @('-Start', '-Instance', $name, '-As', $ctx.Owner) -Label "start-$name" -Context $ctx
+    $res = Invoke-RigCommand -ArgList @('start', '-Target', $name, '-As', $ctx.Owner) -Label "start-$name" -Context $ctx
     if ($ctx.Started -notcontains $name) { $ctx.Started += $name }
     if ([int]$res.ExitCode -ne 0) {
         throw (New-PlaytestSignal -Kind 'inconclusive' -Detector 'instance-start-failed' `

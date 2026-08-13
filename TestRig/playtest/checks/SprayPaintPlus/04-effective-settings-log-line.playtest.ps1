@@ -11,8 +11,8 @@
 #
 #   1. The scenario runs inside ScenarioRunner, which is deployed to the
 #      DEDICATED SERVER only. The harness's launcher seam is wired to
-#      client-rig.ps1 in TestRig/playtest/playtest.ps1, so no check can drive
-#      dedicated-server.ps1 through it.
+#      the launcher's CLIENT library in TestRig/playtest/playtest.ps1, so no check
+#      can drive the dedicated server through it.
 #   2. Every reader resolves an instance NAME to a client-rig control-plane
 #      port. The dedicated server has no control plane and is not in the client
 #      rig registry, so there is nothing for -From to name.
@@ -26,8 +26,8 @@
 # Run it by hand, under the same session lock, and read the tally yourself:
 #   set Scenario = spp-settings-merge-verify in
 #     TestRig/DedicatedServer/install/BepInEx/config/net.scenariorunner.cfg
-#   dedicated-server.ps1 -Start -As <id>
-#   dedicated-server.ps1 -Logs -Grep 'spp-settings-merge \| RESULT'
+#   testrig start -Target server -As <id> -New <Map>
+#   testrig logs -Target server -Grep 'spp-settings-merge \| RESULT'
 #
 # WHAT THIS CHECK DOES COVER
 # PLAYTEST.md names ONE assertion inside that scenario as the reason to re-run it

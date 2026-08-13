@@ -101,63 +101,73 @@ playwright/persistent/state/
 Web/_staging/
 
 ## Test rig (see TestRig/CLAUDE.md)
-## Both halves are DENY-ALL with a named allowlist, deliberately. Everything these
+## The whole rig is DENY-ALL with a named allowlist, deliberately. Everything these
 ## tools produce is local-only, and several normal actions drop artifacts straight
-## into the folder (-Snapshot -OutFile before.json, /screenshot?path=shot.png,
+## into the folder (snapshot -OutFile before.json, /screenshot?path=shot.png,
 ## scratch dumps). Deny-all means a stray artifact cannot be committed by accident;
 ## an ignore-a-few-things list would let every one of those through.
 ##
-## The rig ROOT is deny-all too, for the same reason the halves are: a -Snapshot
+## The rig ROOT is deny-all too, for the same reason the halves are: a snapshot
 ## -OutFile with a relative path resolves against the shell CWD, and a run from
 ## the rig root would land the artifact here where an ignore-a-few-things list
-## would wave it straight through. The allowlist is the shared lock and state-reset
-## machinery, their test suites and the two docs. Every piece of live session state
-## stays untracked: session.lock, session.dirty (the crash marker), session.state.json
-## (the shared per-user snapshot) and baseline/ (the captured definition of a clean
-## rig, including the config file contents it stores).
+## would wave it straight through. The allowlist is the one launcher, the shared
+## lock and state-reset machinery, their test suites and the four docs. Every piece
+## of live session state stays untracked: session.lock, session.dirty (the crash
+## marker), session.state.json (the shared per-user snapshot) and baseline/ (the
+## captured definition of a clean rig, including the config file contents it stores).
 /TestRig/*
 !/TestRig/CLAUDE.md
+!/TestRig/MANUAL.md
+!/TestRig/RESEARCH.md
+!/TestRig/testrig.ps1
+!/TestRig/testrig.tests.ps1
+!/TestRig/lib/
 !/TestRig/rig-lock.ps1
 !/TestRig/rig-lock.tests.ps1
 !/TestRig/rig-reset.ps1
 !/TestRig/rig-reset.tests.ps1
-!/TestRig/session.lock.template
 !/TestRig/DedicatedServer/
 !/TestRig/ClientRig/
 !/TestRig/playtest/
 
-## Dedicated server half: local-only except CLAUDE.md, the launcher, and source
-## code under dev-plugins/. install/ and data/ are ignored wholesale.
+## The one launcher's half-specific implementations. testrig.ps1 is the only entry
+## point; lib/ holds the per-half function libraries it dot-sources. Source only,
+## nothing generated, so a plain allowlist of the folder is enough.
+/TestRig/lib/*
+!/TestRig/lib/common.ps1
+!/TestRig/lib/server.ps1
+!/TestRig/lib/client.ps1
+
+## Dedicated server half: local-only except source code under dev-plugins/, which
+## carries its own README. install/ and data/ are ignored wholesale. Both the
+## launcher and the half's manual used to live here; they are now
+## TestRig/testrig.ps1 (server half in TestRig/lib/server.ps1) and TestRig/MANUAL.md.
 /TestRig/DedicatedServer/*
-!/TestRig/DedicatedServer/CLAUDE.md
-!/TestRig/DedicatedServer/dedicated-server.ps1
 !/TestRig/DedicatedServer/dev-plugins/
 /TestRig/DedicatedServer/dev-plugins/**/bin/
 /TestRig/DedicatedServer/dev-plugins/**/obj/
 
-## Client rig half: local-only except the launcher, its three docs, and source code
-## under dev-plugins/. instances/ holds hard-linked copies of the game install and
+## Client rig half: local-only except source code under dev-plugins/. Its launcher
+## and its three docs used to live here; they are now TestRig/testrig.ps1 (client
+## half in TestRig/lib/client.ps1), TestRig/CLAUDE.md, TestRig/MANUAL.md and
+## TestRig/RESEARCH.md. instances/ holds hard-linked copies of the game install and
 ## normally lives on the install's volume, not here; data/ holds the rig registry,
 ## per-instance manifests, settings, save roots, logs and PID files. Both are
 ## created on demand and both are covered by the deny-all above. A host instance
 ## writes its worlds under data/<instance>/userdata/saves/, which the deny-all
 ## already covers; nothing a host produces is ever committable.
 /TestRig/ClientRig/*
-!/TestRig/ClientRig/CLAUDE.md
-!/TestRig/ClientRig/README.md
-!/TestRig/ClientRig/RESEARCH.md
-!/TestRig/ClientRig/client-rig.ps1
 !/TestRig/ClientRig/dev-plugins/
 /TestRig/ClientRig/dev-plugins/**/bin/
 /TestRig/ClientRig/dev-plugins/**/obj/
 
-## Playtest harness: the library, its offline suite, the runner, the manual, and the
-## per-mod checks under checks/. Deny-all inside here too, matching both halves: an
+## Playtest harness: the library, its offline suite, the runner, its short manual and
+## the per-mod checks under checks/. Deny-all inside here too, matching the halves: an
 ## evidence bundle normally lands in .work/, but -EvidenceRoot can point anywhere and
 ## a bundle carries every request and response of a run. Under an ignore-a-few-things
 ## list one of those would be committable by accident.
 /TestRig/playtest/*
-!/TestRig/playtest/README.md
+!/TestRig/playtest/CLAUDE.md
 !/TestRig/playtest/playtest.ps1
 !/TestRig/playtest/playtest-lib.ps1
 !/TestRig/playtest/playtest-lib.tests.ps1

@@ -23,7 +23,7 @@ namespace ClientDriver
     ///     unfocused or on a desktop of its own, which is the point: a driven client sits out of the
     ///     way while an agent works.
     ///
-    ///     It is one half of a two-part tool. The other half is the launcher, <c>client-rig.ps1</c>,
+    ///     It is one half of a two-part tool. The other half is the launcher, <c>TestRig/testrig.ps1</c>,
     ///     which provisions instances, starts and stops them, and fans a single command out across
     ///     the rig. The boundary between them is process creation: the launcher owns everything
     ///     outside the process (and must keep working when a process is dead or wedged), and this

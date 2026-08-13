@@ -101,7 +101,7 @@ Register-PlaytestCheck `
             }
             if (-not (Test-Path -LiteralPath $modConfig)) {
                 Set-PlaytestInconclusive -Detector 'instance-not-provisioned' `
-                    -Because "the instance has no modconfig.xml at $modConfig, so a local mod cannot be registered with it. Re-provision: client-rig.ps1 -Provision -Force -As <id> -Instance hostie"
+                    -Because "the instance has no modconfig.xml at $modConfig, so a local mod cannot be registered with it. Re-provision: testrig create -Target hostie -Force -As <id>"
             }
 
             # ---- 2. Seed the stub into the instance's OWN save root. This tree
@@ -125,7 +125,7 @@ Register-PlaytestCheck `
             $at = $configBackup.LastIndexOf($closing)
             if ($at -lt 0) {
                 Set-PlaytestInconclusive -Detector 'modconfig-unrecognised' `
-                    -Because "the instance's modconfig.xml has no $closing element, so the stub cannot be registered with StationeersLaunchPad and the detector would never see it. Re-provision: client-rig.ps1 -Provision -Force -As <id> -Instance hostie"
+                    -Because "the instance's modconfig.xml has no $closing element, so the stub cannot be registered with StationeersLaunchPad and the detector would never see it. Re-provision: testrig create -Target hostie -Force -As <id>"
             }
             $entry = "  <Local Enabled=`"true`">`r`n    <Path Value=`"$stubFolder`" />`r`n  </Local>`r`n"
             Set-Content -LiteralPath $modConfig -Encoding utf8 -NoNewline `
@@ -246,7 +246,7 @@ Register-PlaytestCheck `
             $notes += "verify: stubFolderGone=$stubGone modConfigClean=$configClean"
 
             if (-not $stubGone -or -not $configClean) {
-                $warning = "CONFLICT STUB NOT FULLY REMOVED from instance 'hostie'. It disables Spray Paint Plus on every later run of that instance and the state reset does NOT clear it. Delete $stubFolder and the ConflictStub <Local> entry in $modConfig, or re-provision: client-rig.ps1 -Provision -Force -As <id> -Instance hostie"
+                $warning = "CONFLICT STUB NOT FULLY REMOVED from instance 'hostie'. It disables Spray Paint Plus on every later run of that instance and the state reset does NOT clear it. Delete $stubFolder and the ConflictStub <Local> entry in $modConfig, or re-provision: testrig create -Target hostie -Force -As <id>"
                 $ctx.TeardownNotes += $warning
                 Write-Warning "[Playtest] $warning"
             }
