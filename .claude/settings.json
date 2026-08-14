@@ -131,7 +131,7 @@
         "hooks": [
           {
             "type": "command",
-            "if": "Bash(*testrig.ps1*)",
+            "if": "Bash(*testrig*)",
             "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/rig-hook.ps1"
           },
           {
@@ -146,7 +146,7 @@
           },
           {
             "type": "command",
-            "if": "PowerShell(*testrig.ps1*)",
+            "if": "PowerShell(*testrig*)",
             "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/rig-hook.ps1"
           },
           {
@@ -465,21 +465,6 @@
             "type": "command",
             "if": "Write(*\\PLAYTEST.md)",
             "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/todo-content-hook.ps1"
-          }
-        ]
-      },
-      {
-        "matcher": "Edit|Write",
-        "hooks": [
-          {
-            "type": "command",
-            "if": "Edit(*\\TestRig\\\\\\\\*)",
-            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/rig-hook.ps1"
-          },
-          {
-            "type": "command",
-            "if": "Write(*\\TestRig\\\\\\\\*)",
-            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/rig-hook.ps1"
           }
         ]
       }

@@ -4,23 +4,33 @@
 # which is the repo's other Stop hook and the right shape: read git status,
 # classify the dirty paths, emit a state-aware reminder, block nothing.
 #
-# What it watches: the shared rig safety code. testrig.ps1 and the playtest
-# harness both dot-source rig-lock.ps1, rig-reset.ps1 and lib/, so a regression
-# in any of them reaches every rig action at once. Four offline suites cover it,
-# and until now nothing anywhere reminded anyone to run them: the instruction
-# lived in prose only.
+# What it watches: TestRig/src/, the source of testrig.exe. Every rig action on
+# either half, and the playtest harness with it, goes through that one binary, so a
+# regression there reaches all of it at once. The suite is offline and covers it.
+#
+# It used to watch the PowerShell libraries (rig-lock.ps1, rig-reset.ps1, lib/,
+# playtest-lib.ps1) and name their four suites. Those are retained-not-live now:
+# TestRig/CLAUDE.md says to read them and never run them. Watching them would
+# remind an agent to run suites against code that no longer drives anything.
+#
+# It also absorbed rig-hook.ps1's per-edit version of this reminder, which said the
+# same thing 97 words at a time on every touch of a shared safety file. Once per
+# change beats once per edit, and the debounce below is what buys that.
 #
 # DEBOUNCE, AND WHY. web-stop-hook fires every turn while its condition holds,
 # which is right for a publish flow that is finished within the turn. It is wrong
-# here: rig safety code stays dirty across many turns of a single piece of work,
-# so an unconditional version would inject the same reminder every turn for days
-# and be tuned out by the third one. So this hook fires once per distinct STATE of
-# the watched files. It records a signature (path plus last-write time, or a
-# deletion marker) and stays silent until that signature changes. Edit again, get
-# reminded again. Run the suites and change nothing, stay silent.
+# here: rig source stays dirty across many turns of a single piece of work, so an
+# unconditional version would inject the same reminder every turn for days and be
+# tuned out by the third one. So this hook fires once per distinct STATE of the
+# watched files. It records a signature (path plus last-write time, or a deletion
+# marker) and stays silent until that signature changes. Edit again, get reminded
+# again. Run the suite and change nothing, stay silent.
 #
-# The signature lives outside the repository, so it never shows up as an untracked
-# file and never collides with the rig's own state files or .work/ conventions.
+# The signature lives outside the repository, and that is load bearing rather than
+# tidy: a stamp inside the tree would show up in git status, match its own watch
+# patterns, and change the very state it records, so the debounce could never
+# engage. testrig.exe is deliberately NOT watched for the same reason in reverse:
+# a rebuild would move its timestamp and re-fire a reminder the rebuild answered.
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
@@ -47,14 +57,11 @@ foreach ($line in $changed) {
     }
 }
 
-# The watched set. The suites themselves are excluded on purpose: a turn that
-# only edits a suite does not need to be told the suite exists.
+# The watched set. The test project is included rather than carved out: dotnet test
+# runs the whole solution in one command, so "you are already in the suite" is not a
+# reason to stay quiet about running it.
 $safetyPatterns = @(
-    '^TestRig/rig-lock\.ps1$',
-    '^TestRig/rig-reset\.ps1$',
-    '^TestRig/testrig\.ps1$',
-    '^TestRig/lib/',
-    '^TestRig/playtest/playtest-lib\.ps1$'
+    '^TestRig/src/'
 )
 
 $dirty = @()
@@ -99,16 +106,17 @@ $list = ($dirty | Select-Object -First 6) -join ', '
 if ($dirty.Count -gt 6) { $list += " (+$($dirty.Count - 6) more)" }
 
 $message = @"
-[TestRig -- end of turn] Shared rig safety code is uncommitted: $list
+[TestRig -- end of turn] Rig source is uncommitted: $list
 
-testrig.ps1 and the playtest harness both dot-source rig-lock.ps1, rig-reset.ps1 and lib/, so a regression in any of them reaches every rig action at once. Four offline suites cover this code and none of them needs a game running:
+testrig.exe is built from TestRig/src/, and every rig action on both halves plus the playtest harness runs through it, so a regression here reaches all of them at once. The suite is offline: no game, no network, and it never touches the real session.lock.
 
-    pwsh -NoProfile -File TestRig/rig-lock.tests.ps1
-    pwsh -NoProfile -File TestRig/rig-reset.tests.ps1
-    pwsh -NoProfile -File TestRig/testrig.tests.ps1
-    pwsh -NoProfile -File TestRig/playtest/playtest-lib.tests.ps1
+    dotnet test TestRig/src/TestRig.slnx
 
-1,413 assertions (284 / 377 / 353 / 399), about two and a half minutes for all four. They must all pass before this work is called done, and a behaviour change belongs in its suite in the same turn as the code. If you have already run them since the last edit, ignore this. This fires once per change, not once per turn, so it will stay quiet until you touch these files again.
+A behaviour change belongs in its tests in the same turn as the code. The binary also embeds a SHA-256 digest of this tree and exits 7 when the two disagree, so the work is not finished until it is rebuilt and testrig.exe is committed in the same commit as the source:
+
+    dotnet publish TestRig/src/TestRig.Cli/TestRig.Cli.csproj -c Release -r win-x64
+
+If you have already done both since the last edit, ignore this. It fires once per change, not once per turn, so it will stay quiet until you touch these files again.
 "@
 
 $payload = @{
