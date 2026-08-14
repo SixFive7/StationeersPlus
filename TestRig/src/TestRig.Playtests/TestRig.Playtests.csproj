@@ -1,0 +1,47 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    The check collection.
+
+    Checks live next to the mod they are about, under Mods/<Mod>/playtests/, and are
+    globbed in here. That is not cosmetic: the engine derives a check's mod, its build
+    and its deployed path from the check's own source location via [CallerFilePath],
+    so a check cannot declare a mod identity and cannot drift from one. The PowerShell
+    harness trusted five declared hashtable keys and validated none of them.
+
+    An AOT binary cannot load managed assemblies at run time, so checks are compiled in
+    rather than discovered on disk. Each check file registers itself from a
+    [ModuleInitializer], so adding a check is adding a file: there is no central list
+    to forget to update. Adding one needs a rebuild, which is already true of every
+    other change because of the source-hash rule, and it is one command.
+
+    A mod with no playtests folder contributes nothing.
+  -->
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <AssemblyName>TestRig.Playtests</AssemblyName>
+    <RootNamespace>TestRig.Playtests</RootNamespace>
+    <IsAotCompatible>true</IsAotCompatible>
+    <ModsRoot>$(MSBuildThisFileDirectory)..\..\..\Mods\</ModsRoot>
+
+    <!--
+      CA2255 warns that [ModuleInitializer] belongs in application code or an advanced
+      source-generator scenario. Self-registration IS that scenario, and it is the whole
+      reason this assembly exists: the alternative is a hand-maintained central list, which
+      is a list someone forgets to update, and a check that silently never runs is worse
+      than any of the failures this harness is built to catch.
+    -->
+    <NoWarn>$(NoWarn);CA2255</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="$(ModsRoot)*\playtests\**\*.cs" LinkBase="checks" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\TestRig.Playtest\TestRig.Playtest.csproj" />
+    <ProjectReference Include="..\TestRig.Contracts\TestRig.Contracts.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    The behavioural specification, ported from the four PowerShell suites
+    (284 lock + 377 reset + 353 cli + 399 playtest = 1,413 assertions).
+
+    Standing rule for this project, from PLAN.md section 11: an assertion that
+    still passes when the code under test is replaced by a no-op is a bug. The
+    PowerShell suites contain assertions of exactly that shape - testrig.tests.ps1
+    greps the launcher's SOURCE TEXT for the TESTRIG-OWNER line, which is why it is
+    green today while the feature has never once worked. Nothing here asserts
+    against source text.
+  -->
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <AssemblyName>TestRig.Tests</AssemblyName>
+    <RootNamespace>TestRig.Tests</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+    <PackageReference Include="xunit" Version="2.9.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\TestRig.Core\TestRig.Core.csproj" />
+    <ProjectReference Include="..\TestRig.Playtest\TestRig.Playtest.csproj" />
+    <ProjectReference Include="..\TestRig.Playtests\TestRig.Playtests.csproj" />
+    <ProjectReference Include="..\TestRig.Contracts\TestRig.Contracts.csproj" />
+  </ItemGroup>
+
+</Project>

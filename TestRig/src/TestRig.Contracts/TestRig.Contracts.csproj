@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    The wire contract shared by the rig launcher and the RigDriver BepInEx plugin.
+
+    Multi-targeted on purpose:
+      netstandard2.0 - consumed by the plugin, which targets net472 because that is
+                       what the game's Mono runtime provides.
+      net10.0        - consumed by the AOT launcher, and the only target where the
+                       System.Text.Json source generator is available.
+
+    Nothing in here may reference Unity, BepInEx, Harmony or anything from the
+    launcher. It is types and nothing else, so that a field rename on either side
+    becomes a compile error on the other. That is the entire point of the assembly:
+    the fakery audit found the PowerShell fake answering /dlc with {ok, owned} while
+    the real checks read state.removedOwned and state.shared, and 399 assertions
+    stayed green through it.
+  -->
+
+  <PropertyGroup>
+    <TargetFrameworks>netstandard2.0;net10.0</TargetFrameworks>
+    <AssemblyName>TestRig.Contracts</AssemblyName>
+    <RootNamespace>TestRig.Contracts</RootNamespace>
+    <!-- netstandard2.0 has no nullable attributes of its own; polyfill below. -->
+    <NoWarn>$(NoWarn);CS8021</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0'">
+    <PackageReference Include="System.Text.Json" Version="8.0.5" />
+  </ItemGroup>
+
+</Project>

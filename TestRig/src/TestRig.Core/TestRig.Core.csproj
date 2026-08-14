@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    The logic PowerShell made dangerous: the lock state machine, the reset planner,
+    baseline capture and staleness, session-scoped world tracking, the refusal
+    matrix, and both halves' instance lifecycles.
+
+    Everything in here reaches the outside world through an interface in
+    TestRig.Core/Abstractions. No direct File, Process, DateTime.UtcNow, Thread.Sleep
+    or HttpClient calls outside Infrastructure/. That rule is what makes the xUnit
+    suite able to exercise the real seam rather than a shim, which the PowerShell
+    suites could not.
+  -->
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <AssemblyName>TestRig.Core</AssemblyName>
+    <RootNamespace>TestRig.Core</RootNamespace>
+    <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\TestRig.Contracts\TestRig.Contracts.csproj" />
+  </ItemGroup>
+
+</Project>

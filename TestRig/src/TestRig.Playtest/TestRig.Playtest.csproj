@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    The playtest engine: check discovery, the three-outcome model, the flake
+    taxonomy, evidence bundles and attestation.
+
+    It talks to the rig through TestRig.Core's own API, never by shelling the
+    launcher and scraping stdout. The PowerShell harness scraped the lock owner id
+    out of launcher prose by regex, and that line has in fact never been printed;
+    that class of coupling does not survive the port.
+  -->
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <AssemblyName>TestRig.Playtest</AssemblyName>
+    <RootNamespace>TestRig.Playtest</RootNamespace>
+    <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\TestRig.Core\TestRig.Core.csproj" />
+    <ProjectReference Include="..\TestRig.Contracts\TestRig.Contracts.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--
+      The failure factory on PlaytestSignal is internal so that a CHECK cannot construct a
+      fail: only an assert verb that read a value and found the wrong one may accuse the mod.
+      The suite still has to be able to pin how a fail classifies, so it is a friend rather
+      than the factory being made public.
+    -->
+    <InternalsVisibleTo Include="TestRig.Tests" />
+  </ItemGroup>
+
+</Project>

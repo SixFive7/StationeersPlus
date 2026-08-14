@@ -1,0 +1,90 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    The entry point. Thin: parse, resolve the target, consult the refusal matrix,
+    dispatch into Core, format the result. No rig logic lives here.
+
+    Published AOT to TestRig/testrig.exe and committed. See TestRig/src/CLAUDE.md
+    for why build output is in git and how to rebuild it.
+  -->
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <AssemblyName>testrig</AssemblyName>
+    <RootNamespace>TestRig.Cli</RootNamespace>
+
+    <PublishAot>true</PublishAot>
+    <StripSymbols>false</StripSymbols>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <UseSystemResourceKeys>true</UseSystemResourceKeys>
+    <!-- Startup time is a design constraint: the playtest engine shells this once
+         per check and PowerShell's 200-400ms per invocation is part of why the
+         port exists. Size and speed both favour the smallest possible root set. -->
+    <OptimizationPreference>Speed</OptimizationPreference>
+    <TrimMode>full</TrimMode>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\TestRig.Core\TestRig.Core.csproj" />
+    <ProjectReference Include="..\TestRig.Playtest\TestRig.Playtest.csproj" />
+    <!--
+      The checks themselves. An AOT binary cannot load managed assemblies at run time, so a
+      check is compiled in rather than discovered on disk; the 'playtest' verb touches
+      TestRig.Playtests.Playtests.All, which is what forces the module to load and runs each
+      check file's own [ModuleInitializer]. Without this reference the verb has nothing to run.
+    -->
+    <ProjectReference Include="..\TestRig.Playtests\TestRig.Playtests.csproj" />
+    <ProjectReference Include="..\TestRig.Contracts\TestRig.Contracts.csproj" />
+  </ItemGroup>
+
+  <!--
+    Source-hash self-check. Bakes a digest of every source file under TestRig/src/
+    into the binary, so a committed binary that no longer matches the tree refuses
+    to run instead of behaving mysteriously. Staleness of an on-disk artifact has
+    cost this project two sessions already.
+
+    TestRig.BuildTool computes it by calling the same TestRig.Core code the binary
+    uses to recompute it at startup, so there is exactly one implementation and
+    nothing to keep in sync.
+  -->
+  <Target Name="ComputeSourceHash" BeforeTargets="BeforeCompile">
+    <!--
+      RuntimeIdentifier and the AOT properties are cleared explicitly. Without that
+      they are inherited from this project during a publish, and the build tool is
+      then asked for a net10.0/win-x64 target it does not declare. It is a plain
+      developer-machine helper and must build portable regardless of what the binary
+      beside it is being published as.
+    -->
+    <MSBuild Projects="$(MSBuildThisFileDirectory)..\TestRig.BuildTool\TestRig.BuildTool.csproj"
+             Targets="Build"
+             Properties="Configuration=$(Configuration);TargetFramework=net10.0;RuntimeIdentifier=;SelfContained=false;PublishAot=false;PublishTrimmed=false">
+      <Output TaskParameter="TargetOutputs" ItemName="_BuildToolAssembly" />
+    </MSBuild>
+
+    <Exec Command="dotnet exec &quot;@(_BuildToolAssembly)&quot; emit-source-hash &quot;$(MSBuildThisFileDirectory)..&quot; &quot;$(IntermediateOutputPath)SourceHash.g.cs&quot;"
+          StandardOutputImportance="low" />
+
+    <ItemGroup>
+      <Compile Include="$(IntermediateOutputPath)SourceHash.g.cs" />
+      <FileWrites Include="$(IntermediateOutputPath)SourceHash.g.cs" />
+    </ItemGroup>
+  </Target>
+
+  <!--
+    Installs the published binary at TestRig/testrig.exe, so rebuilding is one
+    command and there is no script to forget to run:
+
+      dotnet publish TestRig/src/TestRig.Cli/TestRig.Cli.csproj -c Release -r win-x64
+
+    Commit testrig.exe together with the source change that produced it. A source
+    commit without a matching binary commit leaves the next agent with a binary that
+    refuses to run.
+  -->
+  <Target Name="InstallBinary" AfterTargets="Publish">
+    <Copy SourceFiles="$(PublishDir)testrig.exe"
+          DestinationFiles="$(MSBuildThisFileDirectory)..\..\testrig.exe" />
+    <Message Importance="high" Text="installed TestRig/testrig.exe" />
+  </Target>
+
+</Project>

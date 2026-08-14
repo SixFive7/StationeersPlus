@@ -1,0 +1,9 @@
+<Solution>
+  <Project Path="TestRig.BuildTool/TestRig.BuildTool.csproj" />
+  <Project Path="TestRig.Cli/TestRig.Cli.csproj" />
+  <Project Path="TestRig.Contracts/TestRig.Contracts.csproj" />
+  <Project Path="TestRig.Core/TestRig.Core.csproj" />
+  <Project Path="TestRig.Playtest/TestRig.Playtest.csproj" />
+  <Project Path="TestRig.Playtests/TestRig.Playtests.csproj" />
+  <Project Path="TestRig.Tests/TestRig.Tests.csproj" />
+</Solution>

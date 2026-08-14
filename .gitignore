@@ -129,6 +129,26 @@ Web/_staging/
 !/TestRig/DedicatedServer/
 !/TestRig/ClientRig/
 !/TestRig/playtest/
+!/TestRig/src/
+!/TestRig/dev-plugins/
+!/TestRig/testrig.exe
+
+## The C# rig: source tree, and the committed AOT binary it produces.
+##
+## testrig.exe is build output and it IS tracked, so that a consumer never needs a
+## dotnet build. The binary embeds a digest of this source tree and refuses to run
+## when the two disagree, which is what keeps a committed artifact from going stale
+## unnoticed. See TestRig/src/CLAUDE.md.
+##
+## Source only under src/: bin/ and obj/ are per-machine build output and would
+## otherwise sail through the allowlist above.
+/TestRig/src/**/bin/
+/TestRig/src/**/obj/
+
+## The merged BepInEx plugin, shared by both halves. Source only; its build output
+## is deployed into each half's install tree, which is ignored wholesale.
+/TestRig/dev-plugins/**/bin/
+/TestRig/dev-plugins/**/obj/
 
 ## The one launcher's half-specific implementations. testrig.ps1 is the only entry
 ## point; lib/ holds the per-half function libraries it dot-sources. Source only,
