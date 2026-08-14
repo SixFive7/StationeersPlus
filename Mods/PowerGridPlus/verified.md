@@ -268,8 +268,8 @@ station with 23 batteries, 41 transformers, 16 APCs, 121 cable networks, and
   `Plans/<name>/`. Mods/ wins on a tie. Plans/ entries are still not
   auto-deployed when no name is given (manual opt-in only). Commit:
   `d688e3e`. Spelled `dedicated-server.ps1 -DeployMods -Mod <name>` at
-  the time; the rig now has one launcher and it is
-  `testrig deploy <name> -Target server -As <id>`.
+  the time; the rig is now one binary and it is
+  `testrig deploy <name> --target server --as <id>`.
 
 - **Avoiding the BepInEx + StationeersLaunchPad duplicate-load trap.**
   2026-05-25. When the same plugin DLL exists at BOTH

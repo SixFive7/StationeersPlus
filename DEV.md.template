@@ -101,7 +101,7 @@ Useful for reading other mods' compiled assemblies with `ilspycmd` when patterns
 
 ## SteamCMD install
 
-SteamCMD is a separate, headless Steam client used by `TestRig/testrig.ps1 update-game -Target server` to install and update the Stationeers Dedicated Server app (`600760`), and by ad-hoc scripts under `.work/` that fetch Workshop content non-interactively. It is independent of the Stationeers client install at the top of this file.
+SteamCMD is a separate, headless Steam client used by `TestRig/testrig.exe update-game --target server` to install and update the Stationeers Dedicated Server app (`600760`), and by ad-hoc scripts under `.work/` that fetch Workshop content non-interactively. It is independent of the Stationeers client install at the top of this file.
 
 Canonical layout, placed as a subfolder of a Steam content library so it stays out of the way without colliding with the Steam client:
 
@@ -130,7 +130,7 @@ Wire the location into the environment so the launcher and ad-hoc scripts find i
 [Environment]::SetEnvironmentVariable('STEAMCMD_PATH', '<DRIVE>:\Steam\SteamCMD\steamcmd.exe', 'User')
 ```
 
-`TestRig/testrig.ps1` reads `$env:STEAMCMD_PATH` during `update-game -Target server` and throws at startup if the variable is unset or the file is missing. Ad-hoc scripts under `.work/` that wrap SteamCMD should follow the same pattern (read the env var, throw on missing). There is no fallback or default path.
+`TestRig/testrig.exe` reads `$env:STEAMCMD_PATH` during `update-game --target server` and throws at startup if the variable is unset or the file is missing. Ad-hoc scripts under `.work/` that wrap SteamCMD should follow the same pattern (read the env var, throw on missing). There is no fallback or default path.
 
 ---
 
@@ -282,15 +282,24 @@ Project-specific / technical-depth preferences that layer on top of the global `
 
 ## Test rig: dedicated server half
 
-The test rig lives at `<REPO_CLONE_PATH>/TestRig/` and is driven by ONE launcher, `TestRig/testrig.ps1`, with `-Target all|server|clients|<instance>` selecting what a verb acts on. This section covers the dedicated server half; the client half is the section below. The rules for both (the one session lock, state hygiene, what the rig touches outside its own folder, the save tiers) are in `TestRig/CLAUDE.md`, and the operating reference is `TestRig/MANUAL.md`.
+The test rig lives at `<REPO_CLONE_PATH>/TestRig/` and is driven by ONE binary, `TestRig/testrig.exe`, with `--target all|server|clients|<instance>` selecting what a verb acts on. This section covers the dedicated server half; the client half is the section below. The rules for both (the one session lock, state hygiene, what the rig touches outside its own folder, the save tiers) are in `TestRig/CLAUDE.md`, and the operating reference is `TestRig/MANUAL.md`.
 
 A self-contained Stationeers Dedicated Server install lives at `<REPO_CLONE_PATH>/TestRig/DedicatedServer/`. The directory tree is gitignored deny-all except for source under `dev-plugins/`; the install, update, deploy, launch and shutdown procedures and the exact CLI flag set the launcher applies are in `TestRig/MANUAL.md`. Read `TestRig/CLAUDE.md` before running any rig step.
 
-The launcher script is `TestRig/testrig.ps1`. It depends on two externally-rooted paths for this half, both of which it expects the developer (this file) to provide:
+The binary is `TestRig/testrig.exe`, built from `TestRig/src/` and committed to git, so driving the rig needs no build step. It embeds a digest of its own source tree and exits 7 rather than running when the two disagree; the rebuild is one command and installs itself:
 
-1. **Stationeers client install** (`$(StationeersPath)` in `Directory.Build.props`). The launcher reads it directly from `Directory.Build.props` at the repo root, the same property the mod builds use. No env var needed; if `Directory.Build.props` is set up for builds, the launcher works.
+```
+dotnet publish TestRig/src/TestRig.Cli/TestRig.Cli.csproj -c Release -r win-x64
+dotnet test TestRig/src/TestRig.slnx
+```
 
-2. **SteamCMD executable** (`STEAMCMD_PATH` environment variable). Install layout, canonical location, and env-var setup are documented in the "SteamCMD install" section above. Used during `update-game -Target server` to install Steam app `600760` (`Stationeers Dedicated Server`) into `TestRig/DedicatedServer/install/`.
+Requires the .NET 10 SDK and a native linker (the MSVC linker from a Visual Studio Build Tools install) for the AOT publish.
+
+It depends on two externally-rooted paths for this half, both of which it expects the developer (this file) to provide:
+
+1. **Stationeers client install** (`$(StationeersPath)` in `Directory.Build.props`). The rig reads it directly from `Directory.Build.props` at the repo root, the same property the mod builds use. No env var needed; if `Directory.Build.props` is set up for builds, the rig works.
+
+2. **SteamCMD executable** (`STEAMCMD_PATH` environment variable). Install layout, canonical location, and env-var setup are documented in the "SteamCMD install" section above. Used during `update-game --target server` to install Steam app `600760` (`Stationeers Dedicated Server`) into `TestRig/DedicatedServer/install/`.
 
 ### Stationeers user-data paths (informational)
 
@@ -307,7 +316,7 @@ Save data is isolated per half. The dedicated server reads and writes only `Test
 
 ## Test rig: client rig half
 
-`<REPO_CLONE_PATH>/TestRig/ClientRig/` holds N isolated Stationeers game clients, so an agent can run a real multiplayer test with nobody at the keyboard. Operating reference: `TestRig/MANUAL.md`. Durable internals: `TestRig/RESEARCH.md`. The launcher is the same `TestRig/testrig.ps1` (`-Target clients` or an instance name); the in-process control plane is the `ClientDriver` plugin at `TestRig/ClientRig/dev-plugins/ClientDriver/`.
+`<REPO_CLONE_PATH>/TestRig/ClientRig/` holds N isolated Stationeers game clients, so an agent can run a real multiplayer test with nobody at the keyboard. Operating reference: `TestRig/MANUAL.md`. Durable internals: `TestRig/RESEARCH.md`. The launcher is the same `TestRig/testrig.exe` (`--target clients` or an instance name); the in-process control plane is the `ClientDriver` plugin at `TestRig/ClientRig/dev-plugins/ClientDriver/`.
 
 ### `STATIONEERS_CLIENTRIG_ROOT` (instance-tree location)
 
@@ -327,7 +336,7 @@ Set it as a User environment variable so every shell and every agent sees it:
 [Environment]::SetEnvironmentVariable('STATIONEERS_CLIENTRIG_ROOT', '<DRIVE>:\StationeersRig', 'User')
 ```
 
-Resolution order for a NEW instance: the `-InstancesRoot` parameter, then `$env:STATIONEERS_CLIENTRIG_ROOT`, then `TestRig/ClientRig/instances/`. An instance that already exists uses the root recorded in its registry entry. The last fallback is only correct when the repository and the game install happen to share a volume; the launcher checks the volumes and throws with the exact command to fix it when they differ.
+Resolution order for a NEW instance: the `--instances-root` option, then `$env:STATIONEERS_CLIENTRIG_ROOT`, then `TestRig/ClientRig/instances/`. An instance that already exists uses the root recorded in its registry entry. The last fallback is only correct when the repository and the game install happen to share a volume; the launcher checks the volumes and throws with the exact command to fix it when they differ.
 
 Per-instance state that is ordinary files rather than links (the rig registry, manifests, `setting.xml`, save roots, logs, PID files) stays under `TestRig/ClientRig/data/` regardless, on whatever volume the repository is on.
 
