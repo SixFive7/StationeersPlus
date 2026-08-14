@@ -46,16 +46,45 @@ public sealed record SaveOutcome(SaveVerdict Verdict, string Evidence)
 /// queued: a first-time save may take it, a re-save may not, because a re-save that printed
 /// it would be saving something else.
 /// </para>
+/// <para>
+/// <b>Measured 2026-08-14: the failure side had neither of those properties.</b>
+/// <c>IsFailure</c> matched a marker ANYWHERE in a line and required nothing of the save it
+/// named, while the confirmation beside it was anchored and name-scoped. On a <c>--new</c>
+/// world the game autosaves every 300 s and every one of those fails until a first named save
+/// assigns a station name, so a manual save was reported as
+/// <c>The server reported the save FAILED: Save Failed: Folder name is empty</c> when that
+/// line was an autosave and the manual save had printed nothing at all. A failure now has to
+/// be ATTRIBUTABLE to the save being waited on before it can end the wait; one that is not
+/// stays as evidence and lets the wait run to its own conclusion, which is a timeout warning
+/// that names both places to look.
+/// </para>
 /// </remarks>
 public static class SaveConfirmation
 {
-    /// <summary>The game's own failure lines. Seeing one ends the wait immediately.</summary>
+    /// <summary>The game's own failure lines.</summary>
+    /// <remarks>
+    /// Matched at the START of the line, after an optional timestamp, for the same reason the
+    /// confirmation is: an unanchored match lets a bracketed source prefix or an incidental
+    /// mention decide a verdict.
+    /// </remarks>
     public static readonly IReadOnlyList<string> FailureMarkers =
     [
         "Save Failed",
         "Failed to write save file",
         "Cannot save game in GameState",
     ];
+
+    /// <summary>
+    /// Failure reasons that can only belong to a save with no name of its own.
+    /// </summary>
+    /// <remarks>
+    /// The autosave signature, and the whole measured defect. A <c>--new</c> world has an
+    /// empty <c>CurrentStationName</c>, so its autosaves fail with exactly this and go on
+    /// failing every 300 s until a first NAMED save assigns one. Every save this half queues
+    /// has a name (the console command has no nameless form), so a failure blaming an empty
+    /// folder name is, by construction, about a different save.
+    /// </remarks>
+    public static readonly IReadOnlyList<string> NamelessFailureReasons = ["Folder name is empty"];
 
     /// <summary>
     /// Strips a leading timestamp so the confirmation can be anchored at the real start.
@@ -98,15 +127,47 @@ public static class SaveConfirmation
     public static bool IsNewSaveConfirmation(string line) =>
         StripTimestamp(line).StartsWith("Created new save", StringComparison.Ordinal);
 
-    /// <summary>Whether a line is the game reporting that the save failed.</summary>
-    public static bool IsFailure(string line)
+    /// <summary>Whether a line is a failure report at all, whoever it belongs to.</summary>
+    /// <remarks>
+    /// Anchored, ordinal and case-sensitive, exactly like <see cref="IsNamedConfirmation"/>.
+    /// This answers "is this a failure line", never "is this MY failure"; that second question
+    /// is <see cref="IsFailureOf"/> and it is the one a verdict may be built on.
+    /// </remarks>
+    public static bool IsFailureLine(string line)
     {
         var body = StripTimestamp(line);
         foreach (var marker in FailureMarkers)
         {
-            if (body.Contains(marker, StringComparison.Ordinal)) return true;
+            if (body.StartsWith(marker, StringComparison.Ordinal)) return true;
         }
         return false;
+    }
+
+    /// <summary>
+    /// Whether a failure line can be attributed to the save being waited on.
+    /// </summary>
+    /// <remarks>
+    /// A failure that blames an empty folder name belongs to a nameless save, which ours never
+    /// is, so it is another save's failure and must not end this wait. Anything else that
+    /// failed while our named save was the only one in flight is taken as ours: the cost of
+    /// being wrong in that direction is one early, honest "the server reported the save
+    /// FAILED", where being wrong the other way burns the whole budget in silence.
+    /// </remarks>
+    public static bool IsFailureOf(string line, string saveName)
+    {
+        if (!IsFailureLine(line)) return false;
+
+        var body = StripTimestamp(line);
+
+        // Ours if it says so, whatever else it says.
+        if (saveName.Length > 0 && body.Contains(saveName, StringComparison.Ordinal)) return true;
+
+        foreach (var reason in NamelessFailureReasons)
+        {
+            if (body.Contains(reason, StringComparison.Ordinal)) return false;
+        }
+
+        return true;
     }
 
     /// <summary>
@@ -118,7 +179,7 @@ public static class SaveConfirmation
     /// </param>
     public static SaveOutcome? Classify(string line, string saveName, bool folderExistedBefore)
     {
-        if (IsFailure(line)) return new SaveOutcome(SaveVerdict.Failed, line.Trim());
+        if (IsFailureOf(line, saveName)) return new SaveOutcome(SaveVerdict.Failed, line.Trim());
         if (IsNamedConfirmation(line, saveName)) return new SaveOutcome(SaveVerdict.Confirmed, line.Trim());
         if (!folderExistedBefore && IsNewSaveConfirmation(line))
         {

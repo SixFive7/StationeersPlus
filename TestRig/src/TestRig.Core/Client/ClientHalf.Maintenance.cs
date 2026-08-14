@@ -222,6 +222,26 @@ public sealed partial class ClientHalf
                     continue;
                 }
 
+                // The control plane is the one payload that belongs in the OTHER path here,
+                // and it is also the only way an existing instance can be moved onto the
+                // merged plugin without rebuilding its tree. Routed by the build's own
+                // answer, not by name, so this keeps working when the name changes again.
+                if (build.LoadPathOn(RigHalf.Client) == LoadPath.Chainloader)
+                {
+                    // The build the CALLER named, not whatever the layout would resolve to.
+                    // Asking for ClientDriver by name has to deploy ClientDriver even on a
+                    // rig that has the merged plugin built, or the command silently does
+                    // something other than what it says.
+                    DeployControlPlugin(
+                        paths,
+                        new ControlPluginBuild(
+                            build.Name,
+                            Path.Combine(build.Dir, build.Name + ".sln"),
+                            build.Dll));
+                    deployed++;
+                    continue;
+                }
+
                 var localModDir = Path.Combine(paths.ModsDir, "Local_" + modName);
                 _fs.CreateDirectory(localModDir);
 

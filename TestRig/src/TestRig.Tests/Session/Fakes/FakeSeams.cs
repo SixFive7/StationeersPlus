@@ -153,6 +153,48 @@ public sealed class FakeCrossProcessLock : ICrossProcessLock
     }
 }
 
+/// <summary>
+/// A registry a test writes into, so the shared-state snapshot is exercisable offline.
+/// </summary>
+/// <remarks>
+/// Deliberately has no writer on the <see cref="IRegistry"/> side either: values are seeded
+/// through <see cref="Set"/>, which is a TEST affordance and not part of the interface. The
+/// rig must never be able to put this state back.
+/// </remarks>
+public sealed class FakeRegistry : IRegistry
+{
+    private readonly Dictionary<string, Dictionary<string, string>> _keys =
+        new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>Keys that exist but cannot be read, as an unelevated read of a locked key is.</summary>
+    public HashSet<string> Unreadable { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+    public FakeRegistry Set(string keyPath, string name, string value)
+    {
+        if (!_keys.TryGetValue(keyPath, out var values))
+        {
+            values = new Dictionary<string, string>(StringComparer.Ordinal);
+            _keys[keyPath] = values;
+        }
+        values[name] = value;
+        return this;
+    }
+
+    public FakeRegistry Remove(string keyPath, string name)
+    {
+        if (_keys.TryGetValue(keyPath, out var values)) values.Remove(name);
+        return this;
+    }
+
+    public IReadOnlyList<KeyValuePair<string, string>>? TryReadValues(string keyPath)
+    {
+        if (Unreadable.Contains(keyPath)) return null;
+        if (!_keys.TryGetValue(keyPath, out var values)) return null;
+
+        return [.. values.OrderBy(static v => v.Key, StringComparer.Ordinal)];
+    }
+}
+
 /// <summary>Captures everything the rig says, as structure.</summary>
 public sealed class RecordingOutput : IOutput
 {

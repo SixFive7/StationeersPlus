@@ -98,7 +98,12 @@ public sealed class CheckRunner
     /// <summary>How long teardown gives a stop before it is considered failed.</summary>
     public const int StopTimeoutSeconds = 60;
 
-    public CheckResult Run(IPlaytestCheck check, CheckEvidence? evidence, string evidenceFolder, int lockWaitSeconds)
+    public CheckResult Run(
+        IPlaytestCheck check,
+        CheckEvidence? evidence,
+        string evidenceFolder,
+        int lockWaitSeconds,
+        bool keepState = false)
     {
         ArgumentNullException.ThrowIfNull(check);
 
@@ -113,7 +118,7 @@ public sealed class CheckRunner
 
         try
         {
-            RunUnderLock(check, context, evidence, lockWaitSeconds);
+            RunUnderLock(check, context, evidence, lockWaitSeconds, keepState);
         }
         catch (Exception ex)
         {
@@ -173,10 +178,15 @@ public sealed class CheckRunner
         return result;
     }
 
-    private void RunUnderLock(IPlaytestCheck check, PlaytestContext context, CheckEvidence? evidence, int lockWaitSeconds)
+    private void RunUnderLock(
+        IPlaytestCheck check,
+        PlaytestContext context,
+        CheckEvidence? evidence,
+        int lockWaitSeconds,
+        bool keepState)
     {
         var spec = check.Spec;
-        var grant = _deps.Launcher.AcquireLock(spec.Purpose, spec.TtlMinutes, lockWaitSeconds);
+        var grant = _deps.Launcher.AcquireLock(spec.Purpose, spec.TtlMinutes, lockWaitSeconds, keepState);
 
         // Written BEFORE success is checked, so a refused lock still leaves its explanation
         // in the bundle.
@@ -221,7 +231,7 @@ public sealed class CheckRunner
             context.SaveConsoleTail("after check body");
             StopInstances(context);
 
-            var release = _deps.Launcher.ReleaseLock(grant.Owner);
+            var release = _deps.Launcher.ReleaseLock(grant.Owner, keepState);
             context.RecordLauncher("unlock", $"-As {grant.Owner}", release);
             if (!release.Success)
             {

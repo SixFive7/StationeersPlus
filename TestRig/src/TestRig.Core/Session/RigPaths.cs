@@ -41,7 +41,9 @@ public sealed class RigPaths
         string serverImage = "rocketstation_DedicatedServer",
         string clientImage = "rocketstation",
         IReadOnlyList<string>? hostWrapperImages = null,
-        IReadOnlyList<string>? additionalInstanceRoots = null)
+        IReadOnlyList<string>? additionalInstanceRoots = null,
+        string? sharedDataDir = null,
+        string? playerPrefsKey = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(rigHome);
 
@@ -51,6 +53,10 @@ public sealed class RigPaths
             : instanceRoot;
         SourceInstall = string.IsNullOrWhiteSpace(sourceInstall) ? null : sourceInstall;
         UserDataDir = string.IsNullOrWhiteSpace(userDataDir) ? null : userDataDir;
+        SharedDataDir = string.IsNullOrWhiteSpace(sharedDataDir) ? null : sharedDataDir;
+        PlayerPrefsKey = string.IsNullOrWhiteSpace(playerPrefsKey)
+            ? SharedStateReader.DefaultPlayerPrefsKey
+            : playerPrefsKey;
         ServerImage = serverImage;
         ClientImage = clientImage;
         HostWrapperImages = hostWrapperImages ?? ["pwsh", "powershell"];
@@ -73,6 +79,24 @@ public sealed class RigPaths
     public IReadOnlyList<string> AllInstanceRoots => [InstanceRoot, .. AdditionalInstanceRoots];
     public string? SourceInstall { get; }
     public string? UserDataDir { get; }
+
+    /// <summary>
+    /// The per-user folder shared with the developer's own client, and never isolable.
+    /// </summary>
+    /// <remarks>
+    /// <c>%USERPROFILE%\AppData\LocalLow\Rocketwerkz\rocketstation</c> in practice (RESET-009).
+    /// It holds <c>PlayerCookie-v2.xml</c> and <c>Blueprints\</c>, both of which the rig READS
+    /// at a session boundary so it can name what moved, and never writes: Unity fixes
+    /// <c>persistentDataPath</c> inside the serialized PlayerSettings, so there is no
+    /// redirecting it. See <see cref="SharedStateReader"/>.
+    /// </remarks>
+    public string? SharedDataDir { get; }
+
+    /// <summary>
+    /// The game's PlayerPrefs registry key, read at a session boundary and never written
+    /// (RESET-004).
+    /// </summary>
+    public string PlayerPrefsKey { get; }
     public string ServerImage { get; }
     public string ClientImage { get; }
     public IReadOnlyList<string> HostWrapperImages { get; }

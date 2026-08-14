@@ -68,13 +68,21 @@ public sealed record ModBuild(
     /// would MOVE the payload to the other load path rather than refresh it. Staleness has
     /// to know which path a payload belongs in, so the answer lives here rather than being
     /// re-derived at each report site.
+    ///
+    /// The control plane is the one exception on the CLIENT half, and it has to be stated
+    /// here rather than special-cased at a call site. Without it, <c>deploy TestRig
+    /// --target &lt;instance&gt;</c> wrote the control plane into StationeersLaunchPad's
+    /// folder and then DELETED the Chainloader copy as a stale duplicate, which is the exact
+    /// inverse of what it needs: it must be up before StationeersLaunchPad runs. That left
+    /// no route at all from a merged-plugin build into an existing instance short of
+    /// rebuilding the tree.
     /// </remarks>
     public LoadPath LoadPathOn(RigHalf half) => half switch
     {
         RigHalf.Server => Kind is ModKind.DevPluginServer or ModKind.DevPluginClient or ModKind.DevPluginRig
             ? LoadPath.LaunchPad
             : LoadPath.Chainloader,
-        _ => LoadPath.LaunchPad,
+        _ => IsControlPlane ? LoadPath.Chainloader : LoadPath.LaunchPad,
     };
 
     /// <summary>
@@ -93,6 +101,47 @@ public enum RigHalf
 {
     Server,
     Client,
+}
+
+/// <summary>
+/// The names the rig's control plane has gone by, and what that means for a deploy.
+/// </summary>
+/// <remarks>
+/// Both halves need this, which is why it is here and not in either one's layout type.
+/// </remarks>
+public static class ControlPlugins
+{
+    /// <summary>The merged plugin, which drives both halves and wins whenever it is built.</summary>
+    public const string Merged = "TestRig";
+
+    /// <summary>The plugin the merged one replaces, kept as the fallback during the transition.</summary>
+    public const string Legacy = "ClientDriver";
+
+    /// <summary>
+    /// Every name that has ever been the control plane, newest first.
+    /// </summary>
+    /// <remarks>
+    /// The set exists because the two names are DIFFERENT plugins, not two versions of one.
+    /// The merged plugin refuses a second load of itself by GUID, and that check cannot see
+    /// its predecessor at all: two GUIDs means two Awakes, two Harmony registrations of the
+    /// same methods and two binds of the same control port. Deploying one therefore has to
+    /// remove the other, which is what <see cref="Superseded"/> is for.
+    ///
+    /// A new control plugin is added at the FRONT of this list, never appended.
+    /// </remarks>
+    public static readonly IReadOnlyList<string> Names = [Merged, Legacy];
+
+    /// <summary>
+    /// The control-plugin names that must NOT be present once <paramref name="deployed"/> is.
+    /// </summary>
+    /// <remarks>
+    /// Derived from <see cref="Names"/> rather than hardcoded per call site, so this keeps
+    /// working in both directions: a rig that has not built the merged plugin deploys the
+    /// legacy one and this removes the merged one, exactly as the other way round. Nothing
+    /// has to know which is newer.
+    /// </remarks>
+    public static IEnumerable<string> Superseded(string deployed) =>
+        Names.Where(name => !string.Equals(name, deployed, StringComparison.OrdinalIgnoreCase));
 }
 
 /// <summary>Finding this repository's built mods.</summary>

@@ -79,6 +79,73 @@ public sealed class ServerMaintenanceTests
     }
 
     [Fact]
+    public void TheMirroredBepInExVersionIsPrinted()
+    {
+        // SERVER-017. A mirror is the one operation that can leave the server on a different
+        // BepInEx from the client, and this line is the only place that number is printed.
+        var fixture = new ServerFixture();
+        var owner = fixture.Lease();
+        fixture.Fs.SetBinaryVersion(
+            Path.Combine(RigFixture.SourceInstall, "BepInEx", "core", "BepInEx.dll"), "5.4.22.0", "5.4.22");
+        fixture.SteamCmd.OnRun = () => fixture.Fs.AddFile(fixture.Paths.Exe, "MZ");
+
+        fixture.Half.UpdateGame(owner);
+
+        Assert.True(fixture.Output.Said("BepInEx mirrored"));
+        Assert.True(fixture.Output.Said("version 5.4.22.0"));
+    }
+
+    [Fact]
+    public void TheStationeersLaunchPadVersionComesFromTheDllsOwnVersionResource()
+    {
+        // SERVER-018 and SERVER-020. The port read a version.txt sidecar and a
+        // StationeersLaunchPad-<version> marker file, and neither exists in a real install
+        // (the plugin folder holds four DLLs), so the version was ALWAYS empty, the overlay
+        // always skipped, and RG.ImGui.dll never reached the dedicated server. Everything
+        // downstream (temp-name download, length check, version-keyed cache) was unreachable.
+        var fixture = new ServerFixture();
+        var owner = fixture.Lease();
+        var sourceDll = Path.Combine(
+            RigFixture.SourceInstall, "BepInEx", "plugins", "StationeersLaunchPad", "StationeersLaunchPad.dll");
+
+        // No sidecar and no marker file anywhere, exactly as on the real install.
+        fixture.Fs.SetBinaryVersion(sourceDll, "0.5.0.0", "0.5.0");
+        fixture.SteamCmd.OnRun = () => fixture.Fs.AddFile(fixture.Paths.Exe, "MZ");
+
+        fixture.Half.UpdateGame(owner);
+
+        // Read off the MIRRORED copy: a real file copy carries the version resource with the
+        // bytes, which is what makes reading it after the mirror the right moment.
+        var download = Assert.Single(fixture.Downloader.Downloads);
+        Assert.Equal(
+            "https://github.com/StationeersLaunchPad/StationeersLaunchPad/releases/download/"
+            + "v0.5.0/StationeersLaunchPad-server-v0.5.0.zip",
+            download.Url);
+        Assert.False(fixture.Output.Warned("Could not read a version"));
+    }
+
+    [Fact]
+    public void ProductVersionWinsOverFileVersionAndTrailingMetadataIsStripped()
+    {
+        // A .NET AssemblyInformationalVersion lands in ProductVersion and is what the release
+        // tag matches; a "+sha" suffix on it must not end up in the URL.
+        var fixture = new ServerFixture().Installed();
+        Assert.Equal("2.4.1", fixture.Half.LaunchPadVersion());
+
+        fixture.Fs.SetBinaryVersion(fixture.Paths.LaunchPadDll, "9.9.9.9", "1.2.3+deadbee");
+
+        Assert.Equal("1.2.3", fixture.Half.LaunchPadVersion());
+
+        // A build that stamps only the numeric one still gets an answer.
+        fixture.Fs.SetBinaryVersion(fixture.Paths.LaunchPadDll, "9.9.9.9", "");
+        Assert.Equal("9.9.9.9", fixture.Half.LaunchPadVersion());
+
+        // And an absent DLL is empty rather than a wrong URL.
+        fixture.Fs.DeleteFile(fixture.Paths.LaunchPadDll);
+        Assert.Equal("", fixture.Half.LaunchPadVersion());
+    }
+
+    [Fact]
     public void AClientInstallWithNoBepInExIsRefusedNamingStationeersLaunchPad()
     {
         var fixture = new ServerFixture();
@@ -100,8 +167,9 @@ public sealed class ServerMaintenanceTests
         fixture.SteamCmd.OnRun = () =>
         {
             fixture.Fs.AddFile(fixture.Paths.Exe, "MZ");
-            fixture.Fs.AddFile(Path.Combine(RigFixture.SourceInstall, "BepInEx", "plugins", "StationeersLaunchPad", "StationeersLaunchPad.dll"), "lp");
-            fixture.Fs.AddFile(Path.Combine(RigFixture.SourceInstall, "BepInEx", "plugins", "StationeersLaunchPad", "version.txt"), "2.4.1");
+            fixture.Fs.SetBinaryVersion(
+                Path.Combine(RigFixture.SourceInstall, "BepInEx", "plugins", "StationeersLaunchPad", "StationeersLaunchPad.dll"),
+                "2.4.1.0", "2.4.1");
         };
 
         fixture.Half.UpdateGame(owner);
@@ -126,8 +194,9 @@ public sealed class ServerMaintenanceTests
         fixture.SteamCmd.OnRun = () =>
         {
             fixture.Fs.AddFile(fixture.Paths.Exe, "MZ");
-            fixture.Fs.AddFile(Path.Combine(RigFixture.SourceInstall, "BepInEx", "plugins", "StationeersLaunchPad", "StationeersLaunchPad.dll"), "lp");
-            fixture.Fs.AddFile(Path.Combine(RigFixture.SourceInstall, "BepInEx", "plugins", "StationeersLaunchPad", "version.txt"), "2.4.1");
+            fixture.Fs.SetBinaryVersion(
+                Path.Combine(RigFixture.SourceInstall, "BepInEx", "plugins", "StationeersLaunchPad", "StationeersLaunchPad.dll"),
+                "2.4.1.0", "2.4.1");
         };
 
         fixture.Half.UpdateGame(owner);
@@ -148,8 +217,9 @@ public sealed class ServerMaintenanceTests
         fixture.SteamCmd.OnRun = () =>
         {
             fixture.Fs.AddFile(fixture.Paths.Exe, "MZ");
-            fixture.Fs.AddFile(Path.Combine(RigFixture.SourceInstall, "BepInEx", "plugins", "StationeersLaunchPad", "StationeersLaunchPad.dll"), "lp");
-            fixture.Fs.AddFile(Path.Combine(RigFixture.SourceInstall, "BepInEx", "plugins", "StationeersLaunchPad", "version.txt"), "2.4.1");
+            fixture.Fs.SetBinaryVersion(
+                Path.Combine(RigFixture.SourceInstall, "BepInEx", "plugins", "StationeersLaunchPad", "StationeersLaunchPad.dll"),
+                "2.4.1.0", "2.4.1");
         };
 
         fixture.Half.UpdateGame(owner);
@@ -167,8 +237,9 @@ public sealed class ServerMaintenanceTests
         fixture.SteamCmd.OnRun = () =>
         {
             fixture.Fs.AddFile(fixture.Paths.Exe, "MZ");
-            fixture.Fs.AddFile(Path.Combine(RigFixture.SourceInstall, "BepInEx", "plugins", "StationeersLaunchPad", "StationeersLaunchPad.dll"), "lp");
-            fixture.Fs.AddFile(Path.Combine(RigFixture.SourceInstall, "BepInEx", "plugins", "StationeersLaunchPad", "version.txt"), "2.4.1");
+            fixture.Fs.SetBinaryVersion(
+                Path.Combine(RigFixture.SourceInstall, "BepInEx", "plugins", "StationeersLaunchPad", "StationeersLaunchPad.dll"),
+                "2.4.1.0", "2.4.1");
         };
 
         fixture.Half.UpdateGame(owner);
@@ -615,10 +686,13 @@ public sealed class ServerMaintenanceTests
     }
 
     [Fact]
-    public void GrepAndTailAreIndependentOnThisHalfToo()
+    public void GrepFiltersTheWholeFileAndTailIsTheWindowOverTheMatchesHereToo()
     {
         // SERVER-159, spec D-20: the PowerShell silently ignored the tail whenever a pattern
-        // was given, although the manual documented the two flags as independent.
+        // was given, although the manual documented the two flags as independent. The port
+        // then honoured it in the wrong order, tailing the FILE and grepping that window, so
+        // a match older than the last N lines was invisible. Both halves share one
+        // implementation now (LogFilter), which is why this test is a twin of the client's.
         var fixture = new ServerFixture().Installed();
         fixture.Log("Saved Luna");
         fixture.Log([.. Enumerable.Range(1, 40).Select(i => $"noise {i}")]);
@@ -630,6 +704,11 @@ public sealed class ServerMaintenanceTests
 
         fixture.Output.Clear();
         fixture.Half.Logs(tail: 5, grep: "^Saved ");
+        Assert.True(fixture.Output.Said("Saved Luna"));
+        Assert.True(fixture.Output.Said("Saved Titan"));
+
+        fixture.Output.Clear();
+        fixture.Half.Logs(tail: 1, grep: "^Saved ");
         Assert.False(fixture.Output.Said("Saved Luna"));
         Assert.True(fixture.Output.Said("Saved Titan"));
     }

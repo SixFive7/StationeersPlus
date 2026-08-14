@@ -190,7 +190,10 @@ public static class VerbTable
         // reset is between sessions by design and two checks under one lock would get none.
         new("playtest", VerbGroup.Control, TargetDefault.All, RigWideOnly, false, false,
             "Run a mod's in-game checks with nobody at the keyboard.",
-            [Options.Target, Options.Only, Options.EvidenceRoot, Options.WaitSeconds]),
+            [
+                Options.Target, Options.Only, Options.EvidenceRoot, Options.WaitSeconds,
+                Options.SuiteName, Options.KeepState, Options.ListChecks, Options.ListFlakes,
+            ]),
 
         new("host-mode", VerbGroup.Internal, TargetDefault.NotApplicable, Nothing, false, false,
             "Internal: the detached wrapper the server's 'start' spawns.",

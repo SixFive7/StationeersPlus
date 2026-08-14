@@ -260,7 +260,93 @@ public sealed class SystemFileSystemTests : IDisposable
         Assert.Equal(23, _fs.ReadAllBytes(path).Length);
     }
 
+    /// <summary>
+    /// LOCK-071: a read retries a sharing violation rather than refusing on the first one.
+    /// </summary>
+    /// <remarks>
+    /// The caller is <c>RigFiles.ReadTextOrNull</c>, and it turns an IOException into
+    /// "Refusing to treat an unreadable file as an absent one", which surfaces as the rig
+    /// being broken. The window this covers is somebody replacing the file at the instant
+    /// of the open, which is a normal event on the lock file, not a fault.
+    /// </remarks>
+    [Fact]
+    public void Reads_RetryThroughATransientSharingViolation()
+    {
+        var path = _temp.File("session.lock");
+        File.WriteAllText(path, "owner=abc\n");
+
+        // FileShare.None is what an exclusive holder looks like from the outside.
+        var blocker = new FileStream(path, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+        var releaser = ReleaseAfter(blocker);
+
+        try
+        {
+            Assert.Equal("owner=abc\n", _fs.ReadAllText(path));
+        }
+        finally
+        {
+            releaser.Join();
+        }
+    }
+
+    [Fact]
+    public void Reads_StillFailFastWhenTheFileIsSimplyAbsent()
+    {
+        // Absence is not transient, and retrying it would spend the whole backoff on the
+        // commonest question the rig asks: is there a lock file at all.
+        var missing = _temp.File("no-such-file.lock");
+        var started = DateTime.UtcNow;
+
+        Assert.Throws<FileNotFoundException>(() => _fs.ReadAllText(missing));
+
+        Assert.True(DateTime.UtcNow - started < TimeSpan.FromMilliseconds(100));
+    }
+
     // ---- deletes and metadata --------------------------------------------
+
+    /// <summary>
+    /// LOCK-038 and LOCK-080: a delete retries rather than ending a session on one hold.
+    /// </summary>
+    /// <remarks>
+    /// The two callers are the dirty-marker clear and the lock-file removal, and a failure
+    /// in either is reported as the rig still reading dirty, or the lock NOT being
+    /// released. Neither is an acceptable outcome for a scanner holding a handle for a few
+    /// milliseconds.
+    /// </remarks>
+    [Fact]
+    public void DeleteFile_RetriesThroughATransientHold()
+    {
+        var path = _temp.File("session.dirty");
+        File.WriteAllText(path, "owner=abc\n");
+
+        // Sharing everything EXCEPT delete, which is what blocks File.Delete specifically.
+        var blocker = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+        var releaser = ReleaseAfter(blocker);
+
+        try
+        {
+            _fs.DeleteFile(path);
+            Assert.False(File.Exists(path));
+        }
+        finally
+        {
+            releaser.Join();
+        }
+    }
+
+    /// <summary>Closes a blocking handle shortly after the caller starts contending for it.</summary>
+    private static Thread ReleaseAfter(FileStream blocker, int milliseconds = 15)
+    {
+        var thread = new Thread(() =>
+        {
+            Thread.Sleep(milliseconds);
+            blocker.Dispose();
+        })
+        { IsBackground = true };
+
+        thread.Start();
+        return thread;
+    }
 
     [Fact]
     public void DeleteFile_RemovesAReadOnlyFileAndIsIdempotent()
@@ -314,6 +400,35 @@ public sealed class SystemFileSystemTests : IDisposable
         Assert.Equal(5, _fs.GetFileLength(path));
         Assert.Equal(TimeSpan.Zero, _fs.GetLastWriteTimeUtc(path).Offset);
         Assert.True(_fs.GetLastWriteTimeUtc(path) > DateTimeOffset.UtcNow.AddMinutes(-5));
+    }
+
+    /// <summary>
+    /// SERVER-018: the version resource is readable off a real binary through the seam.
+    /// </summary>
+    /// <remarks>
+    /// The port's first attempt avoided this method and inferred the StationeersLaunchPad
+    /// version from a <c>version.txt</c> sidecar that does not exist in any real install, so
+    /// the value was always empty and the whole server-zip overlay was unreachable.
+    /// </remarks>
+    [Fact]
+    public void TryGetBinaryVersion_ReadsARealVersionResourceAndDistinguishesAbsentFromUnstamped()
+    {
+        var assembly = typeof(SystemFileSystem).Assembly.Location;
+        Assert.False(string.IsNullOrEmpty(assembly));
+
+        var stamped = _fs.TryGetBinaryVersion(assembly);
+        Assert.NotNull(stamped);
+        Assert.False(string.IsNullOrEmpty(stamped!.Value.FileVersion));
+
+        // Nothing stamped: an answer, with empty fields.
+        var plain = _temp.File("not-a-binary.bin");
+        File.WriteAllText(plain, "just text");
+        var unstamped = _fs.TryGetBinaryVersion(plain);
+        Assert.NotNull(unstamped);
+        Assert.Equal("", unstamped!.Value.FileVersion);
+
+        // Could not look: null, so a caller can tell the two apart.
+        Assert.Null(_fs.TryGetBinaryVersion(_temp.File("absent.dll")));
     }
 
     [Fact]

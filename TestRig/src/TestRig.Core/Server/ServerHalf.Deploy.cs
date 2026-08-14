@@ -147,6 +147,8 @@ public sealed partial class ServerHalf
 
         RemoveStaleCopy(build.Name, Path.Combine(_paths.PluginsDir, build.Name), "BepInEx Chainloader");
 
+        if (build.IsControlPlane) RemoveSupersededControlPlugins(build.Name);
+
         if (ModConfig.AddLocalEntry(_fs, _paths.ModConfig, localModDir))
         {
             Say($"[Deploy] {build.Name}: added modconfig.xml Local entry -> {localModDir}");
@@ -174,6 +176,40 @@ public sealed partial class ServerHalf
         Warn($"[Deploy] {modName}: a copy was also present in the {otherLoader} load path at {otherPath} and "
              + "has been removed. A payload in both load paths makes Awake fire twice and registers every "
              + "Harmony patch twice, which doubles every side-effecting patch.");
+    }
+
+    /// <summary>
+    /// Removes any OTHER control plugin from both of this half's load paths.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="RemoveStaleCopy"/> handles ONE name in two paths; this handles two NAMES,
+    /// which is a different failure and one nothing else catches. The merged plugin and the
+    /// one it replaces are separate plugins with separate GUIDs, so the merged plugin's own
+    /// duplicate refusal never fires between them: both load, both patch, both bind. The
+    /// server's install carries <c>BepInEx/plugins/ClientDriver/</c> from the developer's own
+    /// tree, so this is the normal state of a server that has not been swept, not an exotic
+    /// one.
+    /// </remarks>
+    private void RemoveSupersededControlPlugins(string deployed)
+    {
+        foreach (var superseded in ControlPlugins.Superseded(deployed))
+        {
+            (string Dir, string Loader)[] loadPaths =
+            [
+                (Path.Combine(_paths.PluginsDir, superseded), "BepInEx Chainloader"),
+                (Path.Combine(_paths.ModsDir, "Local_" + superseded), "StationeersLaunchPad"),
+            ];
+
+            foreach (var (dir, loader) in loadPaths)
+            {
+                if (!_fs.DirectoryExists(dir)) continue;
+
+                _fs.DeleteDirectory(dir, recursive: true);
+                Say($"[Deploy] removed the superseded control plugin '{superseded}' from the {loader} load path "
+                    + $"({dir}). '{deployed}' replaces it, and both loading at once would double every Harmony "
+                    + "patch and fight over the control port.");
+            }
+        }
     }
 
     // =====================================================================

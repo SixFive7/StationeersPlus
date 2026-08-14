@@ -166,6 +166,47 @@ public sealed class BaselineTests
         Assert.True(rig.Output.Said("plugins and seeded mods are recorded for staleness only"));
     }
 
+    // ---- config drift ------------------------------------------------------
+
+    [Fact]
+    public void ConfigDriftIsReportedInThreePhrasingsWithoutRunningAReset()
+    {
+        // RESET-060. ConfigActions computes the same facts, but only as plan actions and only
+        // during a reset, so there was no way to ask "what has drifted" short of running the
+        // one thing somebody asking that question has not decided to do yet.
+        var rig = WithInstance();
+        var cfgDir = Path.Combine(RigFixture.InstancesRoot, "c1", "BepInEx", "config");
+        rig.Fs.AddFile(Path.Combine(cfgDir, "net.moves.cfg"), "original");
+        rig.Fs.AddFile(Path.Combine(cfgDir, "net.deleted.cfg"), "will be gone");
+
+        rig.Baseline.Capture(rig.Planner.CheckGate(), "abc12345");
+
+        // Nothing has moved yet.
+        Assert.Empty(rig.Baseline.CompareConfig());
+
+        rig.Fs.AddFile(Path.Combine(cfgDir, "net.moves.cfg"), "a test flipped a value");
+        rig.Fs.DeleteFile(Path.Combine(cfgDir, "net.deleted.cfg"));
+        rig.Fs.AddFile(Path.Combine(cfgDir, "net.invented.cfg"), "created by a plugin under test");
+
+        var drift = rig.Baseline.CompareConfig();
+
+        Assert.Contains(drift, l => l.EndsWith(" : contents changed since the baseline", StringComparison.Ordinal)
+                                    && l.Contains("net.moves.cfg", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(drift, l => l.EndsWith(" : new since the baseline", StringComparison.Ordinal)
+                                    && l.Contains("net.invented.cfg", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(drift, l => l.EndsWith(" : in the baseline, missing now", StringComparison.Ordinal)
+                                    && l.Contains("net.deleted.cfg", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void WithNoBaselineThereIsNothingToCompareAgainstRatherThanEverythingBeingNew()
+    {
+        var rig = WithInstance();
+        rig.Fs.AddFile(Path.Combine(RigFixture.InstancesRoot, "c1", "BepInEx", "config", "net.thing.cfg"), "x");
+
+        Assert.Empty(rig.Baseline.CompareConfig());
+    }
+
     // ---- the game version anchor -------------------------------------------
 
     [Fact]

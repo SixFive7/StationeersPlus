@@ -146,9 +146,15 @@ public sealed class BulkDeleteCeilingTests
     {
         var rig = RigWithEmptyRecordedSetAnd(TwentyFive);
 
-        rig.Executor.Run(null, new ResetOptions { WhatIf = true });
+        var run = rig.Executor.Run(null, new ResetOptions { WhatIf = true });
 
         Assert.True(rig.Output.Warned("REFUSING to delete 25 worlds"));
+
+        // Measured 2026-08-14: the dry run printed exactly that and still reported
+        // refused: false and exited 0, so nothing a caller could branch on said the real
+        // reset would stop dead.
+        Assert.True(run.WouldRefuse);
+        Assert.Contains("25 worlds", run.WouldRefuseReason, StringComparison.Ordinal);
     }
 
     [Fact]

@@ -119,6 +119,59 @@ public sealed class ResetExecutionTests
     }
 
     [Fact]
+    public void AFailedSavePathReApplyIsRelabelledSoTheSummaryCannotClaimIt()
+    {
+        // RESET-183. ReapplySavePathOverride is the one action standing between an instance
+        // and the developer's tier-1 save folder. On a client a failure is non-fatal by
+        // design (failing would make the lock unobtainable and the rig unrepairable), but the
+        // outcome summary still printed "SavePathOverride re-applied", so the reset claimed
+        // the write it had just warned it could not do.
+        var rig = Provisioned();
+        var bep = Path.Combine(RigFixture.InstancesRoot, "c1", "BepInEx");
+        rig.Fs.DeleteFile(SavePathOverride.ConfigPath(bep));
+
+        var action = new ResetAction(
+            "client", "c1", ResetActionKind.ReapplySavePathOverride, bep,
+            Label: "SavePathOverride re-applied", Reason: "why",
+            Target: rig.Paths.InstanceUserData("c1"), Role: "client");
+
+        var performed = rig.Executor.Perform(action);
+
+        Assert.Equal(ResetExecutor.FailedSavePathOverrideLabel, performed.Label);
+        Assert.Contains("NOT re-applied", performed.Label, StringComparison.Ordinal);
+        Assert.True(rig.Output.Warned("no separate save root"));
+
+        // And a re-apply that worked keeps its own label, so the relabel cannot hide a success.
+        rig.Fs.AddFile(SavePathOverride.ConfigPath(bep), "SavePathOverride = ");
+        Assert.Equal("SavePathOverride re-applied", rig.Executor.Perform(action).Label);
+    }
+
+    [Fact]
+    public void ASettingThatVanishedBetweenThePlanAndTheExecuteIsReportedRatherThanNoOped()
+    {
+        // RESET-184. The planner only plans this when GetSetting returned a non-empty value,
+        // so reaching here with nothing to blank means the file changed underneath the reset,
+        // and discarding the answer leaves whatever that setting arms still armed.
+        var rig = Provisioned();
+        var config = Path.Combine(RigFixture.InstancesRoot, "c1", "BepInEx", "config", "net.scenario.cfg");
+        rig.Fs.AddFile(config, "# no such setting here\nOther = 1\n");
+
+        var action = new ResetAction(
+            "client", "c1", ResetActionKind.BlankSetting, config,
+            Label: "scenario disarmed", Reason: "why", Setting: "Scenario");
+
+        var ex = Assert.Throws<RigRefusalException>(() => rig.Executor.Perform(action));
+
+        Assert.Contains("setting 'Scenario' not found", ex.Message, StringComparison.Ordinal);
+        Assert.Contains(config, ex.Message, StringComparison.Ordinal);
+
+        // With the setting present it blanks it and says nothing.
+        rig.Fs.AddFile(config, "Scenario = something\n");
+        rig.Executor.Perform(action);
+        Assert.Equal(string.Empty, ConfigFile.GetSetting(rig.Fs, config, "Scenario"));
+    }
+
+    [Fact]
     public void CopyConfigTreeRemovesOnlyOrphanCfgFiles()
     {
         var rig = Provisioned();
@@ -304,6 +357,23 @@ public sealed class ResetExecutionTests
         Assert.True(run.WhatIf);
         Assert.True(rig.Output.Warned("the real reset would be REFUSED because the rig is in use"));
         Assert.True(rig.Output.Warned("1 player(s) connected"));
+
+        // And it comes back as data. A dry run is never itself Refused, so a caller branching
+        // on that alone learned nothing from the one answer a dry run exists to give.
+        Assert.False(run.Refused);
+        Assert.True(run.WouldRefuse);
+        Assert.Contains("player(s) connected", run.WouldRefuseReason, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ADryRunOnACleanRigWouldNotBeRefused()
+    {
+        var rig = Provisioned();
+
+        var run = rig.Executor.Run(null, new ResetOptions { WhatIf = true });
+
+        Assert.False(run.WouldRefuse);
+        Assert.Equal(string.Empty, run.WouldRefuseReason);
     }
 
     [Fact]

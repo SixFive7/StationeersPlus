@@ -419,12 +419,17 @@ public sealed partial class ClientHalf
     /// registered twice (CLIENT-087).
     /// </para>
     /// </remarks>
-    private void DeployControlPlugin(InstancePaths paths)
+    /// <param name="plugin">
+    /// The control plugin to deploy, or null to use whichever one this rig resolves to.
+    /// <c>deploy</c> passes the build the caller NAMED, so asking for one by name cannot
+    /// quietly install the other.
+    /// </param>
+    private void DeployControlPlugin(InstancePaths paths, ControlPluginBuild? plugin = null)
     {
         // Resolved, never named here: the merged TestRig plugin replaces ClientDriver and
         // shares no name with it, and a hardcoded name is what made the merged plugin
         // impossible to deploy at all.
-        var plugin = _layout.ControlPlugin;
+        plugin ??= _layout.ControlPlugin;
         var dll = plugin.Dll;
 
         if (!_fs.FileExists(dll))
@@ -451,6 +456,50 @@ public sealed partial class ClientHalf
         }
 
         Say($"[Provision] {plugin.Name} -> {destination}");
+
+        RemoveSupersededControlPlugins(paths, plugin.Name);
+    }
+
+    /// <summary>
+    /// Deletes any OTHER control plugin from both of the instance's load paths.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Not tidiness. The instance's <c>BepInEx/</c> is a real copy of the developer's own
+    /// install, and that install carries <c>BepInEx/plugins/ClientDriver/</c>, so every
+    /// freshly created instance arrives with the legacy control plane already in the
+    /// Chainloader path. Deploying the merged plugin beside it leaves two DIFFERENT
+    /// plugins, each of which loads: two Awakes, the same 32 methods patched twice, and two
+    /// binds of the same control port. The merged plugin's own duplicate refusal cannot
+    /// help, because it recognises a second copy of ITSELF by GUID and its predecessor
+    /// carries a different one.
+    /// </para>
+    /// <para>
+    /// Both load paths are swept, not just the one this deploy writes to, so a tree that
+    /// was set up the other way round self-heals rather than needing a rebuild. The sweep is
+    /// name-driven and idempotent, so running create twice costs one directory probe each.
+    /// </para>
+    /// </remarks>
+    private void RemoveSupersededControlPlugins(InstancePaths paths, string deployed)
+    {
+        foreach (var superseded in ControlPlugins.Superseded(deployed))
+        {
+            (string Dir, string Loader)[] loadPaths =
+            [
+                (Path.Combine(paths.BepInEx, "plugins", superseded), "BepInEx Chainloader"),
+                (Path.Combine(paths.ModsDir, "Local_" + superseded), "StationeersLaunchPad"),
+            ];
+
+            foreach (var (dir, loader) in loadPaths)
+            {
+                if (!_fs.DirectoryExists(dir)) continue;
+
+                _fs.DeleteDirectory(dir, recursive: true);
+                Say($"[{paths.Name}] removed the superseded control plugin '{superseded}' from the {loader} "
+                    + $"load path ({dir}). '{deployed}' replaces it, and both loading at once would double "
+                    + "every Harmony patch and fight over the control port.");
+            }
+        }
     }
 
     // ---- the save-path redirect -------------------------------------------

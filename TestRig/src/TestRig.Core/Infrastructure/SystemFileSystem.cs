@@ -58,6 +58,29 @@ public sealed partial class SystemFileSystem : IFileSystem
     /// </remarks>
     private const int DurableWriteAttempts = 10;
 
+    /// <summary>
+    /// How many times a read retries a sharing violation.
+    /// </summary>
+    /// <remarks>
+    /// 8, matching Read-RigFileText in rig-lock.ps1 (LOCK-071). The window it covers is
+    /// the instant somebody is replacing the file: a rename is atomic, but the open that
+    /// races it can still come back with a sharing violation, and here that would surface
+    /// as "the rig is broken" from <c>RigFiles.ReadTextOrNull</c>. One transient failure
+    /// must not become a refusal.
+    /// </remarks>
+    private const int ReadAttempts = 8;
+
+    /// <summary>
+    /// How many times a file delete retries.
+    /// </summary>
+    /// <remarks>
+    /// 10, matching Clear-RigDirtyMarker and Remove-RigLockFile (LOCK-038, LOCK-080). Both
+    /// callers turn a failure into a refusal that says the rig still reads dirty, or that
+    /// the lock was NOT released, so a virus scanner holding the file for a few
+    /// milliseconds must not end a session that way.
+    /// </remarks>
+    private const int DeleteAttempts = 10;
+
     // ---- existence -------------------------------------------------------
 
     public bool FileExists(string path) => File.Exists(path);
@@ -66,32 +89,29 @@ public sealed partial class SystemFileSystem : IFileSystem
 
     // ---- reads -----------------------------------------------------------
 
-    public string ReadAllText(string path)
+    public string ReadAllText(string path) => WithReadRetries(path, static stream =>
     {
-        using var stream = OpenShared(path);
         // detectEncodingFromByteOrderMarks is on so a file some other tool wrote with a
         // BOM still reads clean. We never write one; we do have to read them.
         using var reader = new StreamReader(stream, Utf8NoBom, detectEncodingFromByteOrderMarks: true);
         return reader.ReadToEnd();
-    }
+    });
 
-    public byte[] ReadAllBytes(string path)
+    public byte[] ReadAllBytes(string path) => WithReadRetries(path, static stream =>
     {
-        using var stream = OpenShared(path);
         using var buffer = new MemoryStream();
         stream.CopyTo(buffer);
         return buffer.ToArray();
-    }
+    });
 
-    public IReadOnlyList<string> ReadLines(string path)
+    public IReadOnlyList<string> ReadLines(string path) => WithReadRetries<IReadOnlyList<string>>(path, static stream =>
     {
-        using var stream = OpenShared(path);
         using var reader = new StreamReader(stream, Utf8NoBom, detectEncodingFromByteOrderMarks: true);
 
         var lines = new List<string>();
         while (reader.ReadLine() is { } line) lines.Add(line);
         return lines;
-    }
+    });
 
     /// <remarks>
     /// Streams the whole file through a ring buffer rather than seeking backwards from
@@ -104,26 +124,61 @@ public sealed partial class SystemFileSystem : IFileSystem
     {
         if (count <= 0) return [];
 
-        var ring = new string[count];
-        var seen = 0;
-
-        using (var stream = OpenShared(path))
-        using (var reader = new StreamReader(stream, Utf8NoBom, detectEncodingFromByteOrderMarks: true))
+        return WithReadRetries<IReadOnlyList<string>>(path, stream =>
         {
-            while (reader.ReadLine() is { } line)
+            var ring = new string[count];
+            var seen = 0;
+
+            using (var reader = new StreamReader(stream, Utf8NoBom, detectEncodingFromByteOrderMarks: true))
             {
-                ring[seen % count] = line;
-                seen++;
+                while (reader.ReadLine() is { } line)
+                {
+                    ring[seen % count] = line;
+                    seen++;
+                }
+            }
+
+            if (seen == 0) return [];
+
+            var take = Math.Min(seen, count);
+            var first = seen - take;
+            var result = new List<string>(take);
+            for (var i = 0; i < take; i++) result.Add(ring[(first + i) % count]);
+            return result;
+        });
+    }
+
+    /// <summary>
+    /// Opens shared and runs <paramref name="read"/>, retrying a sharing violation.
+    /// </summary>
+    /// <remarks>
+    /// A missing file, or a missing directory above it, is NOT retried: both are genuine
+    /// absence, both derive from IOException, and retrying them would spend the whole
+    /// backoff on the commonest question the rig asks ("is there a lock file"). Only a
+    /// contended open is transient.
+    /// </remarks>
+    private static T WithReadRetries<T>(string path, Func<FileStream, T> read)
+    {
+        Exception? last = null;
+        for (var attempt = 1; attempt <= ReadAttempts; attempt++)
+        {
+            try
+            {
+                using var stream = OpenShared(path);
+                return read(stream);
+            }
+            catch (Exception ex) when (ex is FileNotFoundException or DirectoryNotFoundException)
+            {
+                throw;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                last = ex;
+                if (attempt < ReadAttempts) Thread.Sleep(5 * attempt);
             }
         }
 
-        if (seen == 0) return [];
-
-        var take = Math.Min(seen, count);
-        var first = seen - take;
-        var result = new List<string>(take);
-        for (var i = 0; i < take; i++) result.Add(ring[(first + i) % count]);
-        return result;
+        throw last!;
     }
 
     // ---- writes ----------------------------------------------------------
@@ -230,18 +285,37 @@ public sealed partial class SystemFileSystem : IFileSystem
     /// file, which would strand an instance tree that create was told to rebuild.
     /// A missing file, or a missing directory above it, is success: the caller asked
     /// for the file to be gone.
+    ///
+    /// Retries: ten attempts with the same 5ms-times-attempt backoff the durable write
+    /// uses (LOCK-038, LOCK-080). The two callers that matter turn a failure here into
+    /// "the rig still reads dirty" or "the lock was NOT released", and neither is an
+    /// acceptable way to end a session over a scanner holding a handle for a few
+    /// milliseconds.
     /// </remarks>
     public void DeleteFile(string path)
     {
-        try
+        Exception? last = null;
+        for (var attempt = 1; attempt <= DeleteAttempts; attempt++)
         {
-            if (!File.Exists(path)) return;
-            ClearReadOnly(path);
-            File.Delete(path);
+            try
+            {
+                if (!File.Exists(path)) return;
+                ClearReadOnly(path);
+                File.Delete(path);
+                return;
+            }
+            catch (DirectoryNotFoundException)
+            {
+                return;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                last = ex;
+                if (attempt < DeleteAttempts) Thread.Sleep(5 * attempt);
+            }
         }
-        catch (DirectoryNotFoundException)
-        {
-        }
+
+        throw last!;
     }
 
     /// <remarks>
@@ -355,6 +429,32 @@ public sealed partial class SystemFileSystem : IFileSystem
             $"Cannot read a last-write time for {path}: it does not exist. Refusing to answer with the " +
             "1601 sentinel, which every staleness comparison reads as infinitely old.",
             path);
+    }
+
+    /// <remarks>
+    /// <c>FileVersionInfo</c> reads the Win32 version resource, which is what a .NET
+    /// assembly's <c>AssemblyFileVersion</c> and <c>AssemblyInformationalVersion</c> are
+    /// compiled into, so this works on the managed plugin DLLs without loading them. It
+    /// must not load them: this runs mid-<c>update-game</c>, and a loaded assembly is an
+    /// assembly Windows will not let the next mirror replace.
+    ///
+    /// A file with no version resource answers with empty strings rather than null, and
+    /// only an absent or unreadable file answers null, so a caller can tell "no version
+    /// stamped" from "could not look".
+    /// </remarks>
+    public BinaryVersion? TryGetBinaryVersion(string path)
+    {
+        if (!File.Exists(path)) return null;
+
+        try
+        {
+            var info = System.Diagnostics.FileVersionInfo.GetVersionInfo(path);
+            return new BinaryVersion(info.FileVersion ?? string.Empty, info.ProductVersion ?? string.Empty);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return null;
+        }
     }
 
     /// <remarks>

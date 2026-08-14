@@ -112,7 +112,7 @@ public sealed class CoreRigLauncher : IRigLauncher
         _desktop = desktop;
     }
 
-    public LockGrant AcquireLock(string purpose, int ttlMinutes, int waitSeconds)
+    public LockGrant AcquireLock(string purpose, int ttlMinutes, int waitSeconds, bool keepState = false)
     {
         _recorder.Begin();
 
@@ -127,6 +127,10 @@ public sealed class CoreRigLauncher : IRigLauncher
                 // recorded regression this nullability exists for.
                 TtlMinutes = ttlMinutes > 0 ? ttlMinutes : null,
                 WaitSeconds = waitSeconds,
+
+                // PLAYTEST-247: the only way to hand a staged rig to the next check, because
+                // the reset is between sessions and the harness takes one lock per check.
+                KeepState = keepState,
                 Tool = "testrig",
                 OnReclaim = _onReclaim,
             }).GetAwaiter().GetResult();
@@ -143,12 +147,23 @@ public sealed class CoreRigLauncher : IRigLauncher
         }
     }
 
-    public LauncherResult ReleaseLock(string owner) => Attempt("unlock", () =>
+    /// <remarks>
+    ///     The status-to-code table lives in Core and is the same one the launcher's own
+    ///     <c>unlock</c> and <c>stop --release</c> read. This method used to carry a private
+    ///     copy that reported success for every status except the one the authorising
+    ///     predicate throws before ever constructing, so a check whose lock had gone recorded
+    ///     a clean release into its evidence bundle.
+    /// </remarks>
+    public LauncherResult ReleaseLock(string owner, bool keepState = false) => Attempt("unlock", () =>
     {
-        var release = _lock.Release(owner);
-        return release.Status == ReleaseStatus.NotYours
-            ? LauncherResult.Failed(release.Message, RigExitCodes.LockHeldByOther, release.Message)
-            : LauncherResult.Ok(release.Message);
+        // The release is where the between-session guarantee is normally earned, so
+        // --keep-state has to reach BOTH ends or a staged rig is restored away on the way out
+        // of the check that staged it.
+        var release = _lock.Release(owner, keepState: keepState);
+        var code = RigExitCodes.For(release.Status);
+        return code == RigExitCodes.Ok
+            ? LauncherResult.Ok(release.Message)
+            : LauncherResult.Failed(release.Message, code, release.Message);
     });
 
     public LauncherResult RefreshLock(string owner) => Attempt("refresh-lock", () =>

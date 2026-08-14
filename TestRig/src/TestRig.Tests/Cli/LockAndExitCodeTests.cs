@@ -102,11 +102,79 @@ public sealed class LockAndExitCodeTests(CliFixture rig)
         Assert.Equal(LockHeldByOther, result.ExitCode);
     }
 
+    /// <summary>
+    /// A release that released nothing exits five, not zero.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Measured on the shipped binary before the fix: <c>testrig unlock --as deadbeef</c> on a
+    /// rig with no lock at all printed "[Unlock] No rig session lock present." and exited 0.
+    /// Zero is the code a caller reads as "released", so an agent that mistyped its owner id,
+    /// or whose lock had been reclaimed under it, was told its session ended cleanly. The
+    /// message said otherwise and only a human reads messages.
+    /// </para>
+    /// <para>
+    /// The cause was a per-caller <c>status == NotYours ? 4 : 0</c> written three times over,
+    /// where <see cref="TestRig.Core.Session.ReleaseStatus.NotYours"/> is the one arm that can
+    /// never be reached: the authorising predicates throw
+    /// <c>HeldByAnotherSession</c> first. Every reachable non-release fell through to zero.
+    /// </para>
+    /// </remarks>
     [Fact]
-    public void UnlockingWithNoLockPresentIsNotAFailure()
+    public void UnlockingWithNoLockPresentExitsFiveRatherThanReportingARelease()
     {
         var result = rig.Run("unlock", "--as", "nobody00");
-        Assert.Equal(Ok, result.ExitCode);
+
+        Assert.Equal(LockNotHeld, result.ExitCode);
+        Assert.Contains("No rig session lock present", result.All, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// The same fall-through reached <c>stop --release</c>, which is how a session ends.
+    /// </summary>
+    /// <remarks>
+    /// Only <c>--release</c> carries the code. A bare <c>stop</c> on an unlocked rig still
+    /// exits 0, and <see cref="StopNeedsNoLockOfItsOwnSoAnOrphanCanAlwaysBeCleanedUp"/> pins
+    /// that: orphan cleanup must always be possible, and it never claimed to release anything.
+    /// </remarks>
+    [Fact]
+    public void StopReleaseWithNoLockPresentExitsFiveWhileABareStopStillExitsZero()
+    {
+        var home = rig.NewHome("stopreleasenolock");
+
+        var released = rig.RunIn(home, "stop", "--target", "clients", "--as", "nobody00", "--release", "--json");
+        using var doc = released.Json();
+        Assert.Equal(LockNotHeld, released.ExitCode);
+        Assert.Equal("NoLock", doc.RootElement.GetProperty("values").GetProperty("releaseStatus").GetString());
+
+        // The teardown itself still ran and still reported it finished.
+        Assert.Contains("[Stop] Done.", released.All, StringComparison.Ordinal);
+
+        var bare = rig.RunIn(home, "stop", "--target", "clients");
+        Assert.Equal(Ok, bare.ExitCode);
+    }
+
+    /// <summary>
+    /// The whole "you hold no lock" family, measured together against the real binary.
+    /// </summary>
+    /// <remarks>
+    /// Written as one case on purpose. The defect was not that any single verb was wrong; it
+    /// was that four verbs answering the same question disagreed, and nothing compared them.
+    /// A verb added later that forgets the code fails here rather than in a session.
+    /// </remarks>
+    [Fact]
+    public void EveryVerbThatNeedsALockAgreesOnFiveWhenThereIsNoneAtAll()
+    {
+        var home = rig.NewHome("nolockfamily");
+
+        Assert.Equal(LockNotHeld, rig.RunIn(home, "unlock", "--as", "nobody00").ExitCode);
+        Assert.Equal(LockNotHeld, rig.RunIn(home, "refresh-lock", "--as", "nobody00").ExitCode);
+        Assert.Equal(LockNotHeld, rig.RunIn(home, "reset", "--as", "nobody00", "--dry-run").ExitCode);
+        Assert.Equal(LockNotHeld, rig.RunIn(home, "capture-baseline", "--as", "nobody00").ExitCode);
+        Assert.Equal(LockNotHeld, rig.RunIn(home, "deploy", "--target", "server", "--as", "nobody00").ExitCode);
+        Assert.Equal(
+            LockNotHeld,
+            rig.RunIn(home, "stop", "--target", "clients", "--as", "nobody00", "--release").ExitCode);
     }
 
     [Fact]

@@ -192,7 +192,7 @@ public sealed partial class ClientHalf
     /// ingested over 500,000 lines. The PowerShell streamed all of them through a pipeline
     /// and printed every match (CLIENT-300).
     /// </remarks>
-    public const int GrepMatchCap = 500;
+    public const int GrepMatchCap = LogFilter.MatchCap;
 
     /// <summary>
     /// Prints an instance's log.
@@ -206,8 +206,10 @@ public sealed partial class ClientHalf
     /// selects it, and a missing BepInEx log now names it.
     /// </para>
     /// <para>
-    /// <c>--tail</c> and <c>--grep</c> are INDEPENDENT: with both, the grep searches the last
-    /// N lines. With grep alone it searches the whole file.
+    /// <c>--tail</c> and <c>--grep</c> are INDEPENDENT: the grep searches the WHOLE file and
+    /// the tail is the window over its matches, which is what the surface has always said and
+    /// what neither half used to do. See <see cref="LogFilter"/>, shared with the server half
+    /// so the two cannot answer differently again.
     /// </para>
     /// </remarks>
     public void Logs(string instance, int tail = 50, string? grep = null, bool unity = false)
@@ -255,28 +257,10 @@ public sealed partial class ClientHalf
             return;
         }
 
-        // With --tail as well, the grep searches only that window. The two flags are
-        // documented as independent and the PowerShell silently ignored one of them.
-        var haystack = tail > 0 && tail != 50
-            ? _fs.ReadTailLines(log, tail)
-            : _fs.ReadLines(log);
+        var result = LogFilter.Apply(_fs.ReadLines(log), pattern, tail);
+        foreach (var line in result.Shown) Say(line);
 
-        var shown = 0;
-        var matched = 0;
-        foreach (var line in haystack)
-        {
-            if (!pattern.IsMatch(line)) continue;
-            matched++;
-            if (shown >= GrepMatchCap) continue;
-            Say(line);
-            shown++;
-        }
-
-        if (matched > shown)
-        {
-            Warn($"[Logs] {matched} lines matched and the first {shown} are shown. Narrow the pattern, or add "
-                 + "--tail <n> to search only the end of the file.");
-        }
+        if (LogFilter.Trimmed(result) is { } note) Warn(note);
     }
 
     /// <summary>The newest per-run Unity log, or the empty string.</summary>

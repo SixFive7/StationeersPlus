@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json.Nodes;
 using TestRig.Contracts;
 using TestRig.Core.Abstractions;
+using TestRig.Core.Rig;
 using TestRig.Playtest.Attestation;
 using TestRig.Playtest.Evidence;
 using TestRig.Playtest.Flakes;
@@ -689,10 +690,19 @@ public sealed class PlaytestContext : IPlaytestContext
         }
     }
 
+    /// <summary>Whether a status payload is at or past a barrier's stage.</summary>
+    /// <remarks>
+    /// The <c>modsLoaded</c> threshold is <see cref="RigConstants.StageMinPlugins"/>, compared
+    /// inclusively, and it is Core's constant rather than a literal here on purpose. It used
+    /// to be <c>&gt; 10</c> in this file and <c>&gt;= 10</c> in
+    /// <see cref="ReadinessStages.Reached"/>, so <c>testrig wait --stage modsLoaded</c> and a
+    /// harness barrier disagreed at exactly one plugin count, and both were tested, so both
+    /// stayed green while they disagreed.
+    /// </remarks>
     internal static bool Reached(StatusResponse status, Stage stage) => stage switch
     {
         Stage.Ping => true,
-        Stage.ModsLoaded => status.LoadedPluginCount > 10,
+        Stage.ModsLoaded => status.LoadedPluginCount >= RigConstants.StageMinPlugins,
         Stage.Menu => status.GameInitialized == true && string.Equals(status.Phase, "menu", StringComparison.Ordinal),
         Stage.InWorld => string.Equals(status.Phase, "inWorld", StringComparison.Ordinal),
         _ => false,

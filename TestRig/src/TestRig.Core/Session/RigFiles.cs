@@ -48,13 +48,33 @@ internal static class RigFiles
     }
 
     /// <summary>Writes atomically. Readers see the whole old file or the whole new one.</summary>
+    /// <remarks>
+    /// This is the LOCK file's write, and the promise in that first sentence is the whole
+    /// reason it exists. Writers are serialised by the session mutex; READERS ARE NOT.
+    /// <c>GetStatus</c> and <c>ReadState</c> both read outside the critical section by
+    /// design, so a truncate-in-place write hands a reader a file with no <c>owner</c> key,
+    /// which classifies as <c>LockState.None</c> and reads to every caller as "the rig is
+    /// free". That is the stomp the whole subsystem exists to prevent (LOCK-074).
+    ///
+    /// So it stages, renames and retries, by delegating to
+    /// <see cref="IFileSystem.WriteAllTextDurable"/> (LOCK-077's ten attempts and LOCK-078's
+    /// temp cleanup are that method's, and there is exactly one implementation of
+    /// stage-flush-rename rather than two that could drift).
+    ///
+    /// LOCK-079 records the PowerShell asymmetry: the marker was written durably and the
+    /// lock was not, because only the marker has to outlive a power cut. The asymmetry
+    /// survives in INTENT (<see cref="WriteDurable"/> is the one whose durability is
+    /// load-bearing) but not in mechanism, and the row's own warning is why: the way this
+    /// got broken was somebody making the lock write cheap. A flush-to-disk on a file
+    /// written a handful of times per session is not a cost worth a second code path.
+    /// </remarks>
     public static void WriteAtomic(IFileSystem fs, string path, string text, string what)
     {
         try
         {
             var parent = Path.GetDirectoryName(path);
             if (!string.IsNullOrEmpty(parent)) fs.CreateDirectory(parent);
-            fs.WriteAllText(path, text);
+            fs.WriteAllTextDurable(path, text);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {

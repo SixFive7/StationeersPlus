@@ -104,9 +104,20 @@ public sealed record LockGrant(
 /// </remarks>
 public interface IRigLauncher
 {
-    LockGrant AcquireLock(string purpose, int ttlMinutes, int waitSeconds);
+    /// <param name="keepState">
+    /// Skip the state restore at BOTH ends of this check's session.
+    /// </param>
+    /// <remarks>
+    /// PLAYTEST-247. The rig resets between sessions and the harness takes one lock PER
+    /// CHECK, so without this there is no way to hand a staged rig from one check to the
+    /// next: whatever the first one built is restored away before the second one starts.
+    /// Off by default, because a check that silently inherits another check's leftovers is
+    /// the failure the per-check reset exists to prevent.
+    /// </remarks>
+    LockGrant AcquireLock(string purpose, int ttlMinutes, int waitSeconds, bool keepState = false);
 
-    LauncherResult ReleaseLock(string owner);
+    /// <inheritdoc cref="AcquireLock"/>
+    LauncherResult ReleaseLock(string owner, bool keepState = false);
 
     LauncherResult RefreshLock(string owner);
 

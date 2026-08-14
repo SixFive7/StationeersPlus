@@ -20,6 +20,9 @@ public sealed class RigFixture
     public const string SourceInstall = @"E:\Steam\steamapps\common\Stationeers";
     public const string UserData = @"C:\Users\dev\Documents\My Games\Stationeers";
 
+    /// <summary>The per-user folder nothing can isolate. Read at a session boundary, never written.</summary>
+    public const string SharedData = @"C:\Users\dev\AppData\LocalLow\Rocketwerkz\rocketstation";
+
     private int _ownerCounter;
 
     public RigFixture(bool wireRestore = true)
@@ -31,8 +34,9 @@ public sealed class RigFixture
         Boot = new FakeBootIdentity();
         Mutex = new FakeCrossProcessLock();
         Output = new RecordingOutput();
+        Registry = new FakeRegistry();
 
-        Paths = new RigPaths(Home, InstancesRoot, SourceInstall, UserData);
+        Paths = new RigPaths(Home, InstancesRoot, SourceInstall, UserData, sharedDataDir: SharedData);
         Launcher = new LauncherIdentity(4242, "pwsh", "RIGTEST");
 
         Fs.AddDirectory(Home);
@@ -45,14 +49,16 @@ public sealed class RigFixture
         Marker = new DirtyMarker(Fs, Clock, Processes, Boot, Paths, Worlds, Launcher);
         Surface = new MutableSurface(Fs, Paths, Worlds);
         Baseline = new BaselineStore(Fs, Clock, Paths, Surface, Output, Launcher);
-        State = new SessionStateStore(Fs, Clock, Paths);
+        SharedState = new SharedStateReader(Fs, Registry, Clock, Paths.SharedDataDir, Paths.PlayerPrefsKey);
+        State = new SessionStateStore(Fs, Clock, Paths, SharedState);
         Planner = new ResetPlanner(Fs, Clock, Paths, Surface, Baseline, Worlds, Marker, Busy, State);
         Executor = new ResetExecutor(Fs, Clock, Output, Planner, Marker, State);
 
         Lock = new SessionLockService(
             Fs, Clock, Sleeper, Mutex, Output, Paths, Busy, Marker, Launcher,
             wireRestore ? Executor : null,
-            MintOwnerId);
+            MintOwnerId,
+            State);
     }
 
     public FakeFileSystem Fs { get; }
@@ -61,6 +67,7 @@ public sealed class RigFixture
     public FakeProcessTable Processes { get; }
     public FakeBootIdentity Boot { get; }
     public FakeCrossProcessLock Mutex { get; }
+    public FakeRegistry Registry { get; }
     public RecordingOutput Output { get; }
     public RigPaths Paths { get; }
     public LauncherIdentity Launcher { get; }
@@ -70,6 +77,7 @@ public sealed class RigFixture
     public DirtyMarker Marker { get; }
     public MutableSurface Surface { get; }
     public BaselineStore Baseline { get; }
+    public SharedStateReader SharedState { get; }
     public SessionStateStore State { get; }
     public ResetPlanner Planner { get; }
     public ResetExecutor Executor { get; }

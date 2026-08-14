@@ -130,7 +130,14 @@ public static class TargetResolver
         {
             foreach (var name in wanted)
             {
-                if (all.Contains(name, StringComparer.Ordinal)) continue;
+                // Case-INSENSITIVE, matching the resolver the dispatcher actually speaks
+                // (Cli/Verbs/TargetResolver). An instance name is an NTFS directory name and
+                // PowerShell's -contains was case-insensitive, so --target HOSTIE has always
+                // resolved against an entry named hostie. This copy compared ordinally, so the
+                // two disagreed on exactly that input while both stayed green: the CLI suite
+                // pins the case-insensitive answer end to end and this file's own suite never
+                // asked. See the type remarks: two implementations of one decision.
+                if (all.Contains(name, StringComparer.OrdinalIgnoreCase)) continue;
 
                 var known = all.Count > 0 ? string.Join(", ", all) : "(none provisioned)";
                 throw new RigRefusalException(

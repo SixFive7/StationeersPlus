@@ -27,6 +27,17 @@ public sealed class SuiteRequest
     ///     session holds it. It is a queue, not a reservation, and it promises no fairness.
     /// </summary>
     public int LockWaitSeconds { get; init; }
+
+    /// <summary>
+    ///     Skip the state restore at both ends of every check's session (PLAYTEST-247).
+    /// </summary>
+    /// <remarks>
+    ///     The rig resets between sessions and the harness takes one lock PER CHECK, so this
+    ///     is the only way to hand a staged rig from one check to the next. Off by default:
+    ///     a check that silently inherits another check's leftovers is the failure the
+    ///     per-check reset exists to prevent.
+    /// </remarks>
+    public bool KeepState { get; init; }
 }
 
 /// <summary>What a whole run produced.</summary>
@@ -91,7 +102,7 @@ public sealed class SuiteRunner
 
             var evidence = bundle.NewCheck(i + 1, check.Spec.Name);
             var folder = Path.GetFileName(evidence.Root);
-            var result = runner.Run(check, evidence, folder, request.LockWaitSeconds);
+            var result = runner.Run(check, evidence, folder, request.LockWaitSeconds, request.KeepState);
 
             _deps.Log?.Invoke($"[Playtest] {check.Spec.Name}: {result.Text}");
             results.Add(result);
@@ -123,7 +134,48 @@ public sealed class SuiteRunner
         var suite = new SuiteResult(request.SuiteName, startedUtc, endedUtc, passed, failed, inconclusive, exitCode, tier1, results);
         bundle.Write("run.json", RenderRunJson(suite));
         bundle.Write("run.md", RenderRunMarkdown(suite));
+
+        foreach (var line in RenderConsoleSummary(suite, bundle.Root)) _deps.Log?.Invoke(line);
+
         return suite;
+    }
+
+    /// <summary>
+    ///     The closing block a human watching the terminal gets (PLAYTEST-357).
+    /// </summary>
+    /// <remarks>
+    ///     A rule, the counts, one line per check and where the evidence went. All of it is
+    ///     already in <c>run.json</c>, <c>run.md</c> and the <c>--json</c> values, so nothing
+    ///     was lost to automation; what was missing was the answer to "how did that go" for
+    ///     the person who just watched it run and got per-check lines and then nothing.
+    ///
+    ///     The evidence root is last on purpose: it is the line somebody copies.
+    /// </remarks>
+    internal static IReadOnlyList<string> RenderConsoleSummary(SuiteResult suite, string evidenceRoot)
+    {
+        ArgumentNullException.ThrowIfNull(suite);
+
+        var lines = new List<string>
+        {
+            "[Playtest] " + new string('-', 60),
+            $"[Playtest] {suite.Suite}: passed {suite.Passed}, failed {suite.Failed}, "
+            + $"inconclusive {suite.Inconclusive}  (exit {suite.ExitCode})",
+        };
+
+        foreach (var result in suite.Results)
+        {
+            lines.Add($"[Playtest]   {result.Text,-16} {result.Name}");
+        }
+
+        if (suite.Inconclusive > 0)
+        {
+            lines.Add("[Playtest]   inconclusive is not a failure: the rig never got far enough to have an "
+                      + "opinion about the mod.");
+        }
+
+        lines.Add($"[Playtest]   tier-1 save folder: {SaveInventoryScanner.VerdictText(suite.Tier1.Verdict)}");
+        lines.Add($"[Playtest] evidence: {evidenceRoot}");
+        return lines;
     }
 
     /// <summary>

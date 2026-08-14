@@ -89,7 +89,8 @@ public interface IServerHalf
     void HostMode(string load, string map, string newMap, int gamePort, int updatePort);
 
     /// <summary>Was <c>Write-RigServerStatus</c> plus the version and mod-staleness readers.</summary>
-    void WriteStatus();
+    /// <returns>How many staleness rows it reported. Zero is what CLI-086's line is for.</returns>
+    int WriteStatus();
 
     /// <summary>Was <c>Get-RigServerPaths</c> plus <c>Test-RigServerProcessAlive</c>, as one line.</summary>
     void WriteListRow();
@@ -148,7 +149,8 @@ public interface IClientHalf
     void Call(string callerId, IReadOnlyList<string> instances, string path, string body, int callTimeoutSeconds);
 
     /// <summary>Was <c>Write-RigClientStatus</c> plus the version and mod-staleness readers.</summary>
-    void WriteStatus(IReadOnlyList<string> instances);
+    /// <inheritdoc cref="IServerHalf.WriteStatus"/>
+    int WriteStatus(IReadOnlyList<string> instances);
 
     /// <summary>Was <c>Get-RigClientListRows</c>.</summary>
     void WriteListRows(IReadOnlyList<string> instances);
@@ -217,7 +219,7 @@ public sealed class ServerHalfAdapter(ServerHalf half, IOutput output) : IServer
     public void HostMode(string load, string map, string newMap, int gamePort, int updatePort) =>
         half.HostModeAsync(World(load, map, newMap), gamePort, updatePort).GetAwaiter().GetResult();
 
-    public void WriteStatus()
+    public int WriteStatus()
     {
         half.Status();
 
@@ -240,6 +242,8 @@ public sealed class ServerHalfAdapter(ServerHalf half, IOutput output) : IServer
                 $"  stale {row.Kind}: {row.Name} deployed {row.Deployed:u}, source {row.Source:u} "
                 + $"[{row.LoadPath}]. {row.Remedy}");
         }
+
+        return stale.Count + (version.Stale ? 1 : 0);
     }
 
     public void WriteListRow()
@@ -345,7 +349,7 @@ public sealed class ClientHalfAdapter(ClientHalf half, IOutput output) : IClient
         half.CallAsync(Entries(instances), path, NullIfEmpty(body), NullIfEmpty(callerId), callTimeoutSeconds)
             .GetAwaiter().GetResult();
 
-    public void WriteStatus(IReadOnlyList<string> instances)
+    public int WriteStatus(IReadOnlyList<string> instances)
     {
         var entries = Entries(instances);
         half.StatusAsync(entries).GetAwaiter().GetResult();
@@ -372,6 +376,8 @@ public sealed class ClientHalfAdapter(ClientHalf half, IOutput output) : IClient
                 $"  {row.Instance}: stale {row.Kind} {row.Name}, deployed {row.Deployed:u}, source "
                 + $"{row.Source:u}. {row.Remedy}");
         }
+
+        return staleVersions + stale.Count;
     }
 
     public void WriteListRows(IReadOnlyList<string> instances)

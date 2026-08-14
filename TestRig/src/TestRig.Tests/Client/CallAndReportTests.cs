@@ -349,8 +349,13 @@ public sealed class CallAndReportTests
     }
 
     [Fact]
-    public void GrepAndTailAreIndependentRatherThanOneSilentlyIgnoringTheOther()
+    public void GrepFiltersTheWholeFileAndTailIsTheWindowOverTheMatches()
     {
+        // The surface has always said "Combines with --tail: filter first, then tail the
+        // matches", and both halves did the opposite: they tailed the FILE and grepped that
+        // window, so a pattern whose matches were older than the last N lines returned
+        // nothing. The window was also gated on tail != 50, a magic-number stand-in for "was
+        // it typed", so an explicit --tail 50 silently searched the whole file instead.
         var fixture = RigWith("x");
         var log = fixture.Layout.PathsFor("x").BepInExLog;
         fixture.Fs.AddFile(log, string.Join("\r\n",
@@ -360,14 +365,26 @@ public sealed class CallAndReportTests
             "Saved Titan",
         ]));
 
-        // Grep alone searches the whole file.
+        // Grep alone: every match, wherever it sits in the file.
         fixture.Half.Logs("x", grep: "^Saved ");
         Assert.True(fixture.Output.Said("Saved Luna"));
         Assert.True(fixture.Output.Said("Saved Titan"));
 
-        // Grep with a tail searches only that window.
+        // The default tail is a window over the two MATCHES, not over the 52 lines, so the
+        // older one survives. Under the old rule it was 51 lines back and therefore invisible.
         fixture.Output.Clear();
         fixture.Half.Logs("x", tail: 5, grep: "^Saved ");
+        Assert.True(fixture.Output.Said("Saved Luna"));
+        Assert.True(fixture.Output.Said("Saved Titan"));
+
+        // An explicitly typed 50 behaves like any other number.
+        fixture.Output.Clear();
+        fixture.Half.Logs("x", tail: 50, grep: "^Saved ");
+        Assert.True(fixture.Output.Said("Saved Luna"));
+
+        // And a tail smaller than the match count keeps the NEWEST matches.
+        fixture.Output.Clear();
+        fixture.Half.Logs("x", tail: 1, grep: "^Saved ");
         Assert.False(fixture.Output.Said("Saved Luna"));
         Assert.True(fixture.Output.Said("Saved Titan"));
     }

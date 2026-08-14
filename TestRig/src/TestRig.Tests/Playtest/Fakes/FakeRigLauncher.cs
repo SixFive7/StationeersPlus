@@ -42,17 +42,19 @@ public sealed class FakeRigLauncher : IRigLauncher
     /// <summary>Runs when an instance is started, so a test can reset that instance's state.</summary>
     public Action<string>? OnStart { get; set; }
 
-    public LockGrant AcquireLock(string purpose, int ttlMinutes, int waitSeconds)
+    public LockGrant AcquireLock(string purpose, int ttlMinutes, int waitSeconds, bool keepState = false)
     {
-        Calls.Add($"lock {purpose} ttl={ttlMinutes} wait={waitSeconds}");
+        // keep-state is recorded rather than ignored: it is the only way to hand a staged rig
+        // to the next check, and forwarding it was missing entirely (PLAYTEST-247).
+        Calls.Add($"lock {purpose} ttl={ttlMinutes} wait={waitSeconds}{(keepState ? " -KeepState" : string.Empty)}");
         return LockSucceeds
             ? LockGrant.Granted(Owner, StateResetReport)
             : LockGrant.Refused(LockMessage, StateResetReport);
     }
 
-    public LauncherResult ReleaseLock(string owner)
+    public LauncherResult ReleaseLock(string owner, bool keepState = false)
     {
-        Calls.Add($"unlock {owner}");
+        Calls.Add($"unlock {owner}{(keepState ? " -KeepState" : string.Empty)}");
         return ReleaseSucceeds ? LauncherResult.Ok() : LauncherResult.Failed("the rig refused to release the lock");
     }
 

@@ -357,9 +357,9 @@ public sealed partial class ServerHalf
             return false;
         }
 
-        Warn($"[Save] No confirmation within {waitSeconds}s. Treat this world as NOT saved: it may have "
-             + "completed silently or failed. testrig logs --target server --grep Saved shows what the server "
-             + "actually did, and the stdin channel itself has recorded no-op observations, so also check "
+        Warn($"[Save] No confirmation within {waitSeconds}s ({outcome.Evidence}). Treat this world as NOT saved: "
+             + "it may have completed silently or failed. testrig logs --target server --grep Saved shows what the "
+             + "server actually did, and the stdin channel itself has recorded no-op observations, so also check "
              + $"whether {Path.Combine(_paths.World(saveName), saveName + ".save")} exists.");
         return false;
     }
@@ -383,17 +383,15 @@ public sealed partial class ServerHalf
         Say($"[Save] Queued save '{saveName}' on the server. Waiting for confirmation (up to {waitSeconds}s)...");
 
         var deadline = _clock.UtcNow.AddSeconds(waitSeconds);
+        var foreignFailures = new List<string>();
 
         while (_clock.UtcNow < deadline)
         {
-            foreach (var line in watcher.NewLines())
-            {
-                var verdict = SaveConfirmation.Classify(line, saveName, folderExisted);
-                if (verdict is not null) return verdict;
-            }
-
-            // The filesystem is the second, independent witness. A save that landed has a file
-            // that is newer, or bigger, or simply now exists.
+            // THE FILESYSTEM WITNESS RUNS FIRST, and that ordering is the fix, not a tidy-up.
+            // It used to run after the line scan, which returned the instant any line
+            // classified, so a failure line belonging to somebody else pre-empted the "second,
+            // independent witness" this method is built around and the witness was never
+            // consulted at all. It is the reliable half: a file that grew is not an opinion.
             if (_fs.FileExists(saveFile))
             {
                 var size = _fs.GetFileLength(saveFile);
@@ -406,10 +404,27 @@ public sealed partial class ServerHalf
                 }
             }
 
+            foreach (var line in watcher.NewLines())
+            {
+                var verdict = SaveConfirmation.Classify(line, saveName, folderExisted);
+                if (verdict is not null) return verdict;
+
+                // A failure that is not ours (an autosave on a --new world fails every 300 s
+                // until a first named save assigns a station name) is kept as evidence and
+                // reported if the wait runs out, rather than being turned into this save's
+                // verdict.
+                if (SaveConfirmation.IsFailureLine(line)) foreignFailures.Add(line.Trim());
+            }
+
             await _sleeper.DelayAsync(PollInterval, ct).ConfigureAwait(false);
         }
 
-        return new SaveOutcome(SaveVerdict.Timeout, $"nothing confirmed within {waitSeconds}s");
+        var detail = foreignFailures.Count == 0
+            ? $"nothing confirmed within {waitSeconds}s"
+            : $"nothing confirmed within {waitSeconds}s; the log did carry {foreignFailures.Count} failure line(s) "
+              + $"that name no save of this name, so they were not treated as this save's: {string.Join("; ", foreignFailures.Take(3))}";
+
+        return new SaveOutcome(SaveVerdict.Timeout, detail);
     }
 
     // =====================================================================

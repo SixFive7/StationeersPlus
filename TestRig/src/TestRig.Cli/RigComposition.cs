@@ -66,11 +66,19 @@ public sealed class RigComposition : IDisposable
         Busy = ProcessImagePaths.Probe(fs, SystemProcessTable.Instance, paths);
 
         Marker = new DirtyMarker(fs, clock, SystemProcessTable.Instance, BootIdentity.Instance, paths, Worlds, launcher);
-        State = new SessionStateStore(fs, clock, paths);
+
+        // Read only, and it has no counterpart writer anywhere: this state is shared with the
+        // developer's own client and cannot be isolated, so the rig reports what moved instead
+        // of pretending it can put it back.
+        SharedState = new SharedStateReader(
+            fs, SystemRegistry.Instance, clock, paths.SharedDataDir, paths.PlayerPrefsKey);
+
+        State = new SessionStateStore(fs, clock, paths, SharedState);
         Baseline = new BaselineStore(fs, clock, paths, Surface, output, launcher);
         Planner = new ResetPlanner(fs, clock, paths, Surface, Baseline, Worlds, Marker, Busy, State);
         Reset = new ResetExecutor(fs, clock, output, Planner, Marker, State);
-        Lock = new SessionLockService(fs, clock, sleeper, mutex, output, paths, Busy, Marker, launcher, Reset);
+        Lock = new SessionLockService(
+            fs, clock, sleeper, mutex, output, paths, Busy, Marker, launcher, Reset, mintOwnerId: null, State);
 
         _transport = new HttpControlTransport();
         _downloader = new SystemFileDownloader();
@@ -129,6 +137,10 @@ public sealed class RigComposition : IDisposable
     public MutableSurface Surface { get; }
     public BusyProbe Busy { get; }
     public DirtyMarker Marker { get; }
+
+    /// <summary>The shared per-user state, reported at a session boundary and never restored.</summary>
+    public SharedStateReader SharedState { get; }
+
     public SessionStateStore State { get; }
     public BaselineStore Baseline { get; }
     public ResetPlanner Planner { get; }
@@ -239,7 +251,9 @@ public sealed class RigComposition : IDisposable
             effectiveRoot,
             sourceInstall,
             userData,
-            additionalInstanceRoots: layout.RecordedRoots());
+            additionalInstanceRoots: layout.RecordedRoots(),
+            sharedDataDir: ResolveSharedData(),
+            playerPrefsKey: Environment.GetEnvironmentVariable("TESTRIG_PLAYERPREFSKEY"));
 
         // Both consumers of the paths object are rebuilt on the final one, so nothing is
         // left holding the provisional root.
@@ -286,5 +300,28 @@ public sealed class RigComposition : IDisposable
             Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
             "My Games",
             "Stationeers");
+    }
+
+    /// <summary>
+    /// The per-user folder Unity fixes and nothing can redirect (RESET-009).
+    /// </summary>
+    /// <remarks>
+    /// There is no SpecialFolder for LocalLow, so it is built off the profile directory the
+    /// same way the game does. Read only from the rig, and the override exists for the suite.
+    /// </remarks>
+    private static string ResolveSharedData()
+    {
+        var env = Environment.GetEnvironmentVariable("TESTRIG_SHAREDDATA");
+        if (!string.IsNullOrWhiteSpace(env)) return env;
+
+        var profile = Environment.GetEnvironmentVariable("USERPROFILE");
+        if (string.IsNullOrWhiteSpace(profile))
+        {
+            profile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        }
+
+        return string.IsNullOrWhiteSpace(profile)
+            ? string.Empty
+            : Path.Combine(profile, "AppData", "LocalLow", "Rocketwerkz", "rocketstation");
     }
 }

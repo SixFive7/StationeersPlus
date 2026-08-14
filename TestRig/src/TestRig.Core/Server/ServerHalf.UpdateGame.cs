@@ -121,7 +121,14 @@ public sealed partial class ServerHalf
 
         if (_fs.FileExists(_paths.BepInExCoreDll))
         {
-            Say($"[UpdateGame] BepInEx mirrored from {source}.");
+            // SERVER-017: the mirrored core's FileVersion, so the line says WHAT was mirrored
+            // and not merely that something was. A mirror is the one operation that can leave
+            // the server on a different BepInEx from the client, and this is the only place
+            // that number is ever printed.
+            var version = _fs.TryGetBinaryVersion(_paths.BepInExCoreDll)?.FileVersion;
+            Say(string.IsNullOrEmpty(version)
+                ? $"[UpdateGame] BepInEx mirrored from {source}."
+                : $"[UpdateGame] BepInEx mirrored from {source}, version {version}.");
         }
     }
 
@@ -237,39 +244,38 @@ public sealed partial class ServerHalf
     /// The mirrored StationeersLaunchPad version, which selects the server-zip release.
     /// </summary>
     /// <remarks>
-    /// Read from the plugin's own <c>version.txt</c> sidecar when it has one, and otherwise
-    /// from a <c>StationeersLaunchPad-&lt;version&gt;</c> marker beside it. A file version
-    /// cannot be read through the filesystem seam, and reaching around the seam to
-    /// <c>FileVersionInfo</c> would put an untestable call in the middle of the one verb that
-    /// rewrites the whole install. Returning empty degrades to a named warning rather than a
-    /// wrong URL.
+    /// SERVER-018: the plugin DLL's ProductVersion, read off the MIRRORED copy through
+    /// <see cref="Abstractions.IFileSystem.TryGetBinaryVersion"/>. That is what the release
+    /// tag is: verified against the shipped plugin, <c>ProductVersion</c> is <c>0.5.0</c> and
+    /// the release is <c>v0.5.0</c>.
+    ///
+    /// An earlier port read a <c>version.txt</c> sidecar and then a
+    /// <c>StationeersLaunchPad-&lt;version&gt;</c> marker file, to avoid widening the
+    /// filesystem seam. Neither file exists in a real install (the plugin folder holds four
+    /// DLLs and nothing else), so this returned the empty string every time, the overlay
+    /// always took its warning-and-skip branch, and <c>RG.ImGui.dll</c> never reached the
+    /// dedicated server. Everything built around this value (temp-name download, length
+    /// check, version-keyed cache, corrupt-archive delete) was downstream of a constant.
+    ///
+    /// ProductVersion first, FileVersion second: a build that stamps only the numeric one is
+    /// still better than no answer. Only trailing metadata is stripped, so a
+    /// <c>1.2.3+sha</c> informational version still selects the <c>v1.2.3</c> release.
+    /// Returning empty degrades to a named warning rather than a wrong URL.
     /// </remarks>
     public string LaunchPadVersion()
     {
-        var dir = Path.GetDirectoryName(_paths.LaunchPadDll);
-        if (string.IsNullOrEmpty(dir) || !_fs.DirectoryExists(dir)) return "";
+        var stamped = _fs.TryGetBinaryVersion(_paths.LaunchPadDll);
+        if (stamped is null) return "";
 
-        var marker = Path.Combine(dir, "version.txt");
-        if (_fs.FileExists(marker))
+        return Numeric(stamped.Value.ProductVersion) is { Length: > 0 } product
+            ? product
+            : Numeric(stamped.Value.FileVersion);
+
+        static string Numeric(string? version)
         {
-            try
-            {
-                var text = _fs.ReadAllText(marker).Trim();
-                var match = System.Text.RegularExpressions.Regex.Match(text, @"\d+(?:\.\d+)+");
-                if (match.Success) return match.Value;
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-            {
-                return "";
-            }
+            if (string.IsNullOrWhiteSpace(version)) return "";
+            var match = System.Text.RegularExpressions.Regex.Match(version, @"\d+(?:\.\d+)+");
+            return match.Success ? match.Value : "";
         }
-
-        foreach (var file in _fs.EnumerateFiles(dir, "StationeersLaunchPad-*", recurse: false))
-        {
-            var match = System.Text.RegularExpressions.Regex.Match(Path.GetFileName(file), @"\d+(?:\.\d+)+");
-            if (match.Success) return match.Value;
-        }
-
-        return "";
     }
 }

@@ -50,6 +50,16 @@ public sealed class FakeFileSystem : IFileSystem
     /// <summary>Every directory tree delete, so a test can prove what was destroyed.</summary>
     public List<string> DeletedTrees { get; } = [];
 
+    /// <summary>
+    /// Version resources, by path. A file with no entry here has none.
+    /// </summary>
+    /// <remarks>
+    /// Separate from the file's content on purpose: on a real volume the version resource
+    /// and the bytes are independent, and the port's earlier attempt to infer a version
+    /// from a sidecar file is exactly the mistake that shape encourages.
+    /// </remarks>
+    public Dictionary<string, BinaryVersion> BinaryVersions { get; } = new(StringComparer.OrdinalIgnoreCase);
+
     /// <summary>Timestamp stamped onto anything written. Advance it to age a file.</summary>
     public DateTimeOffset Now { get; set; } = new(2026, 8, 14, 12, 0, 0, TimeSpan.Zero);
 
@@ -176,6 +186,7 @@ public sealed class FakeFileSystem : IFileSystem
         var key = Key(path);
         if (DeleteFailures.TryGetValue(key, out var message)) throw new IOException(message);
         _files.Remove(key);
+        BinaryVersions.Remove(key);
     }
 
     public void DeleteDirectory(string path, bool recursive)
@@ -252,6 +263,20 @@ public sealed class FakeFileSystem : IFileSystem
         throw new FileNotFoundException($"No such path: {path}", path);
     }
 
+    public BinaryVersion? TryGetBinaryVersion(string path)
+    {
+        var key = Key(path);
+        if (!_files.ContainsKey(key)) return null;
+        return BinaryVersions.TryGetValue(key, out var version) ? version : new BinaryVersion("", "");
+    }
+
+    /// <summary>Stamps a version resource onto a file, creating it when absent.</summary>
+    public void SetBinaryVersion(string path, string fileVersion, string productVersion)
+    {
+        if (!FileExists(path)) AddFile(path, "MZ");
+        BinaryVersions[Key(path)] = new BinaryVersion(fileVersion, productVersion);
+    }
+
     public void CopyFile(string source, string destination, bool overwrite)
     {
         var sourceKey = Key(source);
@@ -267,6 +292,12 @@ public sealed class FakeFileSystem : IFileSystem
         }
 
         _files[destKey] = new Entry { Path = destKey, Content = [.. entry.Content], LastWriteUtc = Now };
+
+        // A real copy carries the version resource with the bytes, and the mirror in
+        // update-game reads the version off the COPY. Without this the seam would answer
+        // "no version" for every mirrored DLL, which is the shape of the bug it replaces.
+        if (BinaryVersions.TryGetValue(sourceKey, out var version)) BinaryVersions[destKey] = version;
+        else BinaryVersions.Remove(destKey);
     }
 
     public void CreateHardLink(string linkPath, string existingFilePath) => CopyFile(existingFilePath, linkPath, overwrite: false);

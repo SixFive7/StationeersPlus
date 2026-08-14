@@ -102,6 +102,15 @@ public static class Options
     /// <summary>Where a run's evidence bundle is written.</summary>
     public const string EvidenceRoot = "evidence-root";
 
+    /// <summary>Names a playtest run's evidence folder and its report (PLAYTEST-002).</summary>
+    public const string SuiteName = "suite-name";
+
+    /// <summary>List the compiled-in checks and what each one needs. Runs nothing.</summary>
+    public const string ListChecks = "list-checks";
+
+    /// <summary>List the flake taxonomy in resolution order. Runs nothing, and needs no rig.</summary>
+    public const string ListFlakes = "list-flakes";
+
     /// <summary>Accepted on every verb.</summary>
     public static readonly IReadOnlyList<string> Global = [Json, Verbose];
 
@@ -178,6 +187,9 @@ public static class Options
 
         new(Only, OptionKind.Text, "*", "Wildcard over playtest check names. Applied once, over the compiled-in set."),
         new(EvidenceRoot, OptionKind.Text, "", "Where a playtest run writes its bundle. Defaults to TestRig/playtest/evidence."),
+        new(SuiteName, OptionKind.Text, "testrig", "Names a playtest run's evidence folder and its report."),
+        new(ListChecks, OptionKind.Flag, "off", "List the compiled-in checks and what each needs. Runs nothing."),
+        new(ListFlakes, OptionKind.Flag, "off", "List the flake taxonomy in resolution order. Runs nothing, and needs no rig."),
     ];
 
     private static readonly Dictionary<string, OptionSpec> ByKey = BuildIndex();

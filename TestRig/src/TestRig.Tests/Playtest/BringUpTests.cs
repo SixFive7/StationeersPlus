@@ -1,4 +1,5 @@
 using TestRig.Contracts;
+using TestRig.Core.Rig;
 using TestRig.Playtest.Model;
 using TestRig.Playtest.Runner;
 using TestRig.Tests.Playtest.Fakes;
@@ -137,10 +138,30 @@ public sealed class BringUpTests
     public void TheOtherStagesReadWhatTheyAreDocumentedToRead()
     {
         Assert.True(PlaytestContext.Reached(new StatusResponse(), Stage.Ping));
-        Assert.True(PlaytestContext.Reached(new StatusResponse { LoadedPluginCount = 11 }, Stage.ModsLoaded));
-        Assert.False(PlaytestContext.Reached(new StatusResponse { LoadedPluginCount = 10 }, Stage.ModsLoaded));
         Assert.True(PlaytestContext.Reached(new StatusResponse { Phase = "inWorld" }, Stage.InWorld));
         Assert.False(PlaytestContext.Reached(new StatusResponse { Phase = "loading" }, Stage.InWorld));
+    }
+
+    [Fact]
+    public void TheHarnessAndTheWaitVerbAgreeAboutModsLoadedAtEveryCount()
+    {
+        // This file carried '> 10' and Core's ReadinessStages carried '>= 10', so
+        // 'testrig wait --stage modsLoaded' and a harness barrier disagreed at exactly one
+        // plugin count. Both were tested, so both stayed green while they disagreed. One
+        // constant now, compared the same way in both places.
+        foreach (var count in new[] { 0, 2, RigConstants.StageMinPlugins - 1, RigConstants.StageMinPlugins, 11, 42 })
+        {
+            var status = new StatusResponse { LoadedPluginCount = count };
+
+            Assert.Equal(
+                ReadinessStages.Reached(status, ReadinessStage.ModsLoaded),
+                PlaytestContext.Reached(status, Stage.ModsLoaded));
+        }
+
+        Assert.True(PlaytestContext.Reached(
+            new StatusResponse { LoadedPluginCount = RigConstants.StageMinPlugins }, Stage.ModsLoaded));
+        Assert.False(PlaytestContext.Reached(
+            new StatusResponse { LoadedPluginCount = RigConstants.StageMinPlugins - 1 }, Stage.ModsLoaded));
     }
 
     [Fact]

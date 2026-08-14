@@ -7,7 +7,9 @@ using TestRig.Core.Abstractions;
 using TestRig.Core.Infrastructure;
 using TestRig.Core.Rig;
 using TestRig.Core.Session;
+using TestRig.Playtest;
 using TestRig.Playtest.Evidence;
+using TestRig.Playtest.Flakes;
 using TestRig.Playtest.Runner;
 using TestRig.Playtest.Seams;
 using CoreRefusals = TestRig.Core.Rig.RefusalMatrix;
@@ -337,7 +339,10 @@ public static class CliApp
         output.Value("restoreSkipped", result.RestoreSkipped);
         output.Value("restoreFailure", result.RestoreFailure);
 
-        return result.Status == ReleaseStatus.NotYours ? ExitCodes.LockHeldByOther : ExitCodes.Ok;
+        // One table, in Core, shared with 'stop --release' and the playtest engine's teardown.
+        // Each of the three used to carry its own copy, and all three exited 0 on a rig that
+        // had no lock at all, which is the code a caller reads as "released".
+        return RigExitCodes.For(result.Status);
     }
 
     private static int RefreshLock(ParsedCommand cmd, IRigOutput output, RigComposition rig)
@@ -387,13 +392,20 @@ public static class CliApp
 
         output.Value("refused", run.Refused);
         output.Value("refusalReason", run.RefusalReason);
+
+        // A dry run is never itself refused, so 'refused' alone told a caller nothing about
+        // the answer the dry run exists to give. These two carry it, and so does the exit
+        // code below.
+        output.Value("wouldRefuse", run.WouldRefuse);
+        output.Value("wouldRefuseReason", run.WouldRefuseReason);
+
         output.Value("skipped", run.Skipped);
         output.Value("whatIf", run.WhatIf);
         output.Value("performed", run.Performed.Count);
         output.Value("failures", run.Failures);
         output.Value("worldDeletes", run.Plan.WorldDeleteCount);
 
-        if (run.Refused) return ExitCodes.RigBusy;
+        if (run.Refused || run.WouldRefuse) return ExitCodes.RigBusy;
         return run.Failures.Count > 0 ? ExitCodes.Failed : ExitCodes.Ok;
     }
 
@@ -421,11 +433,43 @@ public static class CliApp
         output.Value("clientWorldsRecorded", status.ClientWorlds.Recorded);
         output.Value("clientWorldCount", status.ClientWorlds.Count);
 
+        // The two the session-boundary drift report reads. Neither is ever written by the rig
+        // and neither can be isolated from the developer's own client, so naming them is the
+        // only way an operator can tell WHICH folder and WHICH key a drift line came from.
+        output.Value("sharedDataDir", rig.Paths.SharedDataDir);
+        output.Value("playerPrefsKey", rig.Paths.PlayerPrefsKey);
+
         // Read-only and rig-wide. Whether the rig is locked is the thing automation polls
         // for, and it is already above this line.
         output.Line(OutputLevel.Info, string.Empty);
-        if (resolved.Server) rig.Server.WriteStatus();
-        if (resolved.Kind != TargetKind.Server) rig.Clients.WriteStatus(resolved.Names);
+
+        var staleRows = 0;
+        if (resolved.Server) staleRows += rig.Server.WriteStatus();
+        if (resolved.Kind != TargetKind.Server) staleRows += rig.Clients.WriteStatus(resolved.Names);
+
+        // RESET-060. Config class only, which is a handful of small files, and it is the class
+        // a restore can actually act on. Without this the only way to ask "what has drifted"
+        // was to run a reset, which is the one thing somebody asking has not decided to do.
+        var configDrift = rig.Baseline.CompareConfig();
+        output.Value("configDrift", configDrift.Count);
+        if (configDrift.Count > 0)
+        {
+            output.Line(OutputLevel.Info, string.Empty);
+            output.Line(OutputLevel.Warning,
+                "config drift since the baseline (a reset puts these back; nothing here is fixed by status):");
+            foreach (var line in configDrift) output.Line(OutputLevel.Warning, "  " + line);
+        }
+
+        // CLI-086. With nothing stale the section used to print NOTHING, which reads the same
+        // as a section that failed to run. Silence is not an answer here: "the rig is current"
+        // is the thing a caller most wants confirmed before a test.
+        output.Line(OutputLevel.Info, string.Empty);
+        output.Line(OutputLevel.Info, "staleness (game versions and deployed payloads; reported, never fixed here):");
+        output.Line(OutputLevel.Info, staleRows == 0
+            ? "  (nothing to report)"
+            : $"  {staleRows} row(s), listed above.");
+        output.Value("staleRows", staleRows);
+
         return ExitCodes.Ok;
     }
 
@@ -594,15 +638,25 @@ public static class CliApp
                 cmd.Number(Options.TimeoutSeconds), cmd.Number(Options.WaitSeconds));
         }
 
+        // The teardown's own exit code, which --release may downgrade below.
+        var exit = ExitCodes.Ok;
+
         if (cmd.Flag(Options.Release))
         {
             var release = rig.Lock.ReleaseForStop(callerId, breakLock, cmd.Flag(Options.KeepState));
-            output.Line(release.Status == ReleaseStatus.NotYours ? OutputLevel.Warning : OutputLevel.Info, release.Message);
+            exit = RigExitCodes.For(release.Status);
+            output.Line(exit == ExitCodes.Ok ? OutputLevel.Info : OutputLevel.Warning, release.Message);
             output.Value("releaseStatus", release.Status.ToString());
+
+            // A release that did not happen must not exit 0. The teardown above succeeded and
+            // said so, but '--release' also asked for the session to end, and a caller that
+            // reads 0 as "the rig is free and mine is finished" is wrong on a rig that had no
+            // lock at all or has since been taken by somebody else. 'stop' WITHOUT --release
+            // still exits 0 with no lock, which is what keeps orphan cleanup always possible.
         }
 
         output.Line(OutputLevel.Info, "[Stop] Done.");
-        return ExitCodes.Ok;
+        return exit;
     }
 
     private static int Save(ParsedCommand cmd, RigComposition rig, ResolvedTarget resolved)
@@ -711,6 +765,23 @@ public static class CliApp
     private static int Playtest(ParsedCommand cmd, IRigOutput output, RigComposition rig)
     {
         var checks = TestRig.Playtests.Playtests.All;
+
+        // Both listings run before the "nothing is compiled in" check and before anything
+        // touches the rig. --list-flakes in particular is the taxonomy answering with no rig
+        // at all, which is the property PLAYTEST-011 exists for and which was unreachable
+        // from the binary while both renderers sat in the library with no option to call them.
+        if (cmd.Flag(Options.ListChecks))
+        {
+            output.Line(OutputLevel.Info, PlaytestListing.Checks(checks, cmd.Text(Options.Only)));
+            return ExitCodes.Ok;
+        }
+
+        if (cmd.Flag(Options.ListFlakes))
+        {
+            output.Line(OutputLevel.Info, PlaytestListing.Flakes(new FlakeCatalogue()));
+            return ExitCodes.Ok;
+        }
+
         if (checks.Count == 0)
         {
             throw new CliUsageException(
@@ -739,13 +810,18 @@ public static class CliApp
             Log = line => output.Line(OutputLevel.Info, line),
         }).Run(new SuiteRequest
         {
-            SuiteName = "testrig",
+            SuiteName = cmd.Text(Options.SuiteName),
             Checks = checks,
             EvidenceRoot = evidenceRoot,
             Only = cmd.Text(Options.Only),
             LockWaitSeconds = cmd.WasTyped(Options.WaitSeconds) ? cmd.Number(Options.WaitSeconds) : 0,
+
+            // The only way to hand a staged rig from one check to the next: the reset runs
+            // between sessions and the harness takes one lock per check.
+            KeepState = cmd.Flag(Options.KeepState),
         });
 
+        output.Value("suite", suite.Suite);
         output.Value("passed", suite.Passed);
         output.Value("failed", suite.Failed);
         output.Value("inconclusive", suite.Inconclusive);

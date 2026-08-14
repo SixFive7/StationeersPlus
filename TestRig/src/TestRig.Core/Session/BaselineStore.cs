@@ -457,4 +457,56 @@ public sealed class BaselineStore
 
         return actions;
     }
+
+    /// <summary>
+    /// Config-class drift against the baseline, one line per difference (RESET-060).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Config class ONLY. That is cheap (a handful of small files) and is the class a restore
+    /// can actually act on; payload drift belongs to staleness, not to a restore, and hashing
+    /// every deployed plugin to answer a question nothing acts on would make this expensive
+    /// for nothing.
+    /// </para>
+    /// <para>
+    /// The same facts <see cref="ConfigActions"/> computes, but as an answer rather than as a
+    /// plan. Without it there is no way to ask "what has drifted" short of running a reset,
+    /// which is the one thing somebody asking that question has not decided to do yet.
+    /// </para>
+    /// </remarks>
+    /// <returns>An empty list when nothing moved, or when there is no baseline to compare against.</returns>
+    public IReadOnlyList<string> CompareConfig(Baseline? baseline = null, IReadOnlyList<SurfaceRecord>? surface = null)
+    {
+        baseline ??= Read();
+        if (baseline is null) return [];
+
+        var live = (surface ?? _surface.Enumerate()).Where(static r => r.Class == SurfaceClass.Config).ToArray();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var lines = new List<string>();
+
+        foreach (var record in live.OrderBy(static r => r.Key, StringComparer.OrdinalIgnoreCase))
+        {
+            seen.Add(record.Key);
+
+            if (!baseline.Files.TryGetValue(record.Key, out var entry))
+            {
+                lines.Add($"{record.Key} : new since the baseline");
+                continue;
+            }
+
+            if (!string.Equals(HashFile(record.Path), entry.Sha256, StringComparison.OrdinalIgnoreCase))
+            {
+                lines.Add($"{record.Key} : contents changed since the baseline");
+            }
+        }
+
+        foreach (var entry in baseline.Files.Values
+                     .Where(static e => e.Class == SurfaceClass.Config)
+                     .OrderBy(static e => e.Key, StringComparer.OrdinalIgnoreCase))
+        {
+            if (!seen.Contains(entry.Key)) lines.Add($"{entry.Key} : in the baseline, missing now");
+        }
+
+        return lines;
+    }
 }

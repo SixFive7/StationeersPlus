@@ -320,6 +320,13 @@ public sealed class CliFixture : IDisposable
         start.Environment["STATIONEERS_CLIENTRIG_ROOT"] = string.Empty;
         start.Environment["STEAMCMD_PATH"] = string.Empty;
 
+        // The shared per-user state is read at a session boundary and is the developer's own.
+        // Both overrides point somewhere that does not exist, so the suite reads neither their
+        // LocalLow folder nor their PlayerPrefs key. Reading is harmless; a suite that quietly
+        // depends on a real machine's contents is not.
+        start.Environment["TESTRIG_SHAREDDATA"] = Path.Combine(home, "fake-sharedstate");
+        start.Environment["TESTRIG_PLAYERPREFSKEY"] = @"HKCU:\Software\StationeersPlus\TestRigSuiteNeverExists";
+
         using var process = Process.Start(start)
             ?? throw new InvalidOperationException($"could not start {ExePath}");
 

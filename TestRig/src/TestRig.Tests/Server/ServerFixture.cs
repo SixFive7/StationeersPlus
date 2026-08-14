@@ -206,8 +206,7 @@ public sealed class ServerFixture
     {
         Fs.AddFile(Paths.Exe, "MZ");
         Fs.AddFile(Path.Combine(Paths.BepInEx, "core", "BepInEx.dll"), "bepinex");
-        Fs.AddFile(Paths.LaunchPadDll, "launchpad");
-        Fs.AddFile(Path.Combine(Path.GetDirectoryName(Paths.LaunchPadDll)!, "version.txt"), "2.4.1");
+        Fs.SetBinaryVersion(Paths.LaunchPadDll, "2.4.1.0", "2.4.1");
         Fs.AddDirectory(Paths.SaveRoot);
         Fs.AddDirectory(Paths.ModsDir);
         Fs.AddDirectory(Paths.PluginsDir);

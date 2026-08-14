@@ -130,7 +130,23 @@ public sealed record ResetRun(
     bool WhatIf,
     IReadOnlyList<ResetAction> Performed,
     IReadOnlyList<string> Failures,
-    ResetPlan Plan);
+    ResetPlan Plan)
+{
+    /// <summary>
+    /// On a dry run only: why the REAL reset would have been refused, or empty.
+    /// </summary>
+    /// <remarks>
+    /// <c>Refused</c> is about the run that just happened, and a dry run is never refused
+    /// because it never tries anything. Measured 2026-08-14: a dry run printed that the real
+    /// reset would be refused by the bulk-delete ceiling with 25 worlds at risk, and still
+    /// reported <c>refused: false</c> and exited 0, so a caller branching on either learned
+    /// nothing. The finding is in the prose; it needs to be in the data as well.
+    /// </remarks>
+    public string WouldRefuseReason { get; init; } = string.Empty;
+
+    /// <summary>True when a dry run found the real reset would be refused.</summary>
+    public bool WouldRefuse => WouldRefuseReason.Length > 0;
+}
 
 /// <summary>Whether the rig will tolerate a state change right now.</summary>
 public sealed record ResetGate(bool Allowed, string Reason, BusySignal Busy);

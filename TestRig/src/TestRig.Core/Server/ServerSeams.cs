@@ -74,36 +74,56 @@ public interface IArchiveExtractor
 /// <summary>The real process launcher for the server half.</summary>
 public sealed class SystemServerProcessLauncher : IServerProcessLauncher
 {
+    /// <remarks>
+    /// <para>
+    /// CreateProcessW, not <c>Process.Start</c>, and that is the fix rather than a preference.
+    /// The wrapper outlives the launcher by design: <c>start --target server</c> spawns it and
+    /// returns, and the server then runs for hours. <c>Process.Start</c> with
+    /// <c>UseShellExecute = false</c> always sets STARTF_USESTDHANDLES to the CALLER's own
+    /// standard handles and always passes <c>bInheritHandles: true</c>, so the detached
+    /// wrapper inherited the launcher's stdout and stderr and held them open for the life of
+    /// the server. Measured 2026-08-14: the launcher printed "Server PID 21348" and exited,
+    /// and the shell capturing its output blocked for 907 seconds, returning the instant the
+    /// SERVER stopped. That hangs the playtest engine and every scripted caller.
+    /// </para>
+    /// <para>
+    /// CREATE_NO_WINDOW rather than a hidden window, for the same reason as the client half:
+    /// <c>Start-Process -WindowStyle Hidden</c> still creates a window, and creating one
+    /// flashes a focus claim (SERVER-058). No desktop is passed; the wrapper is headless and
+    /// has no window to put anywhere.
+    /// </para>
+    /// </remarks>
     public (int Pid, DateTimeOffset? StartedUtc) StartWrapper(
         string exePath, string commandLine, string workingDirectory)
     {
-        var psi = new ProcessStartInfo
-        {
-            FileName = exePath,
-            UseShellExecute = false,
-            // Skips conhost allocation entirely. Hidden is not the same thing: a hidden
-            // window is still created, and creating one flashes a focus claim.
-            CreateNoWindow = true,
-            WorkingDirectory = workingDirectory,
-        };
+        // argv[0] first, then the NUL-delimited list the caller built. CreateProcessW takes
+        // one string and the receiving program re-splits it, so it goes through the shared
+        // quoter rather than a join.
+        var arguments = new List<string?> { exePath };
+        arguments.AddRange(commandLine.Split('\0', StringSplitOptions.RemoveEmptyEntries));
 
-        AppendArguments(psi, commandLine);
-
-        var process = Process.Start(psi)
-                      ?? throw new InvalidOperationException($"Could not start the host wrapper at {exePath}.");
+        var pid = DesktopProcessLauncher.Start(
+            exePath,
+            WindowsCommandLine.Build(arguments),
+            workingDirectory,
+            DesktopProcessLauncher.ShowNoActivate,
+            desktop: null,
+            DesktopProcessLauncher.CreateNoWindow);
 
         DateTimeOffset? started = null;
         try
         {
+            using var process = Process.GetProcessById((int)pid);
             started = new DateTimeOffset(process.StartTime.ToUniversalTime(), TimeSpan.Zero);
         }
-        catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception)
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException
+                                       or System.ComponentModel.Win32Exception)
         {
-            // A process that exited between Start and the read has no start time. The pid
-            // file simply loses its exact reuse check and falls back to the margin.
+            // A process that exited between the launch and the read has no start time. The
+            // pid file simply loses its exact reuse check and falls back to the margin.
         }
 
-        return (process.Id, started);
+        return ((int)pid, started);
     }
 
     public IServerProcess StartGame(string exePath, string commandLine, string workingDirectory)

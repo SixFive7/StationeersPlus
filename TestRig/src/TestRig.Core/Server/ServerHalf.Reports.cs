@@ -294,7 +294,7 @@ public sealed partial class ServerHalf
     // =====================================================================
 
     /// <summary>How many matching lines a grep prints before it stops and says so.</summary>
-    public const int GrepMatchCap = 500;
+    public const int GrepMatchCap = LogFilter.MatchCap;
 
     /// <summary>
     /// Prints the dedicated server's log.
@@ -303,7 +303,8 @@ public sealed partial class ServerHalf
     /// <c>--tail</c> and <c>--grep</c> are INDEPENDENT (SERVER-159 fixed, spec D-20): the
     /// PowerShell silently ignored the tail whenever a pattern was given, although the manual
     /// documented the two flags as independent, and streamed the whole file through a
-    /// pipeline to do it.
+    /// pipeline to do it. How they combine is <see cref="LogFilter"/>'s, shared with the
+    /// client half so the two cannot answer differently again.
     /// </remarks>
     public void Logs(int tail = 50, string? grep = null)
     {
@@ -332,25 +333,9 @@ public sealed partial class ServerHalf
             return;
         }
 
-        var haystack = tail > 0 && tail != 50
-            ? _fs.ReadTailLines(_paths.LogFile, tail)
-            : _fs.ReadLines(_paths.LogFile);
+        var result = LogFilter.Apply(_fs.ReadLines(_paths.LogFile), pattern, tail);
+        foreach (var line in result.Shown) Say(line);
 
-        var shown = 0;
-        var matched = 0;
-        foreach (var line in haystack)
-        {
-            if (!pattern.IsMatch(line)) continue;
-            matched++;
-            if (shown >= GrepMatchCap) continue;
-            Say(line);
-            shown++;
-        }
-
-        if (matched > shown)
-        {
-            Warn($"[Logs] {matched} lines matched and the first {shown} are shown. Narrow the pattern, or add "
-                 + "--tail <n> to search only the end of the file.");
-        }
+        if (LogFilter.Trimmed(result) is { } note) Warn(note);
     }
 }

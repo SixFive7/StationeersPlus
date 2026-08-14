@@ -138,10 +138,10 @@ public sealed class ClientLayout
     {
         get
         {
-            var merged = ControlPluginAt(Path.Combine(_env.RigHome, "dev-plugins"), "TestRig");
+            var merged = ControlPluginAt(Path.Combine(_env.RigHome, "dev-plugins"), ControlPlugins.Merged);
             return _fs.FileExists(merged.Dll)
                 ? merged
-                : ControlPluginAt(Path.Combine(ClientRoot, "dev-plugins"), "ClientDriver");
+                : ControlPluginAt(Path.Combine(ClientRoot, "dev-plugins"), ControlPlugins.Legacy);
         }
     }
 

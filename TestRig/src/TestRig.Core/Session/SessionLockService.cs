@@ -184,6 +184,7 @@ public sealed class SessionLockService
     private readonly LauncherIdentity _launcher;
     private readonly Func<string> _mintOwnerId;
     private readonly IRigRestore? _restore;
+    private readonly SessionStateStore? _state;
 
     public SessionLockService(
         IFileSystem fs,
@@ -196,7 +197,8 @@ public sealed class SessionLockService
         DirtyMarker marker,
         LauncherIdentity launcher,
         IRigRestore? restore = null,
-        Func<string>? mintOwnerId = null)
+        Func<string>? mintOwnerId = null,
+        SessionStateStore? state = null)
     {
         _fs = fs;
         _clock = clock;
@@ -209,6 +211,7 @@ public sealed class SessionLockService
         _launcher = launcher;
         _restore = restore;
         _mintOwnerId = mintOwnerId ?? DefaultOwnerId;
+        _state = state;
     }
 
     /// <summary>8 lowercase hex characters, as the file format and every message assume.</summary>
@@ -782,7 +785,7 @@ public sealed class SessionLockService
         // PHASE 3: re-validate and delete, under the mutex again. An authorized break from
         // elsewhere could have replaced the file during the restore, and deleting a lock
         // this command never validated would be exactly the stomp the mechanism prevents.
-        return WithMutex("release the rig lock", () =>
+        var result = WithMutex("release the rig lock", () =>
         {
             var current = ReadLock();
             if (current is null)
@@ -805,6 +808,15 @@ public sealed class SessionLockService
                 $"[Unlock] Rig session lock released (was owner {owner}).",
                 restoreSkipped, restoreFailure, busy);
         });
+
+        // CLI-070. AFTER a successful release, outside the critical section, and never on a
+        // refusal: a drift report on a lock that is still held would be describing a session
+        // that is not over, and one on somebody else's lock would attribute this session's
+        // changes to theirs. The ordering used to be a convention in the launcher; here the
+        // release is the only thing that can reach it.
+        if (result.Status is ReleaseStatus.Released or ReleaseStatus.AlreadyGone) _state?.WriteDrift(_output);
+
+        return result;
     }
 
     // ---- plumbing ----------------------------------------------------------

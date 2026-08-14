@@ -87,6 +87,20 @@ public sealed class TargetResolverTests
     }
 
     [Fact]
+    public void AnInstanceNameMatchesCaseInsensitivelyToo()
+    {
+        // An instance name is an NTFS directory name, and PowerShell's -contains was
+        // case-insensitive, so --target HOSTIE has always resolved against an entry named
+        // hostie. This copy compared ORDINALLY while the resolver the dispatcher speaks
+        // compared case-insensitively, and both were green: the CLI suite pinned the
+        // case-insensitive answer end to end and this file never asked the question.
+        var resolved = TargetResolver.Resolve(Rig[0].ToUpperInvariant(), "stop", Rig);
+
+        Assert.Equal(TargetKind.Instance, resolved.Kind);
+        Assert.Equal([Rig[0].ToUpperInvariant()], resolved.Names);
+    }
+
+    [Fact]
     public void ACommaListIsSplitTrimmedAndEmptyElementsDropped()
     {
         var resolved = TargetResolver.Resolve(" client1 , , client2 ", "stop", Rig);

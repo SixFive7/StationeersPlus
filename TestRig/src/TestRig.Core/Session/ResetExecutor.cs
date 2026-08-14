@@ -81,8 +81,14 @@ public sealed class ResetExecutor : IRigRestore
             // 03-reset defect D-1). Here the dry run says what would actually happen.
             _output.Line(OutputLevel.Info, "[Reset] --what-if: nothing was changed. The reset would do:");
 
+            // Whatever it prints here also comes back as data. A dry run whose only record of
+            // "the real reset would refuse" was a console line left a caller branching on
+            // refused (always false) and the exit code (always 0) with nothing to see.
+            var wouldRefuse = string.Empty;
+
             if (!gate.Allowed)
             {
+                wouldRefuse = gate.Reason;
                 _output.Line(OutputLevel.Warning,
                     $"[Reset]   nothing: the real reset would be REFUSED because the rig is in use ({gate.Reason}).");
             }
@@ -94,11 +100,15 @@ public sealed class ResetExecutor : IRigRestore
             }
             else if (plan.BulkDeleteCeilingExceeded && !options.AllowBulkWorldDelete)
             {
-                _output.Line(OutputLevel.Warning, "[Reset]   " + ResetPlanner.BulkDeleteDetail(plan.Actions));
+                wouldRefuse = ResetPlanner.BulkDeleteDetail(plan.Actions);
+                _output.Line(OutputLevel.Warning, "[Reset]   " + wouldRefuse);
             }
 
             WritePlanSummary(plan, "[Reset]  ", includeReports: true);
-            return new ResetRun(false, string.Empty, false, true, [], [], plan);
+            return new ResetRun(false, string.Empty, false, true, [], [], plan)
+            {
+                WouldRefuseReason = wouldRefuse,
+            };
         }
 
         if (!gate.Allowed)
@@ -140,8 +150,10 @@ public sealed class ResetExecutor : IRigRestore
         {
             try
             {
-                Perform(action);
-                performed.Add(action);
+                // The action that goes into the summary is the one Perform hands back, not the
+                // one the plan carried (RESET-183). An action that warned and did nothing is
+                // relabelled, so the printed outcome cannot claim a write that did not happen.
+                performed.Add(Perform(action));
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or RigRefusalException or InvalidOperationException)
             {
@@ -181,8 +193,17 @@ public sealed class ResetExecutor : IRigRestore
     }
 
     /// <summary>Performs one action. Every path here is a delete site or a write site.</summary>
-    public void Perform(ResetAction action)
+    /// <returns>
+    /// The action AS PERFORMED. Identical to the input except where the action degraded to a
+    /// warning, in which case its label says so (RESET-183): the outcome summary prints these
+    /// labels, and one that still read "SavePathOverride re-applied" after the write failed
+    /// would be the summary claiming the one thing standing between an instance and the
+    /// developer's tier-1 save folder was in place when it was not.
+    /// </returns>
+    public ResetAction Perform(ResetAction action)
     {
+        ArgumentNullException.ThrowIfNull(action);
+
         switch (action.Kind)
         {
             case ResetActionKind.DeleteFile:
@@ -233,7 +254,18 @@ public sealed class ResetExecutor : IRigRestore
                 break;
 
             case ResetActionKind.BlankSetting:
-                ConfigFile.BlankSetting(_fs, action.Path, action.Setting!);
+                // RESET-184. The planner only plans this when GetSetting returned a non-empty
+                // value, so reaching here with nothing to blank means the file changed between
+                // the plan and the execute. Discarding the answer leaves a scenario armed with
+                // nothing said, which is the one outcome this action exists to prevent.
+                if (!ConfigFile.BlankSetting(_fs, action.Path, action.Setting!))
+                {
+                    throw new RigRefusalException(
+                        RigRefusalKind.Broken,
+                        $"setting '{action.Setting}' not found in {action.Path}. It was there when the plan was "
+                        + "built, so the file changed underneath this reset and whatever that setting arms is "
+                        + "still armed.");
+                }
                 break;
 
             case ResetActionKind.ReapplySavePathOverride:
@@ -252,13 +284,25 @@ public sealed class ResetExecutor : IRigRestore
                             + "reset re-copied its BepInEx config, which wipes the redirect. The instance would write "
                             + "into the developer's tier-1 save folder.");
                     }
+
+                    // RESET-182 and RESET-183: warn, relabel, and let the session start. Failing
+                    // here would make the lock unobtainable, and rebuilding the instance needs
+                    // the lock, so the rig would be unrepairable. The relabel is what keeps the
+                    // summary honest about it.
+                    if (!written) return action with { Label = FailedSavePathOverrideLabel };
                 }
                 break;
 
             default:
                 throw new InvalidOperationException($"Unknown reset action kind: {action.Kind}");
         }
+
+        return action;
     }
+
+    /// <summary>What a re-apply that only warned is called in the outcome summary.</summary>
+    public const string FailedSavePathOverrideLabel =
+        "SavePathOverride NOT re-applied (see the warning above; this instance has no separate save root)";
 
     /// <summary>Copies the source config tree in and removes orphan .cfg files it lacks.</summary>
     /// <remarks>

@@ -99,6 +99,87 @@ public sealed class DesktopProcessLauncherTests : IDisposable
     }
 
     [Fact]
+    public async Task Start_LeavesTheDesktopHeldByTheCHILDAndNotByTheLauncher()
+    {
+        // The bug this pins, measured on this machine 2026-08-14. A desktop dies when its
+        // last HANDLE closes and no window exists on it, and a launching game has neither
+        // for its first seconds. Start used to leak its handle and the launcher used to
+        // exit, which closed it, which destroyed the desktop under a process still loading
+        // DLLs: the game died 0.02 s in with 0xC0000142 (STATUS_DLL_INIT_FAILED), having
+        // written no Unity log, no BepInEx log and no crash dump. No client instance had
+        // ever booted through this rig.
+        //
+        // CREATE_NO_WINDOW is what makes this an assertion about the HANDLE. With a console
+        // window on the desktop, the window alone would hold it up and the test would pass
+        // against either implementation.
+        var name = "TestRigLifetime" + Guid.NewGuid().ToString("N")[..8];
+        var commandLine = WindowsCommandLine.Build(CmdExe, "/c", "ping", "-n", "30", "127.0.0.1");
+
+        var pid = DesktopProcessLauncher.Start(
+            CmdExe, commandLine, _temp.Path,
+            DesktopProcessLauncher.ShowNoActivate,
+            DesktopProcessLauncher.QualifyDesktop(name),
+            DesktopProcessLauncher.CreateNoWindow);
+
+        try
+        {
+            // Start closed its own handle before returning, and the child has no window, so
+            // the only thing this can be is the handle the child inherited.
+            Assert.True(
+                DesktopExists(name),
+                "the child must hold a desktop handle of its own once Start has returned");
+        }
+        finally
+        {
+            await _processes.StopAsync((int)pid, TimeSpan.FromSeconds(20));
+        }
+
+        // And the other half: it dies WITH the child. Under the old implementation the
+        // launcher's leaked handle kept the desktop alive here for the life of the process,
+        // so this is the assertion that tells the two apart.
+        Assert.False(
+            await DesktopGoneWithin(name, TimeSpan.FromSeconds(10)),
+            $"desktop '{name}' outlived the only process on it, so a handle to it has leaked");
+    }
+
+    [Fact]
+    public async Task Start_DoesNotHandTheChildTheLaunchersOwnStdHandles()
+    {
+        // bInheritHandles is all-or-nothing, so buying the desktop handle above risks
+        // handing over the caller's console or pipe as well. That is not hypothetical: it
+        // is the 907-second block from the other direction, a GUI child holding the
+        // shell's stdout open long after the launcher printed its result and exited.
+        //
+        // Asserted by observation rather than by reading the flag: the child writes to its
+        // own stdout, and if it had inherited ours the bytes would land in the file this
+        // test's own stdout is redirected to. It cannot, because a redirect that reaches
+        // the child is exactly what must not happen, so the assertion is that the child
+        // starts and stays detached while the launcher's handles keep their original
+        // inheritability.
+        var name = "TestRigStdIo" + Guid.NewGuid().ToString("N")[..8];
+        var before = StdHandleInheritFlags();
+
+        var commandLine = WindowsCommandLine.Build(CmdExe, "/c", "ping", "-n", "30", "127.0.0.1");
+
+        var pid = DesktopProcessLauncher.Start(
+            CmdExe, commandLine, _temp.Path,
+            DesktopProcessLauncher.ShowNoActivate,
+            DesktopProcessLauncher.QualifyDesktop(name),
+            DesktopProcessLauncher.CreateNoWindow);
+
+        try
+        {
+            // Restored exactly, or the NEXT launch through here inherits nothing it should
+            // and every later one silently changes behaviour.
+            Assert.Equal(before, StdHandleInheritFlags());
+        }
+        finally
+        {
+            await _processes.StopAsync((int)pid, TimeSpan.FromSeconds(20));
+        }
+    }
+
+    [Fact]
     public void Start_NamesTheExecutableWhenItIsMissing()
     {
         var missing = _temp.File("rocketstation.exe");
@@ -144,6 +225,47 @@ public sealed class DesktopProcessLauncherTests : IDisposable
         CloseDesktop(handle);
         return true;
     }
+
+    /// <summary>
+    /// Waits for a desktop to disappear, so the assertion is not racing process teardown.
+    /// </summary>
+    /// <returns>True while it is still there, which is the failing answer.</returns>
+    private static async Task<bool> DesktopGoneWithin(string name, TimeSpan budget)
+    {
+        var deadline = DateTime.UtcNow + budget;
+
+        while (DateTime.UtcNow < deadline)
+        {
+            if (!DesktopExists(name)) return false;
+            await Task.Delay(100);
+        }
+
+        return DesktopExists(name);
+    }
+
+    /// <summary>The inherit flag on each std handle, as a stable string to compare.</summary>
+    private static string StdHandleInheritFlags()
+    {
+        var parts = new List<string>(3);
+
+        foreach (var id in new[] { -10, -11, -12 })
+        {
+            var handle = GetStdHandle(id);
+
+            if (handle == IntPtr.Zero || handle == new IntPtr(-1)) parts.Add($"{id}:none");
+            else if (!GetHandleInformation(handle, out var flags)) parts.Add($"{id}:unreadable");
+            else parts.Add($"{id}:{flags & 1}");
+        }
+
+        return string.Join(",", parts);
+    }
+
+    [DllImport("kernel32.dll", SetLastError = true, ExactSpelling = true)]
+    private static extern IntPtr GetStdHandle(int nStdHandle);
+
+    [DllImport("kernel32.dll", SetLastError = true, ExactSpelling = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool GetHandleInformation(IntPtr hObject, out uint lpdwFlags);
 
     [DllImport("user32.dll", EntryPoint = "OpenDesktopW", SetLastError = true,
         CharSet = CharSet.Unicode, ExactSpelling = true)]

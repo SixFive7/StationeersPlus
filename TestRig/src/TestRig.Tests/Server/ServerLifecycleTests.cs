@@ -375,14 +375,70 @@ public sealed class ServerLifecycleTests
     }
 
     [Fact]
-    public void TheGamesOwnFailureLinesEndTheWaitImmediately()
+    public void TheGamesOwnFailureLinesEndTheWaitImmediatelyWhenTheyAreOurs()
     {
-        foreach (var line in SaveConfirmation.FailureMarkers)
+        foreach (var marker in SaveConfirmation.FailureMarkers)
         {
-            var outcome = SaveConfirmation.Classify($"{line}: Folder name is empty.", "Luna", false);
+            var outcome = SaveConfirmation.Classify($"{marker}: Luna is locked by another process.", "Luna", false);
             Assert.NotNull(outcome);
             Assert.Equal(SaveVerdict.Failed, outcome!.Verdict);
+
+            // Anchored, like the confirmation beside it. An unanchored match lets a bracketed
+            // source prefix decide a verdict.
+            Assert.False(SaveConfirmation.IsFailureLine($"[Station Notepad] {marker}: Luna"));
+            Assert.True(SaveConfirmation.IsFailureLine($"12:04:55 {marker}: Luna"));
         }
+    }
+
+    [Fact]
+    public void AnAutosaveFailureOnANewWorldIsNotThisSavesFailure()
+    {
+        // Measured 2026-08-14 on the real server. A --new world has no station name, so its
+        // autosave fails every 300 s with exactly this line. The unanchored, unscoped IsFailure
+        // attributed one of them to a manual save that had in fact printed nothing at all, and
+        // reported "the server reported the save FAILED" for a save whose outcome was unknown.
+        const string autosave = "Save Failed: Folder name is empty.";
+
+        Assert.True(SaveConfirmation.IsFailureLine(autosave));
+        Assert.False(SaveConfirmation.IsFailureOf(autosave, "Luna"));
+        Assert.Null(SaveConfirmation.Classify(autosave, "Luna", folderExistedBefore: false));
+
+        // A failure that names our save is still ours, so the early-out survives.
+        Assert.True(SaveConfirmation.IsFailureOf("Save Failed: Luna could not be written.", "Luna"));
+    }
+
+    [Fact]
+    public void AForeignFailureLineDoesNotPreEmptTheFilesystemWitness()
+    {
+        // The line scan used to run BEFORE the filesystem check and return on the first match,
+        // so a foreign failure line meant the second, independent witness was never consulted.
+        var fixture = new ServerFixture().Installed().Running();
+        var owner = fixture.Lease();
+        fixture.Log("starting up");
+
+        fixture.Client.Rig.Sleeper.OnDelay = _ =>
+        {
+            fixture.Log("Save Failed: Folder name is empty.");
+            fixture.Fs.AddFile(Path.Combine(fixture.Paths.World("Luna"), "Luna.save"), "world bytes");
+        };
+
+        Assert.True(fixture.Save("Luna", owner, 30));
+        Assert.True(fixture.Output.Said("[Save] Confirmed."));
+        Assert.False(fixture.Output.Warned("reported the save FAILED"));
+    }
+
+    [Fact]
+    public void AnUnattributableFailureIsCarriedIntoTheTimeoutReportRatherThanBecomingTheVerdict()
+    {
+        var fixture = new ServerFixture().Installed().Running();
+        var owner = fixture.Lease();
+        fixture.Log("starting up");
+        fixture.Client.Rig.Sleeper.OnDelay = _ => fixture.Log("Save Failed: Folder name is empty.");
+
+        Assert.False(fixture.Save("Luna", owner, 4));
+        Assert.False(fixture.Output.Warned("reported the save FAILED"));
+        Assert.True(fixture.Output.Warned("No confirmation within"));
+        Assert.True(fixture.Output.Warned("Folder name is empty"));
     }
 
     [Fact]
@@ -421,7 +477,7 @@ public sealed class ServerLifecycleTests
         var fixture = new ServerFixture().Installed().Running();
         var owner = fixture.Lease();
         fixture.Log("starting up");
-        fixture.Client.Rig.Sleeper.OnDelay = _ => fixture.Log("Save Failed: Folder name is empty.");
+        fixture.Client.Rig.Sleeper.OnDelay = _ => fixture.Log("Save Failed: Luna could not be written.");
 
         Assert.False(fixture.Save("Luna", owner, 30));
         Assert.True(fixture.Output.Warned("reported the save FAILED"));

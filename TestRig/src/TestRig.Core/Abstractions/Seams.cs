@@ -59,6 +59,17 @@ public interface IProcessTable
 }
 
 /// <summary>
+/// The version resource stamped into a binary.
+/// </summary>
+/// <param name="FileVersion">The FILEVERSION field. Empty when the binary carries none.</param>
+/// <param name="ProductVersion">
+/// The PRODUCTVERSION field, which is what a .NET assembly's
+/// <c>AssemblyInformationalVersion</c> lands in. StationeersLaunchPad's release tag is this
+/// one, not <paramref name="FileVersion"/>.
+/// </param>
+public readonly record struct BinaryVersion(string FileVersion, string ProductVersion);
+
+/// <summary>
 /// Filesystem access. Deliberately narrow: the operations the rig actually performs,
 /// not a general façade, so a test double is small enough to be obviously correct.
 /// </summary>
@@ -118,6 +129,21 @@ public interface IFileSystem
     long GetFileLength(string path);
     DateTimeOffset GetLastWriteTimeUtc(string path);
 
+    /// <summary>
+    /// Reads a binary's version resource, or null when the file is absent or has none.
+    /// </summary>
+    /// <remarks>
+    /// This is not a general convenience. <c>update-game</c> derives the StationeersLaunchPad
+    /// server-zip URL from the mirrored plugin's ProductVersion, and the whole overlay,
+    /// download, cache and extract chain is downstream of that one value. An earlier port
+    /// tried to avoid widening this interface by reading a <c>version.txt</c> sidecar
+    /// instead; no such file exists in a real StationeersLaunchPad install, so the value was
+    /// always empty, the overlay always skipped, and <c>RG.ImGui.dll</c> never reached the
+    /// dedicated server (SERVER-018, SERVER-020). A seam is cheaper than a feature that
+    /// cannot run.
+    /// </remarks>
+    BinaryVersion? TryGetBinaryVersion(string path);
+
     void CopyFile(string source, string destination, bool overwrite);
 
     /// <summary>
@@ -136,6 +162,40 @@ public interface IFileSystem
 public interface IBootIdentity
 {
     string GetBootId();
+}
+
+/// <summary>
+/// Reading the Windows registry. READ ONLY, and it must never grow a writer.
+/// </summary>
+/// <remarks>
+/// <para>
+/// One caller: the shared per-user state snapshot, which records the game's PlayerPrefs so a
+/// session boundary can REPORT what moved. That state is shared with the developer's own
+/// client and cannot be isolated, because <c>persistentDataPath</c> is fixed inside the
+/// serialized PlayerSettings in <c>globalgamemanagers</c>, so naming what changed is the only
+/// thing the rig can honestly offer (RESET-136, RESET-143).
+/// </para>
+/// <para>
+/// Putting a write method on this interface would make it possible to "restore" that state,
+/// which is precisely the write the save rules forbid. There is no counterpart writer
+/// anywhere in the rig and there must never be one (RESET-147).
+/// </para>
+/// </remarks>
+public interface IRegistry
+{
+    /// <summary>
+    /// Every value under a key, by name, or null when the key cannot be read at all.
+    /// </summary>
+    /// <param name="keyPath">
+    /// A PowerShell-style path such as <c>HKCU:\Software\Rocketwerkz\rocketstation</c>, which
+    /// is how the rig's rules and documents have always spelled it.
+    /// </param>
+    /// <returns>
+    /// Values rendered as text, a binary value as <c>bytes[N]</c>. Null means the key is
+    /// absent or unreadable; the two collapse deliberately, because neither can be told from
+    /// the other without elevating and both mean the same thing to the report.
+    /// </returns>
+    IReadOnlyList<KeyValuePair<string, string>>? TryReadValues(string keyPath);
 }
 
 /// <summary>Outcome of trying to enter the cross-process critical section.</summary>

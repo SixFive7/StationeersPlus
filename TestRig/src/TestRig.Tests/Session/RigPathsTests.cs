@@ -143,14 +143,36 @@ public sealed class RigPathsTests
     }
 
     [Fact]
-    public void SavingWithoutValuesPreservesTheOnesAlreadyOnDisk()
+    public void SavingWithoutValuesPreservesTheOnesAlreadyOnDiskWhenNothingCanTakeAFreshOne()
     {
+        // With no shared-state reader wired there is nothing to snapshot, so the previous
+        // values are carried forward rather than erased: an empty values bag would make the
+        // next session's drift report silently report everything as new.
         var rig = new RigFixture();
-        rig.State.Save("2026-08-01T00:00:00Z", new Dictionary<string, string> { ["blueprints"] = "12" });
+        var store = new SessionStateStore(rig.Fs, rig.Clock, rig.Paths);
+        store.Save("2026-08-01T00:00:00Z", new Dictionary<string, string> { ["blueprints"] = "12" });
+
+        store.Save("2026-08-14T12:00:00Z");
+
+        Assert.Equal("12", store.ReadValues()["blueprints"]);
+        Assert.Equal("2026-08-14T12:00:00Z", store.ReadLastResetUtc());
+    }
+
+    [Fact]
+    public void SavingWithoutValuesTakesAFreshSnapshotWhenOneCanBeTaken()
+    {
+        // RESET-149. The baseline has to describe the state the session ACTUALLY begins with,
+        // so a save with no values supplied reads the sources rather than copying whatever the
+        // previous session recorded.
+        var rig = new RigFixture();
+        rig.State.Save("2026-08-01T00:00:00Z", new Dictionary<string, string> { ["stale.key"] = "12" });
+        rig.Registry.Set(SharedStateReader.DefaultPlayerPrefsKey, "Name", "bytes[8]");
 
         rig.State.Save("2026-08-14T12:00:00Z");
 
-        Assert.Equal("12", rig.State.ReadValues()["blueprints"]);
+        var values = rig.State.ReadValues();
+        Assert.False(values.ContainsKey("stale.key"));
+        Assert.Equal("bytes[8]", values["prefs.Name"]);
         Assert.Equal("2026-08-14T12:00:00Z", rig.State.ReadLastResetUtc());
     }
 }

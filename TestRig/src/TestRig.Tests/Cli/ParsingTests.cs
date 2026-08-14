@@ -96,9 +96,16 @@ public sealed class ParsingTests(CliFixture rig)
     {
         // -Force:$false appears in recipes written before the port. Binding the literal
         // string "$false" would read as true.
+        //
+        // The assertion is that it got PAST the binder into the verb, which is 5 here (the
+        // throwaway home holds no lock, so there is nothing to release) and would be 2 if the
+        // attached value had been rejected. It deliberately does not assert 0: this once did,
+        // and that made a parsing test a second, silent pin on 'unlock' reporting success for
+        // a release that never happened.
         var result = rig.Run("unlock", "--force:$false", "--json");
         using var doc = result.Json();
-        Assert.Equal(0, doc.RootElement.GetProperty("exitCode").GetInt32());
+        Assert.NotEqual(Usage, doc.RootElement.GetProperty("exitCode").GetInt32());
+        Assert.Equal("NoLock", doc.RootElement.GetProperty("values").GetProperty("status").GetString());
     }
 
     [Fact]
