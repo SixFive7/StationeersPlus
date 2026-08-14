@@ -1,0 +1,177 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    The merged TestRig dev-plugin. One assembly, deployed to both rig halves,
+    replacing ClientDriver (the game-client control plane) and ScenarioRunner
+    (the dedicated-server probe host).
+
+    net472 because that is what the game's Mono runtime provides. This is not
+    negotiable and is why TestRig.Contracts multi-targets netstandard2.0.
+  -->
+
+  <PropertyGroup>
+    <TargetFramework>net472</TargetFramework>
+    <AssemblyName>TestRig</AssemblyName>
+    <RootNamespace>TestRig</RootNamespace>
+    <LangVersion>latest</LangVersion>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <Deterministic>true</Deterministic>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <!--
+      CS0649 (field never assigned) fires on the deliberately-unassigned probe
+      counters both source trees carry. CS0618/CS0612 fire on the game's own
+      obsolete members that several scenarios read on purpose.
+    -->
+    <NoWarn>$(NoWarn);CS0649;CS0618;CS0612</NoWarn>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <!-- Repo rule: the shipped DLL carries its own symbols in both configurations. -->
+    <DebugType>embedded</DebugType>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <Optimize>true</Optimize>
+  </PropertyGroup>
+
+  <!--
+    The wire contract, referenced COMPILE-TIME ONLY.
+
+    Everything this plugin consumes from TestRig.Contracts is a const (endpoint
+    paths, HTTP status codes), and the C# compiler inlines a const at the use
+    site. So the reference gives the property the assembly exists for (renaming
+    Endpoints.ConsoleExec breaks this build) while adding nothing to what has to
+    load inside the game process.
+
+    That matters: the netstandard2.0 face of Contracts carries a PackageReference
+    on System.Text.Json, which drags six more assemblies behind it. Loading those
+    into Unity's Mono next to BepInEx buys nothing here, because this plugin
+    writes its JSON by hand through Transport/Json.cs and always has. Hence
+    Private=false, ExcludeAssets=runtime: reference it, never copy it.
+
+    The DTO records in Contracts are the LAUNCHER's side of the same contract.
+    They are checked against this plugin's output by the rig's own test suite,
+    not by this compile.
+  -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\src\TestRig.Contracts\TestRig.Contracts.csproj"
+                      SetTargetFramework="TargetFramework=netstandard2.0"
+                      Private="false"
+                      ExcludeAssets="runtime" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="0Harmony">
+      <HintPath>$(StationeersPath)\BepInEx\core\0Harmony.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="BepInEx">
+      <HintPath>$(StationeersPath)\BepInEx\core\BepInEx.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Assembly-CSharp">
+      <HintPath>$(StationeersPath)\rocketstation_Data\Managed\Assembly-CSharp.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Assembly-CSharp-firstpass">
+      <HintPath>$(StationeersPath)\rocketstation_Data\Managed\Assembly-CSharp-firstpass.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <!-- Prefab source attribution in the device-port-dump scenario. -->
+    <Reference Include="LaunchPadBooster">
+      <HintPath>$(StationeersPath)\BepInEx\plugins\StationeersLaunchPad\LaunchPadBooster.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Unity.Mathematics">
+      <HintPath>$(StationeersPath)\rocketstation_Data\Managed\Unity.Mathematics.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine">
+      <HintPath>$(StationeersPath)\rocketstation_Data\Managed\UnityEngine.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine.CoreModule">
+      <HintPath>$(StationeersPath)\rocketstation_Data\Managed\UnityEngine.CoreModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine.PhysicsModule">
+      <HintPath>$(StationeersPath)\rocketstation_Data\Managed\UnityEngine.PhysicsModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine.InputLegacyModule">
+      <HintPath>$(StationeersPath)\rocketstation_Data\Managed\UnityEngine.InputLegacyModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine.ImageConversionModule">
+      <HintPath>$(StationeersPath)\rocketstation_Data\Managed\UnityEngine.ImageConversionModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine.ScreenCaptureModule">
+      <HintPath>$(StationeersPath)\rocketstation_Data\Managed\UnityEngine.ScreenCaptureModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine.AnimationModule">
+      <HintPath>$(StationeersPath)\rocketstation_Data\Managed\UnityEngine.AnimationModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine.IMGUIModule">
+      <HintPath>$(StationeersPath)\rocketstation_Data\Managed\UnityEngine.IMGUIModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Net.Http" />
+    <!-- PrioritySideCar's on-disk round trip in the deprioritization scenarios. -->
+    <Reference Include="System.IO.Compression" />
+    <Reference Include="System.IO.Compression.FileSystem" />
+    <Reference Include="Microsoft.CSharp" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="About\About.xml">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <!--
+    The focus constraint, enforced by the build instead of by convention.
+
+    No code in this plugin may focus, raise or activate a window. Instances run on a
+    Win32 desktop created with CreateDesktopW and never switched to; measured, sampling
+    the foreground every 3 seconds, SW_SHOWNOACTIVATE alone lost 40 focus steals out of
+    40 samples and the separate desktop lost 0 out of 55. An agent six months from now
+    will have what looks like a good reason to raise a window, and a comment will not
+    stop them.
+
+    Window/NativeWindow.cs has to NAME these in prose to explain why they are absent, so
+    the scan skips comment lines. A mention is documentation; an identifier in code is an
+    import. TestRig/src/ has the same guard as an xUnit test over its own tree
+    (ForbiddenPInvokeGuardTests); this is the same rule for the tree that test does not
+    reach.
+  -->
+  <Target Name="ForbidFocusStealingImports" BeforeTargets="CoreCompile">
+    <ReadLinesFromFile File="%(Compile.FullPath)">
+      <Output TaskParameter="Lines" ItemName="_PluginSourceLine" />
+    </ReadLinesFromFile>
+
+    <ItemGroup>
+      <_ForbiddenHit Include="@(_PluginSourceLine)" Condition="
+        !$([System.String]::Copy('%(Identity)').TrimStart().StartsWith('//')) AND
+        !$([System.String]::Copy('%(Identity)').TrimStart().StartsWith('*')) AND
+        (
+          $([System.String]::Copy('%(Identity)').Contains('SwitchDesktop')) OR
+          $([System.String]::Copy('%(Identity)').Contains('SetForegroundWindow')) OR
+          $([System.String]::Copy('%(Identity)').Contains('ShowWindow')) OR
+          $([System.String]::Copy('%(Identity)').Contains('SetWindowPos')) OR
+          $([System.String]::Copy('%(Identity)').Contains('AttachThreadInput')) OR
+          $([System.String]::Copy('%(Identity)').Contains('BringWindowToTop')) OR
+          $([System.String]::Copy('%(Identity)').Contains('SetActiveWindow')) OR
+          $([System.String]::Copy('%(Identity)').Contains('SetThreadDesktop'))
+        )" />
+    </ItemGroup>
+
+    <Error Condition="'@(_ForbiddenHit)' != ''"
+           Text="A focus-stealing Win32 import appeared in the TestRig plugin source: @(_ForbiddenHit). Instances run on a Win32 desktop that is created and never switched to, and no code here may focus, raise or activate a window. If you need to observe the foreground, Window/NativeWindow.cs already does it with read-only queries." />
+  </Target>
+
+</Project>

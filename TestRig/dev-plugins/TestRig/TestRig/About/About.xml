@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ModMetadata xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <Name>TestRig</Name>
+  <ModID>net.sixfive7.testrig</ModID>
+  <Author>SixFive7</Author>
+  <Version>0.3.0</Version>
+  <Description>Developer tooling. The in-process half of the Stationeers test rig: one loopback HTTP control plane plus the scenario probe host, running in both the game client and the dedicated server. Not a player-facing mod; never publish.</Description>
+  <WorkshopHandle>0</WorkshopHandle>
+  <Tags>
+    <Tag>BepInEx</Tag>
+    <Tag>StationeersLaunchPad</Tag>
+    <Tag>tools</Tag>
+  </Tags>
+  <InGameDescription><![CDATA[<size="30"><color=#ffa500>TestRig</color></size>
+Developer tooling. Not a player-facing mod.]]></InGameDescription>
+</ModMetadata>
