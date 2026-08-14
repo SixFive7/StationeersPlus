@@ -2,12 +2,16 @@
 title: Simulation tick driver hooks
 type: GameSystems
 created_in: 0.2.6228.27061
-verified_in: 0.2.6403.27689
-verified_at: 2026-07-02
+verified_in: 0.2.6428.27798
+verified_at: 2026-08-14
 sources:
+  - TestRig/DedicatedServer/install/rocketstation_DedicatedServer_Data/Managed/Assembly-CSharp.dll :: Assets.Scripts.UI.ImGuiManager, Assets.Scripts.Util.UnityMainThreadDispatcher, Assets.Scripts.Util.ManagerBase, Assets.Scripts.Util.Singleton`1 (Mono.Cecil metadata read, 0.2.6428.27798)
+  - $(StationeersPath)/rocketstation_Data/Managed/Assembly-CSharp.dll :: Assets.Scripts.UI.ImGuiManager (client-side comparison, Mono.Cecil metadata read, 0.2.6428.27798)
   - .work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :: line 254905 (ElectricityManager.ElectricityTick), 417811 (AtmosphericsManager : ThreadedManager), 187543 (GameManager.RecordGameTick), 189381 (GameManager.StartGameTick), 189076 (GameManager.GameTickPaused)
   - .work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs :: line 205154 (GameManager.Update), 203880 (GameManager.Managers), 204387 (GameManager.GameTick), 204363 (StartGameTick), 203823 (DefaultTickSpeedMs), 60520 (WorldManager.StartWorld), 60886 (WorldManager.SetGamePause), 272091 (ElectricityManager.ElectricityTick)
   - TestRig/DedicatedServer/install/rocketstation_DedicatedServer_Data/Managed/Assembly-CSharp.dll :: Assets.Scripts.GameManager.StartGame + DelayedStartupPause (decompiled to .work/decomp/0.2.6403.27689/Assembly-CSharp.DedicatedServer.GameManager.decompiled.cs lines 902-959)
+  - .work/decomp/0.2.6428.27798/GameManager.DedicatedServer.decompiled.cs :: lines 656-683 (LateUpdate, FixedUpdate), 716-859 (GameTick, SwitchToThreadPool at 747, HandleMainThreadEvents at 754, ElectricityTick at 795, SwitchToMainThread at 828), 904-961 (StartGame, DelayedStartupPause), 1495-1560 (Update)
+  - .work/decomp/0.2.6428.27798/WorldManager.DedicatedServer.decompiled.cs :: lines 1424-1444 (UpdateFrameLimiter), 1886-1910 (SetGamePause)
 related:
   - ../GameClasses/PowerTick.md
   - ../GameClasses/GameManager.md
@@ -37,14 +41,14 @@ GameManager.GameTick (async UniTask, switches to ThreadPool)
 `GameManager.GameTickPaused` (line 189076) is the `static bool` that gates whether GameTick runs at all. `StartGameTick` / `StopGameTick` / `PauseGameTick` / `UnpauseGameTick` (lines 189381, 189374, 189388, 189396) toggle it. `RecordGameTick` (line 187543) is the per-tick counter increment.
 
 ## Why hook ElectricityTick for diagnostic plugins
-<!-- verified: 0.2.6228.27061 @ 2026-05-26 -->
+<!-- verified: 0.2.6428.27798 @ 2026-08-14 -->
 
 On a headless dedicated server:
 
-- `MonoBehaviour.Update` does not reliably fire after world load. An Update-based poll (the natural Unity choice on a client) goes silent.
-- `MainThreadDispatcher` patterns based on a DontDestroyOnLoad MonoBehaviour have the same problem; the dispatcher's PollLoop coroutine never advances past its first yield.
+- A `MonoBehaviour.Update` poll written the natural Unity way, on a GameObject a `BepInEx/plugins/` chainloader plugin creates in its `Awake`, goes silent. **The cause is that the object is dead, not that the loop stalled.** The plugin component and everything it creates in `Awake` are destroyed at `Time.frameCount == 0`, before the first scene loads, having received zero `Update` calls; `DontDestroyOnLoad` does not protect them because `SceneManager.sceneCount == 0` at that moment. The player loop itself runs at ~25 Hz for the life of the process. Full measurement, the recreate-on-`sceneLoaded` fix, and the reason StationeersLaunchPad mods are immune: `../Patterns/MainThreadDispatcher.md`, "Headless dedicated server: the player loop is healthy, the plugin's GameObject is dead".
+- `MainThreadDispatcher` patterns based on a `DontDestroyOnLoad` MonoBehaviour inherit exactly that, and only that. A dispatcher object recreated after boot ticks at full frame rate, paused world or not. The earlier wording here, "the dispatcher's PollLoop coroutine never advances past its first yield", was repo lore and is wrong: a coroutine on a live object advances normally.
 - A `FileSystemWatcher` callback fires on a ThreadPool thread, so any Unity API call from it crashes. Routing through the dispatcher only helps if the dispatcher is alive.
-- The GameTick-driven subsystem Tick methods, in contrast, fire on every simulation cycle whenever `RunSimulation` is true. A Harmony postfix on `ElectricityManager.ElectricityTick` is the simplest reliable pump.
+- The GameTick-driven subsystem Tick methods fire on every simulation cycle whenever `RunSimulation` is true. A Harmony postfix on `ElectricityManager.ElectricityTick` is the simplest pump **for work that must observe the simulation**, at 2 Hz and on a ThreadPool worker. It is the wrong pump for anything that must answer while the world is parked, which is the default state of a dedicated server with nobody connected, and the wrong pump for anything that must run on the main thread.
 
 `Mods/InspectorPlus/InspectorPlus/RequestPollOnTickPatch.cs` already uses this pattern for its request poller; `TestRig/DedicatedServer/dev-plugins/ScenarioRunner/ScenarioRunner/SimTickPump.cs` follows the same convention so the two cohabit cleanly.
 
@@ -279,12 +283,119 @@ Neither `DelayedStartupPause` nor the call exists anywhere in the client assembl
 - **Countermeasures (both implemented in `Mods/InspectorPlus/InspectorPlus/HeadlessUnpausePatch.cs`, opt-in, batch-mode only):** (1) a guarded Harmony prefix that skips `DelayedStartupPause` outright; the target only exists in the server assembly, so the patch class uses `Prepare()` returning false on the client build to avoid a PatchAll failure, and skipping the stub of an `async UniTaskVoid` method is safe because the caller's `.Forget()` on the default struct is a no-op; (2) a 5-second UniTask watchdog loop that logs `GameState / IsGamePaused / GameTickPaused / RunSimulation / GameTickCount / Clients.Count` and re-unpauses when parked with zero clients (skipping while `SaveHelper.IsSaving`), which also catches any OTHER silent pauser from the inventory above. The UniTask player loop (`PlayerLoopTiming.Update`) demonstrably runs on the headless server even while the tick loop is parked; the park loop itself awaits `UniTask.Delay` there.
 - A note for probes: because the first ~8 ticks DO run between `StartGame` and the delayed pause, an InspectorPlus request dropped before world load can be consumed during that early window even on an otherwise-parked server. A consumed early probe is NOT proof the sim stayed running; re-probe after the 5-second mark.
 
+## Dedicated-server assembly only: ImGuiManager ships as a stub with no LateUpdate
+<!-- verified: 0.2.6428.27798 @ 2026-08-14 -->
+
+`Assets.Scripts.UI.ImGuiManager` exists in both builds by name, but the dedicated server's copy is a stub with no behaviour. Metadata read with Mono.Cecil over both `Assembly-CSharp.dll` files at 0.2.6428.27798:
+
+| | Client (`rocketstation_Data/Managed`) | Dedicated server (`rocketstation_DedicatedServer_Data/Managed`) |
+|---|---|---|
+| Base type | `UnityEngine.MonoBehaviour` | `Assets.Scripts.Util.Singleton<ImGuiManager>` |
+| Methods | 19 | **1** (`.ctor()` only) |
+| Fields | 17 | **0** |
+
+The client's 19 methods are `.cctor, .ctor, Awake, CreateRenderTexture, ImGuiPointerFor, InitializeImGui, LateUpdate, OnDestroy, OnDisable, OnEnable, PrepareCommandBuffer, PrepareImGuiFrame, RandomLoadingTexture, RenderCommandBufferToCamera, RenderComputerScreens, RenderImGuiTo, RenderOverlay, SetBlockUguiClicks, ShutdownImGui`. The server declares none of them, and none is inherited: the chain is `Singleton<T>` -> `ManagerBase` -> `MonoBehaviour`, and neither `Singleton<T>` (`.cctor, .ctor, Create, get_Instance, get_IsQuitting, OnApplicationQuit, OnDestroy`) nor `ManagerBase` (`.ctor, get_ProfilerTag, ManagerAwake, ManagerStart, ManagerUpdate, SlowUpdate`) declares `LateUpdate`.
+
+Consequences, all confirmed live on a `-batchmode -nographics` server at 0.2.6428.27798:
+
+- **`ImGuiManager.LateUpdate` cannot be Harmony-patched on the dedicated server: the method does not exist.** `AccessTools.Method(type, "LateUpdate")` returns null after walking base types. A `Prepare()` that resolves the target reflectively therefore returns false and the patch is silently skipped; a patch class that assumes the target exists throws inside `PatchAll` and takes every later patch in the same call down with it.
+- **Zero `ImGuiManager` instances exist in the scene.** `UnityEngine.Object.FindObjectsOfType(typeof(ImGuiManager))` returned 0 at every sample across three runs spanning boot, world generation, `GameState.Running` and 190+ s of steady state. So even a patch on a method the stub did declare would never fire.
+- `RG.ImGui.dll` being present in the server's `BepInEx/plugins/StationeersLaunchPad/` is not evidence that the game's ImGui overlay runs headless. The overlay class is gutted in the server assembly regardless of what the binding library ships.
+
+This is the same client/server assembly divergence as `DelayedStartupPause` below: the two `Assembly-CSharp.dll` files are different builds, and any hook chosen on the client must be re-checked against the server binary before it is assumed to exist.
+
+## Headless dedicated server: the Unity player loop runs at ~24 Hz whether or not the world is paused
+<!-- verified: 0.2.6428.27798 @ 2026-08-14 -->
+
+Pausing the world stops `GameTick`. It does not stop Unity's player loop, and it does not stop `GameManager.Update` or the `ManagerBase.ManagerUpdate` fan-out that `Update` drives. The two clocks are independent, and on a headless server they run at very different rates.
+
+Measured with a Harmony-postfix counter plugin on a `-batchmode -nographics` server, `-new Lunar`, no client ever connected, sampling every 5 s. Counts are calls per 5-second report over the steady-state window after `GameState` reached `Running`:
+
+| Counter | World paused (`Force Unpause Without Client` = false) | World running (setting = true) |
+|---|---|---|
+| `GameManager.Update` | 116-122 (~24 Hz) | 117-120 (~24 Hz) |
+| `UnityMainThreadDispatcher.ManagerUpdate` | 116-122 (~24 Hz) | 117-120 (~24 Hz) |
+| `MonoBehaviour.Update` on a plugin object **recreated after boot** | 116-122 (~24 Hz) | 117-120 (~24 Hz) |
+| `MonoBehaviour.LateUpdate`, same object | 116-122 (~24 Hz) | 117-120 (~24 Hz) |
+| `MonoBehaviour.FixedUpdate`, same object | 247-251 (~50 Hz) | 249-252 (~50 Hz) |
+| Coroutine (`WaitForSecondsRealtime(1)`), same object | 4-5 (~1 Hz) | 4-5 (~1 Hz) |
+| Any of the above on the object the plugin created **in `Awake`** | **0, always** | **0, always** |
+| `ElectricityManager.ElectricityTick` | **0** | 9-10 (~2 Hz) |
+| `GameManager.GameTickCount` | **0, for the whole 287 s run** | rising, 27 -> 332 |
+
+The "recreated after boot" qualifier on the plugin-owned rows is load-bearing, and the 2026-08-14 measurement that produced this table did not carry it. The GameObject a `BepInEx/plugins/` chainloader plugin creates in `Awake` is destroyed at frame 0 and receives zero callbacks of any kind for the life of the process; only a replacement created once a scene exists ticks. Reading these rows as "a plugin's MonoBehaviour ticks headless" is the trap. Mechanism, numbers and fix: `../Patterns/MainThreadDispatcher.md`.
+
+The paused run held `WorldManager.IsGamePaused == true` and `GameTickCount == 0` for its entire life, so `ElectricityTick` never fired even once, while `GameManager.Update` accumulated 5,063 calls over the same period. Frame rate held at ~24 fps in both runs (`Time.frameCount` 1695 -> 6384 across 195 s paused).
+
+Practical consequences for a headless plugin:
+
+- **`ElectricityTick` is a simulation-liveness signal, not a general pump.** It is the correct hook for anything that must observe simulation state per tick, and it is useless for anything that must answer while the world is parked, which is the default state of a dedicated server with no client (see `DelayedStartupPause` below).
+- **`GameManager.Update` fires at ~12x the simulation tick rate** and keeps firing when the simulation does not. It is the driver behind every `ManagerUpdate`, including `UnityMainThreadDispatcher`'s.
+- **`ElectricityTick`'s postfix thread is a rotating ThreadPool worker, never the Unity main thread.** Across one run the managed thread id observed in the postfix was 20, 25, 42, 50, 9, 58, 44, 45, 57 on successive samples, while the Unity main thread was id 1 throughout. This reconfirms "Threading constraint on the postfix" above at 0.2.6428.27798.
+- **The player loop does stall hard during world generation.** Between the plugin loading and `GameState` leaving `None`, `Time.frameCount` froze (1437 for 30 s in one run, 1936 for 20 s in another) and `GameManager.Update` advanced only 3-4 times in 15 s. Work marshalled to the main thread during that window waits: measured single-item latencies of 4238 ms and 4650 ms for an action enqueued just before world load, against 4-37 ms once the world was up. A main-thread marshal with a fixed timeout must budget for seconds, not milliseconds, if it can be called during world load.
+
+Verified with a throwaway BepInEx counter plugin (`Assets.Scripts.GameManager.Update`, `Assets.Scripts.Util.UnityMainThreadDispatcher.ManagerUpdate`, `Assets.Scripts.Networks.ElectricityManager.ElectricityTick`, `WorldManager.SetGamePause` postfixes plus a plugin-created `DontDestroyOnLoad` MonoBehaviour), three runs on 2026-08-14 against `TestRig/DedicatedServer/`.
+
+## A "paused" headless server usually still has Time.timeScale at 1
+<!-- verified: 0.2.6428.27798 @ 2026-08-14 -->
+
+`WorldManager.SetGamePause(bool)` assigns `Time.timeScale = (pauseGame ? 0f : 1f)`, but only inside `if (IsGamePaused != pauseGame)`. On a fresh headless boot that guard never opens, so the world ends up flagged paused with `timeScale` still 1:
+
+1. The load path pauses. `WorldManager.IsGamePaused` is already `true` while `GameState` is `Joining`.
+2. `GameManager.StartGame()` assigns `Time.timeScale = 1f;` **directly**, not through `SetGamePause`, so the flag stays `true` and the scale goes back to 1.
+3. `DelayedStartupPause` fires 5 s later and calls `SetGamePause(true)`. `IsGamePaused` is already `true`, so the whole body is skipped and `timeScale` is never dropped.
+
+Measured on a stock `-batchmode -nographics` server (`-new Lunar`, no client, InspectorPlus `Force Unpause Without Client` off), 85 s steady-state window: `gameState=Running`, `isGamePaused=True`, `timeScale=1.0`, `GameTickCount` flat at 0.
+
+Three regimes, all measured on the same run, 55 s to 85 s each, sampling every 5 s:
+
+| | `IsGamePaused` | `Time.timeScale` | `Update` | `LateUpdate` | `FixedUpdate` | `GameTickCount` |
+|---|---|---|---|---|---|---|
+| Natural headless steady state | true | 1 | 24.85 /s | 24.85 /s | 49.89 /s | **0** |
+| Explicitly unpaused | false | 1 | 24.99 /s | 24.99 /s | 50.02 /s | 1.91 /s |
+| `SetGamePause(true)` actual transition | true | 0 | 24.94 /s | 24.94 /s | **0** | **0** |
+
+Consequences for a headless hook:
+
+- **Pause state changes nothing about `Update` or `LateUpdate`,** at either level. Their rate is identical to five significant figures across all three regimes.
+- **`FixedUpdate` is gated on `timeScale`, not on `IsGamePaused`.** It keeps running at 50 Hz on a normally "paused" headless server, and stops dead the moment something drives a real `false` to `true` transition through `SetGamePause`. A `FixedUpdate`-based pump is therefore usually fine headless and occasionally not, with no log line either way. Verified twice: `GameManager.FixedUpdate` froze at 7534 for 55 s in one run and a plugin-owned object's `FixedUpdate` froze at 7838 for 39 s in another, both while `Update` continued at 25 Hz.
+- **`GameTickCount == 0` is the reliable simulation-liveness flag,** and it reads 0 in both paused regimes.
+
+## Patch timing on the dedicated server: patching a static method at plugin Awake can poison its type
+<!-- verified: 0.2.6428.27798 @ 2026-08-14 -->
+
+Harmony has to resolve and prepare the declaring type to patch a static method, which runs that type's static constructor. At `BepInEx/plugins/` chainloader `Awake` time that is `Time.frameCount == 0` with no scene loaded and a null graphics device, and a type initializer that is not safe there fails permanently: the CLR caches a failed type initializer forever and rethrows `TypeInitializationException` on every subsequent access.
+
+Observed on `Assets.Scripts.Objects.BatchRenderer`. Patching `BatchRenderer.RenderAll` from a plugin `Awake` threw `HarmonyException: IL Compile Error (unknown location)` and left the type poisoned:
+
+```
+NullReferenceException: Object reference not set to an instance of an object
+  at Assets.Scripts.Objects.BatchRenderer..cctor ()
+Rethrow as TypeInitializationException: The type initializer for 'Assets.Scripts.Objects.BatchRenderer' threw an exception.
+  at (wrapper dynamic-method) Assets.Scripts.GameManager.DMD<Assets.Scripts.GameManager::Update>(Assets.Scripts.GameManager)
+```
+
+`GameManager.Update` calls `BatchRenderer.RenderAll()` unconditionally near its end, so the throw then repeated every frame: 4,276 occurrences in one 192 s run, `WindTurbineGenerator.UpdateWind()` (the statement after it) never ran once, and every Harmony **postfix** on `GameManager.Update` was skipped, because a postfix does not run when the original method throws. A baseline run of the same server without the patch has zero `BatchRenderer` lines in its log, so this is caused by the patch timing, not by `-nographics` on its own.
+
+The same patch applied from a main-thread context after `GameState` reached `Running` succeeded, and `RenderAll` then counted 24.85-25.06 calls per second like any other per-frame method. So:
+
+- Patch instance methods on `GameManager` at `Awake` if you need an early pump; that is measured safe.
+- **Defer static-method patches until a scene is up.** The first `SceneManager.sceneLoaded` callback, or `GameState.Running`, both work.
+- A Harmony postfix is not a reliable counter of "was this method called". It counts "did this method return normally". When a postfix count freezes while the frame counter advances, look for an exception in the tail of the patched body before concluding the method stopped being called.
+
 ## Verification history
 
 - 2026-05-26: page created. Sourced from a RuntimeProbe refactor that pulled the same hook out of PgpVerifyHelper and generalised it. Decompile cross-references at the line numbers above were re-confirmed against `.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs` during the same session. The crash stack quoted in "Threading constraint on the postfix" is the 2026-05-25 live repro recorded in `Research/Patterns/ThingEnumerationOffMainThread.md`.
 - 2026-07-02: added "GameManager.Update manager loop: no per-manager exception isolation" and "GameTick loop, pause parking, and SetGamePause call sites", both verified line-by-line against `.work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs` during the dedicated-server boot investigation (a broken mod prefix at the KeyManager stage threw per-frame and starved every downstream manager). The `loaded 41 systems successfully` count is from that server's 2026-07-02 server.log. Pre-existing sections keep their 0.2.6228.27061 stamps and line numbers pending the version-migration pass; no contradiction between them and the new sections was found (the GameTick ThreadPool switch and the ElectricityTick RunSimulation guard reconfirm at 0.2.6403.27689 with new line numbers 204418 and 272091).
 - 2026-07-02 (later, headless-tick investigation): added "Dedicated-server assembly only: DelayedStartupPause re-pauses 5 s after StartGame" plus the cross-reference bullet at the end of the call-site inventory. Source: ilspycmd decompile of the server binary (`.work/decomp/0.2.6403.27689/Assembly-CSharp.DedicatedServer.GameManager.decompiled.cs` lines 902-959) after a live InspectorPlus stack trace on `WorldManager.SetGamePause(true)` named `Assets.Scripts.GameManager.DelayedStartupPause` as the silent re-pauser on a fresh `-new Lunar` boot (exactly 8 ticks ran between the StartGame-postfix unpause and the re-pause). Confirmed additive against the existing inventory: the method is absent from the client decompile, so no prior claim was contradicted. Also live-verified the two countermeasures now in `Mods/InspectorPlus/InspectorPlus/HeadlessUnpausePatch.cs`: with the skip prefix plus watchdog active on the full 56-mod set, the same boot shape produced no re-pause, `GameTickCount` advanced continuously, and ScenarioRunner's 10-tick scenario fired.
 
+- 2026-08-14 (pump measurement for the TestRig plugin merge): added "Dedicated-server assembly only: ImGuiManager ships as a stub with no LateUpdate" and "Headless dedicated server: the Unity player loop runs at ~24 Hz whether or not the world is paused". Method and thread evidence from three instrumented `-batchmode -nographics` runs on `TestRig/DedicatedServer/` at 0.2.6428.27798 (one with `Force Unpause Without Client` off, two with it on), plus a Mono.Cecil metadata read of both `Assembly-CSharp.dll` builds. The ImGuiManager section is purely additive; nothing on this page previously claimed the type had a working `LateUpdate` server-side. The player-loop section **contradicts the "MonoBehaviour.Update does not reliably fire after world load" and "the dispatcher's PollLoop coroutine never advances past its first yield" bullets under "Why hook ElectricityTick for diagnostic plugins"** (stamped 0.2.6228.27061), which were carried from repo lore rather than measured. Those bullets are left standing pending the fresh-validator protocol in `WORKFLOW.md` Rule 3; the conflict and the probable reconciliation are recorded under Open questions.
+
+- 2026-08-14 (Rule 3 fresh validator, conflict resolved). Conflict on "does a plugin's `MonoBehaviour.Update` fire on a headless dedicated server after world load". Previous claim: it does not fire, and a `DontDestroyOnLoad` dispatcher's poll coroutine never advances past its first yield. New finding: it fires at ~24 Hz. Fresh validator verdict: **neither as stated. The player loop is healthy; the plugin's GameObject is destroyed at `Time.frameCount == 0`.** Evidence, four instrumented `-batchmode -nographics` runs at 0.2.6428.27798 (`-new Lunar`, no client, 5 s sampling): inside `BaseUnityPlugin.Awake` the process reports `frame=0`, `sceneCount=0`, `activeScene=''`, with the plugin already on `BepInEx_Manager` in scene `DontDestroyOnLoad`; 135-219 ms later, still at frame 0, `OnDisable` and `OnDestroy` fire for the plugin component and for both objects it created (one `DontDestroyOnLoad`, one not), the unnamed bootstrap scene unloads, and only then does `Splash` load; `Start` is never reached and `Update`, `LateUpdate` and `FixedUpdate` stay at 0 for the whole process, across runs of 192 s, 252 s and 312 s. An equivalent object recreated from the first `SceneManager.sceneLoaded` callback reached `Update` count 5867 at `Time.frameCount` 5867, missing no frame. Corroborated in-process by `ClientDriver`'s own "plugin component destroyed (count=1)" log line, and explained by BepInEx 5.4.23.5 starting its chainloader from `UnityEngine.Application`'s static constructor, before any scene exists. StationeersLaunchPad mods are immune because `LoadedMod.LoadEntrypoints()` builds its own per-mod `DontDestroyOnLoad` GameObject at mod-load time; four LaunchPad mod plugin components were measured ticking at full frame rate. Result: the two lore bullets under "Why hook ElectricityTick for diagnostic plugins" rewritten and that section restamped to 0.2.6428.27798; the plugin-owned rows in the ~24 Hz table qualified with "recreated after boot", because as written they invited exactly the wrong reading; full mechanism and the fix recorded on `../Patterns/MainThreadDispatcher.md`.
+
+- 2026-08-14 (same validator pass, additive). Added "A 'paused' headless server usually still has Time.timeScale at 1" and "Patch timing on the dedicated server: patching a static method at plugin Awake can poison its type". The first refines, without contradicting, the existing quote of `SetGamePause` under "GameTick loop, pause parking, and SetGamePause call sites": the assignment `Time.timeScale = (pauseGame ? 0f : 1f)` is real but sits behind `if (IsGamePaused != pauseGame)`, and on a fresh headless boot the flag is already `true` when `DelayedStartupPause` calls `SetGamePause(true)`, so the scale is never dropped and `FixedUpdate` keeps running at 50 Hz on a "paused" server. Measured across three regimes on one run, 55 to 85 s each. The second section records a self-inflicted failure from this pass that is worth not repeating: patching `Assets.Scripts.Objects.BatchRenderer.RenderAll` from plugin `Awake` ran its static constructor at frame 0 under a null graphics device, it threw, .NET cached the failure permanently, and `GameManager.Update` then threw at that call site 4,276 times in 192 s with every postfix on `Update` skipped. A baseline run of the same server without the patch has zero `BatchRenderer` lines; the same patch applied after `GameState.Running` worked and counted normally.
+
 ## Open questions
 
 - Exact method signature for `AtmosphericsManager`'s per-tick driver. The class inherits from `ThreadedManager`; identifying the override at the class top-of-body would let RuntimeProbe register an atmospheric-tick postfix without trial and error. Low priority; ElectricityTick is sufficient for current scenarios.
+- Not measured: whether the frame-0 destruction of `BepInEx_Manager` also occurs on the game client build. Every run in the 2026-08-14 validator pass was `-batchmode -nographics` on the dedicated server. The mechanism is not obviously server-specific, but the client case is unverified; the same entry sits on `../Patterns/MainThreadDispatcher.md`.
