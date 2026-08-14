@@ -379,7 +379,7 @@ Confirmation log line on success (line 96453):
 ConsoleWindow.Print("Saved " + stationName);
 ```
 
-This is the line `TestRig/testrig.ps1 save -Target server -SaveName <X>` polls for in `data/server.log` to confirm completion.
+This is the line `TestRig/testrig.exe save --target server --save-name <X>` polls for in `data/server.log` to confirm completion.
 
 Refuses to save when `GameState != Running && != Paused`. Refuses on remote clients via `CommandBase.CannotAsClient("save")`.
 
@@ -516,7 +516,7 @@ If you launch `rocketstation_DedicatedServer.exe -batchmode -nographics -new Lun
 ## Notes for the TestRig launcher (dedicated-server half)
 <!-- verified: 0.2.6228.27061 @ 2026-05-18 -->
 
-The flag set `TestRig/testrig.ps1 start -Target server` applies:
+The flag set `TestRig/testrig.exe start --target server` applies:
 
 ```
 -batchmode -nographics
@@ -554,6 +554,7 @@ Verified against the source:
 - 2026-05-18: launcher flag set updated to pin `LocalIpAddress 127.0.0.1` and drop `ServerPassword x`. Confirmed via runtime test (host wrapper PID 25800, server UDP bind read via `Get-NetUDPEndpoint`): without LocalIpAddress, RakNet bound UDP 28016 to the LAN IP `10.20.30.200` and refused loopback connections; with LocalIpAddress = 127.0.0.1, the bind moves to loopback and Direct Connect from a same-machine client succeeds. Removed ServerPassword because the loopback bind makes external auth at the network layer impossible to bypass, so a password adds friction without security. Kept `ServerAuthSecret x` (it gates `serverrun`, not connection). Also flipped `AutoPauseServer` to `false` in the documented flag block to match the launcher, which has been carrying that flag for tests that need simulation between client sessions.
 - 2026-08-13: the two rig launchers were replaced by one, `TestRig/testrig.ps1`, with positional verbs and `-Target all|server|clients|<instance>`. Command references on this page updated (`-Save -Name <X>` is now `save -Target server -SaveName <X>`; the flag-set section is now "Notes for the TestRig launcher (dedicated-server half)"). The flag set itself was re-read against the launcher's server library and is unchanged, verbatim, including `LocalIpAddress 127.0.0.1`, `AutoPauseServer false` and `ServerAuthSecret x`. No game-internals claim was changed and none was re-verified against the game, so no section stamp moved.
 - 2026-04-28: corrected world-id list in the `-new` deep-dive. NewGameCommand source declares `"Moon"` as the default but `WorldSetting.Find("Moon")` returns null at runtime; valid ids verified by runtime probe are `Lunar, Mars2, Europa3, MimasHerschel, Venus, Vulcan2, Vulcan (Deprecated)`. Defaults summary updated to use `-new Lunar` as the example.
+- 2026-08-14: the rig's PowerShell launcher was replaced by one AOT-compiled binary, `TestRig/testrig.exe`, whose options are double-dash. The two command references on this page follow (`testrig.ps1 save -Target server -SaveName <X>` is now `testrig.exe save --target server --save-name <X>`; `testrig.ps1 start -Target server` is now `testrig.exe start --target server`). The flag set itself was re-read against the binary's server half and is unchanged, verbatim, including `LocalIpAddress 127.0.0.1`, `AutoPauseServer false` and `ServerAuthSecret x`. No game-internals claim was changed and none was re-verified against the game, so no section stamp moved.
 
 ## Open questions
 <!-- verified: 0.2.6228.27061 @ 2026-04-28 -->
