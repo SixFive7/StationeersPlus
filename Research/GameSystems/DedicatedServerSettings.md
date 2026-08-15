@@ -8,6 +8,8 @@ sources:
   - rocketstation_Data/Managed/Assembly-CSharp.dll :: Settings.SettingData (decompile lines 248232-248613)
   - rocketstation_Data/Managed/Assembly-CSharp.dll :: CommandLine (decompile lines 94926-95177)
   - rocketstation_Data/Managed/Assembly-CSharp.dll :: SaveCommand / QuitCommand / LoadGameCommand / LoadLatestCommand / NewGameCommand / SettingsCommand / SettingsPathCommand / ServerRunCommand / BanCommand
+  - rocketstation_DedicatedServer_Data/Managed/Assembly-CSharp.dll :: CommandLine.Process / ConsoleWindow.Submit / ServerRunMessage.Process / RichPresenceJoinRequested (decompile lines 97056, 97087, 97100, 101957, 215637, 273780)
+  - rocketstation_DedicatedServer_Data/Managed/Assembly-CSharp-firstpass.dll :: MoonSharp PlatformAccessor.IO_GetStandardStream
   - rocketstation_DedicatedServer_Data/StreamingAssets/Worlds/*/*.xml :: GameData/WorldSettings/World[@Id]
 related:
   - GameSystems/NetworkRoles.md
@@ -30,6 +32,8 @@ Three orthogonal configuration layers determine how the server runs:
 <!-- verified: 0.2.6228.27061 @ 2026-04-28 -->
 
 The single dispatcher is `CommandLine.Process(string[], bool onLaunch = false)` (decompile line 95111). When `onLaunch` is true (called from `[RuntimeInitializeOnLoadMethod] CommandLine.ProcessOnLaunch`), every `-name` token starts a new command and subsequent non-dash tokens accumulate as that command's arguments. When `onLaunch` is false (stdin path), only the first token may be `-name`-prefixed; later tokens are arguments to the first command. Same dispatch table either way.
+
+> **The "stdin path" label above is contradicted by a later pass and is pending a fresh-validator resolution.** The `onLaunch: false` branch is real, but a 2026-08-15 call-site census on 0.2.6428.27798 found it has exactly three callers, none of which reads standard input, and found no stdin API used anywhere in the assembly. See "Nothing reads standard input: what actually feeds the runtime dispatcher" below, and the Open Questions entry.
 
 The dispatch dictionary is initialised in the static constructor of `CommandLine` (line 94942):
 
@@ -63,6 +67,66 @@ Two helpers used inside Execute bodies are worth knowing about:
 
 - `CommandBase.CannotAsClient(name)` returns true when the local process is a remote client, blocking commands that only make sense on the server (Save, Ban, Kick).
 - `CommandBase.CannotInSinglePlayer(name)` returns true in single-player, blocking client/server-only commands like Ban.
+
+## Nothing reads standard input: what actually feeds the runtime dispatcher
+<!-- verified: 0.2.6428.27798 @ 2026-08-15 -->
+
+The `onLaunch: false` branch of `CommandLine.Process` is real and reachable, and **it is not fed by the process's standard input**. Nothing in the shipped code reads stdin as a command channel at all, so a line written to a headless server's redirected stdin has no consumer.
+
+Two independent reads of the dedicated-server build establish it.
+
+**1. No stdin API is used.** Across all 442,274 decompiled lines of `Assembly-CSharp.dll` there are zero occurrences of `Console.ReadLine`, `Console.In`, `Console.OpenStandardInput`, `StandardInput` or `ReadLineAsync`. The single `.ReadLine(` in the assembly is `stringReader.ReadLine()` at line 117950, reading an in-memory string. `Assembly-CSharp-firstpass.dll` carries exactly one stdin reference, and it is MoonSharp's Lua platform accessor, not a console:
+
+```csharp
+public override Stream IO_GetStandardStream(StandardFileType type)
+{
+    return type switch
+    {
+        StandardFileType.StdIn => Console.OpenStandardInput(),
+        StandardFileType.StdOut => Console.OpenStandardOutput(),
+        StandardFileType.StdErr => Console.OpenStandardError(),
+        _ => throw new ArgumentException("type"),
+    };
+}
+```
+
+**2. The call-site census.** `CommandLine.Process(string)` (decompile line 97087) is the single-string entry point that prefixes a dash and forwards to `Process(string[], onLaunch: false)`:
+
+```csharp
+public static void Process(string input)
+{
+    if (!string.IsNullOrEmpty(input))
+    {
+        string[] array = CmdLineParser.SplitCommandLine(input).ToArray();
+        if (!array[0].StartsWith('-'))
+        {
+            array[0] = "-" + array[0];
+        }
+        Process(array);
+    }
+}
+```
+
+It has exactly three callers in the whole assembly, and none of them is a console reader:
+
+| Line | Caller | What sends it |
+|---|---|---|
+| 101957 | `ServerRunMessage.Process` | A connected client's `serverrun`, gated on `Secret == Settings.CurrentData.ServerAuthSecret` and on the sender being in `NetworkBase.Clients` |
+| 215637 | `ConsoleWindow.Submit()` | The in-game console, in-process |
+| 273780 | `RichPresenceJoinRequested(Friend, string args)` | Steam rich-presence join arguments |
+
+The fourth and last route into the dispatcher is `CommandLine.ProcessOnLaunch()` (line 97056), a `[RuntimeInitializeOnLoadMethod]` that calls `Process(CommandLineArgs, onLaunch: true)` on the launch line.
+
+**Measured live**, game 0.2.6428.27798, 2026-08-15, on a headless server (`-batchmode -nographics`) in world with a control-plane plugin loaded:
+
+| Channel | Result |
+|---|---|
+| `quit` written to the process's redirected stdin, flushed | Still running 90 s later, **zero bytes** appended to its `-logFile`. |
+| `ConsoleWindow.Submit("quit")` called in-process | Process exited **2.55 s** later with a full Unity shutdown dump in the log. |
+
+A `ConsoleWindow.Submit("help")` between the two returned 452 console lines, so the server was healthy throughout and the stdin line was ignored rather than lost to a wedged process.
+
+**Consequence for tooling.** A wrapper that owns a headless server's stdin can write to it successfully and change nothing: the write succeeds because the pipe is real, and nobody is reading the other end. The two channels that do reach a headless server's command dispatcher are `serverrun` from a connected client with the matching `ServerAuthSecret`, and an in-process caller of `ConsoleWindow.Submit` (a BepInEx plugin). There is no third.
 
 ## Settings (`setting.xml` keys)
 <!-- verified: 0.2.6228.27061 @ 2026-04-28 -->
@@ -581,9 +645,12 @@ Verified against the source:
 - 2026-04-28: corrected world-id list in the `-new` deep-dive. NewGameCommand source declares `"Moon"` as the default but `WorldSetting.Find("Moon")` returns null at runtime; valid ids verified by runtime probe are `Lunar, Mars2, Europa3, MimasHerschel, Venus, Vulcan2, Vulcan (Deprecated)`. Defaults summary updated to use `-new Lunar` as the example.
 - 2026-08-14: the rig's PowerShell launcher was replaced by one AOT-compiled binary, `TestRig/testrig.exe`, whose options are double-dash. The two command references on this page follow (`testrig.ps1 save -Target server -SaveName <X>` is now `testrig.exe save --target server --save-name <X>`; `testrig.ps1 start -Target server` is now `testrig.exe start --target server`). The flag set itself was re-read against the binary's server half and is unchanged, verbatim, including `LocalIpAddress 127.0.0.1`, `AutoPauseServer false` and `ServerAuthSecret x`. No game-internals claim was changed and none was re-verified against the game, so no section stamp moved.
 
-## Open questions
-<!-- verified: 0.2.6228.27061 @ 2026-04-28 -->
+- 2026-08-15: added "Nothing reads standard input: what actually feeds the runtime dispatcher" from a fresh decompile of the DEDICATED SERVER build at `0.2.6428.27798` (`.work/decomp/0.2.6428.27798/Assembly-CSharp.DedicatedServer.decompiled.cs`, 442,274 lines, plus an `Assembly-CSharp-firstpass.dll` pass). Findings: zero occurrences of `Console.ReadLine` / `Console.In` / `Console.OpenStandardInput` / `StandardInput` / `ReadLineAsync` in `Assembly-CSharp`; the only stdin reference in `firstpass` is MoonSharp's `PlatformAccessor.IO_GetStandardStream`; `CommandLine.Process(string)` (97087) has exactly three callers, `ServerRunMessage.Process` (101957), `ConsoleWindow.Submit` (215637) and `RichPresenceJoinRequested` (273780), with `ProcessOnLaunch` (97056) the fourth route into the dispatcher. Corroborated by a live run on a headless server in world: a stdin `quit` left it running 90 s later with zero log bytes appended, an in-process `ConsoleWindow.Submit("quit")` exited it in 2.55 s, and a `Submit("help")` between them returned 452 lines. Additive; the Architecture section's older "(stdin path)" label is contradicted, is flagged inline and in Open Questions, and is left in place because changing stamped content requires the `Research/WORKFLOW.md` Rule 3 fresh validator, which was not run.
 
+## Open questions
+<!-- verified: 0.2.6428.27798 @ 2026-08-15 -->
+
+- **The Architecture section's "(stdin path)" label, pending a fresh validator.** The 2026-08-15 census (see "Nothing reads standard input") found no stdin API used anywhere in `Assembly-CSharp` and exactly three callers of `CommandLine.Process(string)`, none of them a console reader, corroborated by a live run in which a stdin `quit` changed nothing and an in-process `ConsoleWindow.Submit("quit")` exited the process in 2.55 s. The new content is additive and is on the page; rewriting the older stamped wording requires the fresh-validator protocol in `Research/WORKFLOW.md` Rule 3 and has not been run. The two claims sit side by side until it is.
 - `ServerMaxPlayers` upper bound. The SettingData declares `int ServerMaxPlayers = 10` without obvious clamping. Public docs claim 1-30. Enforcement may live in UI input validation, the network join handler, or a server-side reject path; not verified this pass.
 - The "(mixed)" `IsLaunchCmd` entries in the command table reflect commands whose class declarations were not read in detail this pass. The dispatcher does not visibly gate runtime stdin on `IsLaunchCmd`, so the flag may be advisory only; whether the launch path enforces it is unverified.
 - `StartLocalHost` consumer path. Hypothesised to be the client's main-menu "host on launch" path, not consumed by the dedicated build's `-load` / `-new` flow. Verifying would require following `Settings.CurrentData.StartLocalHost` references.
