@@ -1,4 +1,6 @@
 using System.Globalization;
+using TestRig.Contracts;
+using TestRig.Core.Client;
 using TestRig.Core.Rig;
 using TestRig.Core.Session;
 
@@ -493,32 +495,54 @@ public sealed partial class ServerHalf
 
         var serverPid = ServerPid;
         var hostPid = HostPid;
+        var askedThroughControlPlane = false;
 
-        if (ServerAlive && WrapperAlive)
+        if (ServerAlive)
         {
-            Say("[Stop] Sending 'quit' via host wrapper...");
-            try
+            // The control plane first, because it is the channel that WORKS. See
+            // TryQuitThroughControlPlaneAsync.
+            askedThroughControlPlane = await TryQuitThroughControlPlaneAsync(ct).ConfigureAwait(false);
+
+            if (!askedThroughControlPlane && WrapperAlive)
             {
-                await SendCommandAsync("quit", ct).ConfigureAwait(false);
-            }
-            catch (RigRefusalException ex)
-            {
-                // A failure to queue the quit warns rather than aborting the teardown: the
-                // force-kill below is what actually guarantees the process goes.
-                Warn($"[Stop] {ex.Message}");
+                Say("[Stop] Sending 'quit' via host wrapper...");
+                try
+                {
+                    await SendCommandAsync("quit", ct).ConfigureAwait(false);
+                }
+                catch (RigRefusalException ex)
+                {
+                    // A failure to queue the quit warns rather than aborting the teardown: the
+                    // force-kill below is what actually guarantees the process goes.
+                    Warn($"[Stop] {ex.Message}");
+                }
             }
 
-            var deadline = _clock.UtcNow.AddSeconds(graceSeconds);
-            while (_clock.UtcNow < deadline)
+            if (askedThroughControlPlane || WrapperAlive)
             {
-                if (!ServerAlive) break;
-                await _sleeper.DelayAsync(PollInterval, ct).ConfigureAwait(false);
+                var deadline = _clock.UtcNow.AddSeconds(graceSeconds);
+                while (_clock.UtcNow < deadline)
+                {
+                    if (!ServerAlive) break;
+                    await _sleeper.DelayAsync(PollInterval, ct).ConfigureAwait(false);
+                }
             }
         }
 
         if (ServerAlive && serverPid is not null)
         {
-            Warn($"[Stop] Server still alive after {graceSeconds}s; force-killing.");
+            // The two cases mean opposite things, so they are not one message. A control-plane
+            // quit is measured at about 2.5 seconds, so a force-kill after one is a real
+            // problem worth looking at. A force-kill after the stdin path is the EXPECTED
+            // outcome, because that channel does not reach the game at all.
+            Warn(askedThroughControlPlane
+                ? $"[Stop] Server still alive {graceSeconds}s after a control-plane quit it accepted; "
+                  + "force-killing. That is not the normal shutdown time (about 2.5s measured), so check "
+                  + "the server log for what it was doing: testrig logs --target server --tail 80"
+                : $"[Stop] Server still alive after {graceSeconds}s; force-killing. Only the stdin channel "
+                  + "was available, and a batch-mode server does not act on it, so a force-kill is the "
+                  + "expected outcome. Deploy the plugin for a graceful quit: "
+                  + "testrig deploy TestRig --target server --as <id>");
             await ForceKillAsync(serverPid.Value, ct).ConfigureAwait(false);
         }
 
@@ -546,6 +570,90 @@ public sealed partial class ServerHalf
             PidFiles.Delete(_fs, file);
         }
     }
+
+    /// <summary>
+    /// Asks the running server to quit through its own control plane, and reports whether the
+    /// request was accepted. Never throws: a teardown must proceed either way.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>This is the channel that works, and stdin is the one that does not.</b> Measured on
+    /// 0.2.6428.27798, 2026-08-15, on a server in world through the merged plugin:
+    /// </para>
+    /// <list type="bullet">
+    /// <item>
+    ///     <c>send --command quit</c> (stdin, through the wrapper's control file): the wrapper
+    ///     consumed the file in 0.26 s, so the launcher's whole half of the channel worked, and
+    ///     the server was still alive 90 s later having written <b>zero bytes</b> to its log.
+    /// </item>
+    /// <item>
+    ///     <c>POST /console/exec {"command":"quit"}</c>: the call returned in 0.16 s and the
+    ///     process exited <b>2.55 s</b> later, with a full 17 KB Unity shutdown dump in the log.
+    /// </item>
+    /// </list>
+    /// <para>
+    /// A console <c>help</c> submitted between the two returned 452 lines, so the server was
+    /// running normally throughout and the stdin quit was genuinely ignored rather than lost to
+    /// a wedged process. That settles the observation this rig has carried since 0.2.6228.27061
+    /// as "recorded and not reproduced since": it reproduces, the cause is that a batch-mode
+    /// server does not read stdin, and the merged plugin is what made a graceful quit reachable
+    /// at all.
+    /// </para>
+    /// <para>
+    /// The stdin path is kept as the fallback rather than deleted, because it is the only
+    /// channel on a server whose plugin is not deployed or did not load, and because a
+    /// force-kill after it is a correct outcome rather than a failure.
+    /// </para>
+    /// <para>
+    /// A 200 here means the console ACCEPTED the command, never that the process has gone. The
+    /// poll loop above is still what establishes that, and the exit lags the answer by seconds.
+    /// <c>waitFrames=0</c> because the plugin would otherwise block waiting for frames on a
+    /// process that is about to stop producing them.
+    /// </para>
+    /// </remarks>
+    private async Task<bool> TryQuitThroughControlPlaneAsync(CancellationToken ct)
+    {
+        ControlAnswer answer;
+        try
+        {
+            answer = await _control
+                .RawAsync(ControlPort, Endpoints.ConsoleExec, QuitCommandBody, QuitCallSeconds, ct)
+                .ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // A teardown never fails because a diagnostic channel misbehaved.
+            Say($"[Stop] The server's control plane could not be reached ({ex.GetType().Name}); "
+                + "falling back to the wrapper's stdin.");
+            return false;
+        }
+
+        if (!answer.Answered)
+        {
+            Say($"[Stop] Nothing answered on 127.0.0.1:{ControlPort} ({answer.TransportError}); "
+                + "falling back to the wrapper's stdin.");
+            return false;
+        }
+
+        if (answer.HttpStatus != RigStatus.Ok)
+        {
+            Warn($"[Stop] The server's control plane refused the quit (HTTP {answer.HttpStatus}); "
+                 + "falling back to the wrapper's stdin.");
+            return false;
+        }
+
+        Say($"[Stop] Asked the server to quit through its own control plane on 127.0.0.1:{ControlPort}.");
+        return true;
+    }
+
+    /// <summary>The quit submitted to the server's in-game console.</summary>
+    private const string QuitCommandBody = "{\"command\":\"quit\",\"waitFrames\":0}";
+
+    /// <summary>
+    /// How long the quit request itself may take. Not the shutdown budget, which is the
+    /// teardown grace: the measured answer comes back in well under a second.
+    /// </summary>
+    private const int QuitCallSeconds = 15;
 
     /// <summary>
     /// Terminates a pid and waits until it is really gone.

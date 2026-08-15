@@ -79,6 +79,14 @@ namespace TestRig
         internal long Requests;
         internal string LastAcceptError;
 
+        /// <summary>
+        /// How many requests ended because the CALLER hung up before the answer was
+        /// written. Counted rather than stack-traced; see <see cref="IsPeerGone"/>.
+        /// </summary>
+        internal long ClientDisconnects;
+
+        private bool _loggedPeerGoneOnce;
+
         public HttpServer(int port, Func<HttpRequest, HttpResponse> handler, Action<string> logInfo, Action<string> logError)
         {
             _port = port;
@@ -145,9 +153,80 @@ namespace TestRig
                 // harness that fires two engine mutations concurrently gets
                 // nondeterministic results, so serialising here is a feature.
                 try { Serve(client); }
-                catch (Exception ex) { _logError("Request failed: " + ex); }
+                catch (Exception ex)
+                {
+                    // A poller that closes its connection before reading the answer is
+                    // not a fault, and it used to cost a full stack trace every time.
+                    // Measured on the dedicated server's first real run: six of them in
+                    // one session, each seven frames deep from WriteResponse. A control
+                    // plane that stack-traces its own normal traffic makes a REAL fault
+                    // harder to see, which is the only thing this log is for. So it is
+                    // counted, reported on /status as serverClientDisconnects, and said
+                    // once in prose so the counter is discoverable from the log alone.
+                    if (IsPeerGone(ex))
+                    {
+                        ClientDisconnects++;
+                        if (!_loggedPeerGoneOnce)
+                        {
+                            _loggedPeerGoneOnce = true;
+                            _logInfo("a caller closed its connection before reading the answer ("
+                                     + Describe(ex) + "). This is normal for a poller that times out or "
+                                     + "gives up, is not an error, and is not logged again: the running "
+                                     + "total is /status.driver.serverClientDisconnects.");
+                        }
+                    }
+                    else
+                    {
+                        _logError("Request failed: " + ex);
+                    }
+                }
                 finally { try { client.Close(); } catch { } }
             }
+        }
+
+        /// <summary>
+        /// True when an exception means the CALLER went away rather than that this
+        /// server did something wrong.
+        /// </summary>
+        /// <remarks>
+        /// The discriminator is the socket error code, never the message text, which is
+        /// localised. The chain is walked because the throw arrives as an
+        /// <see cref="IOException"/> wrapping the <see cref="SocketException"/> whenever
+        /// it comes out of <c>NetworkStream.Write</c>.
+        ///
+        /// Deliberately NOT included: <c>TimedOut</c>, which means a caller that opened a
+        /// connection and then stopped reading for the whole SendTimeout, and
+        /// <see cref="ObjectDisposedException"/>, which would mean this code closed its own
+        /// stream. Both are worth a stack trace.
+        /// </remarks>
+        private static bool IsPeerGone(Exception ex)
+        {
+            for (var e = ex; e != null; e = e.InnerException)
+            {
+                var se = e as SocketException;
+                if (se == null) continue;
+                switch (se.SocketErrorCode)
+                {
+                    case SocketError.ConnectionAborted:
+                    case SocketError.ConnectionReset:
+                    case SocketError.NotConnected:
+                    case SocketError.Shutdown:
+                    case SocketError.OperationAborted:
+                    case SocketError.Interrupted:
+                        return true;
+                }
+            }
+            return false;
+        }
+
+        private static string Describe(Exception ex)
+        {
+            for (var e = ex; e != null; e = e.InnerException)
+            {
+                var se = e as SocketException;
+                if (se != null) return se.SocketErrorCode.ToString();
+            }
+            return ex.GetType().Name;
         }
 
         private void Serve(TcpClient client)

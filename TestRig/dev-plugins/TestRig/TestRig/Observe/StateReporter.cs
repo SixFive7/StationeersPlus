@@ -201,13 +201,16 @@ namespace TestRig
                 //
                 // pumpHostCreatedAtFrame is NOT the same number on the two halves, and expecting 0
                 // everywhere was wrong: the object is created at the first sceneLoaded callback,
-                // which is 282 ms and frame 0 on a client but frame 1834 on the dedicated server,
-                // where there is no splash or menu scene and the first load is the mod-content
-                // load. A -1 means no scene has loaded yet. bootLoopDrains is what covers the
-                // stretch before it: on a client it retires after a handful of frames, and on the
-                // dedicated server 0 there while pumpHostCreatedAtFrame is large means the boot
-                // window went unpumped, which is what made every Main(...) route 504 for the first
-                // ~1834 frames of a headless boot.
+                // which is 282 ms and frame 0 on a client but over a thousand frames in on the
+                // dedicated server, where there is no splash or menu scene and the first load is
+                // the mod-content load. It is a VARIABLE, not a constant: 1834 in the instrumented
+                // run and 1635 in the first real one on the same game build, because what varies is
+                // how much work precedes the mod-content load. Never assert on it. A -1 means no
+                // scene has loaded yet. bootLoopDrains is what covers the stretch before it: on a
+                // client it retires after a handful of frames, and on the dedicated server 0 there
+                // while pumpHostCreatedAtFrame is large means the boot window went unpumped, which
+                // is what made every Main(...) route 504 for the whole first stretch of a headless
+                // boot.
                 .Int("hostUpdateDrains", MainThreadPump.HostUpdateDrains)
                 .Int("pumpHostCreatedAtFrame", MainThreadPump.PumpHostCreatedAtFrame)
                 .Int("pumpBootLoopDrains", MainThreadPump.BootLoopDrains)
@@ -221,6 +224,9 @@ namespace TestRig
                 .Bit("serverRunning", Plugin.Server != null && Plugin.Server.Running)
                 .Int("serverRequests", Plugin.Server == null ? 0 : Plugin.Server.Requests)
                 .Str("serverLastAcceptError", Plugin.Server == null ? null : Plugin.Server.LastAcceptError)
+                // Callers that hung up before reading their answer. Not an error, and the
+                // reason the log carries one prose line about it rather than N stack traces.
+                .Int("serverClientDisconnects", Plugin.Server == null ? 0 : Plugin.Server.ClientDisconnects)
                 .Bit("consoleTapPatched", ConsoleTap.ConsolePatchApplied)
                 .Bit("bepInExTapAttached", ConsoleTap.BepInExListenerAttached)
                 .Bit("inputEnabled", VirtualInput.Enabled)

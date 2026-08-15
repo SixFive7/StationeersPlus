@@ -1,6 +1,8 @@
+using TestRig.Contracts;
 using TestRig.Core.Rig;
 using TestRig.Core.Server;
 using TestRig.Core.Session;
+using TestRig.Tests.Client;
 using Xunit;
 
 namespace TestRig.Tests.Server;
@@ -556,6 +558,87 @@ public sealed class ServerLifecycleTests
         Assert.True(fixture.Output.Warned("still alive after 4s"));
         Assert.Contains(9101, fixture.Processes.StopRequests);
         Assert.False(fixture.Fs.FileExists(fixture.Paths.PidFile));
+    }
+
+    [Fact]
+    public void TheQuitGoesThroughTheControlPlaneRatherThanStdinWhenThePluginAnswers()
+    {
+        // Measured 2026-08-15 on 0.2.6428.27798, against a server in world: a stdin quit left
+        // the process alive 90 s later with a ZERO-byte log delta, while POST /console/exec
+        // quit it in 2.55 s with a full Unity shutdown dump. A console 'help' in between
+        // returned 452 lines, so the server was healthy and the stdin quit was ignored rather
+        // than lost. The control plane is therefore tried first, and stdin is the fallback.
+        var fixture = new ServerFixture().Installed().Running();
+        fixture.Client.Transport.Standing(
+            ServerHalf.ControlPort, Endpoints.ConsoleExec, ScriptedAnswer.Ok("{\"ok\":true}"));
+        fixture.Client.Rig.Sleeper.OnDelay = _ => fixture.Processes.Kill(9101);
+
+        fixture.Stop();
+
+        Assert.Contains(
+            fixture.Client.Transport.Sent,
+            sent => sent.Port == ServerHalf.ControlPort
+                    && sent.Path == Endpoints.ConsoleExec
+                    && (sent.Body ?? "").Contains("quit"));
+        Assert.False(fixture.Output.Said("Sending 'quit' via host wrapper"));
+        Assert.DoesNotContain(9101, fixture.Processes.StopRequests);
+    }
+
+    [Fact]
+    public void AnOrphanedServerIsAskedToQuitThroughItsOwnPlaneRatherThanKilledOutright()
+    {
+        // The stdin path needs the wrapper, so a server whose wrapper died was always
+        // force-killed. The control plane does not, so it now gets a graceful quit.
+        var fixture = new ServerFixture().Installed().Running();
+        fixture.Processes.Kill(9100);
+        fixture.Client.Transport.Standing(
+            ServerHalf.ControlPort, Endpoints.ConsoleExec, ScriptedAnswer.Ok("{\"ok\":true}"));
+        fixture.Client.Rig.Sleeper.OnDelay = _ => fixture.Processes.Kill(9101);
+
+        fixture.Stop();
+
+        Assert.DoesNotContain(9101, fixture.Processes.StopRequests);
+    }
+
+    [Fact]
+    public void AForceKillAfterAnAcceptedControlPlaneQuitSaysThatIsNotTheNormalOutcome()
+    {
+        // The two force-kill cases mean opposite things. After stdin it is expected; after a
+        // quit the console accepted, roughly 2.5 s is normal and 30 s is a real problem.
+        var fixture = new ServerFixture().Installed().Running();
+        fixture.Client.Transport.Standing(
+            ServerHalf.ControlPort, Endpoints.ConsoleExec, ScriptedAnswer.Ok("{\"ok\":true}"));
+
+        fixture.Stop(teardownSeconds: 4);
+
+        Assert.True(fixture.Output.Warned("after a control-plane quit it accepted"));
+        Assert.Contains(9101, fixture.Processes.StopRequests);
+    }
+
+    [Fact]
+    public void AControlPlaneThatRefusesTheQuitFallsBackToTheWrappersStdin()
+    {
+        var fixture = new ServerFixture().Installed().Running();
+        fixture.Client.Transport.Standing(
+            ServerHalf.ControlPort, Endpoints.ConsoleExec, ScriptedAnswer.Refused("{\"ok\":false}"));
+        fixture.Client.Rig.Sleeper.OnDelay = _ => fixture.Processes.Kill(9101);
+
+        fixture.Stop();
+
+        Assert.True(fixture.Output.Said("Sending 'quit' via host wrapper"));
+    }
+
+    [Fact]
+    public void AForceKillWithOnlyStdinAvailableNamesTheDeployThatWouldFixIt()
+    {
+        // Nothing scripted on /console/exec, so the plane is silent: exactly a server whose
+        // plugin is not deployed or did not load. The force-kill is then correct, and the
+        // message has to say so rather than reading as a fault.
+        var fixture = new ServerFixture().Installed().Running();
+
+        fixture.Stop(teardownSeconds: 4);
+
+        Assert.True(fixture.Output.Warned("deploy TestRig --target server"));
     }
 
     [Fact]
