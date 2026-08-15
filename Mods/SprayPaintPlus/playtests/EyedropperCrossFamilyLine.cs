@@ -43,7 +43,6 @@
 //   the Steam session must own Metallic Paints; the check declines otherwise
 // =============================================================================
 
-using System.Runtime.CompilerServices;
 using TestRig.Contracts;
 using TestRig.Playtest;
 using TestRig.Playtest.Model;
@@ -218,10 +217,4 @@ internal sealed class EyedropperCrossFamilyLine : IPlaytestCheck
             }
         }
     }
-}
-
-internal static class EyedropperCrossFamilyLineRegistration
-{
-    [ModuleInitializer]
-    internal static void Register() => PlaytestCheckRegistry.Register(new EyedropperCrossFamilyLine());
 }

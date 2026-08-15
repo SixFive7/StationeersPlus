@@ -54,7 +54,6 @@
 //     TestRig/ClientRig/data/hostie/userdata/mods/ and .../joiner/userdata/mods/
 // =============================================================================
 
-using System.Runtime.CompilerServices;
 using TestRig.Contracts;
 using TestRig.Playtest;
 using TestRig.Playtest.Model;
@@ -284,10 +283,4 @@ internal sealed class HostOwnClientHalfMustNotLeak : IPlaytestCheck
             }, noRetry: true));
         }
     }
-}
-
-internal static class HostOwnClientHalfMustNotLeakRegistration
-{
-    [ModuleInitializer]
-    internal static void Register() => PlaytestCheckRegistry.Register(new HostOwnClientHalfMustNotLeak());
 }

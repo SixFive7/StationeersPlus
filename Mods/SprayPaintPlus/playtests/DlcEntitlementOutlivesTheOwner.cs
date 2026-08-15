@@ -58,7 +58,6 @@
 //   the Steam session must own Metallic Paints; the check declines otherwise
 // =============================================================================
 
-using System.Runtime.CompilerServices;
 using TestRig.Contracts;
 using TestRig.Playtest;
 using TestRig.Playtest.Model;
@@ -254,10 +253,4 @@ internal sealed class DlcEntitlementOutlivesTheOwner : IPlaytestCheck
             Quietly(() => ctx.Act("joiner", Endpoints.Disconnect, new DisconnectRequest(), blocking: true, noRetry: true));
         }
     }
-}
-
-internal static class DlcEntitlementOutlivesTheOwnerRegistration
-{
-    [ModuleInitializer]
-    internal static void Register() => PlaytestCheckRegistry.Register(new DlcEntitlementOutlivesTheOwner());
 }

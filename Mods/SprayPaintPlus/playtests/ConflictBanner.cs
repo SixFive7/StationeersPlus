@@ -62,7 +62,6 @@
 //   dotnet build .work/2026-08-11-spraypaintplus-playtests/ConflictStub/NetworkPainter/NetworkPainter.csproj -c Release
 // =============================================================================
 
-using System.Runtime.CompilerServices;
 using TestRig.Contracts;
 using TestRig.Playtest;
 using TestRig.Playtest.Model;
@@ -317,10 +316,4 @@ internal sealed class ConflictBanner : IPlaytestCheck
             ctx.Files.CopyFile(file, target, overwrite: true);
         }
     }
-}
-
-internal static class ConflictBannerRegistration
-{
-    [ModuleInitializer]
-    internal static void Register() => PlaytestCheckRegistry.Register(new ConflictBanner());
 }

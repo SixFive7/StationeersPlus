@@ -37,7 +37,6 @@
 //     TestRig/ClientRig/data/hostie/userdata/mods/SprayPaintPlus/
 // =============================================================================
 
-using System.Runtime.CompilerServices;
 using TestRig.Contracts;
 using TestRig.Playtest;
 using TestRig.Playtest.Model;
@@ -219,10 +218,4 @@ internal sealed class FirstUseNoticeCap : IPlaytestCheck
             }
         }
     }
-}
-
-internal static class FirstUseNoticeCapRegistration
-{
-    [ModuleInitializer]
-    internal static void Register() => PlaytestCheckRegistry.Register(new FirstUseNoticeCap());
 }

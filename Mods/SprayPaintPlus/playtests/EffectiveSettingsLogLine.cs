@@ -69,7 +69,6 @@
 //     TestRig/ClientRig/data/hostie/userdata/mods/ and .../joiner/userdata/mods/
 // =============================================================================
 
-using System.Runtime.CompilerServices;
 using TestRig.Contracts;
 using TestRig.Playtest;
 using TestRig.Playtest.Model;
@@ -184,10 +183,4 @@ internal sealed class EffectiveSettingsLogLine : IPlaytestCheck
             select: "count",
             readerArgs: new ConsoleLogRequest { Since = seq0, Source = "console", Contains = "This server does not allow", Limit = 500 });
     }
-}
-
-internal static class EffectiveSettingsLogLineRegistration
-{
-    [ModuleInitializer]
-    internal static void Register() => PlaytestCheckRegistry.Register(new EffectiveSettingsLogLine());
 }

@@ -35,7 +35,6 @@
 //     TestRig/ClientRig/data/hostie/userdata/mods/ and .../joiner/userdata/mods/
 // =============================================================================
 
-using System.Runtime.CompilerServices;
 using TestRig.Contracts;
 using TestRig.Playtest;
 using TestRig.Playtest.Model;
@@ -180,10 +179,4 @@ internal sealed class JoinSummary : IPlaytestCheck
             }
         }
     }
-}
-
-internal static class JoinSummaryRegistration
-{
-    [ModuleInitializer]
-    internal static void Register() => PlaytestCheckRegistry.Register(new JoinSummary());
 }
