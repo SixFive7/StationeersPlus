@@ -45,6 +45,25 @@ present and scrolled past. So this is a refusal, not a warning:
 - If `TestRig/src/` is absent, the binary has been copied somewhere else entirely,
   which is not the staleness case this guards. It runs.
 
+### A rebuild always dirties testrig.exe, and that is not a change
+
+Rebuilding from unchanged sources produces a different binary. Measured on
+2026-08-15: two builds of an identical tree differ by **129 bytes out of
+16,947,712**, in exactly two places. Two bytes at offset `0x109`, which is the PE
+header's `TimeDateStamp`, and about 127 contiguous bytes at `0x83aae6`, which is
+the debug directory's embedded-PDB content id. Nothing in the code sections moves,
+so this is not nondeterministic codegen: it is two stamps ILC writes fresh each
+time, on top of a managed compile that is already deterministic.
+
+The embedded source digest is unaffected, because it is computed over the SOURCES,
+not over the binary. So a dirty `testrig.exe` after a no-op rebuild is cosmetic:
+
+    git checkout -- TestRig/testrig.exe
+
+Chasing the last 129 bytes means fighting ILC's debug-directory emission for
+tidiness, and a silent regression there would be worse than knowing the two
+offsets. Only commit the binary when the SOURCES changed.
+
 The digest is computed once, by one piece of code. `TestRig.BuildTool` calls
 `SourceHash.Compute` at build time; the binary calls the same method at startup. An
 earlier design had a PowerShell script compute it at build time and C# recompute it at
@@ -131,3 +150,39 @@ declaration field that re-states something derivable. The DEPLOYED path comes fr
 `LaunchPadMods.DeployedRelativeDll`, the same helper `deploy` writes through; it was
 derived independently here, disagreed, and made every check on a correctly deployed
 instance answer `binary-not-deployed`.
+
+## Mods under test, and why an instance has to be told
+
+An instance records an explicit set:
+
+    testrig create --target hostie --role host --under-test SprayPaintPlus
+
+A mod in that set is **not** seeded from the developer's own mods folder and gets no
+`modconfig.xml` entry. It reaches the instance only through `deploy`, as
+`Local_<Mod>`. Every OTHER mod is seeded exactly as before, at whatever version the
+developer is running.
+
+That asymmetry is the whole point, and the obvious simplification is wrong. Do not
+make `create` skip every mod this repository builds: the rig normally tests ONE mod,
+and the others must stay at their published state, because this repository carries
+work in progress for them and an unrelated half-finished mod silently changing the
+result is exactly the kind of confidently-wrong answer the harness exists to prevent.
+
+Without the set, `create` seeded the developer's copy as `<Mod>` and `deploy` added
+`Local_<Mod>` beside it, both landed in `modconfig.xml`, and the game loaded the mod
+twice, applying every Harmony patch twice. A cap of three notices would print six.
+The two DLLs were both exactly 96,768 bytes, so the length-only attestation the
+PowerShell harness used would have attested that instance cleanly and run all eight
+checks against a double-patched process.
+
+Three guards keep it that way, and all three should stay:
+
+- `deploy` refuses a mod the instance does not record, naming the command that adds
+  it. Deploying beside a seeded copy is how the double load happened.
+- Attestation separates `under-test-not-deployed` from `binary-not-deployed`, so a
+  mod that is in the set but was never deployed fails loudly instead of a check
+  running against a mod that is not there.
+- The harness compares each check's own mod, from `[CallerFilePath]`, against the
+  instance's set **before bring-up**, and refuses `mod-not-under-test-here`. That is
+  what makes it impossible for a check to run against the developer's workshop copy
+  while believing it tested the build.
