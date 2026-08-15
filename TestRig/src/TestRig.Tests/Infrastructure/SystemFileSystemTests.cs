@@ -65,6 +65,53 @@ public sealed class SystemFileSystemTests : IDisposable
         Assert.Equal("purpose=éè\n", Encoding.UTF8.GetString(bytes));
     }
 
+    /// <summary>
+    /// LOCK-077: a durable write retries the rename rather than failing on the first one.
+    /// </summary>
+    /// <remarks>
+    /// The share mode below is not an exotic blocker, it is exactly what
+    /// <c>SystemFileSystem.OpenShared</c> gives EVERY reader in the rig, and it is why the
+    /// retry loop has to exist. <c>FileShare.Delete</c> lets the replace delete the
+    /// destination, so the delete half succeeds; what it cannot do is free the NAME, which
+    /// stays occupied until the last handle closes. The rename that follows then fails, and
+    /// without the loop one <c>status</c> reading the file at the wrong instant would turn a
+    /// lock refresh into "Could not replace the rig lock file".
+    ///
+    /// Deterministic, unlike a contention race: measured on this machine, a 20ms hold costs
+    /// exactly 3 of the 10 attempts in 8 runs out of 8 (60ms costs 4 to 5, 120ms costs 6).
+    /// So this is red the moment the loop becomes a bare <c>File.Move</c>, and it is green
+    /// with seven attempts to spare.
+    ///
+    /// This is the deliberate, bounded half of "a writer survives contention".
+    /// <c>LockFileAtomicityTests</c> owns the torn-read property and paces its reader to a
+    /// realistic rate rather than pinning an unbounded hammer here; the reasoning and the
+    /// measurements are on <c>SystemFileSystem.DurableWriteAttempts</c>.
+    /// </remarks>
+    [Fact]
+    public void WriteAllTextDurable_RetriesThroughATransientHoldOnTheDestination()
+    {
+        var path = _temp.File("session.lock");
+        File.WriteAllText(path, "owner=older-session\n");
+
+        var blocker = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+        var releaser = ReleaseAfter(blocker, 20);
+
+        try
+        {
+            _fs.WriteAllTextDurable(path, "owner=new\n");
+
+            Assert.Equal("owner=new\n", File.ReadAllText(path));
+
+            // The retry path has its own exit, so the cleanup is worth re-checking here and
+            // not only on the uncontended write above.
+            Assert.Empty(Directory.GetFiles(_temp.Path, "*.tmp"));
+        }
+        finally
+        {
+            releaser.Join();
+        }
+    }
+
     [Fact]
     public void WriteAllText_WritesUtf8WithoutAByteOrderMark()
     {

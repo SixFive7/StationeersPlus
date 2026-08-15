@@ -54,7 +54,30 @@ public sealed partial class SystemFileSystem : IFileSystem
     /// <remarks>
     /// 10, matching Write-RigFileDurable in rig-lock.ps1. The retries exist because a
     /// virus scanner or the search indexer can hold the destination open for a few
-    /// milliseconds after it appears, and the loser of that race is the lock file.
+    /// milliseconds after it appears, and the loser of that race is the lock file. Any
+    /// ordinary rig READER does the same thing, because <see cref="OpenShared"/> passes
+    /// FileShare.Delete: the replace's delete then succeeds, but the name stays occupied
+    /// until the reader's handle closes, and the rename onto it fails until then.
+    ///
+    /// 10 attempts is 5ms times the attempt number, so 275ms of backoff in total. Do not
+    /// raise it to make a test pass. Measured on this machine, against the rig's real
+    /// unsynchronised read rate: the only reads outside the session mutex are one per
+    /// `status` process and one per `unlock`, a `testrig status` process costs 165ms warm
+    /// and 631ms cold, so a real rig cannot re-read the lock file faster than about 6 times
+    /// a second, and at that rate a replace needs 1 attempt, occasionally 2. Even at 65
+    /// reads a second, ten times what the process cost allows, the worst seen was 3. The
+    /// margin is 7 attempts, not a thin one.
+    ///
+    /// The only thing that exhausts this is a reader looping with no backoff at all, around
+    /// 1,800 reads a second from inside one process, which keeps the name permanently
+    /// occupied. That is not a rig workload, and raising the budget does not fix it either:
+    /// re-measured at 25 attempts, the same hammer still drove a write to 10. The one place
+    /// that hammer exists is LockFileAtomicityTests, which needs it for a different property
+    /// and counts a lost write rather than demanding a bigger budget here.
+    ///
+    /// Retrying at all is pinned by
+    /// SystemFileSystemTests.WriteAllTextDurable_RetriesThroughATransientHoldOnTheDestination,
+    /// which is deterministic: a 20ms hold costs exactly 3 of these attempts.
     /// </remarks>
     private const int DurableWriteAttempts = 10;
 

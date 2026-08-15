@@ -25,7 +25,14 @@ namespace TestRig.Tests.Session;
 /// subsystem exists to prevent.
 ///
 /// Verified to FAIL against the previous implementation (<c>RigFiles.WriteAtomic</c> calling
-/// <c>File.WriteAllText</c>): 33 of 347 reads saw a lock file with no <c>owner</c> key.
+/// <c>File.WriteAllText</c>): 33 of 347 reads saw a lock file with no <c>owner</c> key, and
+/// re-verified 2026-08-15 at 22 to 40 torn reads out of about 350, in 12 runs out of 12.
+///
+/// This test owns ONE property, and <see cref="WritesThatMustComplete"/> is where that scope
+/// is drawn. The neighbouring property, that a durable write retries a held destination rather
+/// than failing on the first rename, is pinned deterministically by
+/// <c>SystemFileSystemTests.WriteAllTextDurable_RetriesThroughATransientHoldOnTheDestination</c>,
+/// so a failure tells you which of the two broke.
 /// </remarks>
 public sealed class LockFileAtomicityTests : IDisposable
 {
@@ -66,6 +73,7 @@ public sealed class LockFileAtomicityTests : IDisposable
         var stop = false;
         var reads = 0;
         var torn = 0;
+        var refused = 0;
         Exception? readerFault = null;
 
         var reader = new Thread(() =>
@@ -89,7 +97,17 @@ public sealed class LockFileAtomicityTests : IDisposable
         reader.Start();
         try
         {
-            for (var i = 0; i < WriteRounds; i++) service.RefreshIfMine(owner);
+            for (var i = 0; i < WriteRounds; i++)
+            {
+                try
+                {
+                    service.RefreshIfMine(owner);
+                }
+                catch (RigRefusalException)
+                {
+                    refused++;
+                }
+            }
         }
         finally
         {
@@ -106,12 +124,59 @@ public sealed class LockFileAtomicityTests : IDisposable
             $"{torn} of {reads} reads saw a lock file with no owner key, which every caller reads as "
             + "'the rig is free'");
 
+        // And so does the writer, or torn == 0 is a statement about nothing happening.
+        Assert.True(WriteRounds - refused >= WritesThatMustComplete,
+            $"only {WriteRounds - refused} of {WriteRounds} writes completed, so the reader was never "
+            + $"racing anything. See {nameof(WritesThatMustComplete)}.");
+
         // And the survivor is a whole lock file, not a plausible-looking fragment.
         var final = service.ReadLock();
         Assert.NotNull(final);
         Assert.Equal(owner, final!.GetOrEmpty(LockFields.Owner));
         Assert.Equal(PurposePadding, final.GetOrEmpty(LockFields.Purpose).Length);
     }
+
+    /// <summary>
+    /// How many of the writes must get through, and why the rest are counted, not fatal.
+    /// </summary>
+    /// <remarks>
+    /// This is not a lax assertion, it is a scope boundary, and not having drawn it cost two
+    /// failures in five full-suite runs.
+    ///
+    /// The reader above re-opens a 48 KB file with NO backoff, so the destination name is
+    /// occupied almost continuously. <c>SystemFileSystem.OpenShared</c> passes
+    /// FileShare.Delete, so the replace's delete succeeds and leaves the name delete-pending
+    /// until the reader's handle closes, and the rename onto it fails until then. With ten
+    /// attempts and 275ms of total backoff the writer sometimes lost, and threw "Could not
+    /// replace the rig lock file after 10 attempts" out of <c>RefreshIfMine</c>. The
+    /// torn-read assertion was never what failed: <c>torn</c> was 0 every time.
+    ///
+    /// So the flake was a SECOND property riding along in this test, and a synthetic one. No
+    /// rig reader behaves like that. Measured 2026-08-15: the only unsynchronised reads of
+    /// the lock file are one per <c>status</c> process and one per <c>unlock</c>, because
+    /// everything else (the gate, both refreshes, the acquire path <c>lock --wait-seconds</c>
+    /// polls with, and both release phases) reads inside the same named mutex every writer
+    /// holds. A <c>testrig status</c> process costs 165ms warm and 631ms cold, so a real rig
+    /// cannot re-read the lock file faster than about 6 times a second, and at that rate a
+    /// replace needs 1 attempt, occasionally 2. Even at 65 reads a second it needed 3. The
+    /// hammer above runs at roughly 1,800. Widening <c>DurableWriteAttempts</c> to suit it
+    /// would be tuning a production limit to a workload nothing produces, and would not even
+    /// work: re-measured at 25 attempts, the same hammer still drove a write to 10.
+    ///
+    /// Pacing the reader was the other candidate and is worse, because it loses the teeth
+    /// silently. Measured against the planted regression, a 500us gap still caught 34 to 47
+    /// torn reads but a 1,000us gap caught 0 to 4, a cliff driven by the reader and writer
+    /// phase-locking rather than by the sampling rate. A test that goes green on a slightly
+    /// faster machine while proving nothing is the failure mode this suite exists to avoid.
+    ///
+    /// So the reader stays a hammer, which is what gives the torn-read assertion its teeth,
+    /// and a write that loses to it is counted instead of failing the run. The count is
+    /// still asserted on, because a durable write that failed EVERY round would make
+    /// <c>torn == 0</c> a statement about nothing happening. Half is far below anything
+    /// measured (0 refusals in 12 isolated runs) and far above a broken write, which would
+    /// lose every round.
+    /// </remarks>
+    private const int WritesThatMustComplete = WriteRounds / 2;
 
     /// <summary>
     /// LOCK-078: no staging file is left behind, at any point a reader could see one.
