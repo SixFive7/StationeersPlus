@@ -149,7 +149,7 @@ public static class VerbTable
             "Build ONE named client instance, hard-linked from the source install.",
             [Options.Target, Options.As, Options.Force, Options.Role, Options.Port, Options.GamePort,
              Options.ClientId, Options.Username, Options.Width, Options.Height, Options.ForceGameplayInput,
-             Options.SeedMods, Options.Desktop, Options.InstancesRoot]),
+             Options.SeedMods, Options.UnderTest, Options.Desktop, Options.InstancesRoot]),
 
         new("remove", VerbGroup.Provisioning, TargetDefault.None, [TargetKind.Instance], true, false,
             "Delete ONE named instance and its save root.",
@@ -177,8 +177,10 @@ public static class VerbTable
             "Block until a readiness stage. Needs no lock but refreshes one you hold.",
             [Options.Target, Options.Stage, Options.WaitSeconds, Options.As]),
 
-        new("call", VerbGroup.Control, TargetDefault.None, ClientsOnly, true, false,
-            "One HTTP request to each instance's control plane, answer parsed.",
+        // Everything, not ClientsOnly: one plugin loads into both halves, so the dedicated
+        // server answers the same routes on its own port and 'call --target server' works.
+        new("call", VerbGroup.Control, TargetDefault.None, Everything, true, false,
+            "One HTTP request to each target's control plane, answer parsed. Works on both halves.",
             [Options.Target, Options.Path, Options.Body, Options.As, Options.CallTimeoutSeconds]),
 
         new("send", VerbGroup.Control, TargetDefault.None, [TargetKind.Server], true, false,

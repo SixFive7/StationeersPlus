@@ -59,10 +59,20 @@ public sealed class FakeProcessTable : IProcessTable
     public FakeProcessTable Kill(int pid)
     {
         _live.Remove(pid);
+        _lingering.Remove(pid);
         return this;
     }
 
-    public ProcessInfo? TryGet(int pid) => _live.TryGetValue(pid, out var info) ? info : null;
+    /// <remarks>
+    /// A LINGERING process is reported as absent here, deliberately: the real
+    /// <see cref="ProcessInfo"/> carries a start time, and a process that is unwinding
+    /// refuses to hand one over, so the real implementation returns no match for it too.
+    /// </remarks>
+    public ProcessInfo? TryGet(int pid)
+    {
+        if (_lingering.ContainsKey(pid)) return null;
+        return _live.TryGetValue(pid, out var info) ? info : null;
+    }
 
     public ProcessInfo? TryGetMatching(int pid, string expectedImageName)
     {
@@ -70,13 +80,94 @@ public sealed class FakeProcessTable : IProcessTable
         return string.Equals(info.ImageName, expectedImageName, StringComparison.OrdinalIgnoreCase) ? info : null;
     }
 
+    /// <summary>
+    /// Whether the pid is still listed, INCLUDING a killed one that has not gone yet.
+    /// </summary>
+    /// <remarks>
+    /// The real one answers from <c>HasExited</c>, which a terminating process still serves,
+    /// where <see cref="TryGet"/> reports it as absent because its start time cannot be read.
+    /// Modelling that asymmetry is the whole point: a lingering process is VISIBLE here and
+    /// INVISIBLE to TryGet, which is exactly what let a teardown declare a live process gone.
+    /// Each observation counts the linger down, whichever query made it, because the real
+    /// process does eventually go.
+    /// </remarks>
+    public bool IsRunning(int pid)
+    {
+        var listed = _live.ContainsKey(pid) || _lingering.ContainsKey(pid);
+        Settle(pid);
+        return listed;
+    }
+
     public IReadOnlyList<ProcessInfo> FindByImage(string imageName) =>
         [.. _live.Values.Where(p => string.Equals(p.ImageName, imageName, StringComparison.OrdinalIgnoreCase)).OrderBy(static p => p.Pid)];
+
+    /// <summary>
+    /// Pids that stay in the table for N further lookups after being killed.
+    /// </summary>
+    /// <remarks>
+    /// The real thing does this: a game client force-killed mid-frame takes seconds to unwind,
+    /// and Windows is not obliged to have reaped it when the terminate call returns. Without a
+    /// way to model it, the only test that could see the teardown returning too early would be
+    /// a real rig session, which is where it WAS found. A process that is still listed after
+    /// its pid file has been deleted is an untracked game process, and an untracked game
+    /// process is one of the three conditions the state restore refuses on.
+    /// </remarks>
+    public Dictionary<int, int> LingerAfterStop { get; } = [];
+
+    /// <summary>Models a kill whose process takes <paramref name="lookups"/> further polls to go.</summary>
+    public FakeProcessTable LingersWhenKilled(int pid, int lookups)
+    {
+        LingerAfterStop[pid] = lookups;
+        return this;
+    }
+
+    /// <summary>
+    /// Puts a pid straight into the lingering state: describable no longer, listed still.
+    /// </summary>
+    /// <remarks>
+    /// The state a process is in after a CLEAN quit while it unwinds, and the one that
+    /// produced the defect. The teardown's own liveness check reads a start time and so
+    /// reports the process gone; the reset's orphan scan, moments later, reports it running.
+    /// A test cannot reach this through StopAsync, because the clean path never calls it.
+    /// </remarks>
+    public FakeProcessTable LingersInvisiblyAfterQuit(int pid, int lookups)
+    {
+        _lingering[pid] = lookups;
+        _live.Remove(pid);
+        return this;
+    }
 
     public Task<bool> StopAsync(int pid, TimeSpan grace, CancellationToken ct = default)
     {
         StopRequests.Add(pid);
+
+        if (LingerAfterStop.TryGetValue(pid, out var lookups) && lookups > 0)
+        {
+            _lingering[pid] = lookups;
+            _live.Remove(pid);
+
+            // The terminate request was accepted, which is all the real one reports when it is
+            // given no grace. The process is still in the table.
+            return Task.FromResult(false);
+        }
+
         return Task.FromResult(_live.Remove(pid));
+    }
+
+    private readonly Dictionary<int, int> _lingering = [];
+
+    /// <summary>Counts down a lingering process, dropping it once its lookups are used up.</summary>
+    private void Settle(int pid)
+    {
+        if (!_lingering.TryGetValue(pid, out var left)) return;
+
+        if (left <= 1)
+        {
+            _lingering.Remove(pid);
+            return;
+        }
+
+        _lingering[pid] = left - 1;
     }
 }
 

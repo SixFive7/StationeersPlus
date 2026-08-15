@@ -75,6 +75,9 @@ public static class Options
     public const string Height = "height";
     public const string ForceGameplayInput = "force-gameplay-input";
     public const string SeedMods = "seed-mods";
+
+    /// <summary>The mods an instance exists to test, comma-separated. See InstanceEntry.UnderTest.</summary>
+    public const string UnderTest = "under-test";
     public const string Desktop = "desktop";
     public const string InstancesRoot = "instances-root";
 
@@ -124,7 +127,8 @@ public static class Options
     /// </remarks>
     public static readonly IReadOnlyList<string> InstanceShape =
     [
-        Role, Port, ClientId, Username, Width, Height, ForceGameplayInput, SeedMods, Desktop, InstancesRoot,
+        Role, Port, ClientId, Username, Width, Height, ForceGameplayInput, SeedMods, UnderTest, Desktop,
+        InstancesRoot,
     ];
 
     public static readonly IReadOnlyList<string> Stages = ["ping", "modsLoaded", "menu", "inWorld", "process"];
@@ -177,6 +181,7 @@ public static class Options
         new(Height, OptionKind.Number, "600", "Instance window height."),
         new(ForceGameplayInput, OptionKind.Flag, "on", "Keep gameplay input alive on an unfocused window. Off with --no-force-gameplay-input.", null, true),
         new(SeedMods, OptionKind.Flag, "on", "Seed a new instance's mods from the developer's set. Off with --no-seed-mods.", null, true),
+        new(UnderTest, OptionKind.Text, "", "Mods this instance TESTS, comma-separated. They are not seeded from the developer's folder and deploy is their only copy; every other mod stays at its published state. Kept by a later create --force."),
         new(Desktop, OptionKind.Text, "StationeersRig", "The Win32 desktop instances run on. Created, never switched to."),
         new(InstancesRoot, OptionKind.Text, "", "Where instance trees live. Overrides STATIONEERS_CLIENTRIG_ROOT."),
 

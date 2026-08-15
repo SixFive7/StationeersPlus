@@ -175,11 +175,10 @@ public static class TargetResolver
 
         switch (verb)
         {
-            case "call":
-                if (kind == TargetKind.Server) throw RefusalMatrix.Deny("call", TargetKind.Server, target: shown);
-                if (kind == TargetKind.All) throw RefusalMatrix.Deny("call", TargetKind.All, target: shown);
-                break;
-
+            // 'call' has no rows any more. It refused 'server' and 'all' because the dedicated
+            // server had no HTTP control plane; the merged plugin loads into both halves and
+            // answers on 127.0.0.1:27750, so the verb works everywhere and a refusal here
+            // would be teaching the pre-merge world.
             case "send":
                 if (kind == TargetKind.Instance) throw RefusalMatrix.Deny("send", TargetKind.Instance, target: shown);
                 if (kind == TargetKind.Clients) throw RefusalMatrix.Deny("send", TargetKind.Clients, target: shown);

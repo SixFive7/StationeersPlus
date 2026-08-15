@@ -89,6 +89,28 @@ public static class Detectors
     /// <summary>The build under test is not deployed into the instance.</summary>
     public const string BinaryNotDeployed = "binary-not-deployed";
 
+    /// <summary>
+    ///     The instance was provisioned to test this mod, and nothing was ever deployed.
+    /// </summary>
+    /// <remarks>
+    ///     Distinct from <see cref="BinaryNotDeployed"/> because the remedy and the meaning
+    ///     differ. An instance that records a mod under test does NOT seed the developer's
+    ///     copy of it, deliberately, so a missing deploy leaves the instance with no copy at
+    ///     all rather than with the wrong one. Reporting that as the general case would send a
+    ///     reader looking for a stale file that cannot be there.
+    /// </remarks>
+    public const string UnderTestNotDeployed = "under-test-not-deployed";
+
+    /// <summary>
+    ///     A check's mod is not in the under-test set of an instance the check names.
+    /// </summary>
+    /// <remarks>
+    ///     Raised before bring-up, so it costs no game process. The instance carries the
+    ///     DEVELOPER'S published copy of that mod, and a check running there would measure a
+    ///     build this repository did not produce while reporting on one it did.
+    /// </remarks>
+    public const string ModNotUnderTestHere = "mod-not-under-test-here";
+
     /// <summary>The deployed file's content hash differs from the build under test.</summary>
     public const string BinaryStale = "binary-stale";
 

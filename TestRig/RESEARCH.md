@@ -280,7 +280,7 @@ Static state survives: Harmony patches, background threads, and a `SceneManager.
 
 Measured on 0.2.6428.27798, `-new Lunar`, `Force Unpause Without Client` false, no client, 287 s: `IsGamePaused` true throughout, **`GameTickCount` 0 for the entire run**, `SetGamePause` fired twice and both before any tick, `ElectricityTick` never fired once. **Zero ticks, not "a few ticks then a park"**, so a tick count is not a park detector and nothing may be written as one. What is unaffected is the main thread, which keeps running at about 24 Hz while the world is parked, so a control plane inside the process answers normally and a readiness probe that depends on the simulation does not.
 
-Two consequences worth stating where they will be read: `wait --stage inWorld` on the server drops an InspectorPlus request and polls for it to be consumed, and that poller runs off `ElectricityTick`, so it needs `Force Unpause Without Client` or a connected client. And an in-process probe armed at boot on a parked server produces one log line and then silence forever, which is indistinguishable from a typo in its id.
+Two consequences worth stating where they will be read. The main thread keeps running while the world is parked, which is why `wait --stage inWorld` on the server reads `/status.phase` from the merged plugin rather than inferring readiness from simulation activity. And an in-process probe armed at boot on a parked server produces one log line and then silence forever, which is indistinguishable from a typo in its id.
 
 **`ImGuiManager.RenderOverlay` skips `OrbitalSimulation.Draw` entirely while the splash or loading screen is up**, and StationeersLaunchPad hangs all its in-game ImGui windows off a prefix on that method, so `/modsettings` needs `gameInitialized == true` and not merely loaded mods.
 
@@ -316,7 +316,13 @@ The JSON reader is hand-rolled because the game ships no JSON library a BepInEx 
 
 **Why the wrapper exists.** The server is launched by a detached wrapper with no console window (the binary re-invoking itself as the internal `host-mode` verb; it used to be a hidden PowerShell process, and before that `Start-Process -WindowStyle Hidden`, which allocated a conhost window that briefly stole focus on Windows 10 and 11 before `SW_HIDE` was honoured). The wrapper holds the server's redirected stdin, which is the only way to reach its console at all: the `clients` and `status` console commands write to the in-game console rather than the `-logFile`, so they cannot be scraped. The connection lifecycle IS logged, which is how the player count for lock liveness is read. The wrapper's process image is checked as `testrig`, with `pwsh` and `powershell` still accepted, because a rig mid-migration can have a PowerShell wrapper alive and a wrapper reported dead is a wrapper whose orphaned server nothing will clean up.
 
-**Readiness has no cheap signal.** The process registering its pid happens long before the world is tickable, and the gap is dominated by save size (a populated world takes minutes, an empty map seconds). Per-mod "Patches applied" lines fire during prefab load, before world load, so they confirm the mod loaded and nothing else. The InspectorPlus probe the `wait` verb drops is the cheapest bounded answer; the alternatives, still valid by hand, are a named probe save (the console's save is only processed after world load completes, so its confirmation line is a synchronous gate) and grepping for the first AutoSave line (reliable, zero setup, and slow, since it is bounded by the AutoSave period).
+**Readiness has no cheap signal from OUTSIDE the process, and one good one from inside.** The process registering its pid happens long before the world is tickable, and the gap is dominated by save size (a populated world takes minutes, an empty map seconds). Per-mod "Patches applied" lines fire during prefab load, before world load, so they confirm the mod loaded and nothing else.
+
+`wait --stage inWorld` therefore polls `/status.phase` on the merged plugin's own port, which is the process stating its game state rather than anything inferring one. It replaced an InspectorPlus probe whose CONSUMPTION was read as readiness, and that inference was measured wrong on 2026-08-15: a `--new Moon` the game rejected left a server with no world running indefinitely, InspectorPlus consumed the probe four seconds in, and the barrier reported "the world is loaded and the simulation is ticking". Consumption is evidence about InspectorPlus and about nothing else.
+
+Two things end that wait before its deadline. `No such world name:` in the log is a hard failure carrying the game's own list of what it would have accepted, because the server prints it once and then runs forever with no world; and nothing answering on the control port is its own failure naming the deploy, because without the plugin nothing outside the process can prove a world is loaded. The hand alternatives that remain valid are a named probe save (the console's save is only processed after world load completes, so its confirmation line is a synchronous gate) and grepping for the first AutoSave line (reliable, zero setup, and slow, since it is bounded by the AutoSave period).
+
+**`-new <World>` is validated before launch, against the install's own data.** The accepted name is the `World Id` attribute inside `StreamingAssets/Worlds/<Folder>/<File>.xml`, and it is NOT the folder name in four of nine cases on 0.2.6428.27798: `Europa` holds `Europa3`, `Mimas` holds `MimasHerschel`, and `Vulcan` holds both `Vulcan` and `Vulcan2` in two files. Worlds carrying `<IsTutorial Value="true" />` are excluded, which is what makes the parsed set exactly the seven the server prints when it rejects one. A catalogue that cannot be read validates nothing and says so, because refusing a world the game would have started is a worse failure than the ninety-second boot this prevents.
 
 **One observation on stdin, recorded and not reproduced since.** On 0.2.6228.27061 a session found `send`, `save` and the graceful path of `stop` having no observable effect in batch mode: a console `save "probe"` created no save folder and `quit` never exited, so the stop force-killed after its timeout. The wrapper queued and forwarded the commands correctly; the batch-mode server simply did not act on them. Whether it was version-specific or environment-specific was never pinned down, and it has not been re-tested on a current build. The reason it is not a standing warning any more is that the save contract does not depend on trusting the command: `save` waits for the log's own `Saved <name>` line and warns rather than claiming success, so a repeat of that failure shows up as a warning rather than as a world silently not written. Treat `stop` as a reliable force-kill either way.
 
@@ -332,7 +338,9 @@ An earlier decision in this port went the other way, hosting each check as a Pow
 
 ## The merged plugin, and why it was blocked on the pump
 
-`ClientDriver` (the control plane inside a game client) and `ScenarioRunner` (in-process probes on the dedicated server) do the same job in one process each, and the split exists because `ScenarioRunner` predates the control plane, not because a headless process cannot host a listener. `TestRig/dev-plugins/TestRig/` is the single plugin that replaces both. It is built and **not deployed**; both replaced trees stay until parity is proven on real hardware.
+`ClientDriver` (the control plane inside a game client) and `ScenarioRunner` (in-process probes on the dedicated server) do the same job in one process each, and the split exists because `ScenarioRunner` predates the control plane, not because a headless process cannot host a listener. `TestRig/dev-plugins/TestRig/` is the single plugin that replaces both, and it is deployed on both halves: instances on 27700 + index, the dedicated server on 27750.
+
+**That one fact retired three refusals and one inference.** `call --target server` refused with text describing the pre-merge world while the plane was up and answering; `snapshot` refused on grounds that were no longer true and now refuses for the reason it actually has (the server owns no registry row to key a per-instance row on); `wait --target server` refused `ping` and `modsLoaded`, which the server can now reach; and readiness stopped being inferred from a file disappearing. A refusal whose reason has stopped being true is worse than no refusal, because it corrects a caller's model in the wrong direction at the exact moment they are forming one. Re-read the whole matrix whenever the shape of the rig changes.
 
 The listener was never the obstacle: it is `System.Net.Sockets` plus `System.Text` on a runtime both halves already run, owned by a static rather than by the MonoBehaviour, re-bound by a watchdog. **The obstacle was the pump**, and the whole of "The main-thread pump on a headless server" above is the measurement that unblocked it. The design that follows from it: a thread-identity check on the drain so queued Unity work can only execute on the captured main thread, three hooks feeding that drain because no single one covers both boot and steady state, and the game's own `UnityMainThreadDispatcher` as a second route. Scenario dispatch deliberately stays on the simulation-tick worker, because roughly 85 scenario bodies were written against that contract and marshalling them quietly would change what they measure.
 
@@ -357,3 +365,61 @@ Full detail, including the endpoints the dedicated server refuses and how the fo
 - `Research/Workflows/StationeersLaunchPadDedicatedServer.md` (option D, "Two separate client instances on one machine") names the PlayerPrefs key as `HKCU\Software\Rocketwerkz Limited\rocketstation`. That key **does not exist**. The real one is `HKCU\Software\Rocketwerkz\rocketstation`; `Rocketwerkz Limited` is only an `AssemblyCompany` string. Re-verified against the live registry on 2026-08-09: `Test-Path 'HKCU:\Software\Rocketwerkz Limited'` is false, `HKCU:\Software\Rocketwerkz\rocketstation` is true, and `HKCU:\Software` has exactly one `Rocketwerkz*` child. The same page's wider claim, that two client instances need two Steam logins, is also stale: this rig runs two on one login, because identity comes from the manifest rather than from Steam. Correcting a central page needs the fresh-validator protocol in `Research/WORKFLOW.md`, which is why it is still owed rather than done.
 - The rig's own docs no longer carry the wrong key; they were corrected on 2026-08-09.
 - Nothing is owed on the headless pump. `Research/Patterns/MainThreadDispatcher.md` and `Research/GameSystems/SimulationTickDriverHooks.md` were both corrected and committed on 2026-08-14 under the fresh-validator protocol, and this file now follows them rather than the other way round.
+
+## An instance's mods come from two places, and the set that decides is explicit
+
+Every client instance records the mods it exists to TEST. A mod in that set is not seeded from
+the developer's folder and gets no modconfig entry from the seed; `deploy` writes
+`Local_<Mod>/` and that is its only copy. Every mod outside the set is seeded exactly as
+before, at whatever the developer has installed.
+
+**The set is explicit, per instance, and never inferred from "this repository builds it."** A
+rig is normally testing one mod, and this repository carries work in progress for the others,
+so seeding them at their published state is what stops an unrelated half-finished mod from
+changing the behaviour of the one under test. Inferring the set would break that in silence.
+
+What it fixes: `create` seeded `<Mod>/` and `deploy` wrote `Local_<Mod>/` beside it, both
+carrying an `About.xml`, so StationeersLaunchPad loaded BOTH. Awake fires twice and every
+Harmony patch registers twice. A doubled side-effecting patch produced delta 10000 instead of
+5000 during a battery verification, with nothing in any log to say so, because two plausible
+halves of one number look exactly like one correct number. The rig had guarded exactly this
+for the control plugin since the merge and did nothing at all for mods.
+
+Four consequences, all of them enforcement rather than convention:
+
+- `deploy` refuses a mod the instance does not record, and names the command that records it.
+  With no `--mod` it deploys that instance's own set rather than every released mod, which was
+  the fan-out that produced the pairs in the first place.
+- `create --force` preserves the set, exactly as it preserves the role, the ports and the
+  identity. It is the routine way to pick up a new plugin build, and emptying the set in
+  passing would put the developer's copy back beside the deployed one.
+- The playtest harness compares the check's mod against each instance's set BEFORE bring-up
+  and refuses with `mod-not-under-test-here`. Neither side is declared: the mod comes from the
+  check's own `[CallerFilePath]` and the set from the registry row, so the comparison costs
+  nothing and cannot drift.
+- Attestation separates `under-test-not-deployed` from `binary-not-deployed`, because an
+  instance that records a mod has no seeded copy either: the remedy differs and so does what a
+  reader should go looking for.
+
+## An exited process stays enumerable, and the rig believed it
+
+Windows keeps a process object enumerable after the process has exited, for as long as
+anybody still holds a handle to it, and `Process.StartTime` keeps answering for one. So
+`Process.GetProcessesByName` lists a process that has already gone, and anything that
+describes what it lists reports a live game process.
+
+That is what made the release-time state restore skip. Measured twice, both times on a clean
+teardown: the instance quit, the teardown confirmed the pid had exited and deleted its pid
+file, and the restore then refused with `untracked rig game process(es) are running:
+rocketstation pid 79888` about a process that had exited seconds earlier. A process whose pid
+file has just been deleted is by definition untracked, and an untracked game process is one of
+the three conditions the restore refuses on. Nothing was lost, because the restore also runs
+at the next acquisition, but the release half of the both-ends guarantee never fired.
+
+The fix is in the process table, not at the call sites: `Describe` reports no match for a
+process whose `HasExited` is true, so `TryGet`, `FindByImage` and the orphan scan all agree
+with each other and with the OS. Two members exist because they answer different questions:
+`TryGet` needs a start time (that is what closes pid reuse) and returns nothing for a process
+it cannot fully describe, while `IsRunning` needs only `HasExited` and therefore keeps
+answering for a process that is unwinding. A teardown polls the second, because polling the
+first would end the wait on the very answer that started the problem.

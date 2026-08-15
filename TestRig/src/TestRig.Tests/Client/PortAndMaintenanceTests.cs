@@ -215,7 +215,7 @@ public sealed class PortAndMaintenanceTests
         var fixture = new ClientFixture();
         var owner = fixture.Lease();
         fixture.AddRepositoryMod("SprayPaintPlus");
-        var entry = fixture.Create("x", owner, seedMods: true);
+        var entry = fixture.Create("x", owner, seedMods: true, underTest: ["SprayPaintPlus"]);
 
         var counts = fixture.Half.Deploy([entry], ["SprayPaintPlus"], owner);
 
@@ -230,12 +230,108 @@ public sealed class PortAndMaintenanceTests
     }
 
     [Fact]
+    public void TheSeedDoesNotProvideTheDevelopersCopyOfAModThisInstanceTests()
+    {
+        // The whole fix for the double load, and it is a fix by construction rather than a
+        // cleanup afterwards. An instance that records a mod under test never gets the
+        // developer's copy of it, so deploy's Local_<Mod> is the only copy there can be.
+        var fixture = new ClientFixture();
+        var owner = fixture.Lease();
+        fixture.AddDeveloperMod("SprayPaintPlus");
+        fixture.AddRepositoryMod("SprayPaintPlus");
+
+        var entry = fixture.Create("x", owner, seedMods: true, underTest: ["SprayPaintPlus"]);
+        var paths = fixture.Layout.PathsFor("x");
+        var seeded = Path.Combine(paths.ModsDir, "SprayPaintPlus");
+
+        Assert.False(fixture.Fs.DirectoryExists(seeded));
+        Assert.DoesNotContain(
+            ModConfig.Read(fixture.Fs, paths.ModConfig),
+            e => e.Path.Equals(seeded, StringComparison.OrdinalIgnoreCase));
+        Assert.True(fixture.Output.Said("is under test here, so the developer's copy was NOT seeded"));
+
+        // And after the deploy there is exactly one copy, at the deployed path.
+        fixture.Half.Deploy([entry], ["SprayPaintPlus"], owner);
+
+        var local = Path.Combine(paths.ModsDir, "Local_SprayPaintPlus");
+        Assert.True(fixture.Fs.FileExists(Path.Combine(local, "SprayPaintPlus.dll")));
+        Assert.False(fixture.Fs.DirectoryExists(seeded));
+        Assert.Single(
+            ModConfig.Read(fixture.Fs, paths.ModConfig),
+            e => e.Path.Contains("SprayPaintPlus", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void EveryModOUTSIDETheSetIsStillSeededAtItsPublishedState()
+    {
+        // The reason the set is explicit rather than "every mod this repository builds". A rig
+        // is normally testing ONE mod, and this repository carries work in progress for the
+        // others: seeding them from the developer's folder is what keeps an unrelated
+        // half-finished mod from changing the behaviour of the one under test.
+        var fixture = new ClientFixture();
+        var owner = fixture.Lease();
+        fixture.AddDeveloperMod("SprayPaintPlus");
+        fixture.AddDeveloperMod("EquipmentPlus");
+        fixture.AddRepositoryMod("SprayPaintPlus");
+        fixture.AddRepositoryMod("EquipmentPlus");
+
+        fixture.Create("x", owner, seedMods: true, underTest: ["SprayPaintPlus"]);
+        var paths = fixture.Layout.PathsFor("x");
+
+        var other = Path.Combine(paths.ModsDir, "EquipmentPlus");
+        Assert.True(fixture.Fs.FileExists(Path.Combine(other, "EquipmentPlus.dll")));
+        Assert.Equal("the developer's published build", fixture.Fs.ReadAllText(Path.Combine(other, "EquipmentPlus.dll")));
+        Assert.Contains(
+            ModConfig.Read(fixture.Fs, paths.ModConfig),
+            e => e.Path.Equals(other, StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void TheUnderTestSetSurvivesARebuildTheWayTheRoleAndThePortsDo()
+    {
+        // create --force is the routine way to pick up a new plugin build. Emptying the set in
+        // passing would put the developer's copy of the mod under test back beside the
+        // deployed one, which is the state this whole mechanism exists to make impossible.
+        var fixture = new ClientFixture();
+        var owner = fixture.Lease();
+        fixture.AddDeveloperMod("SprayPaintPlus");
+        fixture.AddRepositoryMod("SprayPaintPlus");
+        fixture.Create("x", owner, seedMods: true, underTest: ["SprayPaintPlus"]);
+
+        fixture.CreateWith(new CreateOptions
+        {
+            Instance = "x", CallerId = owner, Force = true, SeedMods = true,
+        });
+
+        Assert.Equal(["SprayPaintPlus"], fixture.Registry.Find("x")!.UnderTestMods);
+        Assert.False(fixture.Fs.DirectoryExists(Path.Combine(fixture.Layout.PathsFor("x").ModsDir, "SprayPaintPlus")));
+    }
+
+    [Fact]
+    public void AnEmptyUnderTestClearsTheSetBecauseItIsATypedAnswer()
+    {
+        var fixture = new ClientFixture();
+        var owner = fixture.Lease();
+        fixture.AddDeveloperMod("SprayPaintPlus");
+        fixture.AddRepositoryMod("SprayPaintPlus");
+        fixture.Create("x", owner, seedMods: true, underTest: ["SprayPaintPlus"]);
+
+        fixture.CreateWith(new CreateOptions
+        {
+            Instance = "x", CallerId = owner, Force = true, SeedMods = true, UnderTest = [],
+        });
+
+        Assert.Empty(fixture.Registry.Find("x")!.UnderTestMods);
+        Assert.True(fixture.Fs.DirectoryExists(Path.Combine(fixture.Layout.PathsFor("x").ModsDir, "SprayPaintPlus")));
+    }
+
+    [Fact]
     public void AStaleChainloaderCopyIsRemovedWholeAndTheReasonIsNamed()
     {
         var fixture = new ClientFixture();
         var owner = fixture.Lease();
         fixture.AddRepositoryMod("SprayPaintPlus");
-        var entry = fixture.Create("x", owner, seedMods: true);
+        var entry = fixture.Create("x", owner, seedMods: true, underTest: ["SprayPaintPlus"]);
 
         var stale = Path.Combine(fixture.Layout.PathsFor("x").BepInEx, "plugins", "SprayPaintPlus");
         fixture.Fs.AddFile(Path.Combine(stale, "SprayPaintPlus.dll"), "old");
@@ -269,7 +365,7 @@ public sealed class PortAndMaintenanceTests
         var fixture = new ClientFixture();
         var owner = fixture.Lease();
         fixture.AddRepositoryMod("NoAbout", about: null);
-        var entry = fixture.Create("x", owner);
+        var entry = fixture.Create("x", owner, underTest: ["NoAbout"]);
 
         var counts = fixture.Half.Deploy([entry], ["NoAbout"], owner);
 
@@ -293,19 +389,47 @@ public sealed class PortAndMaintenanceTests
     }
 
     [Fact]
-    public void NoModsNamedMeansEveryReleasedModAndAnEmptyModsFolderRefuses()
+    public void NoModsNamedMeansTHISINSTANCESUnderTestSetAndNeverEveryReleasedMod()
     {
+        // It used to mean "every mod under Mods/", and that is the shape that produced the
+        // double load: it deployed builds beside the developer's seeded copies of mods nobody
+        // was testing, and StationeersLaunchPad loads both of every such pair.
         var fixture = new ClientFixture();
         var owner = fixture.Lease();
-        var entry = fixture.Create("x", owner);
-
-        Assert.Contains("no mod folders other than Template",
-            Assert.Throws<RigRefusalException>(() => fixture.Half.Deploy([entry], null, owner)).Message,
-            StringComparison.Ordinal);
-
         fixture.AddRepositoryMod("A");
         fixture.AddRepositoryMod("B");
-        Assert.Equal(new DeployCounts(2, 0), fixture.Half.Deploy([entry], null, owner));
+
+        var bare = fixture.Create("bare", owner);
+        Assert.Contains("records no mods under test",
+            Assert.Throws<RigRefusalException>(() => fixture.Half.Deploy([bare], null, owner)).Message,
+            StringComparison.Ordinal);
+
+        var entry = fixture.Create("x", owner, underTest: ["A"]);
+        Assert.Equal(new DeployCounts(1, 0), fixture.Half.Deploy([entry], null, owner));
+
+        // B is on this rig and is NOT deployed here, because this instance does not test it.
+        var paths = fixture.Layout.PathsFor("x");
+        Assert.True(fixture.Fs.DirectoryExists(Path.Combine(paths.ModsDir, "Local_A")));
+        Assert.False(fixture.Fs.DirectoryExists(Path.Combine(paths.ModsDir, "Local_B")));
+    }
+
+    [Fact]
+    public void DeployingAModTheInstanceDoesNotTestRefusesAndNamesHowToRecordIt()
+    {
+        // A refusal rather than a cleanup: "this instance tests SprayPaintPlus" is a decision
+        // about the whole instance and belongs at create. A deploy re-deciding it in passing
+        // would change what every other mod on that instance is, one command at a time.
+        var fixture = new ClientFixture();
+        var owner = fixture.Lease();
+        fixture.AddRepositoryMod("A");
+        var entry = fixture.Create("x", owner, underTest: ["B"]);
+
+        var ex = Assert.Throws<RigRefusalException>(() => fixture.Half.Deploy([entry], ["A"], owner));
+
+        Assert.Contains("is not provisioned to test 'A'", ex.Message, StringComparison.Ordinal);
+        Assert.Contains("it records B", ex.Message, StringComparison.Ordinal);
+        Assert.Contains("--under-test A", ex.Message, StringComparison.Ordinal);
+        Assert.False(fixture.Fs.DirectoryExists(Path.Combine(fixture.Layout.PathsFor("x").ModsDir, "Local_A")));
     }
 
     [Fact]

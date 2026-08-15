@@ -60,6 +60,18 @@ public static class RigConstants
     /// <summary>Control-plane TCP port base. An instance gets base + its index.</summary>
     public const int ControlPortBase = 27700;
 
+    /// <summary>
+    /// The dedicated server's control-plane TCP port.
+    /// </summary>
+    /// <remarks>
+    /// The merged plugin loads into BOTH halves, so the server needed a port of its own or the
+    /// two would bind the same one from the same default. It sits above the whole client
+    /// instance band and below the game's own 28015/28016. It must equal the plugin's
+    /// <c>Plugin.ServerDefaultPort</c>; the plugin is a separate build with no compile-time
+    /// link to this file, which is why the number appears in a doc comment on both sides.
+    /// </remarks>
+    public const int ServerControlPort = 27750;
+
     /// <summary>RakNet UDP game port base. An instance gets base + its index.</summary>
     public const int GamePortBase = 27800;
 
@@ -130,6 +142,23 @@ public static class RigConstants
     /// success. A false warning is indistinguishable from a real one.
     /// </remarks>
     public const int WaitDefaultSeconds = 300;
+
+    /// <summary>
+    /// How long a FORCE-KILLED game process gets to leave the process table, both halves.
+    /// </summary>
+    /// <remarks>
+    /// Not the teardown grace and not a politeness window: by the time this applies the
+    /// process has already been terminated. A game client killed mid-frame takes seconds to
+    /// unwind, Windows is not obliged to have reaped it when the terminate call returns, and
+    /// the rig's own process table still reports it.
+    ///
+    /// It is load bearing because of what happens next. The teardown deletes the pid file, so
+    /// a process still unwinding becomes an UNTRACKED game process, and an untracked game
+    /// process is one of the three conditions the state restore refuses on. That is how a
+    /// release-time restore came to be skipped after a force-killed host: the guarantee held,
+    /// because acquisition restores too, but the release half never fired.
+    /// </remarks>
+    public static readonly TimeSpan ProcessExitGrace = TimeSpan.FromSeconds(20);
 
     /// <summary>
     /// Process-teardown grace, both halves. The ONLY thing a teardown timeout means.

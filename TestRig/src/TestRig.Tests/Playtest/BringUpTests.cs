@@ -28,6 +28,73 @@ public sealed class BringUpTests
     ]);
 
     [Fact]
+    public void AnInstanceNotProvisionedToTestThisModRefusesBeforeAnythingStarts()
+    {
+        // The check closes the loop, and it costs nothing: the mod comes from the check's own
+        // source location via [CallerFilePath] and the set comes from the instance's registry
+        // row. Both were already facts; all that was missing was comparing them. Without it a
+        // check runs to completion against the DEVELOPER'S published copy of the mod while
+        // reporting on this repository's build, or against two copies loaded at once.
+        var fixture = new PlaytestFixture();
+        fixture.WithInstance("hostie", 27701, "host", underTest: ["SomethingElse"]);
+        fixture.WithInstance("joiner", 27702);
+        var checkFile = fixture.SeedMod(
+            "SprayPaintPlus", "net.spraypaintplus", "the build"u8.ToArray(), ["hostie", "joiner"]);
+
+        var spec = new CheckSpec("a check", "s",
+        [
+            new InstanceSpec("hostie", InstanceRole.Host, World: "Lunar"),
+            new InstanceSpec("joiner", InstanceRole.Client, ConnectTo: "hostie"),
+        ], sourceFile: checkFile);
+
+        var runner = new CheckRunner(fixture.Dependencies);
+        var thrown = Assert.Throws<PlaytestSignal>(() =>
+            runner.AssertInstancesAreProvisionedForThisMod(fixture.Context(spec)));
+
+        Assert.Equal(Detectors.ModNotUnderTestHere, thrown.Detector);
+        Assert.Contains("'hostie' is not provisioned to test 'SprayPaintPlus'", thrown.Message, StringComparison.Ordinal);
+        Assert.Contains("it records SomethingElse", thrown.Message, StringComparison.Ordinal);
+        Assert.Contains("--under-test SprayPaintPlus", thrown.Message, StringComparison.Ordinal);
+
+        // Nothing was started: the whole cost of a check is game processes, and this answer
+        // needs none of them.
+        Assert.Empty(fixture.Launcher.Calls);
+    }
+
+    [Fact]
+    public void AnInstanceTheRegistryDoesNotHaveIsRefusedTheSameWay()
+    {
+        var fixture = new PlaytestFixture();
+        var checkFile = fixture.SeedMod(
+            "SprayPaintPlus", "net.spraypaintplus", "the build"u8.ToArray(), []);
+
+        var spec = new CheckSpec("a check", "s", [new InstanceSpec("ghost")], sourceFile: checkFile);
+        var runner = new CheckRunner(fixture.Dependencies);
+
+        var thrown = Assert.Throws<PlaytestSignal>(() =>
+            runner.AssertInstancesAreProvisionedForThisMod(fixture.Context(spec)));
+
+        Assert.Equal(Detectors.ModNotUnderTestHere, thrown.Detector);
+        Assert.Contains("not a provisioned instance", thrown.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AnInstanceThatDOESRecordTheModPassesTheGate()
+    {
+        var fixture = Rig();
+        var checkFile = fixture.SeedMod(
+            "SprayPaintPlus", "net.spraypaintplus", "the build"u8.ToArray(), ["hostie", "joiner"]);
+
+        var spec = new CheckSpec("a check", "s",
+        [
+            new InstanceSpec("hostie", InstanceRole.Host, World: "Lunar"),
+            new InstanceSpec("joiner", InstanceRole.Client, ConnectTo: "hostie"),
+        ], sourceFile: checkFile);
+
+        new CheckRunner(fixture.Dependencies).AssertInstancesAreProvisionedForThisMod(fixture.Context(spec));
+    }
+
+    [Fact]
     public void HostsAreStartedBeforeAnyClient()
     {
         var fixture = Rig();

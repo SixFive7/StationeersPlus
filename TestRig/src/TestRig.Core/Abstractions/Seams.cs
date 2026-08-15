@@ -54,6 +54,27 @@ public interface IProcessTable
     /// <summary>All live processes with the given image name.</summary>
     IReadOnlyList<ProcessInfo> FindByImage(string imageName);
 
+    /// <summary>
+    /// Whether the operating system still has this pid at all.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Deliberately NOT <see cref="TryGet"/> returning non-null, and the difference is a
+    /// measured defect rather than a refinement. <see cref="TryGet"/> reports no match when a
+    /// process's start time cannot be READ, which is exactly the state a process is in while
+    /// it is unwinding: the teardown asked "is it gone", got null from a process that was
+    /// still very much there, deleted the pid file, and returned. The pid was then untracked,
+    /// an untracked game process blocks the state restore, and the release-time reset was
+    /// skipped on a run that had torn down cleanly.
+    /// </para>
+    /// <para>
+    /// So this answers the narrower question, and it must not depend on any field that a
+    /// terminating process can refuse to hand over. "Is this pid still listed" is all a
+    /// teardown needs before it stops waiting.
+    /// </para>
+    /// </remarks>
+    bool IsRunning(int pid);
+
     /// <summary>Requests termination and waits up to <paramref name="grace"/>.</summary>
     Task<bool> StopAsync(int pid, TimeSpan grace, CancellationToken ct = default);
 }

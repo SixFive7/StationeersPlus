@@ -40,6 +40,7 @@ public sealed record InstanceShape(
     int? Height,
     bool? ForceGameplayInput,
     bool SeedMods,
+    IReadOnlyList<string>? UnderTest,
     string Desktop);
 
 /// <summary>
@@ -84,6 +85,17 @@ public interface IServerHalf
 
     /// <summary>Was <c>Invoke-RigServerSend</c>. One line onto stdin through the host wrapper.</summary>
     void Send(string callerId, string command);
+
+    /// <summary>
+    /// One HTTP request to the server's own control plane, answer parsed.
+    /// </summary>
+    /// <remarks>
+    /// New with the merged plugin, and the reason two refusal rows are gone: this half has an
+    /// HTTP control plane now, on its own port, answering the same routes as a client
+    /// instance. <c>call</c> and <c>send</c> stay separate verbs because they are two real
+    /// channels, one answering and one fire and forget.
+    /// </remarks>
+    void Call(string callerId, string path, string body, int callTimeoutSeconds);
 
     /// <summary>Was <c>Invoke-RigServerHostMode</c>. The detached wrapper <c>start</c> spawns.</summary>
     void HostMode(string load, string map, string newMap, int gamePort, int updatePort);
@@ -216,6 +228,10 @@ public sealed class ServerHalfAdapter(ServerHalf half, IOutput output) : IServer
     public void Send(string callerId, string command) =>
         half.SendAsync(command, NullIfEmpty(callerId)).GetAwaiter().GetResult();
 
+    public void Call(string callerId, string path, string body, int callTimeoutSeconds) =>
+        half.CallAsync(path, NullIfEmpty(body), NullIfEmpty(callerId), callTimeoutSeconds)
+            .GetAwaiter().GetResult();
+
     public void HostMode(string load, string map, string newMap, int gamePort, int updatePort) =>
         half.HostModeAsync(World(load, map, newMap), gamePort, updatePort).GetAwaiter().GetResult();
 
@@ -325,6 +341,7 @@ public sealed class ClientHalfAdapter(ClientHalf half, IOutput output) : IClient
             Height = shape.Height,
             ForceGameplayInput = shape.ForceGameplayInput,
             SeedMods = shape.SeedMods,
+            UnderTest = shape.UnderTest,
             Desktop = shape.Desktop,
         }).GetAwaiter().GetResult();
 

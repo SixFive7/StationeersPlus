@@ -272,11 +272,15 @@ public sealed class SharedLibraryTests
     }
 
     [Fact]
-    public void TheThreeClientOnlyStagesAreTheOnesTheServerRefuses()
+    public void OnlyTheMenuStageIsClientOnly()
     {
-        Assert.True(ReadinessStages.IsClientOnly(ReadinessStage.Ping));
-        Assert.True(ReadinessStages.IsClientOnly(ReadinessStage.ModsLoaded));
+        // It was three (COMMON-123) and two stopped being true when the plugins merged: the
+        // dedicated server has a control plane to ping and a loaded-plugin count to reach
+        // modsLoaded with, on its own port. A menu is the one thing it genuinely never has,
+        // because it takes -load or -new on its command line and enters that world directly.
         Assert.True(ReadinessStages.IsClientOnly(ReadinessStage.Menu));
+        Assert.False(ReadinessStages.IsClientOnly(ReadinessStage.Ping));
+        Assert.False(ReadinessStages.IsClientOnly(ReadinessStage.ModsLoaded));
         Assert.False(ReadinessStages.IsClientOnly(ReadinessStage.InWorld));
         Assert.False(ReadinessStages.IsClientOnly(ReadinessStage.Process));
     }

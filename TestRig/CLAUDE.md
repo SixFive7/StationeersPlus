@@ -21,7 +21,7 @@ This file auto-loads for any path under `TestRig/`. It carries what prevents dam
 
 ## The binary is committed, and it refuses to run when stale
 
-`testrig.exe` is build output and it IS in git, so driving the rig never needs a build step. It embeds a SHA-256 digest of every source file under `TestRig/src/`, recomputes that digest at startup, and on a mismatch prints both and **exits 7 having done nothing**. A refusal rather than a warning, because a stale on-disk artifact has already cost this project two whole sessions and both times the evidence scrolled past.
+`testrig.exe` is build output and it IS in git, so driving the rig never needs a build step. It embeds a SHA-256 digest of every source file under `TestRig/src/` and under every `Mods/<Mod>/playtests/` (the checks are compiled in too), recomputes that digest at startup, and on a mismatch prints both and **exits 7 having done nothing**. A refusal rather than a warning, because a stale on-disk artifact has already cost this project two whole sessions and both times the evidence scrolled past.
 
 ```
 dotnet publish TestRig/src/TestRig.Cli/TestRig.Cli.csproj -c Release -r win-x64
@@ -72,6 +72,16 @@ Consequences an agent gets wrong:
 "Host a world" does not mean the dedicated server any more. A client instance created with `--role host` and driven with `POST /host` is a **listen host**: one process that runs the simulation, accepts joiners over loopback RakNet, and plays a character.
 
 Use the **dedicated server** when the test wants a server that is not a player (soak runs, in-process scenario probes, save-edit round trips); it has no player character at all. Use a **listen host** when the test needs a host who plays: a host holding an item, a host's own client-half setting, anything shaped "the host does X and the joiner sees Y".
+
+**Both halves have an HTTP control plane**, because one plugin loads into both: instances on `127.0.0.1:27700 + index`, the dedicated server on `127.0.0.1:27750`. So `call --target server` works, and `wait --target server --stage inWorld` gets its answer from `/status.phase` rather than inferring one from an InspectorPlus request file being consumed, which was measured happening with no world loaded at all. `--new <Map>` is validated against the install's own world catalogue before anything launches, and a world name the game rejected ends a wait at once carrying the game's list of what it would have accepted; the server prints that once and then runs forever with no world.
+
+**An instance records the mods it exists to TEST**, and that set is what keeps a mod from
+being loaded twice. `create --target hostie --under-test SprayPaintPlus` means the seed does
+not copy the developer's SprayPaintPlus and `deploy` provides the only copy; every OTHER mod
+is still seeded at its published state, on purpose, because this repository carries work in
+progress for those too. `deploy` refuses a mod the instance does not record, `create --force`
+keeps the set, and the playtest harness refuses before bring-up when a check's mod is not in
+it. Detail: `MANUAL.md`, "Mods under test, and every other mod".
 
 Either way it is one rig and one lock. Ordering runs opposite at each end: the host must be IN ITS WORLD before any joiner connects, and at teardown joiners go first, the world holder saves, the host quits last. `stop` performs that ordering itself and refuses to end a host under an attached joiner. Assert on `/status.role` (`menu|singlePlayer|joinedClient|listenHost|dedicated`) and `/status.hosting`, never on `isClient`/`isServer`: a listen host is `NetworkRole.Server` and reports `isClient=false`.
 

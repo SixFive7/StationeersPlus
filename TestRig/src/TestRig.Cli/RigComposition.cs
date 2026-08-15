@@ -93,6 +93,9 @@ public sealed class RigComposition : IDisposable
         ServerHalf = new ServerHalf(
             fs, SystemProcessTable.Instance, clock, SystemSleeper.Instance, output,
             paths, env, mods, Lock,
+            // The same control plane object as the client half's: one plugin, one transport,
+            // one set of timeout rules. Only the port differs, and the half owns that.
+            control,
             new SystemServerProcessLauncher(), new SystemSteamCmdRunner(), _downloader, new SystemArchiveExtractor(),
             // The host wrapper re-invokes THIS executable in host mode. Passing a path that
             // is not a real entry point is SERVER-056: the wrapper starts, runs nothing, and

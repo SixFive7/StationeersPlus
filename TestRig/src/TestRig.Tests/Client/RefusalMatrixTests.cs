@@ -114,10 +114,16 @@ public sealed class RefusalMatrixTests
     [Fact]
     public void TheConditionMustMatchExactlyIncludingTheEmptyCase()
     {
-        Assert.NotNull(RefusalMatrix.Find("call", TargetKind.Server));
-        Assert.Null(RefusalMatrix.Find("call", TargetKind.Server, "some-condition"));
+        Assert.NotNull(RefusalMatrix.Find("snapshot", TargetKind.Server));
+        Assert.Null(RefusalMatrix.Find("snapshot", TargetKind.Server, "some-condition"));
         Assert.NotNull(RefusalMatrix.Find("wait", TargetKind.Server, "client-stage"));
         Assert.Null(RefusalMatrix.Find("wait", TargetKind.Server));
+
+        // 'call' has NO rows at all now: the merged plugin gives the dedicated server a
+        // control plane, so the verb works on both halves and a refusal would teach a rig that
+        // no longer exists.
+        Assert.Null(RefusalMatrix.Find("call", TargetKind.Server));
+        Assert.Null(RefusalMatrix.Find("call", TargetKind.All));
     }
 
     [Fact]
@@ -139,13 +145,13 @@ public sealed class RefusalMatrixTests
     [Fact]
     public void TheRenderedShapeIsCommandExplanationAlternativeReference()
     {
-        var entry = RefusalMatrix.Find("call", TargetKind.Server)!;
-        var lines = RefusalMatrix.Format(entry, "call", "server").Split('\n');
+        var entry = RefusalMatrix.Find("send", TargetKind.Clients)!;
+        var lines = RefusalMatrix.Format(entry, "send", "clients").Split('\n');
 
-        Assert.Equal("testrig call --target server", lines[0]);
+        Assert.Equal("testrig send --target clients", lines[0]);
         Assert.StartsWith("  x ", lines[1], StringComparison.Ordinal);
-        Assert.Contains(lines, l => l.Contains("Use the stdin channel:", StringComparison.Ordinal));
-        Assert.EndsWith("Why: Research/GameSystems/ListenHost.md", lines[^1], StringComparison.Ordinal);
+        Assert.Contains(lines, l => l.Contains("Use the control plane:", StringComparison.Ordinal));
+        Assert.EndsWith("Why: TestRig/MANUAL.md (the endpoint catalogue)", lines[^1], StringComparison.Ordinal);
     }
 
     [Fact]
@@ -207,7 +213,7 @@ public sealed class RefusalMatrixTests
 
         Assert.NotNull(ex.Refusal);
         Assert.Equal("testrig snapshot --target all", ex.Refusal!.What);
-        Assert.Contains("control-plane fan-out", ex.Refusal.Why, StringComparison.Ordinal);
+        Assert.Contains("one row per client instance", ex.Refusal.Why, StringComparison.Ordinal);
         Assert.Contains("--target clients", ex.Refusal.Instead, StringComparison.Ordinal);
         Assert.False(string.IsNullOrWhiteSpace(ex.Refusal.Reference));
         Assert.StartsWith(RefusalMatrix.Sentinel, ex.Message, StringComparison.Ordinal);

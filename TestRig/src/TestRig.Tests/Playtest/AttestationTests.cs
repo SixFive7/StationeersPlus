@@ -1,4 +1,5 @@
 using System.Text;
+using TestRig.Core.Rig;
 using TestRig.Playtest.Attestation;
 using TestRig.Playtest.Model;
 using TestRig.Tests.Playtest.Fakes;
@@ -39,7 +40,12 @@ public sealed class AttestationTests
         Assert.Equal("net.spraypaintplus", identity.Guid);
         Assert.Equal(PlaytestFixture.RepoRoot, identity.RepoRoot);
         Assert.EndsWith(@"SprayPaintPlus\SprayPaintPlus\bin\Release\SprayPaintPlus.dll", identity.BuildDllPath, StringComparison.Ordinal);
-        Assert.Equal(@"userdata\mods\SprayPaintPlus\SprayPaintPlus.dll", identity.DeployedRelativePath);
+        // The deploy writes Local_<Mod>, so this is where attestation has to look. It named
+        // the unprefixed path, which made 'binary-not-deployed' the only possible answer on a
+        // correctly deployed instance; it passed because the fixture seeded the same wrong
+        // path, which is the assertion-written-from-the-code shape this port keeps finding.
+        Assert.Equal(@"userdata\mods\Local_SprayPaintPlus\SprayPaintPlus.dll", identity.DeployedRelativePath);
+        Assert.Equal(LaunchPadMods.DeployedRelativeDll("SprayPaintPlus"), identity.DeployedRelativePath);
     }
 
     [Fact]
@@ -138,11 +144,57 @@ public sealed class AttestationTests
     {
         var (fixture, checkFile) = Seeded();
         var data = BinaryAttestation.InstanceDataFolder(PlaytestFixture.RigHomePath, "hostie");
-        fixture.Files.DeleteFile(Path.Combine(data, "userdata", "mods", "SprayPaintPlus", "SprayPaintPlus.dll"));
+        fixture.Files.DeleteFile(Path.Combine(data, LaunchPadMods.DeployedRelativeDll("SprayPaintPlus")));
 
         var thrown = Assert.Throws<PlaytestSignal>(() => fixture.Context(Spec(checkFile)).AssertBinaryUnderTest());
-        Assert.Equal(Detectors.BinaryNotDeployed, thrown.Detector);
+
+        // Its own reason, because the instance RECORDS this mod under test: it deliberately
+        // carries no seeded copy either, so there is nothing at all rather than the wrong
+        // thing, and a reader sent hunting a stale file would find none.
+        Assert.Equal(Detectors.UnderTestNotDeployed, thrown.Detector);
+        Assert.Contains("has no 'SprayPaintPlus' at all", thrown.Message, StringComparison.Ordinal);
         Assert.Contains("testrig deploy SprayPaintPlus", thrown.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AModTheInstanceIsNotTestingReportsThePlainNotDeployedReason()
+    {
+        // The other half of the same distinction. Here the instance carries the DEVELOPER'S
+        // published copy of the mod, seeded from their folder, so "not deployed" means the
+        // ordinary thing and the remedy is the ordinary one.
+        var fixture = new PlaytestFixture().WithInstance("hostie", 27701, underTest: ["SomethingElse"]);
+        var checkFile = fixture.SeedMod("SprayPaintPlus", "net.spraypaintplus", Build("the build"), ["hostie"]);
+        var identity = ModIdentityResolver.Resolve(checkFile, fixture.Files);
+        fixture.Files.DeleteFile(Path.Combine(
+            BinaryAttestation.InstanceDataFolder(PlaytestFixture.RigHomePath, "hostie"),
+            identity.DeployedRelativePath));
+
+        var thrown = Assert.Throws<PlaytestSignal>(() => fixture.Context(Spec(checkFile)).AssertBinaryUnderTest());
+
+        Assert.Equal(Detectors.BinaryNotDeployed, thrown.Detector);
+    }
+
+    [Fact]
+    public void TheUnprefixedSeededCopyIsNotWhatAttestationLooksAt()
+    {
+        // The exact shape of the defect: the developer's mod seed leaves an unprefixed
+        // <Mod>/ folder in the instance, and attestation used to resolve to that path. A rig
+        // with the seeded copy and NO deployed build therefore attested cleanly against a
+        // build nobody deployed, which is the one thing attestation exists to rule out.
+        var (fixture, checkFile) = Seeded();
+        var data = BinaryAttestation.InstanceDataFolder(PlaytestFixture.RigHomePath, "hostie");
+
+        // Move the deployed file to where the seed would put it, leaving nothing at the real
+        // deployed path. This must now be inconclusive; it used to be a clean pass.
+        fixture.Files.DeleteFile(Path.Combine(data, LaunchPadMods.DeployedRelativeDll("SprayPaintPlus")));
+        fixture.Files.AddDirectory(Path.Combine(data, "userdata", "mods", "SprayPaintPlus"));
+        fixture.Files.AddFile(
+            Path.Combine(data, "userdata", "mods", "SprayPaintPlus", "SprayPaintPlus.dll"),
+            Build("the build under test"));
+
+        var thrown = Assert.Throws<PlaytestSignal>(() => fixture.Context(Spec(checkFile)).AssertBinaryUnderTest());
+        Assert.Equal(Detectors.UnderTestNotDeployed, thrown.Detector);
+        Assert.Contains("Local_SprayPaintPlus", thrown.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -224,8 +276,9 @@ public sealed class AttestationTests
         var fixture = new PlaytestFixture().WithInstance("hostie", 27701).WithInstance("joiner", 27702);
         var checkFile = fixture.SeedMod("SprayPaintPlus", "net.spraypaintplus", Build("the build"), ["hostie", "joiner"]);
 
-        var joinerDll = Path.Combine(BinaryAttestation.InstanceDataFolder(PlaytestFixture.RigHomePath, "joiner"),
-            "userdata", "mods", "SprayPaintPlus", "SprayPaintPlus.dll");
+        var joinerDll = Path.Combine(
+            BinaryAttestation.InstanceDataFolder(PlaytestFixture.RigHomePath, "joiner"),
+            LaunchPadMods.DeployedRelativeDll("SprayPaintPlus"));
         fixture.Files.WriteAllText(joinerDll, "an older build");
 
         var spec = new CheckSpec("a check", "s", [new InstanceSpec("hostie"), new InstanceSpec("joiner")], sourceFile: checkFile);

@@ -604,7 +604,17 @@ public sealed class PlaytestContext : IPlaytestContext
     public void AssertBinaryUnderTest()
     {
         var mod = ModIdentityResolver.Resolve(Check.SourceFile, _deps.Files);
-        var report = BinaryAttestation.Attest(_deps.Files, _deps.RigHome, mod, Check.InstanceNames, ReadConfigEntryCount);
+        // The union across the instances this check names. An instance that records the mod
+        // under test has no seeded copy of it at all, which changes what a missing deploy
+        // means and therefore what the refusal should send a reader to look for.
+        var underTest = _deps.Registry.Rows()
+            .Where(r => Check.InstanceNames.Contains(r.InstanceName, StringComparer.OrdinalIgnoreCase))
+            .SelectMany(r => r.UnderTest)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var report = BinaryAttestation.Attest(
+            _deps.Files, _deps.RigHome, mod, Check.InstanceNames, ReadConfigEntryCount, underTest);
 
         Attestation = report;
         BinaryAttested = true;

@@ -10,10 +10,14 @@
     harness trusted five declared hashtable keys and validated none of them.
 
     An AOT binary cannot load managed assemblies at run time, so checks are compiled in
-    rather than discovered on disk. Each check file registers itself from a
-    [ModuleInitializer], so adding a check is adding a file: there is no central list
-    to forget to update. Adding one needs a rebuild, which is already true of every
-    other change because of the source-hash rule, and it is one command.
+    rather than discovered on disk. Playtests.cs names every check type directly, and that
+    is deliberate: self-registration from a [ModuleInitializer] left nothing statically
+    referencing a check class, so under PublishAot with TrimMode=full ILC removed all eight
+    from the shipped binary while dotnet test stayed green on CoreCLR. Adding a check means
+    adding a file AND a line in Playtests.cs; two tests fail if the line is missing.
+
+    Adding one needs a rebuild, which is already true of every other change because the
+    source-hash digest now covers these trees too, and it is one command.
 
     A mod with no playtests folder contributes nothing.
   -->
@@ -25,14 +29,6 @@
     <IsAotCompatible>true</IsAotCompatible>
     <ModsRoot>$(MSBuildThisFileDirectory)..\..\..\Mods\</ModsRoot>
 
-    <!--
-      CA2255 warns that [ModuleInitializer] belongs in application code or an advanced
-      source-generator scenario. Self-registration IS that scenario, and it is the whole
-      reason this assembly exists: the alternative is a hand-maintained central list, which
-      is a list someone forgets to update, and a check that silently never runs is worse
-      than any of the failures this harness is built to catch.
-    -->
-    <NoWarn>$(NoWarn);CA2255</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

@@ -20,7 +20,6 @@ namespace TestRig.Tests.Playtest;
 ///     Here the reader is an enum, so that mistake is a compile error, and what is left to
 ///     guard is that every reader still has a description, an endpoint decision and a name.
 /// </remarks>
-[Collection(CheckRegistryCollection.Name)]
 public sealed class LibrarySurfaceTests
 {
     [Fact]
@@ -223,38 +222,6 @@ public sealed class LibrarySurfaceTests
         var listing = PlaytestListing.Checks(checks, "alpha*");
         Assert.Contains("  - beta check", listing, StringComparison.Ordinal);
         Assert.Contains("    alpha check", listing, StringComparison.Ordinal);
-    }
-
-    /// <summary>
-    ///     The registry ignores an exact duplicate, and this test puts back what it borrowed.
-    /// </summary>
-    /// <remarks>
-    ///     The registry is process-global by construction: each check file registers itself
-    ///     from its own module initializer, which runs once per assembly load and can never be
-    ///     run again. Clearing it and leaving it empty therefore does not reset it, it
-    ///     DESTROYS it for the rest of the run, and <c>ShippedChecksTests</c> reading the same
-    ///     registry from another class then sees nothing. The two classes share a collection
-    ///     so they cannot interleave, and everything taken out is put back here.
-    /// </remarks>
-    [Fact]
-    public void TheCheckRegistryIsIdempotentByNameAndLocation()
-    {
-        var shipped = PlaytestCheckRegistry.Registered;
-        PlaytestCheckRegistry.Clear();
-
-        try
-        {
-            var spec = new CheckSpec("a check", "s", [new InstanceSpec("hostie")]);
-            PlaytestCheckRegistry.Register(new TestCheck(spec, _ => { }));
-            PlaytestCheckRegistry.Register(new TestCheck(spec, _ => { }));
-
-            Assert.Single(PlaytestCheckRegistry.Registered);
-        }
-        finally
-        {
-            PlaytestCheckRegistry.Clear();
-            foreach (var check in shipped) PlaytestCheckRegistry.Register(check);
-        }
     }
 
     [Fact]

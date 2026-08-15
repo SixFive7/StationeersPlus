@@ -177,15 +177,16 @@ public sealed class TargetResolverTests
     }
 
     [Fact]
-    public void CallRefusesTheServerAndAllButNotClientsOrAnInstance()
+    public void CallAppliesToEveryTargetShapeBecauseBothHalvesHaveAControlPlane()
     {
-        Assert.Throws<RigRefusalException>(() =>
-            TargetResolver.AssertVerbApplies("call", TargetResolver.Resolve("server", "call", Rig)));
-        Assert.Throws<RigRefusalException>(() =>
-            TargetResolver.AssertVerbApplies("call", TargetResolver.Resolve("all", "call", Rig)));
-
-        TargetResolver.AssertVerbApplies("call", TargetResolver.Resolve("clients", "call", Rig));
-        TargetResolver.AssertVerbApplies("call", TargetResolver.Resolve("client1", "call", Rig));
+        // It used to refuse 'server' and 'all', on the grounds that the dedicated server had
+        // no HTTP control plane. One plugin loads into both halves now and the server answers
+        // on 127.0.0.1:27750, so the refusal was teaching the pre-merge world while the plane
+        // was up and replying, which is worse than no refusal at all.
+        foreach (var spec in new[] { "server", "all", "clients", "client1" })
+        {
+            TargetResolver.AssertVerbApplies("call", TargetResolver.Resolve(spec, "call", Rig));
+        }
     }
 
     [Fact]

@@ -130,7 +130,10 @@ public sealed partial class ClientHalf
         {
             var paths = _layout.PathsFor(entry.InstanceName, entry);
             Say($"[UpdateMods] --- {entry.InstanceName}");
-            SeedMods(paths);
+
+            // The instance's own recorded set, so a re-seed cannot put the developer's copy of
+            // the mod under test back beside the deployed one.
+            SeedMods(paths, entry.UnderTestMods);
         }
 
         Say($"[UpdateMods] {entries.Count} instance(s) re-seeded.");
@@ -176,13 +179,7 @@ public sealed partial class ClientHalf
             return new DeployCounts(0, 0);
         }
 
-        var names = mods is { Count: > 0 } ? mods : _mods.DeployableMods();
-        if (names.Count == 0)
-        {
-            throw new RigRefusalException(
-                RigRefusalKind.Refused,
-                "No mods to deploy: Mods/ has no mod folders other than Template.");
-        }
+        var named = mods is { Count: > 0 };
 
         foreach (var entry in entries)
         {
@@ -203,6 +200,21 @@ public sealed partial class ClientHalf
         foreach (var entry in entries)
         {
             var paths = _layout.PathsFor(entry.InstanceName, entry);
+
+            // With no --mod, the default is THIS INSTANCE'S recorded under-test set and not
+            // every released mod. Fanning out over Mods/ was the shape that produced the
+            // double load: it deployed builds beside the developer's seeded copies of mods
+            // nobody was testing, and every one of those pairs loads twice.
+            var names = named ? mods! : entry.UnderTestMods;
+            if (names.Count == 0)
+            {
+                throw new RigRefusalException(
+                    RigRefusalKind.Refused,
+                    $"'{entry.InstanceName}' records no mods under test, so a deploy with no --mod has nothing "
+                    + "to put there. Name one, or record it on the instance so the seed stops providing the "
+                    + $"developer's copy:\n\n  testrig create --target {entry.InstanceName} --force --under-test "
+                    + "<Mod> --as <id>");
+            }
 
             foreach (var modName in names)
             {
@@ -242,7 +254,9 @@ public sealed partial class ClientHalf
                     continue;
                 }
 
-                var localModDir = Path.Combine(paths.ModsDir, "Local_" + modName);
+                AssertModIsUnderTestHere(entry, modName);
+
+                var localModDir = LaunchPadMods.DeployedDir(paths.ModsDir, modName);
                 _fs.CreateDirectory(localModDir);
 
                 if (_fs.DirectoryExists(build.About))
@@ -257,7 +271,7 @@ public sealed partial class ClientHalf
                          + "StationeersLaunchPad may not load it without About.xml.");
                 }
 
-                _fs.CopyFile(build.Dll, Path.Combine(localModDir, modName + ".dll"), overwrite: true);
+                _fs.CopyFile(build.Dll, LaunchPadMods.DeployedDll(paths.ModsDir, modName), overwrite: true);
 
                 // A tree deployed the other way by hand self-heals (CLIENT-327). The whole
                 // stale directory goes, not just the DLL: an About.xml left behind under the
@@ -284,6 +298,47 @@ public sealed partial class ClientHalf
         _output.Value("deployed", deployed);
         _output.Value("skipped", skipped);
         return new DeployCounts(deployed, skipped);
+    }
+
+    /// <summary>
+    /// Refuses to deploy a mod this instance was not provisioned to test.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The instance's own record decides, because it is the only thing that also decides what
+    /// the seed did. A mod NOT in the set was seeded from the developer's folder at its
+    /// published state, deliberately, so deploying beside it would produce two copies, and
+    /// StationeersLaunchPad loads both: Awake twice, every Harmony patch registered twice, and
+    /// output that looks entirely plausible. That is how the double load happened, and it
+    /// happened silently.
+    /// </para>
+    /// <para>
+    /// A refusal rather than a cleanup, because the two cases are not the same. "This
+    /// instance tests SprayPaintPlus" is a decision about the whole instance and belongs at
+    /// <c>create</c>; a deploy quietly re-deciding it would change what every other mod on the
+    /// instance is, one command at a time.
+    /// </para>
+    /// </remarks>
+    private static void AssertModIsUnderTestHere(InstanceEntry entry, string modName)
+    {
+        if (entry.IsUnderTest(modName)) return;
+
+        var recorded = entry.UnderTestMods.Count == 0
+            ? "nothing"
+            : string.Join(", ", entry.UnderTestMods);
+
+        throw new RigRefusalException(
+            RigRefusalKind.Refused,
+            $"'{entry.InstanceName}' is not provisioned to test '{modName}' (it records {recorded}), so it "
+            + $"carries the DEVELOPER'S published copy of '{modName}', seeded from their mods folder. Deploying "
+            + "beside that copy leaves two, StationeersLaunchPad loads both, and every Harmony patch registers "
+            + $"twice with nothing in any log to say so.\n\nRecord it, which re-seeds without '{modName}' and "
+            + $"leaves the deploy as its only copy:\n\n  testrig create --target {entry.InstanceName} --force "
+            + $"--under-test {modName} --as <id>\n  testrig deploy {modName} --target {entry.InstanceName} "
+            + "--as <id>\n\nThe set is per instance and is preserved by later rebuilds. Every mod OUTSIDE it "
+            + "stays at the published state on purpose: this repository carries work in progress for those too, "
+            + "and an unrelated half-finished mod changing the behaviour of the one under test is exactly what "
+            + "that separation prevents.");
     }
 
     // =====================================================================

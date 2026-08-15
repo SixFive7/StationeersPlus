@@ -135,7 +135,17 @@ public interface IRigLauncher
 ///     under TestRig/. Two roots, both correct: the tree is here, the instance DATA is under
 ///     the rig home.
 /// </param>
-public sealed record RigInstanceRow(string InstanceName, int Port, string Role, string? InstancesRoot);
+/// <param name="UnderTest">
+///     The mods this instance was provisioned to TEST, deployed from the repository build.
+///     A mod outside this set is the developer's published copy, seeded from their folder, and
+///     is not what a check about that mod may measure.
+/// </param>
+public sealed record RigInstanceRow(
+    string InstanceName,
+    int Port,
+    string Role,
+    string? InstancesRoot,
+    IReadOnlyList<string> UnderTest);
 
 /// <summary>The rig registry.</summary>
 public interface IRigRegistry

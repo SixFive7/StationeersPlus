@@ -12,6 +12,9 @@ namespace TestRig.Tests.Client;
 /// </summary>
 public sealed class LifecycleTests
 {
+    /// <summary>The plainest success body an endpoint can answer with.</summary>
+    private const string OkBody = "{\"ok\":true}";
+
     private static string StatusJson(
         string role = "menu",
         string phase = "menu",
@@ -401,6 +404,85 @@ public sealed class LifecycleTests
         Assert.Contains("cannot be classified", ex.Message, StringComparison.Ordinal);
         Assert.Contains("roughly 100 s", ex.Message, StringComparison.Ordinal);
         Assert.Contains("--force", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AForceKilledInstanceIsWaitedForUntilItHasActuallyLeftTheProcessTable()
+    {
+        // The defect: the kill returned as soon as the terminate request was accepted, stop
+        // deleted the pid file and returned, and the process kept exiting. A process whose pid
+        // file has just been deleted is UNTRACKED, and an untracked game process is one of the
+        // three conditions the state restore refuses on, so unlock's restore refused and fell
+        // through to the next acquisition's backstop. Nothing was lost, because the guarantee
+        // holds at both ends, but the release half never fired: the session that made the mess
+        // did not clean it up while it still owned the rig and the rig was provably idle.
+        var fixture = RigWith(("solo", "client"));
+        var owner = fixture.Lease();
+        StartLive(fixture, "solo", 6001);
+
+        // Nothing answers, so the teardown goes to a kill; the kill leaves it in the table for
+        // three further lookups, which is what a real game client unwinding looks like.
+        fixture.Processes.LingersWhenKilled(6001, lookups: 3);
+
+        fixture.Stop(fixture.Registry.Read(), owner, teardownSeconds: 1);
+
+        // The point of the whole test: by the time stop returns, the process is gone from the
+        // table. Before the fix it was still there and the restore refused.
+        Assert.Null(fixture.Processes.TryGet(6001));
+        Assert.Contains(6001, fixture.Processes.StopRequests);
+        Assert.False(fixture.Output.Warned("still in the process table"));
+    }
+
+    [Fact]
+    public void ACleanlyQuitInstanceIsWaitedForToo()
+    {
+        // The measured case, and the one the first fix missed. A clean Application.Quit leaves
+        // the process unwinding, and the teardown's own liveness check reports it gone because
+        // that check reads a START TIME, which a terminating process refuses to hand over. The
+        // reset's orphan scan does see it. On a real run this produced "[hostie] Stopped." and
+        // then, moments later, "State reset SKIPPED: untracked rig game process(es) are
+        // running: rocketstation pid 68324" on the release, so the release half of the
+        // both-ends restore never fired on a run that had torn down cleanly.
+        var fixture = RigWith(("solo", "client"));
+        var owner = fixture.Lease();
+        StartLive(fixture, "solo", 6001);
+
+        fixture.Transport.Standing(27701, Endpoints.Status, ScriptedAnswer.Ok(StatusJson("menu", "menu")));
+        fixture.Transport.Standing(27701, Endpoints.Quit, ScriptedAnswer.Ok(OkBody));
+
+        // Alive when the teardown starts, and describe-invisible from the first poll after the
+        // quit lands: the loop then exits early believing the process is gone.
+        fixture.Rig.Sleeper.OnDelay = n =>
+        {
+            if (n == 1) fixture.Processes.LingersInvisiblyAfterQuit(6001, lookups: 4);
+        };
+
+        fixture.Stop(fixture.Registry.Read(), owner);
+
+        // No kill was needed and none was issued: the quit was answered and taken. What the
+        // teardown must not do is return while the pid is still listed.
+        Assert.DoesNotContain(6001, fixture.Processes.StopRequests);
+        Assert.False(fixture.Processes.IsRunning(6001));
+        Assert.False(fixture.Output.Warned("still in the process table"));
+    }
+
+    [Fact]
+    public void AProcessThatNeverLeavesTheTableIsWarnedAboutRatherThanBlockingTheTeardown()
+    {
+        // A timeout warns and does not throw: the caller has already decided this process must
+        // go, and refusing to finish the teardown because it is slow to die would leave the rig
+        // in a worse state than saying so. The restore's own refusal is the backstop, and it
+        // names the pid too.
+        var fixture = RigWith(("solo", "client"));
+        var owner = fixture.Lease();
+        StartLive(fixture, "solo", 6001);
+
+        fixture.Processes.LingersWhenKilled(6001, lookups: 10_000);
+
+        fixture.Stop(fixture.Registry.Read(), owner, teardownSeconds: 1);
+
+        Assert.True(fixture.Output.Warned("still in the process table"));
+        Assert.True(fixture.Output.Warned("the state restore will refuse"));
     }
 
     [Fact]

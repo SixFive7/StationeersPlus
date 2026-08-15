@@ -382,6 +382,19 @@ public sealed partial class ClientHalf
         var live = PidFiles.LiveProcess(_fs, _processes, rt.Paths.PidFile, [RigConstants.ClientImageName]);
         if (live is null)
         {
+            // The claim is stale by the rig's own test, and that test needs a start time the
+            // process may refuse to hand over while it is unwinding. So before writing this
+            // instance off, ask the narrower question: is the pid it claims still LISTED? If
+            // it is, deleting the file here is what turns a process the teardown owns into an
+            // untracked one, and an untracked game process is what makes the restore refuse.
+            var claimed = PidFiles.Read(_fs, rt.Paths.PidFile);
+            if (claimed is > 0 && _processes.IsRunning(claimed.Value))
+            {
+                Say($"[{rt.Name}] PID {claimed} is still in the process table but no longer answers the "
+                    + "liveness check; waiting for it to go rather than releasing the claim on it.");
+                await AwaitProcessExitAsync(rt, claimed.Value, ct).ConfigureAwait(false);
+            }
+
             PidFiles.Delete(_fs, rt.Paths.PidFile);
             Say($"[{rt.Name}] Not running.");
             return;
@@ -408,11 +421,60 @@ public sealed partial class ClientHalf
         {
             Warn($"[{rt.Name}] Still alive after {graceSeconds}s; killing PID {pid}.");
             await ForceKill.NowAsync(_processes, pid, ct).ConfigureAwait(false);
-            await _sleeper.DelayAsync(PollInterval, ct).ConfigureAwait(false);
         }
+
+        // On BOTH paths, and that is the fix rather than an extra safeguard. A clean quit
+        // reaches here too, and the loop above exits the moment LiveProcess answers null,
+        // which it does for a process whose start time cannot be read: exactly the state a
+        // process is in while it unwinds. Measured on a real run that had torn down cleanly:
+        // "[hostie] Stopped." and then, moments later, "State reset SKIPPED: untracked rig
+        // game process(es) are running: rocketstation pid 68324".
+        await AwaitProcessExitAsync(rt, pid, ct).ConfigureAwait(false);
 
         PidFiles.Delete(_fs, rt.Paths.PidFile);
         Say($"[{rt.Name}] Stopped.");
+    }
+
+    /// <summary>
+    /// Blocks until a stopped process is really gone from the process table.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>The release-time restore depended on this and did not have it.</b> The teardown
+    /// returned as soon as its own liveness check answered "gone", deleted the pid file, and
+    /// the process kept exiting. The rig's restore refuses while an UNTRACKED game process is
+    /// alive, and a process whose pid file has just been deleted is by definition untracked,
+    /// so <c>unlock</c>'s restore refused and fell through to the next acquisition's backstop.
+    /// Nothing was lost, because the guarantee holds at both ends, but the release half never
+    /// fired: the session that made the mess did not clean it up while it still owned the rig
+    /// and the rig was provably idle.
+    /// </para>
+    /// <para>
+    /// <b>It asks <see cref="IProcessTable.IsRunning"/> and not <c>TryGet</c>.</b> That is the
+    /// whole correction. <c>TryGet</c> reports no match when a process's start time cannot be
+    /// read, which is the state a process is in while it unwinds, so polling it would end this
+    /// wait on the same wrong answer that started the problem.
+    /// </para>
+    /// <para>
+    /// A timeout is a warning and not a throw. The caller has already decided this process must
+    /// go; refusing to finish the teardown because it is slow to die would leave the rig in a
+    /// worse state than reporting it, and the restore's own refusal is the backstop that says
+    /// so again with the pid named.
+    /// </para>
+    /// </remarks>
+    private async Task AwaitProcessExitAsync(InstanceRuntime rt, int pid, CancellationToken ct)
+    {
+        var deadline = _clock.UtcNow + RigConstants.ProcessExitGrace;
+
+        while (_clock.UtcNow < deadline)
+        {
+            if (!_processes.IsRunning(pid)) return;
+            await _sleeper.DelayAsync(PollInterval, ct).ConfigureAwait(false);
+        }
+
+        Warn($"[{rt.Name}] PID {pid} was stopped but is still in the process table after "
+             + $"{RigConstants.ProcessExitGrace.TotalSeconds:0}s. It is untracked from here on, so the state restore will refuse "
+             + "until it goes. Check with: testrig status");
     }
 
     /// <summary>

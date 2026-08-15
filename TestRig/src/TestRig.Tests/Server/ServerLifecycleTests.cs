@@ -624,72 +624,96 @@ public sealed class ServerLifecycleTests
     }
 
     [Fact]
-    public void TheProbeCarriesAGuidFragmentSoTwoWaitsCannotDeleteEachOthers()
+    public void ThePhaseTheServerReportsIsTheReadinessSignal()
     {
-        var fixture = new ServerFixture().Installed().Running();
-        var seen = new List<string>();
-        fixture.Client.Rig.Sleeper.OnDelay = _ =>
-        {
-            foreach (var file in fixture.Fs.AllFiles())
-            {
-                if (file.Contains("testrig-ready-", StringComparison.Ordinal) && !seen.Contains(file)) seen.Add(file);
-            }
-            foreach (var file in seen) fixture.Fs.DeleteFile(file);
-        };
+        // The evidence is a statement by the process about its own game state, read from the
+        // merged plugin on the server's own port. It used to be an INFERENCE from an
+        // InspectorPlus request file being deleted, which is not evidence of a world at all.
+        var fixture = new ServerFixture().Installed().Running().AnsweringStatus("inWorld");
 
         Assert.True(fixture.Wait(ReadinessStage.InWorld, waitSeconds: 30));
-
-        var first = Assert.Single(seen);
-        Assert.Matches(@"testrig-ready-[0-9a-f]{8}\.json$", first);
+        Assert.True(fixture.Output.Said("'inWorld' reached"));
     }
 
     [Fact]
-    public void ConsumingTheProbeIsTheReadinessSignal()
+    public void AServerSittingAtSomeOtherPhaseIsNotReady()
     {
-        var fixture = new ServerFixture().Installed().Running();
-        fixture.Client.Rig.Sleeper.OnDelay = _ =>
-        {
-            foreach (var file in fixture.Fs.AllFiles().Where(f => f.Contains("testrig-ready-", StringComparison.Ordinal)))
-            {
-                fixture.Fs.DeleteFile(file);
-            }
-        };
-
-        Assert.True(fixture.Wait(ReadinessStage.InWorld, waitSeconds: 30));
-        Assert.True(fixture.Output.Said("the world is loaded and the simulation is ticking"));
-    }
-
-    [Fact]
-    public void AnUnconsumedProbeNamesAllThreeCausesRatherThanAssumingOne()
-    {
-        // An unconsumed probe and a slow world look identical from out here.
-        var fixture = new ServerFixture().Installed().Running();
+        // The measured defect, in one test: --new Moon was rejected, the server ran on with no
+        // world, and the old barrier returned "the world is loaded and the simulation is
+        // ticking". Here the plane answers and simply never reaches inWorld, and the wait must
+        // fail rather than report a world that does not exist.
+        var fixture = new ServerFixture().Installed().Running().AnsweringStatus("loading");
 
         var ex = Assert.Throws<RigRefusalException>(() => fixture.Wait(ReadinessStage.InWorld, waitSeconds: 6));
 
-        Assert.Contains("still loading", ex.Message, StringComparison.Ordinal);
-        Assert.Contains("InspectorPlus is not deployed", ex.Message, StringComparison.Ordinal);
-        Assert.Contains("Force Unpause Without Client", ex.Message, StringComparison.Ordinal);
-        Assert.Contains("net.inspectorplus.cfg", ex.Message, StringComparison.Ordinal);
+        Assert.Contains("did not reach 'inWorld'", ex.Message, StringComparison.Ordinal);
+        Assert.Contains("last reported phase 'loading'", ex.Message, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void TheProbeIsDeletedWhateverHappens()
+    public void AnInspectorPlusProbeIsNoLongerWrittenOrTrusted()
     {
+        // Consuming a probe is not evidence of anything: measured on 2026-08-15, InspectorPlus
+        // consumed one four seconds into a run whose world name the game had rejected, on a
+        // server that had no world and never would. Nothing writes one any more, so nothing can
+        // read one as readiness by accident.
         var fixture = new ServerFixture().Installed().Running();
+
         Assert.Throws<RigRefusalException>(() => fixture.Wait(ReadinessStage.InWorld, waitSeconds: 6));
 
         Assert.DoesNotContain(fixture.Fs.AllFiles(), f => f.Contains("testrig-ready-", StringComparison.Ordinal));
     }
 
     [Fact]
-    public void AServerThatExitsWhileTheProbeIsPendingIsReportedAsSuch()
+    public void AControlPlaneThatNeverAnswersIsNamedAsSuchAndNamesTheDeploy()
+    {
+        // The two failures are genuinely different and are reported apart: nothing answered
+        // (the plugin is missing) against answered-but-never-got-there (a slow or absent
+        // world). One sentence covering both would leave a caller guessing which they had.
+        var fixture = new ServerFixture().Installed().Running();
+
+        var ex = Assert.Throws<RigRefusalException>(() => fixture.Wait(ReadinessStage.InWorld, waitSeconds: 6));
+
+        Assert.Contains("Nothing answered on 127.0.0.1:27750", ex.Message, StringComparison.Ordinal);
+        Assert.Contains("testrig deploy TestRig --target server", ex.Message, StringComparison.Ordinal);
+        Assert.Contains("InspectorPlus probe", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ARejectedWorldNameFailsAtOnceAndCarriesTheGamesOwnList()
+    {
+        // The game prints this once and then runs forever with no world, so waiting the whole
+        // budget would report a timeout ten minutes after the real answer was already in the
+        // log. The list it prints is the most useful thing in the refusal.
+        var fixture = new ServerFixture().Installed().Running().RejectedTheWorldName("Moon")
+            .AnsweringStatus("menu");
+
+        var ex = Assert.Throws<RigRefusalException>(() => fixture.Wait(ReadinessStage.InWorld, waitSeconds: 600));
+
+        Assert.Contains("REJECTED the world name", ex.Message, StringComparison.Ordinal);
+        Assert.Contains("No such world name: Moon", ex.Message, StringComparison.Ordinal);
+        Assert.Contains("Valid worlds: Europa3, Lunar", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void PingAndModsLoadedAreReachableOnThisHalfNow()
+    {
+        // Two of the three stages that used to be refused here. The merged plugin loads into
+        // this half, so there is a plane to ping and a loaded-plugin count to count.
+        var fixture = new ServerFixture().Installed().Running().AnsweringStatus("menu", plugins: 42);
+
+        Assert.True(fixture.Wait(ReadinessStage.Ping, waitSeconds: 30));
+        Assert.True(fixture.Wait(ReadinessStage.ModsLoaded, waitSeconds: 30));
+    }
+
+    [Fact]
+    public void AServerThatExitsWhileWaitingIsReportedAsSuch()
     {
         var fixture = new ServerFixture().Installed().Running();
         fixture.Client.Rig.Sleeper.OnDelay = _ => fixture.Processes.Kill(9101);
 
         var ex = Assert.Throws<RigRefusalException>(() => fixture.Wait(ReadinessStage.InWorld, waitSeconds: 30));
-        Assert.Contains("exited while the readiness probe was pending", ex.Message, StringComparison.Ordinal);
+        Assert.Contains("exited while waiting for 'inWorld'", ex.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -698,19 +722,11 @@ public sealed class ServerLifecycleTests
         // SERVER-140, spec D-01. Both CLAUDE.md and MANUAL.md state that wait refreshes a lock
         // you hold; the client half did it and this half did NOT, so the documented ten-minute
         // wait ran against a ten-minute TTL on a rig that is by definition not busy.
-        var fixture = new ServerFixture().Installed().Running();
+        var fixture = new ServerFixture().Installed().Running().AnsweringStatus("inWorld");
         var owner = fixture.Lease();
 
         fixture.Clock.AdvanceMinutes(3);
         var before = fixture.Client.Rig.ReadLockFile()!.GetOrEmpty(LockFields.RefreshedAt);
-
-        fixture.Client.Rig.Sleeper.OnDelay = _ =>
-        {
-            foreach (var file in fixture.Fs.AllFiles().Where(f => f.Contains("testrig-ready-", StringComparison.Ordinal)))
-            {
-                fixture.Fs.DeleteFile(file);
-            }
-        };
 
         Assert.True(fixture.Wait(ReadinessStage.InWorld, owner, 30));
         Assert.NotEqual(before, fixture.Client.Rig.ReadLockFile()!.GetOrEmpty(LockFields.RefreshedAt));

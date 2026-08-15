@@ -1,5 +1,6 @@
 using System.Text.RegularExpressions;
 using TestRig.Core.Abstractions;
+using TestRig.Core.Rig;
 using TestRig.Playtest.Model;
 
 namespace TestRig.Playtest.Attestation;
@@ -80,7 +81,14 @@ public static partial class ModIdentityResolver
                 ReadModId(files, Path.Combine(modRoot, "About", "About.xml"), modName),
                 repoRoot,
                 Path.Combine(modRoot, "bin", "Release", modName + ".dll"),
-                Path.Combine("userdata", "mods", modName, modName + ".dll"));
+
+                // Core's own answer, which is the one the deploy writes. Spelled here as
+                // 'userdata\mods\<Mod>\<Mod>.dll' it was wrong in a way nothing could catch:
+                // the rig deploys to Local_<Mod>, so every check on a correctly deployed
+                // instance reported binary-not-deployed, and the only reason attestation ever
+                // found a file was the developer's stale seeded copy sitting at exactly that
+                // path. Two tests asserted the wrong spelling, which is how it survived.
+                LaunchPadMods.DeployedRelativeDll(modName));
 
             return identity;
         }

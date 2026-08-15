@@ -37,8 +37,6 @@ public sealed partial class RefusalTests(CliFixture rig)
     {
         { "start/server/no-world", ["start", "--target", "server"] },
         { "start/all/no-world", ["start", "--target", "all"] },
-        { "call/server", ["call", "--target", "server", "--path", "/status"] },
-        { "call/all", ["call", "--target", "all", "--path", "/status"] },
         { "send/instance", ["send", "--target", "hostie", "--command", "help"] },
         { "send/clients", ["send", "--target", "clients", "--command", "help"] },
         { "send/all", ["send", "--target", "all", "--command", "help"] },
@@ -50,8 +48,6 @@ public sealed partial class RefusalTests(CliFixture rig)
         { "remove/clients", ["remove", "--target", "clients"] },
         { "snapshot/server", ["snapshot", "--target", "server"] },
         { "snapshot/all", ["snapshot", "--target", "all"] },
-        { "wait/server/ping", ["wait", "--target", "server", "--stage", "ping"] },
-        { "wait/server/modsLoaded", ["wait", "--target", "server", "--stage", "modsLoaded"] },
         { "wait/server/menu", ["wait", "--target", "server", "--stage", "menu"] },
         { "wait/all/menu", ["wait", "--target", "all", "--stage", "menu"] },
         { "save/server/no-name", ["save", "--target", "server"] },
@@ -131,11 +127,22 @@ public sealed partial class RefusalTests(CliFixture rig)
     }
 
     [Fact]
-    public void TheMatrixHasExactlyTwentyTwoRows()
+    public void TheMatrixHasExactlyTwentyRows()
     {
         // Pinned exactly. The PowerShell assertion was "at least 18" against a real 21; the
-        // twenty-second is 'playtest' over half the rig, which arrived with the verb.
-        Assert.Equal(22, rig.Surface.RootElement.GetProperty("refusals").GetArrayLength());
+        // twenty-second was 'playtest' over half the rig, which arrived with the verb. Two
+        // have since gone: both 'call' rows rested on "the dedicated server has no HTTP
+        // control plane", which stopped being true when one plugin started loading into both
+        // halves. A refusal whose reason is false teaches something false at the exact moment
+        // a caller is forming a model of the rig, which is worse than no refusal.
+        Assert.Equal(20, rig.Surface.RootElement.GetProperty("refusals").GetArrayLength());
+    }
+
+    [Fact]
+    public void CallHasNoRowsAtAllBecauseItWorksOnBothHalves()
+    {
+        var verbs = Rows().Select(r => r.GetProperty("verb").GetString()).ToList();
+        Assert.DoesNotContain("call", verbs);
     }
 
     [Fact]

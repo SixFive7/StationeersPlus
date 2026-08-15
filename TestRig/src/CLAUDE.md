@@ -35,7 +35,11 @@ once on stale mods and once on a stale game version. In both cases the evidence 
 present and scrolled past. So this is a refusal, not a warning:
 
 - The binary embeds a SHA-256 digest of every `.cs`, `.csproj`, `.props`, `.sln` and
-  `.slnx` under `TestRig/src/`.
+  `.slnx` under `TestRig/src/`, **and over every `Mods|Plans/<Mod>/playtests/` tree**,
+  which are compiled into the binary as well. The scope was `src/` alone, so a check
+  change did not invalidate the artifact at all: an agent could change what a check
+  measures, forget the rebuild, and the guard whose whole job is catching that said
+  nothing.
 - At startup it recomputes that digest over the tree beside it. On a mismatch it
   prints both digests and the rebuild command, and exits 7 without doing anything.
 - If `TestRig/src/` is absent, the binary has been copied somewhere else entirely,
@@ -45,7 +49,8 @@ The digest is computed once, by one piece of code. `TestRig.BuildTool` calls
 `SourceHash.Compute` at build time; the binary calls the same method at startup. An
 earlier design had a PowerShell script compute it at build time and C# recompute it at
 run time, which meant two implementations that had to agree byte for byte forever. One
-implementation cannot disagree with itself.
+implementation cannot disagree with itself. The tree LIST is derived the same way, by
+`SourceRoots.For`, from the one path both callers have.
 
 Reproducibility rules inside `SourceHash.Compute`, all of which exist so a different
 clone produces the same digest: ordinal path sort, CRLF normalised to LF, UTF-8 BOM
@@ -109,6 +114,20 @@ Checks are C# under `Mods/<Mod>/playtests/`, compiled into `TestRig.Playtests`. 
 cannot be discovered on disk at runtime: an AOT binary cannot load managed assemblies,
 so adding a check means a rebuild.
 
+**Add the file AND a line in `TestRig.Playtests.Playtests.All`.** That list names every
+check type directly, and the direct reference is the trimmer root. Self-registration from
+a `[ModuleInitializer]` left nothing statically referencing a check class, so under
+`PublishAot` with `TrimMode=full` ILC removed all eight from the shipped binary:
+`testrig playtest --list-checks` printed an empty list and exited 0 while `dotnet run`
+over the same sources listed them all. Three guards missed it, and the pattern matters
+more than the bug: the digest covered `src/` only, `dotnet test` runs on CoreCLR where
+module initializers DO run, and an empty listing exited 0 so it read as a clean answer.
+All three are closed, and `ShippedBinaryChecksTests` runs the SHIPPED binary, because
+trimming is a property of the artifact and cannot be observed any other way.
+
 Attestation derives from a check's own location via `[CallerFilePath]`. The compiler
 supplies that value, so a check cannot lie about which mod it tests. Do not add a
-declaration field that re-states something derivable.
+declaration field that re-states something derivable. The DEPLOYED path comes from Core's
+`LaunchPadMods.DeployedRelativeDll`, the same helper `deploy` writes through; it was
+derived independently here, disagreed, and made every check on a correctly deployed
+instance answer `binary-not-deployed`.

@@ -221,6 +221,7 @@ public sealed class CheckRunner
 
         try
         {
+            AssertInstancesAreProvisionedForThisMod(context);
             BringUp(context);
             context.AssertBinaryUnderTest();
             context.SaveConsoleTail("after bring-up");
@@ -244,6 +245,65 @@ public sealed class CheckRunner
                 .Append(CultureInfo.InvariantCulture, $"released: {context.Stamp()} (exit {release.ExitCode})\n")
                 .Append(CultureInfo.InvariantCulture, $"notes   : {string.Join(" | ", context.TeardownNotes)}\n")
                 .ToString(), append: true);
+        }
+    }
+
+    /// <summary>
+    ///     Refuses before bring-up when an instance is not provisioned to test this mod.
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///     <b>This is what closes the loop, and it is cheap because nothing has to be
+    ///     declared.</b> The mod comes from the check's own source location via
+    ///     <c>[CallerFilePath]</c>, and the under-test set comes from each instance's registry
+    ///     row. Both are already facts; all that was missing was comparing them.
+    ///     </para>
+    ///     <para>
+    ///     Without it a check can run to completion against the DEVELOPER'S published copy of
+    ///     the mod, seeded from their own folder, while believing it measured this
+    ///     repository's build. Attestation catches the case where nothing is deployed, but not
+    ///     the one where a seeded copy sits at the deployed path or loads beside it: two
+    ///     copies load, every Harmony patch registers twice, and the output stays plausible.
+    ///     </para>
+    ///     <para>
+    ///     It runs BEFORE bring-up, because the whole cost of a check is starting game
+    ///     instances and this answer needs none of them.
+    ///     </para>
+    /// </remarks>
+    internal void AssertInstancesAreProvisionedForThisMod(PlaytestContext context)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+
+        var mod = Attestation.ModIdentityResolver.Resolve(context.Check.SourceFile, _deps.Files).ModName;
+        var rows = _deps.Registry.Rows();
+
+        foreach (var instance in context.Check.InstanceNames)
+        {
+            var row = rows.FirstOrDefault(r =>
+                string.Equals(r.InstanceName, instance, StringComparison.OrdinalIgnoreCase));
+
+            if (row is null)
+            {
+                throw PlaytestSignal.Inconclusive(
+                    $"'{instance}' is not a provisioned instance, so this check cannot be brought up on it. " +
+                    $"Create it: testrig create --target {instance} --under-test {mod} --as <id>",
+                    Detectors.ModNotUnderTestHere);
+            }
+
+            if (row.UnderTest.Any(m => string.Equals(m, mod, StringComparison.OrdinalIgnoreCase))) continue;
+
+            var records = row.UnderTest.Count == 0 ? "nothing" : string.Join(", ", row.UnderTest);
+            throw PlaytestSignal.Inconclusive(
+                $"'{instance}' is not provisioned to test '{mod}' (it records {records}), so it carries the " +
+                $"DEVELOPER'S published copy of '{mod}' rather than this repository's build. Running here would " +
+                "measure a mod this repository did not produce, or load two copies of it and double every " +
+                "Harmony patch, and the result would look entirely plausible either way.\n\n" +
+                $"  testrig create --target {instance} --force --under-test {mod} --as <id>\n" +
+                $"  testrig deploy {mod} --target {instance} --as <id>\n\n" +
+                "Every mod OUTSIDE that set stays at its published state on purpose: this repository carries " +
+                "work in progress for those too, and one of them changing the behaviour of the mod under test " +
+                "is exactly what the separation prevents.",
+                Detectors.ModNotUnderTestHere);
         }
     }
 

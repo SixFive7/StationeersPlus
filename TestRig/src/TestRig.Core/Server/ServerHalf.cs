@@ -1,3 +1,4 @@
+using TestRig.Contracts;
 using TestRig.Core.Abstractions;
 using TestRig.Core.Rig;
 using TestRig.Core.Session;
@@ -33,6 +34,7 @@ public sealed partial class ServerHalf
     private readonly RigEnvironment _env;
     private readonly ModBuilds _mods;
     private readonly SessionLockService _lock;
+    private readonly Client.ControlPlane _control;
     private readonly IServerProcessLauncher _launcher;
     private readonly ISteamCmdRunner _steamcmd;
     private readonly IFileDownloader _downloader;
@@ -55,6 +57,7 @@ public sealed partial class ServerHalf
         RigEnvironment env,
         ModBuilds mods,
         SessionLockService sessionLock,
+        Client.ControlPlane control,
         IServerProcessLauncher launcher,
         ISteamCmdRunner steamcmd,
         IFileDownloader downloader,
@@ -71,6 +74,7 @@ public sealed partial class ServerHalf
         _env = env;
         _mods = mods;
         _lock = sessionLock;
+        _control = control;
         _launcher = launcher;
         _steamcmd = steamcmd;
         _downloader = downloader;
@@ -80,6 +84,24 @@ public sealed partial class ServerHalf
 
     /// <summary>Every path this half owns, so a test can assert on the layout.</summary>
     public ServerPaths Paths => _paths;
+
+    /// <summary>
+    /// The port the merged plugin listens on inside the server process.
+    /// </summary>
+    /// <remarks>
+    /// This half HAS a control plane now, and that is the single fact behind three fixed
+    /// defects. One plugin loads into both halves, so <c>/status</c>, <c>/ping</c> and every
+    /// other route answer here exactly as they do on a client instance, on a port of their own.
+    /// Until the merge there were two plugins and only the client one had a listener, which is
+    /// why <c>call --target server</c> refused, why readiness had to be inferred from a file
+    /// disappearing, and why a rejected world name could not be seen from outside at all.
+    /// </remarks>
+    public static int ControlPort => RigConstants.ServerControlPort;
+
+    /// <summary>The server's own <c>/status</c>, or null with the reason it did not answer.</summary>
+    public Task<(StatusResponse? Status, string Error)> StatusAsync(
+        int timeoutSeconds = 5, CancellationToken ct = default) =>
+        _control.StatusAsync(ControlPort, timeoutSeconds, ct);
 
     private void Say(string text) => _output.Line(OutputLevel.Info, text);
 
@@ -223,18 +245,109 @@ public sealed partial class ServerHalf
     }
 
     /// <summary>
-    /// The dedicated server's control channel: one line into its stdin.
+    /// The dedicated server's OTHER control channel: one line into its stdin.
     /// </summary>
     /// <remarks>
     /// Fire and forget by necessity, because the console writes its answers to the in-game
-    /// console and not to the log, so there is nothing to read back. That is the whole reason
-    /// <c>call</c> and <c>send</c> are two verbs rather than one with two transports.
+    /// console and not to the log, so there is nothing to read back. That is why <c>call</c>
+    /// and <c>send</c> are two verbs rather than one with two transports: they are two real
+    /// channels with different properties, and this one is the only route to the game's own
+    /// console commands on a headless server.
     /// </remarks>
     public async Task SendAsync(string command, string? callerId = null, CancellationToken ct = default)
     {
         AssertGate("send", callerId);
         await SendCommandAsync(command, ct).ConfigureAwait(false);
         Say($"[Send] Queued on the server's stdin: {command}");
+    }
+
+    // ---- the HTTP control plane --------------------------------------------
+
+    /// <summary>
+    /// One HTTP request to the server's own control plane, answer parsed.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The same shape as the client half's <c>call</c>, against the same plugin, because it IS
+    /// the same plugin: the merged build loads into the dedicated server and listens on
+    /// <see cref="ControlPort"/>. The verb used to refuse here with text describing the
+    /// pre-merge world ("the dedicated server has no such plane") while the plane was up and
+    /// answering, which is worse than no refusal at all: it teaches something false at the
+    /// exact moment a caller is forming a model of the rig.
+    /// </para>
+    /// <para>
+    /// Routes the server genuinely cannot serve still refuse, and the refusal comes from the
+    /// PLUGIN, which knows which process it is in. It has no player character (batch mode, so
+    /// <c>CreateCharacterAndTakeControl</c> never runs and <c>LocalClientId</c> stays 0), so
+    /// every <c>/player</c>, <c>/inventory</c>, <c>/cursor</c> and <c>/input</c> path answers
+    /// with what it needs, why this host cannot provide it, and a command that works.
+    /// </para>
+    /// </remarks>
+    public async Task CallAsync(
+        string path,
+        string? body = null,
+        string? callerId = null,
+        int callTimeoutSeconds = 0,
+        CancellationToken ct = default)
+    {
+        AssertGate("call", callerId);
+
+        if (!ServerAlive)
+        {
+            throw new RigRefusalException(
+                RigRefusalKind.Refused,
+                "[Call] The dedicated server is not running, so its control plane is not listening. Start it "
+                + "first: testrig start --target server --as <id> --new <Map>");
+        }
+
+        var timeout = _control.TimeoutSecondsFor(path, body, callTimeoutSeconds);
+
+        if (!Endpoints.Exists(path))
+        {
+            var suggestions = Endpoints.Suggest(path);
+            var hint = suggestions.Count > 0
+                ? $" Did you mean one of: {string.Join(", ", suggestions)}?"
+                : $" GET {Endpoints.Help} on the running server lists every path.";
+            Warn($"[Call] '{path}' is not a path the plugin answers.{hint}");
+        }
+
+        Say($"[Call] server {path} on 127.0.0.1:{ControlPort} (up to {timeout}s)");
+
+        var answer = await _control.RawAsync(ControlPort, path, body, timeout, ct).ConfigureAwait(false);
+
+        if (!answer.Answered)
+        {
+            throw new RigRefusalException(
+                RigRefusalKind.Refused,
+                $"[Call] Nothing answered on 127.0.0.1:{ControlPort}: {answer.TransportError}. The server process "
+                + "is up, so the plugin is either not deployed or did not load. Deploy it and restart the server: "
+                + "testrig deploy TestRig --target server --as <id>");
+        }
+
+        var ok = Client.ClientHalf.CallSucceeded(answer);
+
+        if (!ok)
+        {
+            Warn($"[server] {Client.ControlPlane.ErrorDetail(answer)}");
+            _output.Value("error", Client.ControlPlane.ErrorDetail(answer));
+        }
+
+        if (!string.IsNullOrWhiteSpace(answer.Body))
+        {
+            Say(Client.JsonText.Pretty(answer.Body));
+            if (ok) _output.Value("response", answer.Body);
+        }
+
+        _output.Value("callFailed", ok ? 0 : 1);
+
+        if (!ok)
+        {
+            throw new RigRefusalException(
+                RigRefusalKind.Refused,
+                "[Call] The dedicated server's control plane refused or failed the request. Its answer is above; "
+                + "read it rather than the status code, because a refusal and a lookup failure both arrive as "
+                + "ok=false.");
+        }
     }
 
     private static readonly TimeSpan PollInterval = TimeSpan.FromMilliseconds(500);

@@ -96,26 +96,6 @@ public static class RefusalMatrix
             "Name the world:",
             "TestRig/MANUAL.md, \"Verbs\""),
 
-        new("call", TargetKind.Server, "",
-            "'call' sends an HTTP request to the control plane running INSIDE a game client, and reads the "
-            + "parsed answer back. The dedicated server has no such plane: it is driven through its stdin by "
-            + "a wrapper process polling a control file, which is fire and forget. It also has no player "
-            + "character at all (it runs with IsBatchMode true, so CreateCharacterAndTakeControl never runs "
-            + "and LocalClientId stays 0), so every /player, /inventory, /cursor and /input path has nothing "
-            + "to act on.",
-            "testrig send --target server --command '<console text>'",
-            "Use the stdin channel:",
-            "Research/GameSystems/ListenHost.md"),
-
-        new("call", TargetKind.All, "",
-            "'call' cannot fan out across both halves: --target all includes the dedicated server, which has "
-            + "no HTTP control plane. Fanning out over the instances alone is a different command from "
-            + "talking to the server, on purpose, because one returns a parsed answer per instance and the "
-            + "other is fire and forget.",
-            "testrig call --target clients --path <path> [--body <json>]",
-            "Fan out over the clients:",
-            "TestRig/MANUAL.md (the endpoint catalogue)"),
-
         new("send", TargetKind.Instance, "",
             "'send' writes one line to the dedicated server's stdin through its host wrapper. A client "
             + "instance has no stdin anybody can reach: it is launched with CreateProcessW on an isolated "
@@ -180,26 +160,27 @@ public static class RefusalMatrix
             "TestRig/CLAUDE.md"),
 
         new("snapshot", TargetKind.Server, "",
-            "'snapshot' fetches /status from each instance's control plane. The dedicated server has no "
-            + "control plane, so there is no equivalent blob to fetch. What it can answer about itself comes "
-            + "from its own state files and its log.",
-            "testrig status --target server   (and: testrig logs --target server --grep <pattern>)",
+            "'snapshot' writes an array of per-INSTANCE rows, each keyed by the name, port and role its "
+            + "registry entry carries. The dedicated server does answer /status now, on 127.0.0.1:27750, but "
+            + "it has no registry entry: it is one install rather than one of N, so there is no row shape to "
+            + "put it in. Asking it directly gets the same payload without pretending it is an instance.",
+            "testrig call --target server --path /status   (and: testrig status --target server)",
             "Ask the server directly:",
             "TestRig/MANUAL.md, \"Verbs\""),
 
         new("snapshot", TargetKind.All, "",
-            "'snapshot' is a control-plane fan-out and --target all includes the dedicated server, which has "
-            + "none. Mixing a half that answers with a half that cannot would produce a file whose shape "
-            + "depends on what happened to be running.",
+            "'snapshot' writes one row per client instance, keyed by the registry entry each one has. "
+            + "--target all includes the dedicated server, which answers /status but has no registry entry, "
+            + "so it has no row: a fan-out would silently cover one half and the file would not say so.",
             "testrig snapshot --target clients [--out-file before.json]",
             "Snapshot the clients:",
             "TestRig/MANUAL.md, \"The client half\""),
 
         new("wait", TargetKind.Server, "client-stage",
-            "the readiness stages 'ping', 'modsLoaded' and 'menu' are client-instance states. A dedicated "
-            + "server has no control plane to ping, and never has a menu at all: it enters its world from "
-            + "the command line, so the only readiness question about it is whether that world is loaded and "
-            + "the simulation is ticking.",
+            "a dedicated server never has a menu. It takes -load or -new on its command line and enters that "
+            + "world directly, so there is no state in which it sits waiting for somebody to choose one. "
+            + "'ping' and 'modsLoaded' DO work here now: the merged plugin loads into this half too and "
+            + "answers on 127.0.0.1:27750, which is also where 'inWorld' gets its evidence.",
             "testrig wait --target server --stage inWorld [--wait-seconds 600]",
             "Wait for the world:",
             "TestRig/MANUAL.md, \"Readiness\""),

@@ -30,9 +30,10 @@
     <ProjectReference Include="..\TestRig.Playtest\TestRig.Playtest.csproj" />
     <!--
       The checks themselves. An AOT binary cannot load managed assemblies at run time, so a
-      check is compiled in rather than discovered on disk; the 'playtest' verb touches
-      TestRig.Playtests.Playtests.All, which is what forces the module to load and runs each
-      check file's own [ModuleInitializer]. Without this reference the verb has nothing to run.
+      check is compiled in rather than discovered on disk; the 'playtest' verb reads
+      TestRig.Playtests.Playtests.All, which names every check type directly. That direct
+      reference is the trimmer root: under TrimMode=full ILC removed every check class while
+      they were reachable only from a [ModuleInitializer], and the shipped binary listed none.
     -->
     <ProjectReference Include="..\TestRig.Playtests\TestRig.Playtests.csproj" />
     <ProjectReference Include="..\TestRig.Contracts\TestRig.Contracts.csproj" />
@@ -40,9 +41,11 @@
 
   <!--
     Source-hash self-check. Bakes a digest of every source file under TestRig/src/
-    into the binary, so a committed binary that no longer matches the tree refuses
-    to run instead of behaving mysteriously. Staleness of an on-disk artifact has
-    cost this project two sessions already.
+    AND every Mods|Plans/<Mod>/playtests/ tree into the binary, so a committed binary
+    that no longer matches the tree refuses to run instead of behaving mysteriously.
+    Staleness of an on-disk artifact has cost this project two sessions already, and
+    the check trees are in scope because they are compiled in: while the digest covered
+    src/ alone, editing a check did not invalidate the artifact at all.
 
     TestRig.BuildTool computes it by calling the same TestRig.Core code the binary
     uses to recompute it at startup, so there is exactly one implementation and

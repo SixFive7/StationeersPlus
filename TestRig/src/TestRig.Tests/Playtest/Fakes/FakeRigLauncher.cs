@@ -88,9 +88,14 @@ public sealed class FakeRigRegistry : IRigRegistry
 {
     private readonly List<RigInstanceRow> _rows = [];
 
-    public FakeRigRegistry Add(string name, int port, string role = "client", string? instancesRoot = null)
+    public FakeRigRegistry Add(
+        string name,
+        int port,
+        string role = "client",
+        string? instancesRoot = null,
+        IReadOnlyList<string>? underTest = null)
     {
-        _rows.Add(new RigInstanceRow(name, port, role, instancesRoot));
+        _rows.Add(new RigInstanceRow(name, port, role, instancesRoot, underTest ?? []));
         return this;
     }
 

@@ -62,7 +62,7 @@ public sealed class DispatchTests(CliFixture rig)
     [InlineData("\"instanceName\": \"hostie\"", "snapshot", "--target", "clients")]
     [InlineData("[UpdateGame] Re-linking 2 instance(s)", "update-game", "--target", "clients")]
     [InlineData("[UpdateMods] --- hostie", "update-mods", "--target", "clients")]
-    [InlineData("No mods to deploy", "deploy", "--target", "clients")]
+    [InlineData("records no mods under test", "deploy", "--target", "clients")]
     [InlineData("[Provision] Instance 'brandnew' built.", "create", "--target", "brandnew")]
     [InlineData("[Remove] Instance 'hostie' deleted.", "remove", "--target", "hostie")]
     [InlineData("'hostie' is in the registry but has no tree at", "start", "--target", "clients")]
@@ -168,14 +168,17 @@ public sealed class DispatchTests(CliFixture rig)
     }
 
     [Fact]
-    public void DeployWithNoModsFallsBackToEveryReleasedMod()
+    public void DeployWithNoModsMeansTheInstancesOwnUnderTestSet()
     {
-        // An empty list means "everything under Mods/", and this rig has none, so the half
-        // refuses rather than silently deploying nothing.
+        // It used to mean "everything under Mods/", which is the shape that produced the
+        // double load: it deployed builds beside the developer's seeded copies of mods nobody
+        // was testing. An instance recording nothing under test refuses and names the fix
+        // rather than silently deploying nothing, or worse, everything.
         var (home, owner) = Locked("nomods");
         var result = rig.RunIn(home, "deploy", "--target", "clients", "--as", owner);
         Assert.Equal(3, result.ExitCode);
-        Assert.Contains("No mods to deploy", result.All, StringComparison.Ordinal);
+        Assert.Contains("records no mods under test", result.All, StringComparison.Ordinal);
+        Assert.Contains("--under-test", result.All, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -302,7 +305,7 @@ public sealed class DispatchTests(CliFixture rig)
 
         var result = rig.RunIn(home, "call", "--target", "clients", "--path", "/status", "--as", owner);
         Assert.Equal(2, result.ExitCode);
-        Assert.Contains("needs at least one instance", result.StdErr, StringComparison.Ordinal);
+        Assert.Contains("needs at least one target", result.StdErr, StringComparison.Ordinal);
     }
 
     /// <summary>

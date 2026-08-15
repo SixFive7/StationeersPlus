@@ -1,3 +1,4 @@
+using TestRig.Core.Rig;
 using TestRig.Playtest.Attestation;
 using TestRig.Playtest.Evidence;
 using TestRig.Playtest.Flakes;
@@ -68,10 +69,25 @@ public sealed class PlaytestFixture
         Log = Log.Add,
     };
 
+    /// <summary>
+    ///     The mod the fixture's instances are provisioned to test unless a test says otherwise.
+    /// </summary>
+    /// <remarks>
+    ///     Every check in this suite is about SprayPaintPlus, because attestation derives the
+    ///     mod from the check's own file path and <see cref="SeedMod"/> writes that path.
+    /// </remarks>
+    public const string DefaultModUnderTest = "SprayPaintPlus";
+
     /// <summary>Registers an instance in the registry and in the fake control plane.</summary>
-    public PlaytestFixture WithInstance(string name, int port, string role = "client")
+    /// <param name="underTest">
+    ///     The mods this instance is provisioned to test. The harness refuses before bring-up
+    ///     when a check's mod is not in this set, so a fixture leaving it empty would make
+    ///     every check inconclusive for a reason that has nothing to do with what it asserts.
+    /// </param>
+    public PlaytestFixture WithInstance(
+        string name, int port, string role = "client", IReadOnlyList<string>? underTest = null)
     {
-        Registry.Add(name, port, role, @"E:\rig\instances");
+        Registry.Add(name, port, role, @"E:\rig\instances", underTest ?? [DefaultModUnderTest]);
         Transport.Add(name, port);
         return this;
     }
@@ -116,8 +132,12 @@ public sealed class PlaytestFixture
             Files.AddFile(Path.Combine(data, BinaryAttestation.ProvisionStampName),
                 $"{{\"instanceName\":\"{instance}\",\"role\":\"client\"}}");
 
-            Files.AddDirectory(Path.Combine(data, "userdata", "mods", modName));
-            Files.AddFile(Path.Combine(data, "userdata", "mods", modName, modName + ".dll"), deployed ?? build);
+            // Local_<Mod>, through Core's own helper: the rig deploys there, so a fixture
+            // seeding the unprefixed path would make attestation pass against a layout no real
+            // instance has. That is exactly how the wrong deployed path stayed green.
+            var deployedPath = Path.Combine(data, LaunchPadMods.DeployedRelativeDll(modName));
+            Files.AddDirectory(Path.GetDirectoryName(deployedPath)!);
+            Files.AddFile(deployedPath, deployed ?? build);
 
             // The live half: the running process must report configuration for the guid.
             if (liveConfig) Transport.State(instance).SetConfig(guid, "Client - Group", "Key", "true");

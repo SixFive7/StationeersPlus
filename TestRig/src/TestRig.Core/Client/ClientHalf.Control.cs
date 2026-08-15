@@ -127,6 +127,15 @@ public sealed partial class ClientHalf
     }
 
     /// <summary>
+    /// Whether one raw answer counts as success. Both halves ask the same question.
+    /// </summary>
+    /// <remarks>
+    /// Public because the dedicated server half calls the same plugin over the same transport
+    /// now, and a second copy of this rule is a second place for it to drift.
+    /// </remarks>
+    public static bool CallSucceeded(ControlAnswer answer) => OutcomeOf(answer);
+
+    /// <summary>
     /// Whether one raw answer counts as success.
     /// </summary>
     /// <remarks>

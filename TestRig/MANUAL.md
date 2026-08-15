@@ -44,7 +44,7 @@ testrig <verb> [--target all|server|clients|<instance>[,<instance>]] [options]
 
 **Nine act on a specific running thing and will not guess**, so they require an explicit target: `snapshot`, `create`, `remove`, `start`, `stop`, `save`, `wait`, `call`, `send`.
 
-Six of the twelve are rig-wide by construction and **refuse a narrowing target while accepting `--target all`**: the five lock-family verbs (`lock`, `unlock`, `refresh-lock`, `capture-baseline`, `reset`) and `playtest`. `--target all` on any of them is fine and is what you get by typing nothing; `--target server` or an instance name is refusal 16 through 21. The other six (`status`, `list`, `logs`, `update-game`, `update-mods`, `deploy`) genuinely narrow.
+Six of the twelve are rig-wide by construction and **refuse a narrowing target while accepting `--target all`**: the five lock-family verbs (`lock`, `unlock`, `refresh-lock`, `capture-baseline`, `reset`) and `playtest`. `--target all` on any of them is fine and is what you get by typing nothing; `--target server` or an instance name is refusal 14 through 19. The other six (`status`, `list`, `logs`, `update-game`, `update-mods`, `deploy`) genuinely narrow.
 
 ## Verbs
 
@@ -61,17 +61,17 @@ Twenty-two verbs you can type, plus `host-mode`, which is internal: the detached
 | `status [--as <id>]` | free | wrapper and process pids, uptime, last log line, pending command, connected players, world count | per instance: process, classified role, ports, identity, tree and where its path came from, phase, live role, hosting, host port, connected clients, foreground verdict, input gate, identity conflicts |
 | `list` | free | installed or not, install dir | the registry as a table, plus live role, hosting and client count |
 | `logs [--tail N] [--grep <re>] [--unity]` | free | `data/server.log` | each instance's `BepInEx/LogOutput.log`, or with `--unity` the newest `data/<n>/logs/unity-<stamp>.log` |
-| `snapshot [--out-file <f>]` | free | refused | `/status` from every named instance in one document |
+| `snapshot [--out-file <f>]` | free | refused (it has no registry row to key one on; use `call --path /status`) | `/status` from every named instance in one document |
 | `update-game` | needs | SteamCMD app 600760, then mirror the client's `BepInEx/` tree and overlay the StationeersLaunchPad server zip | re-link each instance tree from the developer's install (a `create --force` per instance) |
 | `update-mods [--from-modconfig <p>]` | needs | mirror the developer's enabled mod set into `data/mods/`, bake `install/modconfig.xml` | re-seed each instance's `userdata/mods/` and its own `modconfig.xml` |
-| `deploy <ModName> [--configuration]` | needs | released mods to `install/BepInEx/plugins/<X>/`, dev-plugins to `data/mods/Local_<X>/` | to `userdata/mods/Local_<X>/` with an `About/` mirror and a `<Local>` entry |
-| `create --target <name>` | needs | refused | build or rebuild ONE instance tree |
+| `deploy <ModName> [--configuration]` | needs | released mods to `install/BepInEx/plugins/<X>/`, dev-plugins to `data/mods/Local_<X>/` | to `userdata/mods/Local_<X>/` with an `About/` mirror and a `<Local>` entry. Refuses a mod the instance is not provisioned to test; with no `--mod` it deploys that instance's own under-test set |
+| `create --target <name>` | needs | refused | build or rebuild ONE instance tree. `--under-test <Mod>[,<Mod>]` records what it exists to test |
 | `remove --target <name>` | needs | refused | delete the tree and the instance's save root |
-| `start` | needs | must enter a world in the same call: `--load <SaveName> --map <Map>` or `--new <Map>` | boots to the MENU and no further; entering a world is a separate `call` |
-| `wait --stage <s>` | free (refreshes) | `inWorld` or `process` | `ping`, `modsLoaded`, `menu`, `inWorld` |
+| `start` | needs | must enter a world in the same call: `--load <SaveName> --map <Map>` or `--new <Map>`, and `--new` is validated against the install's world catalogue before anything launches | boots to the MENU and no further; entering a world is a separate `call` |
+| `wait --stage <s>` | free (refreshes) | `ping`, `modsLoaded`, `inWorld` or `process`; `menu` refused | `ping`, `modsLoaded`, `menu`, `inWorld` |
 | `save [--save-name <n>]` | needs | `--save-name` required, confirmed from the log | `--save-name` optional, confirmed by the plugin |
 | `stop [--save-name] [--release]` | not gated | save first if named, `quit`, then kill after the grace period | host-aware ordered teardown |
-| `call --path <p> [--body <json>]` | needs | refused | one HTTP request to each named instance's control plane |
+| `call --path <p> [--body <json>]` | needs | one HTTP request to the server's own control plane on `127.0.0.1:27750` | one HTTP request to each named instance's control plane |
 | `send --command '<text>'` | needs | one line into the server's stdin, fire and forget | refused |
 | `playtest [--only <pattern>]` | not gated | rig-wide; the harness takes a lock PER CHECK | same |
 
@@ -83,13 +83,50 @@ Twenty-two verbs you can type, plus `host-mode`, which is internal: the detached
 
 `create` has no `--width` or `--height` twin on `start`. A window size is an instance's own, recorded when it was provisioned; a `start` that could override it would make the size depend on which command last mentioned it. Typing either on `start` is a usage error naming `create`.
 
+## Mods under test, and every other mod
+
+An instance records the mods it exists to TEST, and that set decides where each of its mods
+comes from:
+
+```
+testrig create --target hostie --role host --under-test SprayPaintPlus --as <id>
+testrig deploy SprayPaintPlus --target hostie --as <id>
+```
+
+- A mod **in** the set is NOT seeded from the developer's folder and gets no modconfig entry
+  from the seed. `deploy` provides `Local_<Mod>/`, and that is the only copy there is.
+- A mod **outside** it is seeded exactly as before, at the developer's published state. That
+  is deliberate and it is the reason the set is explicit rather than "every mod this
+  repository builds": a rig is normally testing one mod, this repository carries work in
+  progress for the others, and an unrelated half-finished mod changing the behaviour of the
+  one under test is the failure the separation prevents.
+- `deploy` **refuses** a mod the instance does not record, naming the command that records it.
+  With no `--mod` at all it deploys that instance's own set rather than everything under
+  `Mods/`.
+- `create --force` **keeps** the set, exactly as it keeps the role, the ports and the identity.
+- The playtest harness checks it before bring-up: a check whose mod is not in an instance's
+  set is `inconclusive (mod-not-under-test-here)` before a single game process starts. The
+  mod comes from the check's own source location and the set from the registry, so nothing has
+  to be declared twice.
+- An instance that records a mod and never deploys it has NO copy of it, which attestation
+  reports as `under-test-not-deployed` rather than as the ordinary not-deployed case.
+
+Why any of this exists: `create` used to seed the developer's `<Mod>/` folder and `deploy`
+used to write `Local_<Mod>/` beside it. Both carry an `About.xml`, so StationeersLaunchPad
+loads BOTH, Awake fires twice and every Harmony patch registers twice. A doubled
+side-effecting patch produced delta 10000 instead of 5000 during a battery verification, and
+no log line anywhere says so, because two plausible halves of one number look exactly like one
+correct number.
+
 ## The refusals
 
 Where a verb cannot mean the same thing on both halves, the binary refuses and explains, naming what was attempted, why this target cannot do it, a command that does work, and where the durable explanation lives. All five parts are mandatory in the type, so a refusal without a working alternative cannot be written. **Read the refusal rather than a table about it**: it arrives at the moment of the mistake and it is generated from the same data the suite checks.
 
 A refusal prints plainly and exits **3**, so a caller can tell "this command does not apply" from "the rig is broken" and from "the lock is somebody else's".
 
-There are **22 rows**, and the suite pins that number exactly and resolves every alternative against the verb table and the endpoint catalogue. Seven things genuinely differ between the halves, and the "refused" cells in the verb table above are where they show up: entering a world at start, the control channel (`call` versus `send`), save-confirmation evidence, anything needing a player character, N instances versus one install, creating an instance versus installing a server, and where a mod loads from. On top of those, the five lock verbs and `playtest` refuse a narrowing target (rows 16-21), and an instance-shape flag refuses against `--target server` (row 22), which has one identity and no instances.
+There are **20 rows**, and the suite pins that number exactly and resolves every alternative against the verb table and the endpoint catalogue. Six things genuinely differ between the halves, and the "refused" cells in the verb table above are where they show up: entering a world at start, the stdin channel (`send`), save-confirmation evidence, N instances versus one install, creating or removing an instance versus installing a server, and a snapshot's per-instance row shape. On top of those, the five lock verbs and `playtest` refuse a narrowing target (rows 14-19), and an instance-shape flag refuses against `--target server` (row 20), which has one identity and no instances.
+
+It was 22. **Both `call` rows are gone, and the reason they went is worth more than the rows were.** They rested on "the dedicated server has no HTTP control plane", which was a fact about the pre-merge rig; one plugin loads into both halves now and the server answers on `127.0.0.1:27750`. The refusal kept firing while the plane was up and replying, so the verb an agent types was teaching a rig that no longer exists. Two more rows survived with their reasons rewritten (`snapshot` on either target, which refuses because the server has no registry row rather than because it cannot answer), and `wait`'s row narrowed from three stages to one. A refusal whose reason has stopped being true is worse than no refusal, because it corrects a caller's model in the wrong direction; re-read every row whenever the shape of the rig changes.
 
 `testrig send --target clients` prints one. The matrix is data in `TestRig/src/TestRig.Cli/Refusals/RefusalMatrix.cs`.
 
@@ -306,13 +343,15 @@ If no save exists and a test asks for `--load`, the command fails; use `--new <M
 | `inWorld` | `phase == "inWorld"`. |
 | `process` | **the dedicated server's process is up, and that is explicitly NOT readiness.** The pid registers long before the world is tickable, and the gap is dominated by save size. Use it when you want to know the wrapper started, never as a substitute for `inWorld`. |
 
-`ping`, `modsLoaded` and `menu` are client-instance states and refuse against the server (refusal 14), which never has a menu at all: it enters its world from the command line.
+`menu` is the one stage that refuses against the server, which never has one: it enters its world from the command line. `ping` and `modsLoaded` work on both halves, because the merged plugin loads into both and the server answers on `127.0.0.1:27750`.
 
 Wait for `menu` before touching the menu or the ImGui overlay: at `modsLoaded` the splash screen is still drawing and it suppresses the in-game windows. Cold boot to `menu` is about 100 s.
 
 `inWorld` is **not** a readiness stage for a host. A world can be up with hosting silently not happening. The host's post-condition is `/status.hosting == true` with `/status.role == "listenHost"`, which `POST /host` asserts before it answers 200.
 
-On the server, `wait --stage inWorld` drops a minimal InspectorPlus request into `install/BepInEx/inspector/requests/` and polls for the plugin to delete it. That poller runs off `ElectricityManager.ElectricityTick`, so consumption means the world is loaded and **ticking**. It needs InspectorPlus deployed with `Force Unpause Without Client` set: with nobody connected the simulation does not tick at all (see "The world parks, and it never ticks once" below), so no probe is ever consumed. The timeout message says so. `status` reporting the pid alive is not readiness, which is what `--stage process` is honest about.
+On the server, `wait --stage inWorld` polls `/status` on `127.0.0.1:27750` and needs `phase == "inWorld"`. That is the process stating its own game state, and it replaced an inference that was measured wrong: the barrier used to drop a minimal InspectorPlus request and treat its deletion as proof. On 2026-08-15 a `--new Moon` the game had rejected produced a server with no world, running indefinitely, and the probe was consumed anyway, so the barrier reported "the world is loaded and the simulation is ticking" about a world that did not exist. Consumption is not evidence, and nothing writes a probe any more.
+
+Two things end that wait early rather than at the deadline. A `No such world name:` line in the log is a hard failure carrying the game's own list of what it would have accepted, because the server prints it once and then runs forever with no world. And nothing answering on 27750 at all is reported as its own failure, naming `testrig deploy TestRig --target server --as <id>`, because without the plugin nothing there can prove a world is loaded. `status` reporting the pid alive is not readiness, which is what `--stage process` is honest about.
 
 ## Playtests
 
@@ -321,7 +360,7 @@ On the server, `wait --stage inWorld` drops a minimal InspectorPlus request into
 Three things about the verb itself:
 
 - **Checks are C# compiled into this binary**, globbed from `Mods/<Mod>/playtests/**/*.cs` into `TestRig.Playtests`. An AOT binary cannot load managed assemblies at runtime, so a check cannot be a file discovered on disk and **adding one means a rebuild**. That is already true of every other change because of the source-hash rule, and it is one command. A binary with no checks compiled in says so rather than reporting an empty pass.
-- **`--only` selects checks; `--target` never does.** A check declares the instances it needs and brings them up itself, so naming half the rig could not change what runs, only what the report claimed to cover. `playtest --target server` is refusal 21.
+- **`--only` selects checks; `--target` never does.** A check declares the instances it needs and brings them up itself, so naming half the rig could not change what runs, only what the report claimed to cover. `playtest --target server` is refusal 19.
 - **Exit 8 is its own code.** 0 is all-pass, 1 means a check read a value from the authority and found the wrong one, 8 means nothing failed but something could not be measured. A caller that cannot tell 1 from 8 will eventually treat one as the other.
 
 Attestation derives from a check's own location through `[CallerFilePath]`: the compiler records where the check was written and the check cannot lie about it, which replaces three declared fields. The two remaining config counts are replaced by a content hash of the deployed DLL against the build, which is the question they were approximating; the PowerShell `Assert-BinaryUnderTest` compared file **length** despite documenting a content comparison, so a same-length different build attested cleanly.

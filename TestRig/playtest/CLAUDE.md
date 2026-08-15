@@ -91,7 +91,19 @@ You write none of this. Per check, in order: take the rig session lock (which fi
 
 **The `InstanceSpec`** a check declares in its `CheckSpec`: `Name` (must already exist in the rig registry; the harness does not create instances), `Role` (`Host` or `Client`), `World` or `Save` (host only, exactly one), `ConnectTo` (client only, defaults to the first host), `GamePort` (host only), `Address` (client only).
 
-**Attestation, and why a check cannot pass without it.** A live run nearly measured a stale seeded DLL and was saved by luck. `AssertBinaryUnderTest` runs before the body, and a check that never attests is downgraded to inconclusive with detector `binary-not-attested`. It checks three independent things because each alone can be satisfied by a stale rig: the **provision stamp** exists (so the tree is one this rig built), the **deployed file** matches the build under test by **content hash**, and a live `GET /config?guid=<mod>` read from inside each running process, which is the only one that can say what the process actually loaded.
+**Attestation, and why a check cannot pass without it.** A live run nearly measured a stale seeded DLL and was saved by luck. `AssertBinaryUnderTest` runs before the body, and a check that never attests is downgraded to inconclusive with detector `binary-not-attested`. It checks three independent things because each alone can be satisfied by a stale rig: the **provision stamp** exists (so the tree is one this rig built), the **deployed file** matches the build under test by **content hash**, at `userdata/mods/Local_<Mod>/<Mod>.dll` (the path `deploy` writes, derived from the same helper so the two cannot drift; it named the unprefixed path for a while, which made `binary-not-deployed` the only possible answer on a correctly deployed instance), and a live `GET /config?guid=<mod>` read from inside each running process, which is the only one that can say what the process actually loaded.
+
+**Which mod a check attests, the harness also checks the INSTANCE was provisioned for.** An
+instance records the mods it exists to test (`create --under-test <Mod>`); a mod in that set is
+not seeded from the developer's folder, so the deployed `Local_<Mod>/` is its only copy. Before
+bring-up, and therefore before any game process starts, the harness compares the check's mod
+against each named instance's set and ends the check `inconclusive (mod-not-under-test-here)`
+if it is absent. Neither side is declared: the mod comes from `[CallerFilePath]` and the set
+from the registry row. Without that comparison a check runs to completion against the
+DEVELOPER'S published copy while reporting on this repository's build, or against two copies
+loaded at once, and the output stays plausible either way. An instance that records the mod and
+never deploys it has NO copy, which attestation reports as `under-test-not-deployed` rather
+than as the ordinary not-deployed case.
 
 **Which mod a check attests is not the check's to declare.** It comes from `[CallerFilePath]`, so the compiler records where the check was written under `Mods/<Mod>/playtests/` and a check cannot claim a different mod. Do not add a declaration field that re-states something derivable. The content hash replaced a length comparison: `Assert-BinaryUnderTest` compared file **length** while documenting a content comparison, so a same-length different build attested cleanly.
 

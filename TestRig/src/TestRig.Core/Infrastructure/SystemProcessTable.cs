@@ -100,6 +100,40 @@ public sealed class SystemProcessTable : IProcessTable
     }
 
     /// <remarks>
+    /// <see cref="Process.HasExited"/> and nothing else: it needs only
+    /// PROCESS_QUERY_LIMITED_INFORMATION and, unlike <see cref="Process.StartTime"/>, a
+    /// process that is unwinding still answers it. That asymmetry is the whole reason this
+    /// member exists separately from <see cref="TryGet"/>, which reports a process it cannot
+    /// fully describe as absent.
+    /// </remarks>
+    public bool IsRunning(int pid)
+    {
+        if (pid <= 0) return false;
+
+        try
+        {
+            using var process = Process.GetProcessById(pid);
+            return !process.HasExited;
+        }
+        catch (ArgumentException)
+        {
+            // Not in the table at all, which is the answer this method is for.
+            return false;
+        }
+        catch (InvalidOperationException)
+        {
+            return false;
+        }
+        catch (Win32Exception)
+        {
+            // Listed but not openable. A protected process is never the rig's own, and
+            // reporting it as running is the conservative direction: a teardown waits a
+            // little longer rather than declaring a live process gone.
+            return true;
+        }
+    }
+
+    /// <remarks>
     /// Terminate, then wait. There is no graceful step here on purpose: the polite ask
     /// is POST /quit over the control plane and it belongs to the caller, which knows
     /// whether the instance holds a world worth saving first. By the time anything
@@ -166,10 +200,29 @@ public sealed class SystemProcessTable : IProcessTable
     /// <summary>
     /// Reads the three fields, or reports no match if any of them cannot be read.
     /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>An EXITED process is reported as no match, and that is not tidiness.</b> Windows
+    /// keeps a process object enumerable after the process has exited, for as long as anybody
+    /// holds a handle to it, and <see cref="Process.StartTime"/> keeps answering for one. So
+    /// <see cref="Process.GetProcessesByName"/> lists it and this method would happily
+    /// describe it: the rig then sees a live game process that has in fact already gone.
+    /// </para>
+    /// <para>
+    /// Measured twice on real runs, both times with a clean teardown. The instance quit, the
+    /// teardown confirmed the pid had exited and deleted its pid file, and the release-time
+    /// state restore then refused with "untracked rig game process(es) are running:
+    /// rocketstation pid 79888" about a process that had exited seconds earlier. Nothing was
+    /// lost, because the restore also runs at the next acquisition, but the release half of
+    /// the both-ends guarantee did not fire on a session that had torn down correctly.
+    /// </para>
+    /// </remarks>
     private static ProcessInfo? Describe(Process process)
     {
         try
         {
+            if (process.HasExited) return null;
+
             var name = process.ProcessName;
             var startedUtc = process.StartTime.ToUniversalTime();
             return new ProcessInfo(process.Id, name, new DateTimeOffset(startedUtc, TimeSpan.Zero));

@@ -162,6 +162,39 @@ public static class ModConfig
     }
 
     /// <summary>
+    /// Drops every <c>Local</c> entry pointing at a folder. Idempotent.
+    /// </summary>
+    /// <returns>True when an entry was removed, false when there was nothing to remove.</returns>
+    /// <remarks>
+    /// The counterpart to <see cref="AddLocalEntry"/> and it exists for one specific case: the
+    /// mod seed copies the developer's whole <c>mods/</c> folder, so an instance arrives with
+    /// <c>Local_&lt;Mod&gt;</c>'s unprefixed twin already present AND already listed here.
+    /// StationeersLaunchPad then loads the mod twice, Awake fires twice, and every Harmony
+    /// patch registers twice, which a log grep cannot see because the output looks entirely
+    /// plausible. Deleting the folder is not enough on its own: an orphaned entry pointing at
+    /// a folder that no longer exists is debris in a file the baseline stores byte for byte.
+    ///
+    /// The match is the same one <see cref="AddLocalEntry"/> makes, trailing separators
+    /// trimmed and case-insensitive, so add-then-remove is a round trip.
+    /// </remarks>
+    public static bool RemoveLocalEntry(IFileSystem fs, string path, string localModDir)
+    {
+        if (!fs.FileExists(path)) return false;
+
+        var entries = Read(fs, path).ToList();
+        var kept = entries.Where(entry =>
+            !string.Equals(entry.Kind, "Local", StringComparison.Ordinal)
+            || string.IsNullOrEmpty(entry.Path)
+            || !entry.Path.TrimEnd('\\', '/').Equals(localModDir.TrimEnd('\\', '/'), StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        if (kept.Count == entries.Count) return false;
+
+        Write(fs, path, kept);
+        return true;
+    }
+
+    /// <summary>
     /// XML attribute escaping, matching <c>SecurityElement.Escape</c>.
     /// </summary>
     /// <remarks>

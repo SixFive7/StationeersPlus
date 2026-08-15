@@ -116,13 +116,19 @@ public static class BinaryAttestation
     ///     Reads the LIVE config entry count for the guid from one instance. This goes through
     ///     the normal reader path so the request lands in the evidence bundle like any other.
     /// </param>
+    /// <param name="underTest">
+    ///     The mods each instance was provisioned to test, so a missing deploy can be reported
+    ///     for the reason it actually has.
+    /// </param>
     public static AttestationReport Attest(
         IFileSystem files,
         string rigHome,
         ModIdentity mod,
         IReadOnlyList<string> instances,
-        Func<string, int> readConfigEntryCount)
+        Func<string, int> readConfigEntryCount,
+        IReadOnlyList<string>? underTestMods = null)
     {
+        var underTest = underTestMods ?? [];
         ArgumentNullException.ThrowIfNull(files);
         ArgumentNullException.ThrowIfNull(mod);
         ArgumentNullException.ThrowIfNull(instances);
@@ -159,10 +165,22 @@ public static class BinaryAttestation
             var deployedPath = Path.Combine(dataFolder, mod.DeployedRelativePath);
             if (!files.FileExists(deployedPath))
             {
+                // Its own reason, because the instance's own record changes what "not
+                // deployed" MEANS here. An instance provisioned to test this mod does not seed
+                // the developer's copy of it, so there is no copy at all rather than a wrong
+                // one, and telling a reader to look for a stale file would send them hunting
+                // something that cannot be there.
+                var underTestHere = underTest.Any(m =>
+                    string.Equals(m, mod.ModName, StringComparison.OrdinalIgnoreCase));
+
                 throw PlaytestSignal.Inconclusive(
-                    $"'{mod.ModName}' is not deployed into '{instance}': nothing at '{deployedPath}'. The check would measure an instance that is not running the mod at all. " +
-                    $"Deploy it: testrig deploy {mod.ModName} -Target {instance} -As <id>",
-                    Detectors.BinaryNotDeployed);
+                    underTestHere
+                        ? $"'{instance}' is provisioned to test '{mod.ModName}' and nothing has been deployed: there is no file at '{deployedPath}'. " +
+                          $"That instance deliberately does NOT carry the developer's copy either, so it has no '{mod.ModName}' at all and the check would measure its absence. " +
+                          $"Deploy this repository's build: testrig deploy {mod.ModName} --target {instance} --as <id>"
+                        : $"'{mod.ModName}' is not deployed into '{instance}': nothing at '{deployedPath}'. The check would measure an instance that is not running the mod at all. " +
+                          $"Deploy it: testrig deploy {mod.ModName} --target {instance} --as <id>",
+                    underTestHere ? Detectors.UnderTestNotDeployed : Detectors.BinaryNotDeployed);
             }
 
             var deployedHash = HashFile(files, deployedPath);

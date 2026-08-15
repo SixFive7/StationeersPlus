@@ -53,9 +53,17 @@ public static class ReadinessStages
         _ => "unknown",
     };
 
-    /// <summary>The three stages a dedicated server can never reach (COMMON-123).</summary>
-    public static bool IsClientOnly(ReadinessStage stage) =>
-        stage is ReadinessStage.Ping or ReadinessStage.ModsLoaded or ReadinessStage.Menu;
+    /// <summary>
+    /// The one stage a dedicated server can never reach.
+    /// </summary>
+    /// <remarks>
+    /// It was three (COMMON-123), and two of them stopped being true when the two plugins
+    /// merged into one that loads into both halves. The server has a control plane to
+    /// <c>ping</c> and a plugin count to reach <c>modsLoaded</c> with, on its own port. What it
+    /// genuinely never has is a MENU: it takes <c>-load</c> or <c>-new</c> on its command line
+    /// and there is no state in which it sits waiting for somebody to choose a world.
+    /// </remarks>
+    public static bool IsClientOnly(ReadinessStage stage) => stage is ReadinessStage.Menu;
 
     /// <summary>Whether a <c>/status</c> payload is at or past the named stage.</summary>
     /// <remarks>

@@ -1,3 +1,5 @@
+using System.Text.Json;
+using TestRig.Contracts;
 using TestRig.Core.Rig;
 using TestRig.Core.Server;
 using TestRig.Tests.Client;
@@ -172,6 +174,10 @@ public sealed class ServerFixture
         Half = new ServerHalf(
             Client.Fs, Client.Processes, Client.Clock, Client.Rig.Sleeper, Client.Output,
             Client.Rig.Paths, Client.Env, Client.Mods, Client.Rig.Lock,
+            // The client fixture's control plane, over the same scripted transport, because it
+            // IS the same plugin: the merged build loads into both halves. A server test
+            // scripts the server's port exactly as a client test scripts an instance's.
+            Client.Control,
             Launcher, SteamCmd, Downloader, Extractor,
             LauncherPath);
 
@@ -253,6 +259,51 @@ public sealed class ServerFixture
 
     public bool Wait(ReadinessStage stage = ReadinessStage.InWorld, string? owner = null, int waitSeconds = 0) =>
         Half.WaitAsync(stage, owner, waitSeconds).GetAwaiter().GetResult();
+
+    /// <summary>
+    /// Scripts what the server's own control plane answers on <c>/status</c>.
+    /// </summary>
+    /// <remarks>
+    /// The same scripted transport a client instance uses, on the server's own port, because
+    /// the merged plugin is one build serving both halves. Readiness is decided from this
+    /// payload now: the old barrier inferred it from an InspectorPlus request file being
+    /// deleted, which happens with no world loaded at all.
+    /// </remarks>
+    public ServerFixture AnsweringStatus(string phase = "inWorld", int plugins = 42, bool initialised = true)
+    {
+        var status = new StatusResponse
+        {
+            Ok = true,
+            Role = "dedicated",
+            Phase = phase,
+            LoadedPluginCount = plugins,
+            GameInitialized = initialised,
+        };
+
+        Client.Transport.Standing(
+            ServerHalf.ControlPort,
+            Endpoints.Status,
+            ScriptedAnswer.Ok(JsonSerializer.Serialize(status, RigJsonContext.Default.StatusResponse)));
+
+        return this;
+    }
+
+    /// <summary>Writes the line the game logs when it rejects the world name it was given.</summary>
+    public ServerFixture RejectedTheWorldName(string map = "Moon")
+    {
+        // Verbatim from a real run, 2026-08-15. The server printed exactly this and then ran
+        // on with no world; the barrier of the day reported the world loaded.
+        Fs.AddFile(
+            Paths.LogFile,
+            string.Join(
+                "\n",
+                $"02:52:50: Creating new world '{map}' with difficulty 'Normal' and start condition 'Default'.",
+                $"02:52:50: {ServerWorlds.RejectionMarker} {map}. Valid worlds: Europa3, Lunar, Mars2, "
+                + "MimasHerschel, Venus, Vulcan (Deprecated), Vulcan2.",
+                "02:52:50: game manager initialized",
+                ""));
+        return this;
+    }
 
     public void HostMode(ServerStartWorld world, CancellationToken ct) =>
         Half.HostModeAsync(world, 0, 0, ct).GetAwaiter().GetResult();

@@ -63,7 +63,8 @@ public sealed class CoreRigRegistry(RigRegistry registry) : IRigRegistry
             e.InstanceName,
             e.Port,
             e.RoleOr(),
-            e.RecordedRoot.Length == 0 ? null : e.RecordedRoot)),
+            e.RecordedRoot.Length == 0 ? null : e.RecordedRoot,
+            e.UnderTestMods)),
     ];
 }
 

@@ -250,6 +250,26 @@ public sealed class ClientFixture
         Fs.AddFile(Path.Combine(RigFixture.UserData, "modrepos.xml"), "<repos />");
     }
 
+    /// <summary>
+    /// Puts the DEVELOPER'S published copy of a mod in their own folder, and lists it.
+    /// </summary>
+    /// <remarks>
+    /// The state that matters for the under-test rule: this repository builds the mod AND the
+    /// developer has a published copy of it installed. Only the instance's recorded set says
+    /// which of the two a given instance gets.
+    /// </remarks>
+    public void AddDeveloperMod(string name, string dll = "the developer's published build")
+    {
+        var folder = Path.Combine(RigFixture.UserData, "mods", name);
+        Fs.AddFile(Path.Combine(folder, "About", "About.xml"), "<About />");
+        Fs.AddFile(Path.Combine(folder, name + ".dll"), dll);
+
+        var config = Path.Combine(RigFixture.UserData, "modconfig.xml");
+        var entries = ModConfig.Read(Fs, config).ToList();
+        entries.Add(ModConfigEntry.Local(folder));
+        ModConfig.Write(Fs, config, entries);
+    }
+
     /// <summary>Builds a repository mod so deploy and staleness have something to find.</summary>
     public void AddRepositoryMod(string name, string dll = "build", string? about = "<About />")
     {
@@ -268,13 +288,19 @@ public sealed class ClientFixture
     // stay readable and can use Assert.Throws rather than ThrowsAsync everywhere.
 
     /// <summary>Creates one instance through the real code path.</summary>
-    public InstanceEntry Create(string name, string owner, string? role = null, bool seedMods = false) =>
+    public InstanceEntry Create(
+        string name,
+        string owner,
+        string? role = null,
+        bool seedMods = false,
+        IReadOnlyList<string>? underTest = null) =>
         CreateWith(new CreateOptions
         {
             Instance = name,
             CallerId = owner,
             Role = role,
             SeedMods = seedMods,
+            UnderTest = underTest,
         });
 
     public InstanceEntry CreateWith(CreateOptions options) =>

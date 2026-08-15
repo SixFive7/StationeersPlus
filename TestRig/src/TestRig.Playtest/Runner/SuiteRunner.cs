@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
+using TestRig.Core.Session;
 using TestRig.Playtest.Evidence;
 using TestRig.Playtest.Model;
 
@@ -63,17 +64,27 @@ public sealed class SuiteRunner
         _deps = dependencies ?? throw new ArgumentNullException(nameof(dependencies));
 
     /// <summary>Exit code when at least one check failed. The mod is the suspect.</summary>
-    public const int ExitFailed = 1;
+    public const int ExitFailed = RigExitCodes.Failed;
 
     /// <summary>
     ///     Exit code when nothing failed but something was inconclusive.
     /// </summary>
     /// <remarks>
+    ///     <para>
     ///     Distinct from <see cref="ExitFailed"/> on purpose: a caller that cannot tell them
     ///     apart will eventually treat one as the other, and the whole three-outcome model
     ///     exists because those two mean opposite things about the mod.
+    ///     </para>
+    ///     <para>
+    ///     <b>These are the PROCESS exit codes, not a second private numbering.</b> They used
+    ///     to be a local 1 and 2 that the CLI translated on the way out, so a run that
+    ///     correctly returned 8 wrote "Exit code 2" into <c>run.md</c>, <c>run.json</c> and the
+    ///     console summary. Two of the three codes a caller is explicitly told to distinguish
+    ///     were named differently by the evidence than by the process, and the evidence bundle
+    ///     is what gets read afterwards by somebody who did not watch the run. One table.
+    ///     </para>
     /// </remarks>
-    public const int ExitInconclusive = 2;
+    public const int ExitInconclusive = RigExitCodes.PlaytestInconclusive;
 
     public SuiteResult Run(SuiteRequest request)
     {

@@ -49,6 +49,17 @@ public sealed record CreateOptions
     /// <summary>Seed the instance's mod set from the developer's folder. On by default.</summary>
     public bool SeedMods { get; init; } = true;
 
+    /// <summary>
+    /// The mods this instance exists to TEST, or null to keep whatever it already records.
+    /// </summary>
+    /// <remarks>
+    /// Null means "the caller did not type it", exactly as every identity field here does, so
+    /// a <c>create --force</c> to pick up a new plugin build preserves the set rather than
+    /// silently emptying it and re-seeding the developer's copy of the mod under test. An
+    /// EMPTY array is a typed answer and clears it.
+    /// </remarks>
+    public IReadOnlyList<string>? UnderTest { get; init; }
+
     public string Desktop { get; init; } = RigConstants.DefaultDesktop;
 
     /// <summary>Default window width when nothing was typed and no entry exists.</summary>
@@ -213,7 +224,7 @@ public sealed partial class ClientHalf
         // skippable by anything mod-related.
         WriteSavePathOverride(paths, claim.Entry.RoleOr());
 
-        if (options.SeedMods) SeedMods(paths);
+        if (options.SeedMods) SeedMods(paths, claim.Entry.UnderTestMods);
 
         Say("");
         Say($"[Provision] Instance '{name}' built.");
@@ -224,6 +235,10 @@ public sealed partial class ClientHalf
             "[Provision]   real copies : {0,6} files, {1,8:N1} MB new disk",
             stats.CopiedFiles, stats.CopiedBytes / 1048576.0));
         Say($"[Provision]   role        : {claim.Entry.RoleOr()}");
+        Say($"[Provision]   under test  : "
+            + (claim.Entry.UnderTestMods.Count == 0
+                ? "(none: every mod here is the developer's published copy)"
+                : string.Join(", ", claim.Entry.UnderTestMods) + "  (not seeded; deploy is the only copy)"));
         Say($"[Provision]   port        : {claim.Entry.Port}  (control plane, TCP, loopback only)");
         Say($"[Provision]   gamePort    : {claim.Entry.GamePortOr(0)}  (RakNet, UDP)");
         Say($"[Provision]   clientId    : {claim.Entry.ClientIdOr()}");
@@ -329,6 +344,13 @@ public sealed partial class ClientHalf
         var height = options.Height ?? existing?.Height ?? CreateOptions.DefaultHeight;
         var forceInput = options.ForceGameplayInput ?? existing?.ForceGameplayInput ?? true;
 
+        // Preserved on a rebuild for the same reason the role and the ports are: create --force
+        // is the routine way to pick up a new plugin build, and emptying this set in passing
+        // would put the developer's copy of the mod under test back beside the deployed one.
+        var underTest = options.UnderTest is null
+            ? existing?.UnderTestMods ?? []
+            : options.UnderTest.Where(static m => !string.IsNullOrWhiteSpace(m)).ToList();
+
         if (!ulong.TryParse(clientId, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsedId))
         {
             throw new RigRefusalException(RigRefusalKind.Refused, $"--client-id '{clientId}' is not a decimal ulong.");
@@ -375,6 +397,7 @@ public sealed partial class ClientHalf
             Height = height,
             ForceGameplayInput = forceInput,
             InstancesRoot = effectiveRoot,
+            UnderTest = underTest.Count == 0 ? null : [.. underTest],
             ProvisionedUtc = RigTime.Stamp(_clock.UtcNow),
         };
 
@@ -487,7 +510,7 @@ public sealed partial class ClientHalf
             (string Dir, string Loader)[] loadPaths =
             [
                 (Path.Combine(paths.BepInEx, "plugins", superseded), "BepInEx Chainloader"),
-                (Path.Combine(paths.ModsDir, "Local_" + superseded), "StationeersLaunchPad"),
+                (LaunchPadMods.DeployedDir(paths.ModsDir, superseded), "StationeersLaunchPad"),
             ];
 
             foreach (var (dir, loader) in loadPaths)
@@ -555,7 +578,27 @@ public sealed partial class ClientHalf
     /// happens, so every caller gets it.
     /// </para>
     /// </remarks>
-    private void SeedMods(InstancePaths paths)
+    /// <param name="underTest">
+    /// Mods this instance exists to test. Their folders are NOT copied and they get no
+    /// modconfig entry, so the deployed <c>Local_&lt;Mod&gt;</c> is the only copy.
+    /// </param>
+    /// <remarks>
+    /// <para>
+    /// <b>The set is explicit, and everything outside it is seeded exactly as before.</b> A
+    /// rig is normally testing one mod, and the other repository mods must stay at the
+    /// published state the developer's folder holds, because this repository carries work in
+    /// progress for them too: skipping them all would let an unrelated mod's half-finished
+    /// code change the behaviour of the mod actually under test, silently.
+    /// </para>
+    /// <para>
+    /// Skipping the seed for the mod under test is what makes the double load impossible
+    /// rather than merely cleaned up afterwards. Both copies present is not a tidiness
+    /// problem: StationeersLaunchPad loads both, Awake fires twice, every Harmony patch
+    /// registers twice, and a doubled side-effecting patch produced delta 10000 instead of
+    /// 5000 during a battery verification with nothing in any log to say so.
+    /// </para>
+    /// </remarks>
+    private void SeedMods(InstancePaths paths, IReadOnlyList<string> underTest)
     {
         var userData = _env.UserDataPath();
         var sourceMods = Path.Combine(userData, "mods");
@@ -582,6 +625,20 @@ public sealed partial class ClientHalf
         if (sourcePresent) TreeOps.CopyTree(_fs, sourceMods, destinationMods);
         else _fs.CreateDirectory(destinationMods);
 
+        // The mods under test come from THIS repository's build and nowhere else. Removing the
+        // seeded copy after the fact rather than filtering the copy is deliberate: the copy is
+        // a whole-tree operation and the folder a mod seeds into is not always its own name,
+        // so this asks the same question the deploy does, by name, in one place.
+        foreach (var mod in underTest)
+        {
+            var seeded = LaunchPadMods.SeededDir(destinationMods, mod);
+            if (!_fs.DirectoryExists(seeded)) continue;
+
+            _fs.DeleteDirectory(seeded, recursive: true);
+            Say($"[{paths.Name}] '{mod}' is under test here, so the developer's copy was NOT seeded. Deploy this "
+                + $"repository's build: testrig deploy {mod} --target {paths.Name} --as <id>");
+        }
+
         if (lost.Count > 0)
         {
             Warn($"[{paths.Name}] the mod seed removed {lost.Count} folder(s) this repository had deployed: "
@@ -602,6 +659,18 @@ public sealed partial class ClientHalf
             {
                 path = destinationMods + path[sourceMods.Length..];
             }
+
+            // No entry for a mod under test. An entry pointing at a folder that was
+            // deliberately not seeded is debris, and worse, it is an entry a later deploy has
+            // to remember to remove: the deployed Local_<Mod> gets its own.
+            if (underTest.Any(mod => string.Equals(
+                    path.TrimEnd('\\', '/'),
+                    LaunchPadMods.SeededDir(destinationMods, mod).TrimEnd('\\', '/'),
+                    StringComparison.OrdinalIgnoreCase)))
+            {
+                continue;
+            }
+
             rebased.Add(entry with { Path = path });
         }
         ModConfig.Write(_fs, paths.ModConfig, rebased);

@@ -108,6 +108,36 @@ public sealed class SystemProcessTableTests
     }
 
     [Fact]
+    public async Task AnExitedProcessIsReportedAsGoneEvenWhileItsHandleKeepsItEnumerable()
+    {
+        // Windows keeps a process object enumerable after the process has exited, for as long
+        // as anybody holds a handle to it, and StartTime keeps answering for one. Holding that
+        // handle here is exactly what the rig does by accident: something in the tree still
+        // has one when the teardown asks.
+        //
+        // Measured twice on real runs: the instance quit cleanly, the teardown confirmed the
+        // pid had exited and deleted its pid file, and the release-time state restore then
+        // refused with "untracked rig game process(es) are running: rocketstation pid 79888"
+        // about a process that had exited seconds earlier. The restore also runs at the next
+        // acquisition, so nothing was lost, but the release half of the both-ends guarantee
+        // did not fire on a session that had torn down correctly.
+        using var child = StartLongRunningChild();
+        var pid = child.Id;
+
+        Assert.NotNull(_table.TryGet(pid));
+        Assert.True(_table.IsRunning(pid));
+
+        child.Kill(entireProcessTree: false);
+        await child.WaitForExitAsync().ConfigureAwait(true);
+
+        // The handle is still open (the `child` object holds it), so this is the zombie window.
+        Assert.True(child.HasExited);
+        Assert.Null(_table.TryGet(pid));
+        Assert.False(_table.IsRunning(pid));
+        Assert.DoesNotContain(_table.FindByImage(child.ProcessName), p => p.Pid == pid);
+    }
+
+    [Fact]
     public async Task StopAsync_ReportsSuccessForAPidThatIsAlreadyGone()
     {
         var pid = await RunAndWaitForExitAsync();

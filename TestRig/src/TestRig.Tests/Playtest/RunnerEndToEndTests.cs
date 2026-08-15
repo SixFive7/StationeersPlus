@@ -1,6 +1,7 @@
 using System.Text;
 using TestRig.Playtest.Evidence;
 using TestRig.Playtest.Model;
+using TestRig.Core.Session;
 using TestRig.Playtest.Runner;
 using TestRig.Playtest.Values;
 using TestRig.Tests.Playtest.Fakes;
@@ -385,13 +386,36 @@ public sealed class RunnerEndToEndTests
     }
 
     [Fact]
-    public void ExitCodesOneAndTwoAreDistinctOnPurpose()
+    public void TheSuiteUsesTheProcessExitCodesAndNotAPrivateNumbering()
     {
         // A caller that cannot tell them apart will eventually treat one as the other, and
-        // they mean opposite things about the mod.
+        // they mean opposite things about the mod. They also have to be the codes the PROCESS
+        // returns: these were a local 1 and 2 that the CLI translated on the way out, so a run
+        // that correctly exited 8 wrote "Exit code 2" into run.md, run.json and the console
+        // summary. The bundle is what somebody reads afterwards, having not watched the run.
         Assert.NotEqual(SuiteRunner.ExitFailed, SuiteRunner.ExitInconclusive);
-        Assert.Equal(1, SuiteRunner.ExitFailed);
-        Assert.Equal(2, SuiteRunner.ExitInconclusive);
+        Assert.Equal(RigExitCodes.Failed, SuiteRunner.ExitFailed);
+        Assert.Equal(RigExitCodes.PlaytestInconclusive, SuiteRunner.ExitInconclusive);
+        Assert.Equal(8, SuiteRunner.ExitInconclusive);
+    }
+
+    [Fact]
+    public void TheEvidenceBundleReportsTheCodeTheProcessReturns()
+    {
+        // Read out of run.md and run.json rather than off the constant, because the defect was
+        // in what the bundle SAID: the number reached those files through SuiteResult.ExitCode
+        // and was translated only at the process boundary.
+        var (fixture, checkFile) = Rig();
+        var check = new TestCheck(Spec(checkFile), ctx => ctx.SetInconclusive("nothing to measure", "check-declined"));
+
+        var run = Run(fixture, check);
+
+        Assert.Equal(RigExitCodes.PlaytestInconclusive, run.ExitCode);
+        Assert.Contains(
+            SuiteRunner.RenderConsoleSummary(run, "evidence"),
+            line => line.Contains("(exit 8)", StringComparison.Ordinal));
+        Assert.Contains("Exit code 8.", SuiteRunner.RenderRunMarkdown(run), StringComparison.Ordinal);
+        Assert.Contains("\"exitCode\": 8", SuiteRunner.RenderRunJson(run), StringComparison.Ordinal);
     }
 
     [Fact]

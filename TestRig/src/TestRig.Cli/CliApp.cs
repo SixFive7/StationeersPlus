@@ -553,6 +553,10 @@ public static class CliApp
                 Height: cmd.NumberIfTyped(Options.Height),
                 ForceGameplayInput: FlagIfTyped(cmd, Options.ForceGameplayInput),
                 SeedMods: cmd.Flag(Options.SeedMods),
+
+                // Null when the flag was not typed, so a rebuild keeps the set the instance
+                // already records. An empty --under-test "" is a typed answer and clears it.
+                UnderTest: cmd.WasTyped(Options.UnderTest) ? SplitList(cmd.Text(Options.UnderTest)) : null,
                 Desktop: cmd.Text(Options.Desktop)));
         return ExitCodes.Ok;
     }
@@ -694,11 +698,15 @@ public static class CliApp
     /// PowerShell mapped <c>process</c> to <c>process</c> and EVERYTHING else to
     /// <c>inWorld</c>. That is only ever correct because the refusal matrix already rejected
     /// the three client stages, so a stage added to the set later would have been silently
-    /// mis-served.
+    /// mis-served. Two of those three are legitimate here now, because the merged plugin gives
+    /// this half a control plane to ping and a loaded-plugin count to count; only
+    /// <c>menu</c> is still refused, and a dedicated server genuinely never has one.
     /// </remarks>
     public static ReadinessStage ServerStage(string stage) => stage switch
     {
         "process" => ReadinessStage.Process,
+        "ping" => ReadinessStage.Ping,
+        "modsLoaded" => ReadinessStage.ModsLoaded,
         "inWorld" => ReadinessStage.InWorld,
         _ => throw new InvalidOperationException(
             $"'{stage}' is not a dedicated-server readiness stage and should have been refused before now. "
@@ -718,21 +726,37 @@ public static class CliApp
 
     // ---- driving -----------------------------------------------------------
 
+    /// <summary>
+    /// One HTTP request per selected target, on BOTH halves.
+    /// </summary>
+    /// <remarks>
+    /// The dedicated server used to be refused here on the grounds that it had no control
+    /// plane. One plugin loads into both halves now and the server answers on its own port, so
+    /// the refusal was describing a rig that no longer exists while the plane was up and
+    /// replying. <c>--target all</c> therefore reaches the server AND every instance; the
+    /// server goes first, because it is the authority and a fan-out that read the clients first
+    /// would report them against a server state nobody had looked at.
+    /// </remarks>
     private static int Call(ParsedCommand cmd, RigComposition rig, ResolvedTarget resolved)
     {
         var path = cmd.Text(Options.Path);
         if (path.Length == 0)
             throw new CliUsageException("'call' requires --path <control-plane path>, for example --path /status.");
 
-        if (resolved.Names.Count == 0)
+        if (!resolved.Server && resolved.Names.Count == 0)
         {
             throw new CliUsageException(
-                "'call' needs at least one instance. Name one with --target <name>, or fan out with --target clients.");
+                "'call' needs at least one target. Name an instance with --target <name>, fan out with "
+                + "--target clients, or talk to the dedicated server with --target server.");
         }
 
-        rig.Clients.Call(
-            cmd.Text(Options.As), resolved.Names, path, cmd.Text(Options.Body),
-            cmd.Number(Options.CallTimeoutSeconds));
+        var as_ = cmd.Text(Options.As);
+        var body = cmd.Text(Options.Body);
+        var timeout = cmd.Number(Options.CallTimeoutSeconds);
+
+        if (resolved.Server) rig.Server.Call(as_, path, body, timeout);
+        if (resolved.Names.Count > 0) rig.Clients.Call(as_, resolved.Names, path, body, timeout);
+
         return ExitCodes.Ok;
     }
 
@@ -766,28 +790,28 @@ public static class CliApp
     {
         var checks = TestRig.Playtests.Playtests.All;
 
-        // Both listings run before the "nothing is compiled in" check and before anything
-        // touches the rig. --list-flakes in particular is the taxonomy answering with no rig
-        // at all, which is the property PLAYTEST-011 exists for and which was unreachable
-        // from the binary while both renderers sat in the library with no option to call them.
-        if (cmd.Flag(Options.ListChecks))
-        {
-            output.Line(OutputLevel.Info, PlaytestListing.Checks(checks, cmd.Text(Options.Only)));
-            return ExitCodes.Ok;
-        }
-
+        // --list-flakes runs first and is the ONLY thing that survives an empty check set: the
+        // taxonomy is a fact about the code and answers with no rig, no lock and no game at
+        // all, which is the property PLAYTEST-011 exists for.
         if (cmd.Flag(Options.ListFlakes))
         {
             output.Line(OutputLevel.Info, PlaytestListing.Flakes(new FlakeCatalogue()));
             return ExitCodes.Ok;
         }
 
-        if (checks.Count == 0)
+        // An empty set fails, INCLUDING for --list-checks, and that is the fix for a measured
+        // defect rather than tidiness: the shipped binary once carried zero checks and this
+        // verb answered with a bare header and exit 0, which reads as a clean answer. The rule
+        // itself lives in PlaytestListing, so it cannot be defeated by reordering this method,
+        // and the renderer holds it too.
+        PlaytestListing.AssertAnyCompiledIn(checks);
+
+        if (cmd.Flag(Options.ListChecks))
         {
-            throw new CliUsageException(
-                "No playtest checks are compiled into this binary. Checks are C# under "
-                + "Mods/<Mod>/playtests/, compiled into TestRig.Playtests; an AOT binary cannot load them from "
-                + "disk, so adding one means a rebuild.");
+            output.Value("checkCount", checks.Count);
+            output.Value("checks", checks.Select(static c => c.Spec.Name).ToArray());
+            output.Line(OutputLevel.Info, PlaytestListing.Checks(checks, cmd.Text(Options.Only)));
+            return ExitCodes.Ok;
         }
 
         var (tier1, tier1Warning) = Tier1SaveFolder.Resolve(rig.FileSystem, rig.Paths);
@@ -828,12 +852,9 @@ public static class CliApp
         output.Value("evidence", evidenceRoot);
         output.Value("tier1Verdict", SaveInventoryScanner.VerdictText(suite.Tier1.Verdict));
 
-        return suite.ExitCode switch
-        {
-            SuiteRunner.ExitFailed => ExitCodes.Failed,
-            SuiteRunner.ExitInconclusive => ExitCodes.PlaytestInconclusive,
-            _ => ExitCodes.Ok,
-        };
+        // Returned unchanged, never mapped. A translation here is what made the bundle and the
+        // process disagree: run.md printed "Exit code 2" on a run that correctly exited 8.
+        return suite.ExitCode;
     }
 
     // ---- plumbing ----------------------------------------------------------

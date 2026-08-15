@@ -50,8 +50,15 @@ public sealed partial class ServerHalf
         _fs.CreateDirectory(_paths.DataDir);
 
         AssertWorldArguments(world);
-        if (world.IsLoad) AssertSaveIsLoadable(world.Load!);
-        else WarnAboutNewWorldSaves(world.New!);
+        if (world.IsLoad)
+        {
+            AssertSaveIsLoadable(world.Load!);
+        }
+        else
+        {
+            AssertMapIsReal(world.New!);
+            WarnAboutNewWorldSaves(world.New!);
+        }
 
         if (WrapperAlive || ServerAlive)
         {
@@ -184,6 +191,47 @@ public sealed partial class ServerHalf
             Warn($"[Start] {dir} holds more than one .save file ({found}). {saveName}.save is the one that will "
                  + "be loaded; the others are ignored and are probably debris from a rename.");
         }
+    }
+
+    /// <summary>
+    /// Refuses a <c>--new</c> naming a world this install does not have.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Measured: <c>--new Moon</c> was accepted here, the server booted for ninety seconds,
+    /// logged <c>No such world name: Moon. Valid worlds: ...</c> and then ran indefinitely with
+    /// no world at all. Nothing failed, and the readiness barrier reported the world loaded.
+    /// The set it would have accepted is on disk before launch, so the whole round trip is
+    /// avoidable, and naming the valid set is what turns a refusal into an answer.
+    /// </para>
+    /// <para>
+    /// An unreadable catalogue validates NOTHING and says so. The game is the authority; a
+    /// data-file layout this reader does not recognise must not become a refusal of a world
+    /// the server would have started.
+    /// </para>
+    /// </remarks>
+    public void AssertMapIsReal(string map)
+    {
+        var catalogue = ServerWorlds.Read(_fs, _paths.InstallDir);
+
+        if (!catalogue.Readable)
+        {
+            Warn($"[Start] Could not read the world catalogue under {_paths.InstallDir}, so '{map}' was not "
+                 + "checked. If it is wrong the server boots, logs \"No such world name\", and then runs with no "
+                 + "world at all; the readiness wait catches that, ninety seconds later.");
+            return;
+        }
+
+        if (catalogue.Accepts(map)) return;
+
+        throw new RigRefusalException(
+            RigRefusalKind.Refused,
+            $"'{map}' is not a world this install has, so the server would boot, log \"No such world name: "
+            + $"{map}\", and then run forever with no world. Valid worlds: "
+            + $"{string.Join(", ", catalogue.Names)}. Read from "
+            + $"{Path.Combine(_paths.InstallDir, "rocketstation_DedicatedServer_Data", "StreamingAssets", ServerWorlds.WorldsFolder)}, "
+            + "where the accepted name is the World Id inside each world's own .xml and is not always the folder "
+            + "name.");
     }
 
     /// <summary>
@@ -499,16 +547,35 @@ public sealed partial class ServerHalf
         }
     }
 
+    /// <summary>
+    /// Terminates a pid and waits until it is really gone.
+    /// </summary>
+    /// <remarks>
+    /// The wait is the load-bearing half. Terminating returns as soon as the request is
+    /// accepted, and this half then deletes the pid files, so a process still unwinding becomes
+    /// an UNTRACKED game process, which is one of the three conditions the state restore
+    /// refuses on. That is how a release-time restore came to be skipped after a force-killed
+    /// host: nothing was lost, because the both-ends guarantee caught it at the next
+    /// acquisition, but the release half never fired. A timeout warns rather than throwing,
+    /// because the caller has already decided this process must go.
+    /// </remarks>
     private async Task ForceKillAsync(int pid, CancellationToken ct)
     {
         try
         {
-            await _processes.StopAsync(pid, TimeSpan.Zero, ct).ConfigureAwait(false);
+            await _processes.StopAsync(pid, RigConstants.ProcessExitGrace, ct).ConfigureAwait(false);
         }
         catch (Exception ex) when (ex is InvalidOperationException or IOException or UnauthorizedAccessException)
         {
             Warn($"[Stop] Could not stop pid {pid}: {ex.Message}");
+            return;
         }
+
+        if (!_processes.IsRunning(pid)) return;
+
+        Warn($"[Stop] PID {pid} was killed but is still in the process table after "
+             + $"{RigConstants.ProcessExitGrace.TotalSeconds:0}s. It is untracked from here on, so the state restore will "
+             + "refuse until it goes. Check with: testrig status");
     }
 
     /// <summary>
@@ -575,19 +642,32 @@ public sealed partial class ServerHalf
     // wait
     // =====================================================================
 
-    /// <summary>The body of the readiness probe: the minimal InspectorPlus request.</summary>
-    public const string ReadinessProbeBody = "{\"types\": [\"CableNetwork\"], \"maxMonoBehaviours\": 1}";
-
     /// <summary>
-    /// Blocks until the server's world is loaded and the simulation is ticking.
+    /// Blocks until the server has actually reached a stage, and says so from inside it.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// This half had no readiness barrier at all; its manual documented three hand-rolled
-    /// patterns instead. This is the recommended one, in code: drop a minimal InspectorPlus
-    /// request into the requests folder and poll for the plugin to delete it. The pump runs
-    /// off <c>ElectricityManager.ElectricityTick</c>, so the file is consumed only once the
-    /// world is loaded and ticking, and its deletion is the readiness signal.
+    /// <b>This asks the process, and it used to infer.</b> The old barrier dropped a minimal
+    /// InspectorPlus request into the requests folder and treated its DELETION as proof the
+    /// world was loaded and the simulation ticking. Measured 2026-08-15: <c>--new Moon</c> was
+    /// rejected by the game with "No such world name", the server ran on with no world at all,
+    /// InspectorPlus consumed the probe anyway, and this returned "the world is loaded and the
+    /// simulation is ticking". A barrier that reports success when the thing never happened is
+    /// worse than no barrier, because every assertion after it is made against a rig nobody
+    /// checked.
+    /// </para>
+    /// <para>
+    /// The evidence now is <c>/status.phase</c> from the merged plugin, which loads into this
+    /// half and listens on <see cref="ControlPort"/>. That is a statement by the process about
+    /// its own game state rather than an inference from a file, and it is the same signal the
+    /// client half has always used, so both halves answer the same question the same way.
+    /// </para>
+    /// <para>
+    /// A rejected world name is a FAILURE and not a timeout. The game prints
+    /// <c>No such world name: X. Valid worlds: ...</c> once and then runs indefinitely, so
+    /// waiting the full budget would report the wrong cause after ten minutes. The log is
+    /// scanned on every poll and that line ends the wait immediately, carrying the game's own
+    /// list of what it would have accepted.
     /// </para>
     /// <para>
     /// <b>It takes the caller id and refreshes the lock (SERVER-140 fixed, spec D-01).</b>
@@ -636,53 +716,109 @@ public sealed partial class ServerHalf
                 + "testrig start --target server --as <id> --new <Map>");
         }
 
-        // An 8-character fragment, so two concurrent waits cannot delete each other's probe
-        // and both report ready (SERVER-132).
-        var probeName = $"testrig-ready-{Guid.NewGuid().ToString("N")[..8]}.json";
-        var probePath = Path.Combine(_paths.InspectorRequests, probeName);
-
-        _fs.CreateDirectory(_paths.InspectorRequests);
-        _fs.WriteAllText(probePath, ReadinessProbeBody);
-
-        Say($"[Wait] Dropped an InspectorPlus readiness probe at {probePath}; waiting up to {waitSeconds}s for "
-            + "the server to consume it.");
+        Say($"[Wait] Polling the server's control plane on 127.0.0.1:{ControlPort} for stage "
+            + $"'{ReadinessStages.Name(stage)}', up to {waitSeconds}s.");
 
         var deadline = _clock.UtcNow.AddSeconds(waitSeconds);
-        try
+        var everAnswered = false;
+        var lastPhase = "(never answered)";
+        var lastError = "";
+
+        while (_clock.UtcNow < deadline)
         {
-            while (_clock.UtcNow < deadline)
+            // Before the status read, every time: the rejection is printed once, early, and
+            // then nothing changes for as long as anybody is willing to wait.
+            AssertWorldNameWasAccepted();
+
+            if (!ServerAlive)
             {
-                if (!_fs.FileExists(probePath))
+                throw new RigRefusalException(
+                    RigRefusalKind.Refused,
+                    $"[Wait] The dedicated server exited while waiting for '{ReadinessStages.Name(stage)}'. "
+                    + $"Inspect {_paths.LogFile}.");
+            }
+
+            var (status, error) = await StatusAsync(5, ct).ConfigureAwait(false);
+            if (status is not null)
+            {
+                everAnswered = true;
+                lastPhase = string.IsNullOrEmpty(status.Phase) ? "(no phase)" : status.Phase;
+
+                if (ReadinessStages.Reached(status, stage))
                 {
-                    Say("[Wait] Probe consumed: the world is loaded and the simulation is ticking.");
+                    Say($"[Wait] The server reports phase '{lastPhase}': "
+                        + $"'{ReadinessStages.Name(stage)}' reached.");
+                    _output.Value("serverPhase", lastPhase);
                     return true;
                 }
-                if (!ServerAlive)
-                {
-                    throw new RigRefusalException(
-                        RigRefusalKind.Refused,
-                        "[Wait] The dedicated server exited while the readiness probe was pending. Inspect "
-                        + $"{_paths.LogFile}.");
-                }
-
-                await _sleeper.DelayAsync(TimeSpan.FromSeconds(2), ct).ConfigureAwait(false);
-                lastRefresh = MaybeRefresh(callerId, lastRefresh);
             }
-        }
-        finally
-        {
-            _fs.DeleteFile(probePath);
+            else
+            {
+                lastError = error;
+            }
+
+            await _sleeper.DelayAsync(TimeSpan.FromSeconds(2), ct).ConfigureAwait(false);
+            lastRefresh = MaybeRefresh(callerId, lastRefresh);
         }
 
-        // An unconsumed probe and a slow world look identical from out here, so all three
-        // causes are named rather than one being assumed (SERVER-139).
+        // Two genuinely different failures, named apart rather than merged into one sentence
+        // that has to cover both: nothing ever answered (the plugin is missing), or it
+        // answered and never got there (the world is slow, or there is no world).
         throw new RigRefusalException(
             RigRefusalKind.Refused,
-            $"[Wait] The dedicated server did not consume the readiness probe within {waitSeconds}s. Either the "
-            + "world is still loading (a populated save takes minutes), or InspectorPlus is not deployed, or its "
-            + "'Force Unpause Without Client' setting is off, in which case the simulation is paused with nobody "
-            + $"connected and no probe will ever be consumed. Check {Path.Combine(_paths.BepInEx, "config", "net.inspectorplus.cfg")}, "
-            + "then: testrig logs --target server --tail 40");
+            everAnswered
+                ? $"[Wait] The dedicated server did not reach '{ReadinessStages.Name(stage)}' within "
+                  + $"{waitSeconds}s; its control plane last reported phase '{lastPhase}'. A populated save takes "
+                  + $"minutes to load. If the phase is not moving, read the log for what it is doing: "
+                  + "testrig logs --target server --tail 40"
+                : $"[Wait] Nothing answered on 127.0.0.1:{ControlPort} within {waitSeconds}s"
+                  + (string.IsNullOrEmpty(lastError) ? "" : $" (last error: {lastError})")
+                  + ". The server process is up, so the TestRig plugin is either not deployed or did not load, "
+                  + "and without it nothing here can prove a world is loaded. Deploy it and restart the server: "
+                  + "testrig deploy TestRig --target server --as <id>. Do not fall back to inferring readiness "
+                  + "from an InspectorPlus probe being consumed: measured, that happens with no world loaded at "
+                  + "all.");
+    }
+
+    /// <summary>
+    /// Fails at once when the game rejected the world name it was started with.
+    /// </summary>
+    /// <remarks>
+    /// The game logs <c>No such world name: X. Valid worlds: ...</c> and then keeps running,
+    /// forever, with no world. There is no other outward sign: the process is up, the control
+    /// plane answers, and the phase simply never becomes <c>inWorld</c>. Carrying the game's
+    /// own list into the refusal is what makes this an answer rather than a timeout.
+    /// </remarks>
+    private void AssertWorldNameWasAccepted()
+    {
+        if (!_fs.FileExists(_paths.LogFile)) return;
+
+        string? rejection = null;
+        try
+        {
+            foreach (var line in _fs.ReadLines(_paths.LogFile))
+            {
+                if (line.Contains(ServerWorlds.RejectionMarker, StringComparison.Ordinal)) rejection = line;
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // A log that cannot be read is not evidence of anything. The wait continues and
+            // fails on its own budget if the world genuinely never loads.
+            return;
+        }
+
+        if (rejection is null) return;
+
+        throw new RigRefusalException(
+            RigRefusalKind.Refused,
+            "[Wait] The game REJECTED the world name this server was started with, so there is no world and "
+            + "there never will be; the process stays up regardless. Its own words:\n\n  "
+            + rejection.Trim()
+            + $"\n\nStop it and start again with a world from that list: testrig stop --target server --as <id>, "
+            + "then testrig start --target server --new <Map> --as <id>. The launcher validates --new against the "
+            + "install before launching, so a name that got this far was either typed against an older binary or "
+            + "the world catalogue could not be read.");
     }
 
     /// <summary>Refreshes at most once a minute, against a ten-minute TTL.</summary>

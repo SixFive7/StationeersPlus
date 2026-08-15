@@ -104,6 +104,65 @@ public enum RigHalf
 }
 
 /// <summary>
+/// Where a repository mod lands inside an instance, spelled once.
+/// </summary>
+/// <remarks>
+/// <para>
+/// StationeersLaunchPad loads a local mod from <c>&lt;saveRoot&gt;/mods/&lt;Folder&gt;/</c>,
+/// and the rig deploys under a <c>Local_</c> prefix so a deployed mod is distinguishable at a
+/// glance from the developer's own seeded copy of the same name.
+/// </para>
+/// <para>
+/// <b>This type exists because two places derived that path independently and disagreed.</b>
+/// The deploy wrote <c>userdata/mods/Local_&lt;Mod&gt;/&lt;Mod&gt;.dll</c> while the playtest
+/// engine's attestation looked for <c>userdata/mods/&lt;Mod&gt;/&lt;Mod&gt;.dll</c>, so every
+/// check on a CORRECTLY deployed instance answered <c>binary-not-deployed</c>. It found
+/// anything at all only because the developer's stale seeded copy happened to sit at exactly
+/// the unprefixed path, which is the build attestation exists to rule out. One derivation, in
+/// Core, used by both.
+/// </para>
+/// </remarks>
+public static class LaunchPadMods
+{
+    /// <summary>The prefix the rig deploys under.</summary>
+    public const string LocalPrefix = "Local_";
+
+    /// <summary>The save root's mod folder, relative to an instance's data directory.</summary>
+    public const string ModsRelativeDir = "userdata\\mods";
+
+    /// <summary>The folder name a deploy of <paramref name="mod"/> writes.</summary>
+    public static string DeployedFolderName(string mod) => LocalPrefix + mod;
+
+    /// <summary>The deployed folder, under a resolved <c>userdata/mods</c> directory.</summary>
+    public static string DeployedDir(string modsDir, string mod) =>
+        Path.Combine(modsDir, DeployedFolderName(mod));
+
+    /// <summary>The deployed assembly, under a resolved <c>userdata/mods</c> directory.</summary>
+    public static string DeployedDll(string modsDir, string mod) =>
+        Path.Combine(DeployedDir(modsDir, mod), mod + ".dll");
+
+    /// <summary>
+    /// The deployed assembly relative to an instance's DATA directory.
+    /// </summary>
+    /// <remarks>
+    /// What attestation resolves against <c>ClientRig/data/&lt;instance&gt;/</c>. Derived from
+    /// the same two members the deploy uses, so the two cannot drift apart again.
+    /// </remarks>
+    public static string DeployedRelativeDll(string mod) =>
+        Path.Combine(ModsRelativeDir, DeployedFolderName(mod), mod + ".dll");
+
+    /// <summary>
+    /// The folder the DEVELOPER'S own mod set seeds a mod of this name into.
+    /// </summary>
+    /// <remarks>
+    /// Unprefixed, because that copy is a verbatim mirror of the developer's <c>mods/</c>
+    /// folder. A deploy has to remove it: both folders carry an About.xml, StationeersLaunchPad
+    /// loads both, and the mod is then loaded twice with every Harmony patch registered twice.
+    /// </remarks>
+    public static string SeededDir(string modsDir, string mod) => Path.Combine(modsDir, mod);
+}
+
+/// <summary>
 /// The names the rig's control plane has gone by, and what that means for a deploy.
 /// </summary>
 /// <remarks>
@@ -281,9 +340,9 @@ public sealed class ModBuilds
         foreach (var folder in folderNames)
         {
             if (string.IsNullOrEmpty(folder)) continue;
-            if (!folder.StartsWith("Local_", StringComparison.Ordinal)) continue;
+            if (!folder.StartsWith(LaunchPadMods.LocalPrefix, StringComparison.Ordinal)) continue;
 
-            var bare = folder["Local_".Length..];
+            var bare = folder[LaunchPadMods.LocalPrefix.Length..];
             if (bare.Length == 0) continue;
             if (Find(bare) is not null) lost.Add(folder);
         }

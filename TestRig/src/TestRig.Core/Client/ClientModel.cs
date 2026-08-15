@@ -60,6 +60,33 @@ public sealed record InstanceEntry
     [JsonPropertyName("instancesRoot")]
     public string? InstancesRoot { get; init; }
 
+    /// <summary>
+    /// The mods this instance exists to TEST, deployed from this repository's build.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Explicit and per-instance, never inferred from "this repository builds it". The rig is
+    /// normally testing ONE mod, and every OTHER repository mod has to stay at its published
+    /// state, seeded from the developer's own folder, because this repository carries work in
+    /// progress for those too. Inferring the set would let an unrelated mod's half-finished
+    /// code silently change the behaviour of the mod actually under test.
+    /// </para>
+    /// <para>
+    /// What it changes: the mod seed does not copy the developer's version of a mod in this
+    /// set and writes no modconfig entry for it, so <c>deploy</c>'s <c>Local_&lt;Mod&gt;</c> is
+    /// the ONLY copy. Both present is a double load, and StationeersLaunchPad loads both
+    /// happily: Awake twice, every Harmony patch registered twice, and output that looks
+    /// entirely plausible.
+    /// </para>
+    /// <para>
+    /// Recorded here rather than passed per command, so it survives, is visible in
+    /// <c>testrig list</c>, and is preserved by <c>create --force</c> exactly as the role, the
+    /// ports and the identity are.
+    /// </para>
+    /// </remarks>
+    [JsonPropertyName("underTest")]
+    public string[]? UnderTest { get; init; }
+
     [JsonPropertyName("provisionedUtc")]
     public string? ProvisionedUtc { get; init; }
 
@@ -82,6 +109,15 @@ public sealed record InstanceEntry
 
     /// <summary>Whether this instance was provisioned as a host.</summary>
     public bool IsHost => string.Equals(RoleOr(), "host", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>The mods under test here, never null, blanks dropped.</summary>
+    public IReadOnlyList<string> UnderTestMods =>
+        UnderTest is null ? [] : [.. UnderTest.Where(static m => !string.IsNullOrWhiteSpace(m))];
+
+    /// <summary>Whether a named mod is one this instance exists to test.</summary>
+    public bool IsUnderTest(string mod) =>
+        !string.IsNullOrWhiteSpace(mod)
+        && UnderTestMods.Any(m => string.Equals(m, mod, StringComparison.OrdinalIgnoreCase));
 
     private static bool Blank(string? value) => string.IsNullOrEmpty(value);
 }
