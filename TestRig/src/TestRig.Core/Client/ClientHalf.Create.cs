@@ -295,6 +295,14 @@ public sealed partial class ClientHalf
         // THE root this instance is built in. A rebuild keeps its recorded root for the same
         // reason it keeps the role and the game port: create --force is the routine way to
         // pick up a new plugin build, and relocating an instance in passing would be a trap.
+        //
+        // The recorded root beats the launcher default, and the default is whatever this SHELL
+        // resolves: --instances-root, else STATIONEERS_CLIENTRIG_ROOT, else ClientRig/instances.
+        // So a rebuild run from a shell that happens not to export the variable rebuilds where
+        // the instance already is. Verified against the real rig on 2026-08-15 with the
+        // variable unset: the launcher default was ClientRig/instances and create --force
+        // rebuilt 1,053 hard links into E:\StationeersRig\joiner, the recorded root, leaving
+        // nothing at the default.
         var recordedRoot = existing?.RecordedRoot ?? "";
         var effectiveRoot = _layout.InstancesRootTyped
             ? _layout.InstancesDir
@@ -307,6 +315,22 @@ public sealed partial class ClientHalf
                  + $"{effectiveRoot}. The old tree at {Path.Combine(recordedRoot, name)} is NOT deleted (this "
                  + "launcher only ever removes the tree it is about to rebuild); delete it by hand once the "
                  + "rebuild succeeds.");
+        }
+
+        // The one case where a rebuild really can relocate an instance without being asked to,
+        // and it has to say so. An entry written before the root was recorded carries none, so
+        // there is nothing to preserve and the launcher default is all there is; if this shell
+        // resolves a different default from the one the tree was built under, the rebuild lands
+        // somewhere else and the original is orphaned. Nothing else prints here: the notice in
+        // ClientLayout.ResolveRootCore fires on path resolution, and create resolves its root
+        // itself, so this path was silent.
+        if (existing is not null && recordedRoot.Length == 0)
+        {
+            Warn($"[Provision] '{name}' has a registry entry that records no instances root, so this rebuild "
+                 + $"uses {_layout.InstancesDirSource} ({effectiveRoot}) and the tree lands at "
+                 + $"{Path.Combine(effectiveRoot, name)}. If it was originally built somewhere else, that tree "
+                 + "is NOT deleted and is now orphaned; delete it by hand. This rebuild records the root, so it "
+                 + "cannot happen to this instance twice.");
         }
 
         var paths = _layout.PathsInRoot(name, effectiveRoot);

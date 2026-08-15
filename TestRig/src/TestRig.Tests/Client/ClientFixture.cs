@@ -123,14 +123,28 @@ public sealed class FakeInstanceLauncher : IInstanceLauncher
 /// </remarks>
 public sealed class ClientFixture
 {
-    public ClientFixture(string? typedInstancesRoot = null)
+    /// <param name="ambientInstancesRoot">
+    /// What <c>STATIONEERS_CLIENTRIG_ROOT</c> holds in this fixture's environment, or null to
+    /// leave it UNSET.
+    /// </param>
+    /// <remarks>
+    /// The unset case has to be reachable, and it was not: every fixture set the variable, so
+    /// the branch where the launcher default is the only ambient answer and an instance's
+    /// recorded root has to override it was never exercised offline at all. That branch is
+    /// what stands between <c>create --force</c> and relocating a rebuilt instance onto the
+    /// default root, orphaning its 1,053 hard-linked files.
+    /// </remarks>
+    public ClientFixture(string? typedInstancesRoot = null, string? ambientInstancesRoot = InstancesRoot)
     {
         Rig = new RigFixture();
 
         Ambient = new FakeAmbient();
         // On the SAME volume as the source install, because hard links cannot cross one and
         // the provision refuses rather than falling back to a seven gigabyte copy.
-        Ambient.Variables["STATIONEERS_CLIENTRIG_ROOT"] = InstancesRoot;
+        if (ambientInstancesRoot is not null)
+        {
+            Ambient.Variables["STATIONEERS_CLIENTRIG_ROOT"] = ambientInstancesRoot;
+        }
         Transport = new FakeControlTransport();
         RegistryMutex = new FakeCrossProcessLock { Name = "Global\\StationeersPlus.TestRig.Registry.TEST" };
         Launcher = new FakeInstanceLauncher { Processes = Rig.Processes, Clock = Rig.Clock };

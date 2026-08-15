@@ -589,6 +589,95 @@ public sealed class CreateTests
         Assert.Contains("recorded in the registry", reader.PathsFor("x").RootSource, StringComparison.Ordinal);
     }
 
+    /// <summary>
+    ///     A rebuild goes where the instance already is, even with the variable unset.
+    /// </summary>
+    /// <remarks>
+    ///     <c>STATIONEERS_CLIENTRIG_ROOT</c> is exported per shell, so a rebuild is routinely
+    ///     run from one that does not have it, and the launcher default is then
+    ///     <c>ClientRig/instances</c> beside the binary. If that default won, <c>create
+    ///     --force</c> would relocate the instance and orphan its 1,053 hard-linked files
+    ///     while reporting a clean rebuild. The recorded root wins for the same reason the
+    ///     role, the ports and the identity do: <c>--force</c> is a rebuild, not a move.
+    ///
+    ///     This branch had no offline coverage at all, because every fixture set the variable.
+    ///     Confirmed against the real rig on 2026-08-15 as well.
+    /// </remarks>
+    [Fact]
+    public void ARebuildKeepsTheRecordedRootWhenTheEnvironmentVariableIsNotSet()
+    {
+        var fixture = new ClientFixture(ambientInstancesRoot: null);
+        var owner = fixture.Lease();
+
+        // Provisioned once from a shell that DID have the variable, which is how the rig is set
+        // up, so the entry records E:\rig-instances.
+        fixture.Registry.Update<bool>(_ =>
+        (
+            [
+                new InstanceEntry
+                {
+                    InstanceName = "joiner", Index = 2, Port = 27702, GamePort = 27802,
+                    ClientId = "900000000002", Role = "client",
+                    InstancesRoot = ClientFixture.InstancesRoot,
+                    UnderTest = ["SprayPaintPlus"],
+                },
+            ],
+            true
+        ));
+
+        // The precondition, asserted rather than assumed: if the seed did not persist, the
+        // rest of this test would be measuring an empty rig and would pass for the wrong reason.
+        Assert.Equal(ClientFixture.InstancesRoot, fixture.Registry.Find("joiner")?.RecordedRoot);
+
+        // The launcher default in THIS shell is somewhere else entirely.
+        Assert.False(fixture.Layout.InstancesRootTyped);
+        Assert.Equal(Path.Combine(RigFixture.Home, "ClientRig", "instances"), fixture.Layout.InstancesDir);
+
+        fixture.CreateWith(new CreateOptions { Instance = "joiner", CallerId = owner, Force = true, SeedMods = false });
+
+        var entry = Assert.Single(fixture.Registry.Read());
+        Assert.Equal(ClientFixture.InstancesRoot, entry.RecordedRoot);
+
+        // The tree is where it always was, and nothing was built at the default.
+        Assert.True(fixture.Fs.DirectoryExists(Path.Combine(ClientFixture.InstancesRoot, "joiner")));
+        Assert.False(fixture.Fs.DirectoryExists(Path.Combine(RigFixture.Home, "ClientRig", "instances", "joiner")));
+
+        // And everything else a rebuild preserves is still preserved.
+        Assert.Equal("client", entry.RoleOr());
+        Assert.Equal(27702, entry.Port);
+        Assert.Equal(27802, entry.GamePortOr(0));
+        Assert.Equal("900000000002", entry.ClientIdOr());
+        Assert.Equal(["SprayPaintPlus"], entry.UnderTestMods);
+    }
+
+    /// <summary>
+    ///     A rebuild that CAN relocate says so, because that entry records nowhere to go back to.
+    /// </summary>
+    /// <remarks>
+    ///     An entry written before the root was recorded has nothing to preserve, so the
+    ///     launcher default is all there is and the rebuild can genuinely land somewhere else.
+    ///     <c>ClientLayout.ResolveRootCore</c>'s notice does not cover it: <c>create</c>
+    ///     resolves its own root and never calls that, so this was the one silent relocation.
+    /// </remarks>
+    [Fact]
+    public void ARebuildOfAnEntryWithNoRecordedRootSaysWhereItIsPuttingTheTree()
+    {
+        var fixture = new ClientFixture(ambientInstancesRoot: null);
+        var owner = fixture.Lease();
+
+        fixture.Fs.AddFile(fixture.Rig.Paths.ClientRegistryFile,
+            """[{"instanceName":"old","index":1,"port":27701,"gamePort":27801,"clientId":"900000000001"}]""");
+
+        // The volume guard refuses afterwards, because the launcher default is not on the
+        // install's volume. The warning still has to have been printed by then: it explains a
+        // relocation, and the refusal it is followed by explains something else entirely.
+        Assert.Throws<RigRefusalException>(() =>
+            fixture.CreateWith(new CreateOptions { Instance = "old", CallerId = owner, Force = true, SeedMods = false }));
+
+        Assert.True(fixture.Output.Warned("records no instances root"), fixture.Output.All);
+        Assert.True(fixture.Output.Warned("is now orphaned"), fixture.Output.All);
+    }
+
     [Fact]
     public void AnEntryWithNoRecordedRootGetsOneNoticeAndOnlyOne()
     {
