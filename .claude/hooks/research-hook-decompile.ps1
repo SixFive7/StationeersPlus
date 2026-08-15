@@ -14,10 +14,20 @@
 #       never fires. Coverage is PARTIAL by nature, because a Glob `if` rule only
 #       sees the `pattern` argument, and a call that puts the directory in `path` and
 #       *.dll in `pattern` never reaches this script. Do not describe it as complete.
-#   (d) a Bash invocation of a decompiler: ilspycmd, ICSharpCode.Decompiler.
-#   (e) a Bash command whose text names a decompile path or suffix. This is what
-#       catches inspection through cat, grep, rg, head, tail, xxd, strings and every
-#       other tool nobody wants to enumerate.
+#   (d) a shell invocation of a decompiler: ilspycmd, ICSharpCode.Decompiler.
+#   (e) a shell command whose text names a decompile path or suffix. This is what
+#       catches inspection through cat, grep, rg, head, tail, xxd, strings,
+#       Get-Content, Select-String and every other tool nobody wants to enumerate.
+#
+# "Shell" in (d) and (e) means BOTH shell tools, Bash and PowerShell. PowerShell is
+# the primary shell in this environment, so it is the main path, not a corner case:
+# a hook covering only Bash leaves `Get-Content .work\decomp\...\*.decompiled.cs`
+# firing nothing at all, which is worse than no coverage because the Bash half being
+# well behaved makes the set look complete. Both tools deliver an IDENTICAL
+# tool_input shape, verified by capturing live PostToolUse payloads rather than
+# assumed: {"command": "...", "description": "..."}, with tool_response carrying
+# stdout/stderr/interrupted/isImage. So the decision code below needed no change to
+# read PowerShell; it walks tool_input generically and never names a field.
 #
 # WHY THE FILTERING HAPPENS HERE AND NOT IN settings.json. Bash `if` rules fail OPEN:
 # per src/tools/BashTool/BashTool.tsx preparePermissionMatcher, when the AST parser
@@ -30,7 +40,14 @@
 # the decision below is the only thing that speaks.
 #
 # So the registration set is deliberately a CHEAP PRE-FILTER, never a decision:
-#   Bash        no `if`. Every Bash call reaches this script and is judged here.
+#   Bash|PowerShell
+#               one entry, matcher alternation, no `if` at all. Every call to either
+#               shell reaches this script and is judged here. No `if` means the
+#               fail-open behaviour above cannot bite us, and it costs a process on
+#               every shell call: measured at 210-285 ms, median 219, on the quiet
+#               path where stage one exits without a JSON parse. That price is worth
+#               paying, because the alternative is a hole in a rule the repo enforces
+#               everywhere else. It was already being paid for Bash.
 #   Read/Glob   path-shaped `if` rules, because those DO match precisely, and firing
 #               a process on every Read would cost more than it saves. One rule per
 #               tool, `*decomp*`, wide enough to cover both .work/decomp/ and the
@@ -128,7 +145,7 @@ $message = @'
 
 Research/WORKFLOW.md Rule 2 ("curate decompiled-code findings into Research/ on every touch") applies: any game-internals finding you produce this turn must land in a page under Research/<category>/ in this same response. Do not postpone. Read Research/WORKFLOW.md in full if you have not yet this conversation.
 
-This hook fires for: (a) reads of any *.decompiled.cs file anywhere in the tree, (b) reads of files under .work/decomp/<game-version>/, (c) Glob listings of the game DLLs under rocketstation_Data/Managed/, (d) Bash invocations of a decompiler (ilspycmd, ICSharpCode.Decompiler), and (e) Bash commands whose text names a decompile path or suffix.
+This hook fires for: (a) reads of any *.decompiled.cs file anywhere in the tree, (b) reads of files under .work/decomp/<game-version>/, (c) Glob listings of the game DLLs under rocketstation_Data/Managed/, (d) Bash or PowerShell invocations of a decompiler (ilspycmd, ICSharpCode.Decompiler), and (e) Bash or PowerShell commands whose text names a decompile path or suffix.
 
 The canonical decompile output path is .work/decomp/<game-version>/<source-name>.decompiled.cs (see CLAUDE.md, "Decompilation artifacts" section). Decompiles outside that path are forbidden.
 

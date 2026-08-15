@@ -22,8 +22,21 @@
 #
 # THE FIVE TRIGGERS THAT MUST NEVER GO QUIET, per Research/WORKFLOW.md Rule 2:
 # a *.decompiled.cs read anywhere, a read under .work/decomp/, a Glob of the game
-# DLLs under rocketstation_Data/Managed/, a Bash decompiler invocation, and a Bash
-# command whose text names a decompile path or suffix. Every one has a case here.
+# DLLs under rocketstation_Data/Managed/, a decompiler invocation from a shell, and a
+# shell command whose text names a decompile path or suffix. Every one has a case
+# here, and triggers (d) and (e) have a case per shell.
+#
+# BOTH SHELLS, because there are two. Bash and PowerShell are separate tools with
+# separate registrations, and PowerShell is the primary shell in this environment.
+# The hook covered only Bash for as long as it existed, so the single most likely way
+# to read a decompile here, Get-Content on a .decompiled.cs, fired nothing at all.
+# The payload shapes turn out to be identical, captured from live PostToolUse calls
+# rather than assumed: tool_input is {"command","description"} for both. That is
+# precisely why the gap was invisible from reading the script, which never names a
+# field and was always already correct. The gap was entirely in the registration.
+# So the PowerShell cases below duplicate the Bash ones on purpose: they pin the
+# shape, so a future harness change that renames PowerShell's command field breaks a
+# test here instead of silently going quiet in the field.
 #
 # Nothing runs this automatically. Run it after touching research-hook-decompile.ps1.
 $ErrorActionPreference = 'Stop'
@@ -51,22 +64,33 @@ function Invoke-Hook {
     return @{ kind = 'context'; text = $j.hookSpecificOutput.additionalContext; code = $code }
 }
 
-# A PostToolUse payload with the fields the harness really sends. The envelope keys
-# outside tool_input are load-bearing for one case: a token there must not fire.
+# A PostToolUse payload with the fields the harness really sends, copied from a live
+# capture rather than invented. The envelope keys outside tool_input are load-bearing
+# for one case: a token there must not fire. The agent_* / effort / prompt_id /
+# duration_ms keys are noise the script never looks at, and they are here for exactly
+# that reason: an envelope that grows must not change the verdict.
 function New-Payload {
     # NOT $Input: that is a PowerShell automatic variable (the pipeline enumerator),
     # and binding a parameter to it hands you an ArrayListEnumeratorSimple.
-    param([string] $Tool, [hashtable] $ToolInput, $Response = @{ stdout = ''; stderr = '' })
+    param(
+        [string] $Tool,
+        [hashtable] $ToolInput,
+        $Response = @{ stdout = ''; stderr = ''; interrupted = $false; isImage = $false })
     return @{
         session_id      = '5f1673be-b732-4a23-855a-72af43200618'
         transcript_path = 'C:\Users\jori\.claude\projects\x\y.jsonl'
         cwd             = $repo
+        prompt_id       = '1a6c2be0-4d22-4eda-8dff-61b89019c3c0'
         permission_mode = 'bypassPermissions'
+        agent_id        = 'af628bca1f2502441'
+        agent_type      = 'general-purpose'
+        effort          = @{ level = 'max' }
         hook_event_name = 'PostToolUse'
         tool_name       = $Tool
         tool_input      = $ToolInput
         tool_response   = $Response
         tool_use_id     = 'toolu_test'
+        duration_ms     = 558
     }
 }
 
@@ -101,6 +125,24 @@ $cases = @(
     @{ n='(e) relevant AND loop-shaped'; want='context'
        p=(New-Payload 'Bash' @{ command='for f in .work/decomp/*/*.decompiled.cs; do wc -l $f; done' }) }
 
+    # === THE SAME TWO TRIGGERS THROUGH THE OTHER SHELL. ========================
+    # PowerShell is the primary shell here, so these are the LIKELIEST true fires in
+    # the whole suite, not an afterthought. The first one is the exact call that
+    # fired nothing at all before the PowerShell registration existed.
+    @{ n='(e) pwsh Get-Content a decompile'; want='context'
+       p=(New-Payload 'PowerShell' @{ command="Get-Content '$decompNt\NetworkBase.decompiled.cs' -TotalCount 40"
+                                      description='Read a decompiled file' }) }
+    @{ n='(d) pwsh ilspycmd'; want='context'
+       p=(New-Payload 'PowerShell' @{ command="ilspycmd '$managed/Assembly-CSharp.dll' -o .work/decomp/$version" }) }
+    @{ n='(d) pwsh ICSharpCode.Decompiler'; want='context'
+       p=(New-Payload 'PowerShell' @{ command='dotnet run --project ICSharpCode.Decompiler.Console' }) }
+    @{ n='(e) pwsh Select-String, piped'; want='context'
+       p=(New-Payload 'PowerShell' @{ command="Select-String -Path '$decompNt\*.decompiled.cs' -Pattern OnFinishedLoad | Select-Object -First 20" }) }
+    @{ n='(e) pwsh list the Managed folder'; want='context'
+       p=(New-Payload 'PowerShell' @{ command="Get-ChildItem '$managed' -Filter *.dll" }) }
+    @{ n='(e) pwsh recurse the decomp cache'; want='context'
+       p=(New-Payload 'PowerShell' @{ command="Get-ChildItem -Path '$repo\.work\decomp' -Recurse -File | Select-Object -First 5" }) }
+
     # === FALSE FIRES. The whole point of the stdin filter. ======================
     # The reproducer: a loop is unparseable, so every Bash `if` rule fires regardless
     # of content. The script has to be the thing that says no.
@@ -126,6 +168,27 @@ $cases = @(
        p=(New-Payload 'Bash' @{ command='ls tools/'; description='Look for the .decompiled.cs helper' }) }
     @{ n='MISFIRE: no tool_input at all'; want='silent'
        p=@{ hook_event_name='PostToolUse'; tool_name='Bash'; tool_response=@{ stdout=".work/decomp/$version/x.decompiled.cs" } } }
+
+    # The same quiet cases through PowerShell. Registering the primary shell with no
+    # `if` rule means EVERY PowerShell call now reaches the script, so the cost of a
+    # wrong verdict here is paid on ordinary work that never went near a decompile.
+    @{ n='MISFIRE: pwsh trivial expression'; want='silent'
+       p=(New-Payload 'PowerShell' @{ command='Write-Output ("hello " + (2 + 2))'
+                                      description='Run a trivial unrelated command' }) }
+    @{ n='MISFIRE: pwsh git status'; want='silent'
+       p=(New-Payload 'PowerShell' @{ command='git status --short' } `
+                                    @{ stdout=' M CLAUDE.md'; stderr=''; interrupted=$false; isImage=$false }) }
+    @{ n='MISFIRE: pwsh dotnet test'; want='silent'
+       p=(New-Payload 'PowerShell' @{ command='dotnet test TestRig/src/TestRig.slnx -c Release' }) }
+    @{ n='MISFIRE: pwsh bare word decomp'; want='silent'
+       p=(New-Payload 'PowerShell' @{ command='Select-String -Path tools\* -Pattern decompress' }) }
+    @{ n='MISFIRE: pwsh token in output only'; want='silent'
+       p=(New-Payload 'PowerShell' @{ command='git status --short' } `
+                                    @{ stdout="?? .work/decomp/$version/Client.decompiled.cs"; stderr=''
+                                       interrupted=$false; isImage=$false }) }
+    @{ n='MISFIRE: pwsh token in description'; want='silent'
+       p=(New-Payload 'PowerShell' @{ command='Get-ChildItem tools\'
+                                      description='Look for the .decompiled.cs helper' }) }
 
     # === EDGES =================================================================
     # Token present but the payload will not parse: fire. The gap is narrow and a

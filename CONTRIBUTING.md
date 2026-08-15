@@ -43,7 +43,7 @@ Rules that apply to specific classes of edits live in dedicated non-CLAUDE.md fi
 | Scoped doc | Hook script | Fires on | Content |
 |---|---|---|---|
 | `Mods/Template/LAYOUT.md` | `mod-content-hook.ps1` | Read / Edit / Write of `Mods/*/README.md`, `Plans/*/README.md`, `**/About/About.xml` | Mod README + About.xml layout: content sync, tagline rule, ChangeLog format and size cap, About.xml element order, XML-escape safety, per-element size caps, Reporting Issues section, `<line-height>` wrap, preview image dimensions. |
-| `Research/WORKFLOW.md` | `research-hook-decompile.ps1` | Read / Glob of decompiled content (`*.decompiled.cs`, `.work/decomp/`, `rocketstation_Data/Managed/`), and every Bash command, filtered in-script | The three research workflow triggers: read mod `RESEARCH.md` first, curate decompiled findings into `Research/<category>/`, fresh-validator protocol for conflicts. Includes the full conflict-resolution prompt template. |
+| `Research/WORKFLOW.md` | `research-hook-decompile.ps1` | Read / Glob of decompiled content (`*.decompiled.cs`, `.work/decomp/`, `rocketstation_Data/Managed/`), and every Bash and PowerShell command, filtered in-script | The three research workflow triggers: read mod `RESEARCH.md` first, curate decompiled findings into `Research/<category>/`, fresh-validator protocol for conflicts. Includes the full conflict-resolution prompt template. |
 | `Mods/Template/RELEASE.md` | `release-hook.ps1` | Edit / Write of `Mods/*/*/Plugin.cs` | Release commit rules: one mod per commit, exactly `Plugin.cs` + `About.xml` touched, tag format `mods/<ModName>/v<X.Y.Z>`, commit message format. |
 
 Two additional hooks run inside `Research/` itself and inject context that is always useful when writing there:
