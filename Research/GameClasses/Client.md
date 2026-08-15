@@ -2,10 +2,13 @@
 title: Client
 type: GameClasses
 created_in: 0.2.6403.27689
-verified_in: 0.2.6403.27689
-verified_at: 2026-07-27
+verified_in: 0.2.6428.27798
+verified_at: 2026-08-15
 sources:
   - $(StationeersPath)\rocketstation_Data\Managed\Assembly-CSharp.dll :: Assets.Scripts.Client
+  - $(StationeersPath)\rocketstation_Data\Managed\Assembly-CSharp.dll :: NetworkBase
+  - $(StationeersPath)\rocketstation_Data\Managed\Assembly-CSharp.dll :: Assets.Scripts.NetworkServer
+  - $(StationeersPath)\rocketstation_Data\Managed\Assembly-CSharp.dll :: Assets.Scripts.Networking.NetworkManager
   - $(StationeersPath)\rocketstation_Data\Managed\Assembly-CSharp.dll :: Assets.Scripts.FragmentHandler
   - $(StationeersPath)\rocketstation_Data\Managed\Assembly-CSharp.dll :: Assets.Scripts.Objects.Thing.OwnerClientId
   - $(StationeersPath)\rocketstation_Data\Managed\Assembly-CSharp.dll :: Assets.Scripts.Objects.Entities.Human
@@ -103,6 +106,118 @@ public static Client Find(ulong clientId)
 ```
 
 Both check `NetworkManager.HostClient` first, then scan `NetworkBase.Clients`. Both return null when the instance is not in that list, which is what makes disconnect cleanup a Prefix-only job. See [ClientDisconnected cleanup Prefix](../Patterns/ClientDisconnectedPrefix.md).
+
+## The roster is two collections, and the host is in only one
+
+<!-- verified: 0.2.6428.27798 @ 2026-08-15 -->
+
+`Find` checks `HostClient` separately for a reason: **the host's own `Client` is never in `NetworkBase.Clients`.** Code that builds a player list from that one collection silently omits the host, and on a listen host with no joiners it produces an empty list for a session that has a player in it.
+
+`NetworkBase.Clients` (global-namespace `NetworkBase`) is:
+
+```csharp
+public static readonly List<Client> Clients = new List<Client>(NetworkManager.MaxConnections);
+```
+
+Its only writers are `NetworkBase.AddClient`, `NetworkBase.RemoveClient` and `NetworkBase.ClearClientsList`. On a server, `AddClient` has exactly one caller, `NetworkServer.VerifyConnection`, after the blacklist, password and version checks pass:
+
+```csharp
+NetworkBase.AddClient(client);
+Achievements.AssessWelcomeAboard();
+JoiningClients.Enqueue(client);
+client.SetState(ClientState.Queued);
+```
+
+So server-side `Clients` holds **joiners only**. The host's record is built separately by `NetworkServer.PopulateHostClient`, which `GameManager.StartGame` calls when `RunSimulation`:
+
+```csharp
+public static void PopulateHostClient()
+{
+	NetworkManager.HostClient = new Client
+	{
+		connectionId = 0L,
+		name = NetworkManager.Username,
+		ClientId = NetworkManager.LocalClientId,
+		IsHost = true,
+		state = ClientState.Ready
+	};
+}
+```
+
+### The game unions the two everywhere it presents a roster
+
+Console roster, `NetworkManager.LogClientRosterToConsole`:
+
+```csharp
+List<Client> clients = NetworkBase.Clients;
+ConsoleWindow.PrintAction($"Clients: {clients.Count}");
+List<(string, uint)[]> list = new List<(string, uint)[]>(clients.Count + 1);
+foreach (Client item in clients) { list.Add(ClientRosterRow(item)); }
+if (HostClient != null) { list.Add(ClientRosterRow(HostClient)); }
+```
+
+Wire player list, `NetworkManager.SerialisePlayerList`, which carries the guard worth copying:
+
+```csharp
+Network.WriteIndex<byte>(writer, out var count, out var bufferIndex);
+if (HostClient != null && Client.Find(HostClient.ClientId) == null)
+{
+	HostClient.Write(writer);
+	count++;
+}
+foreach (Client client in NetworkBase.Clients)
+{
+	if (client != null) { client.RoundTripTime = -1; client.Write(writer); count++; }
+}
+```
+
+`Client.Find(HostClient.ClientId) == null` is the deduplication: emit the host row only when the host is not already in `Clients`.
+
+### The receiving side sorts them back into the same two buckets
+
+`Client.DeserialiseClient` routes on the `IsHost` flag, and drops a record whose `ClientId` is 0 before either branch:
+
+```csharp
+if (num == 0L) { return; }
+Client client;
+if (flag)
+{
+	if (NetworkManager.HostClient == null) { NetworkManager.HostClient = new Client(); }
+	client = NetworkManager.HostClient;
+}
+else
+{
+	client = Find(num) ?? new Client();
+	if (!NetworkBase.Clients.Contains(client))
+	{
+		NetworkBase.AddClient(client);
+		Achievements.AssessWelcomeAboard();
+	}
+}
+```
+
+So on a joined client, `Clients` holds **itself** (its own row arrives with `IsHost` false) and `HostClient` holds the host. The `ClientId == 0` early return is the game's own rule for "not a real player", and 0 is exactly what a dedicated server's `HostClient` carries, because `PlayerCookie` is not loaded in batch mode.
+
+### What each process actually holds
+
+| Process | `NetworkBase.Clients` | `NetworkManager.HostClient` | `TotalPlayersInGame` |
+|---|---|---|---|
+| Dedicated server | every joiner | itself, `ClientId` 0, `connectionId` 0 | `Clients.Count` |
+| Listen host | every joiner | itself, real `ClientId`, `connectionId` 0 | `Clients.Count + 1` |
+| Joined client | itself | the host | `Clients.Count + 1` |
+| Single player | empty | null | 1 |
+
+The count property is:
+
+```csharp
+public static int TotalPlayersInGame => NetworkBase.Clients.Count + ((!GameManager.IsBatchMode) ? 1 : 0);
+```
+
+which is the same union stated arithmetically: the `+1` is the `HostClient` that is not in the list, and batch mode drops it because a dedicated server's host record is not a player. A roster built as "`HostClient` when its `ClientId` is not 0 and not already in `Clients`, then every entry in `Clients`" has a length equal to `TotalPlayersInGame` on both server kinds, which makes the two independently checkable against each other.
+
+### `connectionId` is a RakNet id and does not fit an `int`
+
+`connectionId` is declared `long` (212222) and the values are far past `int` range. Two, observed on a loopback join in the rig on 0.2.6428.27798: `189151461494586169` and `1044835390751713754`. The second is also past 2^53, so it does not survive a JSON reader that parses numbers through `double` either. Anything that serializes a `Client` for a tool outside the process should carry `connectionId` as a string, the same way `ClientId` has to be.
 
 ## RegisteredHuman is unreliable
 
@@ -324,6 +439,8 @@ Human owner = Human.Find(client.ClientId);
 <!-- verified: 0.2.6403.27689 @ 2026-07-27 -->
 
 - 2026-07-27: page created. All content verified against game version 0.2.6403.27689. Covers the full `Client` member list (class body 212198-212508), both `Find` overloads, and the finding that `Client.RegisteredHuman` is unreliable: three assembly-wide occurrences (212232 declaration, 212463 assignment, 212827 read), single writer `Client.Register` (212456-212466), single caller `Thing.OwnerClientId` setter (317651-317668) whose change guard prevents any retry, backing field `_ownerClientId` (317035) written nowhere else, and the `Thing.DeserializeSave` (321303, assignment at 321319) path that drops the registration at world-load time. Also records that the property is never cleared, that its only read site inside `FragmentHandler.Receive` (212759, read at 212827) is unreachable because both `NetworkChannel.StateTick` sends are server to clients, and the reliable `OwnerClientId`-keyed alternatives (`Human.Find` 362067, `Entity.GetClientEntity` 302434, `CleanupPlayersCommand.CleanupDisconnected` 96602) plus the `clientId == 0` trap. Additive page; no existing verified content was contradicted. Corrects two namespace assumptions carried in the source material: `Client`, `FragmentHandler`, and `NetworkServer` live in `Assets.Scripts` (block 195722-223977), while `NetworkBase` (39197) is in the global namespace and `NetworkChannel` (272554) is in `Assets.Scripts.Networking`.
+
+- 2026-08-15: added "The roster is two collections, and the host is in only one" against 0.2.6428.27798. Establishes that `NetworkBase.Clients` holds joiners only (`public static readonly List<Client>`, written solely by `AddClient` / `RemoveClient` / `ClearClientsList`, and `AddClient` called only from `NetworkServer.VerifyConnection`), that the host's own record is built by `NetworkServer.PopulateHostClient` onto `NetworkManager.HostClient` and never added to that list, and that the game unions the two at both presentation sites (`NetworkManager.LogClientRosterToConsole` appends `HostClient` after the list; `NetworkManager.SerialisePlayerList` writes it first under `Client.Find(HostClient.ClientId) == null`). Records the receiving side's split in `Client.DeserialiseClient` (`IsHost` to `HostClient`, everything else into `Clients` behind a `Contains` guard, `ClientId == 0` dropped outright), the per-process holdings table, and `TotalPlayersInGame => NetworkBase.Clients.Count + ((!GameManager.IsBatchMode) ? 1 : 0)` as the same union stated arithmetically, which confirms the row already on `GameSystems/ListenHost.md`. Also records that `connectionId` values are RakNet ids past both `int` and 2^53 (`189151461494586169` and `1044835390751713754`, observed on a loopback join in the rig). Additive; no existing verified content was contradicted, and the earlier sections keep their 0.2.6403.27689 stamps because they were not re-read.
 
 ## Open questions
 

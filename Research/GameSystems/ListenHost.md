@@ -2,11 +2,13 @@
 title: Listen Host
 type: GameSystems
 created_in: 0.2.6403.27689
-verified_in: 0.2.6403.27689
-verified_at: 2026-08-09
+verified_in: 0.2.6428.27798
+verified_at: 2026-08-15
 sources:
   - .work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs (GameManager, NetworkServer, NetworkManager, Settings, World, SettingsCommand)
+  - $(StationeersPath)\rocketstation_Data\Managed\Assembly-CSharp.dll :: Assets.Scripts.Networking.NetworkManager.TotalPlayersInGame
 related:
+  - ../GameClasses/Client.md
   - ./NetworkRoles.md
   - ./DirectConnect.md
   - ./DedicatedServerSettings.md
@@ -218,7 +220,7 @@ All of these live on `Settings.CurrentData` (`Settings.SettingData`), mutable at
 
 ## Dedicated server versus listen host
 
-<!-- verified: 0.2.6403.27689 @ 2026-08-09 -->
+<!-- verified: 0.2.6428.27798 @ 2026-08-15 -->
 
 Same assembly, same `StartGame()`, one boolean apart.
 
@@ -228,13 +230,15 @@ Same assembly, same `StartGame()`, one boolean apart.
 | `IsBatchMode` | true (`Application.isBatchMode` or `RuntimePlatform.*Server`, :204290-204304) | false |
 | Player character | none. `if (!GameManager.IsBatchMode) CreateCharacterAndTakeControl();` (:324935-324938, and :268779-268791 on the load path) | created |
 | `PlayerCookie` / `LocalClientId` | `Cookie = ((!GameManager.IsBatchMode) ? PlayerCookie.Load() : null)` (:273983), so `LocalClientId == 0` | real cookie ClientId |
-| `TotalPlayersInGame` | `Clients.Count + 0` (:272728) | `Clients.Count + 1` |
+| `TotalPlayersInGame` | `Clients.Count + 0` (:272728) | `Clients.Count + 1` (see below) |
 | Auto-pause with no clients | active if `AutoPauseServer` (:39241, :39249, both gated on `IsBatchMode`) | never auto-pauses |
 | Session `ServerType` | `DedicatedWindows` / `DedicatedLinux` | `Hosted`, `Players = 1` (:274011-274027) |
 
 Carries over unchanged: the RakNet bind (`StartServer`), the `LocalIpAddress` loopback pin, `GamePort`, `VerifyConnection`, the join queue and `PackageJoinData`, `ServerPassword` and version checks, `NetworkServer.NetworkUpdate`, `serverrun` / `ServerAuthSecret`, blacklist, `ban` and `kick`.
 
 Does not carry over: `AutoPauseServer` (inert on a listen host, since both call sites are gated on `IsBatchMode`), the `-batchmode` stdin console quirk, and `LocalClientId == 0`. A listen host also renders and runs a real `GameManager.Update`, so anything that depends on the render loop applies to it as it would to any other client.
+
+**The `+1` on `TotalPlayersInGame` is not a fudge: it is the host itself, which is never in `NetworkBase.Clients`.** That list holds joiners only, and a listen host's own `Client` lives on `NetworkManager.HostClient`. Anything that enumerates connected players has to union the two the way the game's own roster code does. Re-confirmed at 0.2.6428.27798, where the property reads `NetworkBase.Clients.Count + ((!GameManager.IsBatchMode) ? 1 : 0)`. Full mechanism, both union sites, and the client-side split: [Client, "The roster is two collections"](../GameClasses/Client.md).
 
 ## Nothing rejects a second client connecting from the same machine
 
@@ -274,6 +278,7 @@ What is still hazardous is the ClientId collision itself: `Brain.RegisterBrain` 
 
 <!-- verified: 0.2.6403.27689 @ 2026-08-09 -->
 
+- 2026-08-15: "Dedicated server versus listen host" re-read against 0.2.6428.27798 and restamped. The `TotalPlayersInGame` row still holds: the property reads `NetworkBase.Clients.Count + ((!GameManager.IsBatchMode) ? 1 : 0)`. Added why the `+1` exists, which the row stated arithmetically without saying: the host's own `Client` is never in `NetworkBase.Clients` and lives on `NetworkManager.HostClient` instead, so anything enumerating players has to union the two. Mechanism documented on `GameClasses/Client.md`, linked from here. No other section on this page was re-read, so they keep their 0.2.6403.27689 stamps.
 - 2026-08-09: page created. Full listen-host boot chain traced from `SettingType.StartLocalHost` through `GameManager.StartGame`, `NetworkServer.Host` and `NetworkManager.StartServer` against the 0.2.6403.27689 decompile. Established that the transport is RakNet rather than Steam, that a Steam lobby is fire-and-forget and not required, that `NetworkRole` has no `Host` value, and that `VerifyConnection` contains nothing that would reject a same-machine joiner.
 
 ## Open questions
