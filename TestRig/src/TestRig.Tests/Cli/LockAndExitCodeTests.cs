@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Text.Json;
 using TestRig.Tests.Infrastructure;
 using Xunit;
@@ -258,19 +259,36 @@ public sealed class LockAndExitCodeTests(CliFixture rig)
         }
     }
 
+    /// <summary>
+    /// A contended lock comes back at once unless <c>--wait-seconds</c> was typed.
+    /// </summary>
+    /// <remarks>
+    /// The budget is 60 seconds for a call that takes well under one, which is deliberate and
+    /// is not slack. What it has to distinguish is not "fast" from "slow" but "returned" from
+    /// "queued", and the regression, forwarding the global 300-second default into a verb
+    /// where the default means 0, cannot come back inside FIVE MINUTES. Anything between one
+    /// second and two minutes is therefore the same verdict, so the budget belongs at the far
+    /// end of that range where a loaded machine cannot reach it. A ceiling tuned close to the
+    /// real duration buys no detection and costs a red suite on a busy afternoon.
+    ///
+    /// Two minutes is the hard upper bound whatever this says: <c>RunIn</c> kills the child at
+    /// 120 seconds and throws, so the regression surfaces either way. 60 keeps the failure
+    /// legible, as this assertion naming the queue rather than a timeout naming nothing.
+    /// </remarks>
     [Fact]
     public void LockDoesNotQueueUnlessAskedTo()
     {
-        // --wait-seconds defaults to 300 globally and means 0 here: forwarding the global
-        // default would turn every contended lock into a five-minute queue. This must come
-        // back promptly, not in five minutes.
         var (home, _) = rig.LockedHome("nowait");
-        var started = DateTime.UtcNow;
+
+        var watch = Stopwatch.StartNew();
         var result = rig.RunIn(home, "lock", "--purpose", "second session", "--keep-state");
-        var elapsed = DateTime.UtcNow - started;
+        watch.Stop();
 
         Assert.NotEqual(Ok, result.ExitCode);
-        Assert.True(elapsed < TimeSpan.FromSeconds(30), $"a contended lock queued for {elapsed}");
+        Assert.True(
+            watch.Elapsed < TimeSpan.FromSeconds(60),
+            $"a contended lock queued for {watch.Elapsed}, so --wait-seconds is being forwarded "
+            + "its global 300-second default into a verb whose default is 0.");
     }
 
     [Fact]

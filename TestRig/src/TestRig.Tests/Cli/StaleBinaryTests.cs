@@ -110,6 +110,14 @@ public sealed class StaleBinaryTests : IDisposable
         start.Environment["STATIONEERS_CLIENTRIG_ROOT"] = string.Empty;
         start.Environment["STEAMCMD_PATH"] = string.Empty;
 
+        // All seven overrides, the same set CliRunner sets, not the five that happen to
+        // matter for the verb under test. The stale guard runs before the verb does, but the
+        // process still reaches a session boundary on its way there, and without these two it
+        // reads the developer's real LocalLow folder and their real PlayerPrefs key. Read-only
+        // either way; a suite whose result depends on a real machine's contents is not.
+        start.Environment["TESTRIG_SHAREDDATA"] = Path.Combine(home, "fake-sharedstate");
+        start.Environment["TESTRIG_PLAYERPREFSKEY"] = @"HKCU:\Software\StationeersPlus\TestRigSuiteNeverExists";
+
         using var process = Process.Start(start)
             ?? throw new InvalidOperationException($"could not start {_staleExe}");
 

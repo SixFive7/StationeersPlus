@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Text;
 using TestRig.Core.Infrastructure;
 using Xunit;
@@ -289,17 +290,43 @@ public sealed class SystemFileSystemTests : IDisposable
         }
     }
 
+    /// <summary>
+    /// Absence must cost one attempt, not the whole read backoff.
+    /// </summary>
+    /// <remarks>
+    /// Measured against the BEST of several samples rather than one, because the two
+    /// populations differ in kind and only one of them has a floor. The regression this
+    /// exists to catch is <c>WithReadRetries</c> losing its rethrow of
+    /// <see cref="FileNotFoundException"/>, and the backoff is then MANDATORY: seven sleeps
+    /// of 5ms times the attempt number, 140ms, on every single sample. Scheduling noise is
+    /// the opposite shape, an occasional spike on an otherwise sub-millisecond call. So the
+    /// minimum separates them cleanly, while any single sample can be inflated by a loaded
+    /// machine and says nothing. A budget below the 140ms floor is what keeps this red
+    /// against the regression; needing all five samples to spike is what keeps it green
+    /// under load.
+    ///
+    /// Wall clock via <see cref="Stopwatch"/>, not <c>DateTime.UtcNow</c>, whose default
+    /// resolution on Windows is around 15ms: a seventh of the budget being quantisation is
+    /// no way to measure it.
+    /// </remarks>
     [Fact]
     public void Reads_StillFailFastWhenTheFileIsSimplyAbsent()
     {
-        // Absence is not transient, and retrying it would spend the whole backoff on the
-        // commonest question the rig asks: is there a lock file at all.
         var missing = _temp.File("no-such-file.lock");
-        var started = DateTime.UtcNow;
 
-        Assert.Throws<FileNotFoundException>(() => _fs.ReadAllText(missing));
+        var best = TimeSpan.MaxValue;
+        for (var sample = 0; sample < 5; sample++)
+        {
+            var watch = Stopwatch.StartNew();
+            Assert.Throws<FileNotFoundException>(() => _fs.ReadAllText(missing));
+            watch.Stop();
+            if (watch.Elapsed < best) best = watch.Elapsed;
+        }
 
-        Assert.True(DateTime.UtcNow - started < TimeSpan.FromMilliseconds(100));
+        Assert.True(
+            best < TimeSpan.FromMilliseconds(100),
+            $"absence took {best.TotalMilliseconds:n1}ms at best over five samples, which is the "
+            + "read backoff (140ms of mandatory sleeps) rather than one failed open.");
     }
 
     // ---- deletes and metadata --------------------------------------------

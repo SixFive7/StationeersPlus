@@ -153,6 +153,14 @@ public sealed class ShippedBinaryChecksTests : IDisposable
         start.Environment["STATIONEERS_CLIENTRIG_ROOT"] = string.Empty;
         start.Environment["STEAMCMD_PATH"] = string.Empty;
 
+        // The same set is seven, not five. Without these two the shipped binary reads the
+        // developer's real LocalLow folder and their real PlayerPrefs key on its way through
+        // a session boundary. Read-only, but "the same isolation the CLI suite uses" above is
+        // only true if it is actually the same, and the point of the isolation is that no
+        // result here depends on what happens to be on a particular machine.
+        start.Environment["TESTRIG_SHAREDDATA"] = Path.Combine(home, "fake-sharedstate");
+        start.Environment["TESTRIG_PLAYERPREFSKEY"] = @"HKCU:\Software\StationeersPlus\TestRigSuiteNeverExists";
+
         using var process = Process.Start(start)
             ?? throw new InvalidOperationException($"could not start {_exe}");
 
