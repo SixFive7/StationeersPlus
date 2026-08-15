@@ -111,8 +111,7 @@ Web/_staging/
 ## --out-file with a relative path resolves against the shell CWD, and a run from
 ## the rig root would land the artifact here where an ignore-a-few-things list
 ## would wave it straight through. The allowlist is the committed binary and its
-## source tree, the four docs, dev-plugins/ source, and the PowerShell launcher
-## retained as the parity reference until the port is proven. Every piece of live
+## source tree, the four docs and dev-plugins/ source. Every piece of live
 ## session state stays untracked: session.lock, session.dirty (the crash marker),
 ## session.state.json (the shared per-user snapshot) and baseline/ (the captured
 ## definition of a clean rig, including the config file contents it stores).
@@ -120,13 +119,6 @@ Web/_staging/
 !/TestRig/CLAUDE.md
 !/TestRig/MANUAL.md
 !/TestRig/RESEARCH.md
-!/TestRig/testrig.ps1
-!/TestRig/testrig.tests.ps1
-!/TestRig/lib/
-!/TestRig/rig-lock.ps1
-!/TestRig/rig-lock.tests.ps1
-!/TestRig/rig-reset.ps1
-!/TestRig/rig-reset.tests.ps1
 !/TestRig/DedicatedServer/
 !/TestRig/ClientRig/
 !/TestRig/playtest/
@@ -150,17 +142,6 @@ Web/_staging/
 ## is deployed into each half's install tree, which is ignored wholesale.
 /TestRig/dev-plugins/**/bin/
 /TestRig/dev-plugins/**/obj/
-
-## The RETAINED PowerShell launcher's half-specific implementations. testrig.ps1
-## was the entry point before TestRig/testrig.exe and lib/ holds the per-half
-## function libraries it dot-sourced. Kept as the parity reference the port is
-## checked against, read rather than run, and removed in its own commit once the
-## binary has driven a real multiplayer playtest end to end. Source only, nothing
-## generated, so a plain allowlist of the folder is enough.
-/TestRig/lib/*
-!/TestRig/lib/common.ps1
-!/TestRig/lib/server.ps1
-!/TestRig/lib/client.ps1
 
 ## Dedicated server half: local-only except source code under dev-plugins/, which
 ## carries its own README. install/ and data/ are ignored wholesale. Both the
@@ -186,19 +167,14 @@ Web/_staging/
 /TestRig/ClientRig/dev-plugins/**/bin/
 /TestRig/ClientRig/dev-plugins/**/obj/
 
-## Playtest harness: its short manual, plus the retained PowerShell runner, library,
-## offline suite and checks/ (the parity reference; the live checks are C# under
-## Mods/<Mod>/playtests/, compiled into the binary). Deny-all inside here too,
-## matching the halves: an evidence bundle defaults to TestRig/playtest/evidence/,
-## --evidence-root can point anywhere, and a bundle carries every request and
-## response of a run. Under an ignore-a-few-things list one would be committable by
-## accident.
+## Playtest harness: its short manual, and nothing else. The engine is C# under
+## TestRig/src/TestRig.Playtest/ and the checks are C# under Mods/<Mod>/playtests/,
+## compiled into the binary. Deny-all inside here too, matching the halves: an
+## evidence bundle defaults to TestRig/playtest/evidence/, --evidence-root can point
+## anywhere, and a bundle carries every request and response of a run. Under an
+## ignore-a-few-things list one would be committable by accident.
 /TestRig/playtest/*
 !/TestRig/playtest/CLAUDE.md
-!/TestRig/playtest/playtest.ps1
-!/TestRig/playtest/playtest-lib.ps1
-!/TestRig/playtest/playtest-lib.tests.ps1
-!/TestRig/playtest/checks/
 
 ## Test / benchmark / coverage output
 TestResults/

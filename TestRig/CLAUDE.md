@@ -15,7 +15,7 @@ The two halves are a headless dedicated server (`DedicatedServer/`) and N driven
 - The source tree and how to rebuild: `TestRig/src/CLAUDE.md`. The in-game plugin: `TestRig/dev-plugins/TestRig/CLAUDE.md`.
 - The playtest harness: `TestRig/playtest/CLAUDE.md`.
 
-**The PowerShell rig is retained, not live.** `testrig.ps1`, `lib/`, `rig-lock.ps1`, `rig-reset.ps1` and `playtest/playtest*.ps1` are still on disk as the feature list this port is checked against, and they are known broken: their `lock` never prints the owner id the harness requires. Read them; never run them. They are removed in their own commit once the binary has driven a real multiplayer playtest end to end.
+**There is no PowerShell rig any more.** The launcher, its two per-half libraries, the lock and reset scripts, the playtest runner and the eight PowerShell checks were deleted once the binary had driven a real multiplayer playtest end to end. They are in git history if a behaviour ever needs looking up; nothing on disk runs them.
 
 This file auto-loads for any path under `TestRig/`. It carries what prevents damage or a wasted session, and nothing else.
 

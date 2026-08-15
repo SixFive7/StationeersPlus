@@ -106,13 +106,15 @@ exercise the real seam rather than a shim. The PowerShell suites could not, and 
 blocking defects hid in exactly that seam.
 
 **An assertion that still passes when the code under test is replaced by a no-op is a
-bug.** The PowerShell suite contains assertions of that shape: `testrig.tests.ps1:775`
-greps the launcher's *source text* for the line that prints the session owner id, so it
-has been green for the entire life of a feature that has never once executed. Assert on
+bug.** The PowerShell suite contained assertions of exactly that shape: its check for
+the line that prints the session owner id was a grep of the launcher's *source text*, so
+it stayed green for the entire life of a feature that never once executed. Assert on
 observed behaviour. Never assert on source text.
 
-**No PowerShell.** The old rig is retained under `TestRig/` as the feature list to
-check this build against, by reading it, not by running it. It is known broken.
+**No PowerShell.** The old rig is deleted. Doc comments here cite its files by name
+(`rig-lock.ps1`, `rig-reset.tests.ps1`, `lib/common.ps1`, `testrig.tests.ps1`) as the
+provenance of a ported behaviour or a magic number; those files are in git history and
+are deliberately not on disk. Nothing here needs them to build, test or run.
 
 **Eight Win32 APIs are forbidden anywhere in this tree**: `SwitchDesktop`,
 `SetForegroundWindow`, `ShowWindow`, `SetWindowPos`, `AttachThreadInput`,

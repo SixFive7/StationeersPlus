@@ -9,9 +9,10 @@
 # regression there reaches all of it at once. The suite is offline and covers it.
 #
 # It used to watch the PowerShell libraries (rig-lock.ps1, rig-reset.ps1, lib/,
-# playtest-lib.ps1) and name their four suites. Those are retained-not-live now:
-# TestRig/CLAUDE.md says to read them and never run them. Watching them would
-# remind an agent to run suites against code that no longer drives anything.
+# playtest-lib.ps1) and name their four suites. Those files no longer exist: they
+# were retained through the port as the parity reference and deleted once the binary
+# had driven a real multiplayer playtest end to end. Nothing here needs re-pointing;
+# the watch pattern below has been TestRig/src/ since the port landed.
 #
 # It also absorbed rig-hook.ps1's per-edit version of this reminder, which said the
 # same thing 97 words at a time on every touch of a shared safety file. Once per

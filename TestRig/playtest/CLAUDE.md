@@ -23,7 +23,7 @@ Mods/<ModName>/playtests/*.cs    the checks themselves, next to the mod they tes
 
 The engine is mod-agnostic on purpose: nothing in `TestRig.Playtest` names a mod, a prefab, a setting or a guid, and nothing may be added that does. A check supplies all of that; the engine supplies the rig, the safety and the evidence.
 
-The retained PowerShell harness (`playtest.ps1`, `playtest-lib.ps1`, `playtest-lib.tests.ps1`, `checks/`) is the parity reference the port is checked against. Read it; do not run it. Its `lock` never printed the `TESTRIG-OWNER` line it required by regex, so every check would have failed to start and left the rig locked.
+The PowerShell harness that preceded this one is deleted; git history has it. It never actually ran: its `lock` never printed the `TESTRIG-OWNER` line it required by regex, so every check would have failed to start and left the rig locked.
 
 Rig rules apply here in full: `TestRig/CLAUDE.md` (the lock, the save tiers, the safety rules) and `TestRig/MANUAL.md` (the verbs and the endpoints). This file is what to know before running or writing a check.
 
@@ -105,7 +105,7 @@ loaded at once, and the output stays plausible either way. An instance that reco
 never deploys it has NO copy, which attestation reports as `under-test-not-deployed` rather
 than as the ordinary not-deployed case.
 
-**Which mod a check attests is not the check's to declare.** It comes from `[CallerFilePath]`, so the compiler records where the check was written under `Mods/<Mod>/playtests/` and a check cannot claim a different mod. Do not add a declaration field that re-states something derivable. The content hash replaced a length comparison: `Assert-BinaryUnderTest` compared file **length** while documenting a content comparison, so a same-length different build attested cleanly.
+**Which mod a check attests is not the check's to declare.** It comes from `[CallerFilePath]`, so the compiler records where the check was written under `Mods/<Mod>/playtests/` and a check cannot claim a different mod. Do not add a declaration field that re-states something derivable. The content hash replaced a length comparison: the PowerShell harness's binary attestation compared file **length** while documenting a content comparison, so a same-length different build attested cleanly.
 
 ## The lock policy, and teardown
 

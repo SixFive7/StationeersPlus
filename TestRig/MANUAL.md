@@ -16,7 +16,7 @@ testrig <verb> [--target all|server|clients|<instance>[,<instance>]] [options]
 
 **Option grammar.** Options are `--double-dash`, matched case-insensitively, dashes optional, and a unique prefix is accepted: `--targ`, `-Target` and `--target` are one option. Two boolean options are on by default and are turned off with an explicit negative form (`--no-force-gameplay-input`, `--no-seed-mods`). **An option a verb does not read is a usage error, not a silent no-op**, so `start --width 1024` fails and names `create`.
 
-**The PowerShell rig is retained as the parity reference and must not be run.** `testrig.ps1`, `lib/`, `rig-lock.ps1`, `rig-reset.ps1` and `playtest/playtest*.ps1` are still on disk so the port can be checked against them line by line, and two defects in them are known and live: `lock` never prints the `TESTRIG-OWNER` line the old harness required, and a failed world enumeration was indistinguishable from a rig with no worlds. Read those files; drive the binary.
+**The PowerShell rig is gone.** It was retained through the port as the parity reference, checked line by line against 1,560 enumerated behaviours, and deleted once the binary had driven a real multiplayer playtest end to end. Two defects it carried are worth remembering because the binary is built not to repeat them: its `lock` never printed the `TESTRIG-OWNER` line the harness required by regex, and a failed world enumeration was indistinguishable from a rig with no worlds. Git history has the files.
 
 ### Exit codes
 

@@ -12,14 +12,14 @@
 #          requireIsolatedSavePath=false. The merged TestRig plugin REMOVED both
 #          parameters and answers 400, which is a strictly stronger guard than this
 #          one because raw curl cannot route around a plugin-side refusal the way it
-#          always could around a hook. It is not deployed everywhere yet, so this
-#          branch is still load bearing. Measured 2026-08-14: the dedicated server
-#          reports "stale deployed plugin: ClientDriver", the 'joiner' instance
-#          carries ClientDriver.dll, and only 'hostie' carries TestRig.dll.
-#          ClientDriver still reads both overrides (Routes.Host.cs:83,
-#          Routes.Session.cs:571).
-#          RETIRE THIS BRANCH once no ClientDriver.dll is left in either half.
-#          'testrig status' names the deployed control plane per half.
+#          always could around a hook. Measured 2026-08-15: no ClientDriver.dll is
+#          left in either half (both instances and the dedicated server carry
+#          TestRig.dll), so the transitional reason for this branch is spent.
+#          IT STAYS ANYWAY, and that is a decision rather than an oversight: the
+#          plugin refusal covers HTTP reaching the plugin, and this covers the agent
+#          reaching for the parameter at all, including against an instance built
+#          from an older tree. 'testrig status' names the deployed control plane per
+#          half.
 #
 #   ask    the three destructive spellings the docs gate on a human and nothing
 #          enforces: --break-lock, 'stop --target all|clients', 'remove'. The
@@ -47,7 +47,7 @@
 #            refusal that already said all of it, and saved nothing.
 #
 #   author   an edit to the shared safety libraries, naming four PowerShell suites
-#            (97 words). Those libraries are retained-not-live, and the suite is now
+#            (97 words). Those libraries are deleted, and the suite is now
 #            `dotnet test TestRig/src/TestRig.slnx`. rig-stop-hook.ps1 carries this,
 #            watching TestRig/src/ and firing once per change instead of once per
 #            edit. Its Edit|Write registrations were removed with it.
@@ -59,12 +59,13 @@
 # on unrelated work. A `Bash(*savepath*)` rule that denied on its own would deny
 # `for f in a b; do echo $f; done`.
 #
-# BOTH LAUNCHER SPELLINGS ARE ACCEPTED. testrig.exe is the live one. testrig.ps1 is
-# retained on disk as the feature list the port is checked against and must never be
-# run, but a hook that stopped recognising it would go quiet on exactly the command
-# that should not have been typed. Their option grammars differ (--break-lock against
-# -BreakLock, --target against -Target, and the binary also accepts --target=all and
-# --target:all), so both are matched.
+# BOTH LAUNCHER SPELLINGS ARE ACCEPTED. testrig.exe is the only one that exists;
+# testrig.ps1 was deleted once the binary had driven a real multiplayer playtest end to
+# end. The .ps1 spelling is still matched deliberately: it is one alternation, and the
+# script is recoverable from git history, so a hook that stopped recognising it would go
+# quiet on exactly the command that should not have been typed. Their option grammars
+# differ (--break-lock against -BreakLock, --target against -Target, and the binary also
+# accepts --target=all and --target:all), so both are matched.
 #
 # WHAT IS DELIBERATELY NOT HOOKED, because testrig.exe already refuses it in code and
 # a launcher refusal cannot be skimmed past the way an injected reminder can:
@@ -140,7 +141,7 @@ if (-not $cmd) { exit 0 }
 # Does this command INVOKE the launcher, or merely mention it?
 # =============================================================================
 # `git commit -m "TestRig: one launcher, testrig.exe"` only mentions it.
-# `grep -n break-lock TestRig/testrig.ps1` mentions it. Neither drives the rig.
+# `grep -n break-lock TestRig/MANUAL.md` mentions it. Neither drives the rig.
 # Two shapes count as an invocation:
 #   A. a pwsh/powershell call whose -File argument is the retained script
 #   B. the launcher at the START of a command segment: ./testrig.exe,

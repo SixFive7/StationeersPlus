@@ -63,7 +63,11 @@ $cases = @(
     @{ n='bare testrig on PATH, remove';   e='PreToolUse'; t='Bash';       i=@{command='testrig remove --target c1 --as k3'};                                                                    want='ask' }
     @{ n='exe remove --force (ask, deny)'; e='PreToolUse'; t='Bash';       i=@{command='TestRig/testrig.exe remove --target c1 --as k3 --force'};                                                want='ask' }
 
-    # --- the retained PowerShell launcher is still recognised ------------------
+    # --- the DELETED PowerShell launcher is still recognised -------------------
+    # testrig.ps1 no longer exists; it went with the rest of the PowerShell rig. The
+    # spelling stays matched on purpose, because the script is recoverable from git
+    # history and a hook that stopped recognising it would go quiet on exactly the
+    # command that should not have been typed. These cases pin that.
     @{ n='ps1 stop -Target all';           e='PreToolUse'; t='Bash';       i=@{command='pwsh -NoProfile -File TestRig/testrig.ps1 stop -Target all -As k3'};                                     want='ask' }
     @{ n='ps1 unlock -BreakLock';          e='PreToolUse'; t='Bash';       i=@{command='pwsh -NoProfile -File TestRig/testrig.ps1 unlock -As k3 -BreakLock'};                                    want='ask' }
     @{ n='ps1 remove';                     e='PreToolUse'; t='Bash';       i=@{command='pwsh -NoProfile -File TestRig/testrig.ps1 remove -Target client1 -As k3'};                               want='ask' }
@@ -94,7 +98,9 @@ $cases = @(
     # 'session': testrig.exe asserts the lock centrally and exits 5 naming --as.
     @{ n='RETIRED: mutating, no --as';     e='PreToolUse'; t='Bash';       i=@{command='TestRig/testrig.exe start --target server --load W --map Mars'};                                          want='silent' }
     @{ n='RETIRED: ps1 mutating, no -As';  e='PreToolUse'; t='Bash';       i=@{command='pwsh -NoProfile -File TestRig/testrig.ps1 deploy SprayPaintPlus'};                                       want='silent' }
-    # 'author': rig-stop-hook.ps1 watches TestRig/src/ and names dotnet test.
+    # 'author': rig-stop-hook.ps1 watches TestRig/src/ and names dotnet test. The two
+    # PowerShell paths below no longer exist on disk; the hook never stats a path, so
+    # they still prove the branch is gone rather than merely unreachable.
     @{ n='RETIRED: edit rig-lock.ps1';     e='PostToolUse'; t='Edit';      i=@{file_path='c:\Source\SixFive7\StationeersPlus\TestRig\rig-lock.ps1'};                                              want='silent' }
     @{ n='RETIRED: edit lib/client.ps1';   e='PostToolUse'; t='Edit';      i=@{file_path='c:\Source\SixFive7\StationeersPlus\TestRig\lib\client.ps1'};                                            want='silent' }
     @{ n='RETIRED: edit CliApp.cs';        e='PostToolUse'; t='Edit';      i=@{file_path='c:\Source\SixFive7\StationeersPlus\TestRig\src\TestRig.Cli\CliApp.cs'};                                 want='silent' }
