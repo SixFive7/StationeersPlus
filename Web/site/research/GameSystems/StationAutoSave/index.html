@@ -8829,10 +8829,12 @@
       
       
         <details class="research-meta-related">
-          <summary><strong>Related pages</strong> (2)</summary>
+          <summary><strong>Related pages</strong> (3)</summary>
           <ul>
             
               <li><code>./SimulationTickDriverHooks.md</code></li>
+            
+              <li><code>./DedicatedServerSettings.md</code></li>
             
               <li><code>../Workflows/StationeersLaunchPadDedicatedServer.md</code></li>
             
@@ -8904,11 +8906,12 @@
 <p>(verbatim from a 2026-07-02 dedicated-server run at 0.2.6403.27689; world created 15:03:24, <code>SaveInterval</code> 300, failure logged exactly at +300 s). The failure happens before <code>SaveHelper.PrepareToSave</code>, so <code>PauseGameTick</code> is never called and the simulation is not disturbed: an InspectorPlus <code>PauseGameTick</code> tracer recorded zero calls across the interval.</p>
 <p>Consequences:</p>
 <ul>
-<li>A <code>-new</code> world produces NO real autosaves until it gets a name. The stdin console <code>save "&lt;name&gt;"</code> path would assign one, but stdin console commands are a no-op on the batch-mode dedicated server (observed at 0.2.6228.27061 and re-confirmed at 0.2.6403.27689: <code>save</code> queued via the launcher control file produced no save folder, no log response). Starting with <code>-load &lt;SaveName&gt;</code> instead gives the world a name from the start and autosaves work normally.</li>
+<li>A <code>-new</code> world produces NO real autosaves until it gets a name. A console <code>save "&lt;name&gt;"</code> assigns one, but <strong>delivering it by writing to the server process's stdin is a no-op</strong> (observed at 0.2.6228.27061 and re-confirmed at 0.2.6403.27689: <code>save</code> queued via the launcher control file produced no save folder and no log response; the cause was found at 0.2.6428.27798 on 2026-08-15 and is not what the wording here implied until then). The server's console reads keystrokes from the Win32 console input buffer via <code>Console.ReadKey()</code>, never a stdin stream, and with <code>-logFile</code> on the launch line the console object is not constructed at all: <a href="../DedicatedServerSettings/">DedicatedServerSettings, "The console channel"</a>. The same <code>save "&lt;name&gt;"</code> DOES work when delivered in-process, through a BepInEx plugin calling <code>ConsoleWindow.Submit</code>, or from a connected client via <code>serverrun</code>. Starting with <code>-load &lt;SaveName&gt;</code> instead gives the world a name from the start and autosaves work normally, and remains the simplest route.</li>
 <li>When a test plan uses "an AutoSave line" as the world-is-ticking readiness marker (<code>TestRig/RESEARCH.md</code>, "Dedicated-server internals worth knowing"), on a <code>-new</code> world watch for the <code>Save Failed: Folder name is empty.</code> line instead; it is emitted at the same cadence and implies the same unpaused-and-running state.</li>
 </ul>
 <h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
 <ul>
+<li>2026-08-15: the cause behind this page's "stdin save no-op" cross-check was determined at 0.2.6428.27798 by a fresh validator under <code>Research/WORKFLOW.md</code> Rule 3. The OBSERVATION recorded here at 0.2.6228.27061 and 0.2.6403.27689 is upheld exactly: a <code>save</code> queued through the launcher's control file (which relays into the server's redirected stdin) produces no save folder and no log line. The IMPLIED cause was wrong. The server's console does exist and does feed <code>CommandLine.Process</code>, but it reads keystrokes from the Win32 console input buffer via <code>Console.ReadKey()</code> rather than any stdin stream, and it is not constructed at all when <code>-logFile</code> is on the launch line, which the rig always passes. Result: the "Fresh -new worlds cannot autosave" consequence bullet is reworded to separate the observation from the mechanism, to point at the resolved section, and to record that the same <code>save "&lt;name&gt;"</code> DOES assign a station name when delivered in-process or via <code>serverrun</code>. Full evidence and the paired live arms: <a href="../DedicatedServerSettings/">DedicatedServerSettings, "The console channel"</a>, 2026-08-15 entry. No timer or save-gate claim on this page was re-read, so no section stamp moved.</li>
 <li>2026-08-13: the two TestRig launchers were replaced by one, <code>TestRig/testrig.ps1</code>, with positional verbs and <code>-Target</code>, and the rig's per-half documents were consolidated into <code>TestRig/CLAUDE.md</code>, <code>TestRig/MANUAL.md</code> and <code>TestRig/RESEARCH.md</code>. Pointers and command spellings on this page follow. No game-internals claim changed and none was re-verified, so no section stamp moved.</li>
 <li>2026-07-02: page created during the headless-tick investigation. Timer/gate code quoted verbatim from the 0.2.6403.27689 client decompile (lines 267571-267633); the empty-folder failure and its exact +interval timing observed live on the dedicated server the same day. The "stdin save no-op" cross-check is the launcher <code>-Save</code> command timing out with no <code>Saved</code> line and no folder appearing under <code>data/saves/</code>.</li>
 </ul>

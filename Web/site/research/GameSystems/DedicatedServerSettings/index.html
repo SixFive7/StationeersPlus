@@ -4123,13 +4123,63 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#nothing-reads-standard-input-what-actually-feeds-the-runtime-dispatcher" class="md-nav__link">
+  <a href="#the-console-channel-what-actually-feeds-the-runtime-dispatcher" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Nothing reads standard input: what actually feeds the runtime dispatcher
+        The console channel: what actually feeds the runtime dispatcher
       
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label="The console channel: what actually feeds the runtime dispatcher">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#the-four-routes-into-the-dispatcher" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The four routes into the dispatcher
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#reason-1-the-reader-is-keystrokes-not-a-stream" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reason 1: the reader is keystrokes, not a stream
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#reason-2-logfile-removes-the-console-entirely" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reason 2: -logFile removes the console entirely
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#measured-live" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Measured live
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -8874,13 +8924,63 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#nothing-reads-standard-input-what-actually-feeds-the-runtime-dispatcher" class="md-nav__link">
+  <a href="#the-console-channel-what-actually-feeds-the-runtime-dispatcher" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Nothing reads standard input: what actually feeds the runtime dispatcher
+        The console channel: what actually feeds the runtime dispatcher
       
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label="The console channel: what actually feeds the runtime dispatcher">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#the-four-routes-into-the-dispatcher" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The four routes into the dispatcher
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#reason-1-the-reader-is-keystrokes-not-a-stream" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reason 1: the reader is keystrokes, not a stream
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#reason-2-logfile-removes-the-console-entirely" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reason 2: -logFile removes the console entirely
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#measured-live" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Measured live
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -9211,7 +9311,7 @@
       
       
         <details class="research-meta-sources">
-          <summary><strong>Sources</strong> (6)</summary>
+          <summary><strong>Sources</strong> (8)</summary>
           <ul>
             
               <li><code>{'rocketstation_Data/Managed/Assembly-CSharp.dll :': 'Settings.SettingData (decompile lines 248232-248613)'}</code></li>
@@ -9220,7 +9320,11 @@
             
               <li><code>{'rocketstation_Data/Managed/Assembly-CSharp.dll :': 'SaveCommand / QuitCommand / LoadGameCommand / LoadLatestCommand / NewGameCommand / SettingsCommand / SettingsPathCommand / ServerRunCommand / BanCommand'}</code></li>
             
-              <li><code>{'rocketstation_DedicatedServer_Data/Managed/Assembly-CSharp.dll :': 'CommandLine.Process / ConsoleWindow.Submit / ServerRunMessage.Process / RichPresenceJoinRequested (decompile lines 97056, 97087, 97100, 101957, 215637, 273780)'}</code></li>
+              <li><code>{'rocketstation_DedicatedServer_Data/Managed/Assembly-CSharp.dll :': 'CommandLine.Process / ConsoleWindow.Submit / ServerRunCommandMessage.Process / RichPresenceJoinRequested (decompile lines 97056, 97087, 97100, 101957, 215637, 273780)'}</code></li>
+            
+              <li><code>{'rocketstation_DedicatedServer_Data/Managed/Assembly-CSharp.dll :': 'Assets.Scripts.ConsoleWindow._Init / CustomLogFile / Initialize / WaitForGameToBeReadyThenOverrideConsoleInput (decompile lines 215144, 215190, 215203-215231, 215503-215511)'}</code></li>
+            
+              <li><code>{'rocketstation_DedicatedServer_Data/Managed/Assembly-CSharp.dll :': 'UI.ImGuiUi.RocketSystemConsole (decompile lines 107246-107460, ConsoleInputThread at 107330)'}</code></li>
             
               <li><code>{'rocketstation_DedicatedServer_Data/Managed/Assembly-CSharp-firstpass.dll :': 'MoonSharp PlatformAccessor.IO_GetStandardStream'}</code></li>
             
@@ -9231,7 +9335,7 @@
       
       
         <details class="research-meta-related">
-          <summary><strong>Related pages</strong> (3)</summary>
+          <summary><strong>Related pages</strong> (4)</summary>
           <ul>
             
               <li><code>GameSystems/NetworkRoles.md</code></li>
@@ -9239,6 +9343,8 @@
               <li><code>Patterns/ServerAuthoritativeSimulation.md</code></li>
             
               <li><code>Patterns/SinglePlayerNetworkRole.md</code></li>
+            
+              <li><code>Patterns/GameLoggingSinks.md</code></li>
             
           </ul>
         </details>
@@ -9249,6 +9355,13 @@
                   
 
   <nav class="md-tags" >
+    
+      
+      
+      
+      
+        <span class="md-tag">chat</span>
+      
     
       
       
@@ -9274,32 +9387,40 @@
 <ol>
 <li><strong>Unity built-in launch flags</strong> (<code>-batchmode</code>, <code>-nographics</code>, <code>-logFile &lt;path&gt;</code>, <code>-screen-*</code>, etc.) are consumed by the Unity engine before any Stationeers code runs. They are not in this page; see Unity's command-line reference.</li>
 <li><strong>Stationeers settings</strong> (<code>Settings.SettingData</code>, persisted to <code>setting.xml</code>). 80+ XML-serialized fields covering both client UI/performance and server behaviour. Set via <code>-settings &lt;Field&gt; &lt;Value&gt;</code> on the launch line, written into <code>setting.xml</code> by the runtime, or hand-edited in the file.</li>
-<li><strong>Stationeers commands</strong> (<code>CommandLine</code> dispatcher, 70+ entries). Same dictionary serves both launch flags (with <code>-</code> prefix, multiple per launch) and runtime stdin (no prefix, one per line). Each command exposes <code>HelpText</code>, <code>Arguments</code>, and <code>IsLaunchCmd</code>.</li>
+<li><strong>Stationeers commands</strong> (<code>CommandLine</code> dispatcher, 70+ entries). Same dictionary serves both launch flags (with <code>-</code> prefix, multiple per launch) and runtime console input (no prefix, one per line). Each command exposes <code>HelpText</code>, <code>Arguments</code>, and <code>IsLaunchCmd</code>.</li>
 </ol>
 <h2 id="architecture">Architecture<a class="headerlink" href="#architecture" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-04-28 -->
+<!-- verified: 0.2.6428.27798 @ 2026-08-15 -->
 
-<p>The single dispatcher is <code>CommandLine.Process(string[], bool onLaunch = false)</code> (decompile line 95111). When <code>onLaunch</code> is true (called from <code>[RuntimeInitializeOnLoadMethod] CommandLine.ProcessOnLaunch</code>), every <code>-name</code> token starts a new command and subsequent non-dash tokens accumulate as that command's arguments. When <code>onLaunch</code> is false (stdin path), only the first token may be <code>-name</code>-prefixed; later tokens are arguments to the first command. Same dispatch table either way.</p>
-<blockquote>
-<p><strong>The "stdin path" label above is contradicted by a later pass and is pending a fresh-validator resolution.</strong> The <code>onLaunch: false</code> branch is real, but a 2026-08-15 call-site census on 0.2.6428.27798 found it has exactly three callers, none of which reads standard input, and found no stdin API used anywhere in the assembly. See "Nothing reads standard input: what actually feeds the runtime dispatcher" below, and the Open Questions entry.</p>
-</blockquote>
-<p>The dispatch dictionary is initialised in the static constructor of <code>CommandLine</code> (line 94942):</p>
-<div class="language-csharp highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nc">CommandLine</span>
+<p>The single dispatcher is <code>CommandLine.Process(string[], bool onLaunch = false)</code> (decompile line 95111). When <code>onLaunch</code> is true (called from <code>[RuntimeInitializeOnLoadMethod] CommandLine.ProcessOnLaunch</code>), every <code>-name</code> token starts a new command and subsequent non-dash tokens accumulate as that command's arguments. When <code>onLaunch</code> is false (the runtime path), only the first token may be <code>-name</code>-prefixed; later tokens are arguments to the first command. Same dispatch table either way.</p>
+<p>The runtime path is <strong>not</strong> the process's standard input, and calling it "the stdin path" (as this section did until 2026-08-15) predicts the wrong thing: see "The console channel" below for what actually feeds it and for the two independent reasons a write to a headless server's redirected stdin changes nothing.</p>
+<p>An unknown command name is silently dropped on the launch path and reported on the runtime path, which is why an unrecognised Unity or third-party flag on the launch line produces no error:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">_commandsMap</span><span class="p">.</span><span class="n">TryGetValue</span><span class="p">(</span><span class="n">text2</span><span class="p">,</span><span class="w"> </span><span class="k">out</span><span class="w"> </span><span class="kt">var</span><span class="w"> </span><span class="k">value</span><span class="p">))</span>
 </span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="p">{</span>
-</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">    </span><span class="k">private</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">readonly</span><span class="w"> </span><span class="n">SortedDictionary</span><span class="o">&lt;</span><span class="kt">string</span><span class="p">,</span><span class="w"> </span><span class="n">CommandBase</span><span class="o">&gt;</span><span class="w"> </span><span class="n">_commandsMap</span><span class="p">;</span>
-</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">    </span><span class="p">...</span>
-</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="nf">CommandLine</span><span class="p">()</span>
-</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="w">    </span><span class="p">{</span>
-</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="w">        </span><span class="n">_commandsMap</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">SortedDictionary</span><span class="o">&lt;</span><span class="kt">string</span><span class="p">,</span><span class="w"> </span><span class="n">CommandBase</span><span class="o">&gt;</span>
-</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="w">        </span><span class="p">{</span>
-</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="w">            </span><span class="na">[&quot;achievements&quot;]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">AchievementsCommand</span><span class="p">(),</span>
-</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="w">            </span><span class="na">[&quot;help&quot;]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">HelpCommand</span><span class="p">(),</span>
-</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="w">            </span><span class="p">...</span>
-</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a><span class="w">            </span><span class="na">[&quot;save&quot;]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">SaveCommand</span><span class="p">()</span>
-</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a><span class="w">        </span><span class="p">};</span>
-</span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a><span class="w">        </span><span class="p">...</span>
-</span><span id="__span-0-15"><a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a><span class="w">    </span><span class="p">}</span>
-</span><span id="__span-0-16"><a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a><span class="p">}</span>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">_isLaunchCommands</span><span class="p">)</span>
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="w">        </span><span class="n">ConsoleWindow</span><span class="p">.</span><span class="n">PrintError</span><span class="p">(</span><span class="n">ConsoleStrings</span><span class="p">.</span><span class="n">Error</span><span class="p">.</span><span class="n">CommandUnknown</span><span class="p">.</span><span class="n">AsString</span><span class="p">(</span><span class="n">text</span><span class="p">),</span><span class="w"> </span><span class="n">suppressStacktrace</span><span class="p">:</span><span class="w"> </span><span class="k">true</span><span class="p">);</span>
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>A command whose <code>RequiresGameManagerIsInitialized</code> is true and that arrives before <code>GameManager</code> is up is queued in <code>_postLaunchCommands</code> rather than run or dropped. The queue is drained by <code>CommandLine.ExecutePostLaunchCommands()</code> (line 97167), called once from <code>GameManager</code>'s startup chain at line 198538, immediately after <code>DifficultySetting.SetCurrent()</code> and a few statements before <code>IsInitialized = true</code>. That is how <code>-load</code> and <code>-new</code> (both <code>RequiresGameManagerIsInitialized =&gt; true</code>) run at all.</p>
+<p>The dispatch dictionary is initialised in the static constructor of <code>CommandLine</code> (line 94942):</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nc">CommandLine</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="p">{</span>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">    </span><span class="k">private</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">readonly</span><span class="w"> </span><span class="n">SortedDictionary</span><span class="o">&lt;</span><span class="kt">string</span><span class="p">,</span><span class="w"> </span><span class="n">CommandBase</span><span class="o">&gt;</span><span class="w"> </span><span class="n">_commandsMap</span><span class="p">;</span>
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">    </span><span class="p">...</span>
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="nf">CommandLine</span><span class="p">()</span>
+</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="w">        </span><span class="n">_commandsMap</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">SortedDictionary</span><span class="o">&lt;</span><span class="kt">string</span><span class="p">,</span><span class="w"> </span><span class="n">CommandBase</span><span class="o">&gt;</span>
+</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="w">        </span><span class="p">{</span>
+</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="w">            </span><span class="na">[&quot;achievements&quot;]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">AchievementsCommand</span><span class="p">(),</span>
+</span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="w">            </span><span class="na">[&quot;help&quot;]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">HelpCommand</span><span class="p">(),</span>
+</span><span id="__span-1-11"><a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="w">            </span><span class="p">...</span>
+</span><span id="__span-1-12"><a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="w">            </span><span class="na">[&quot;save&quot;]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">SaveCommand</span><span class="p">()</span>
+</span><span id="__span-1-13"><a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a><span class="w">        </span><span class="p">};</span>
+</span><span id="__span-1-14"><a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a><span class="w">        </span><span class="p">...</span>
+</span><span id="__span-1-15"><a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-1-16"><a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a><span class="p">}</span>
 </span></code></pre></div>
 <p>Each registered command derives from <code>CommandBase</code> and overrides:</p>
 <ul>
@@ -9313,24 +9434,13 @@
 <li><code>CommandBase.CannotAsClient(name)</code> returns true when the local process is a remote client, blocking commands that only make sense on the server (Save, Ban, Kick).</li>
 <li><code>CommandBase.CannotInSinglePlayer(name)</code> returns true in single-player, blocking client/server-only commands like Ban.</li>
 </ul>
-<h2 id="nothing-reads-standard-input-what-actually-feeds-the-runtime-dispatcher">Nothing reads standard input: what actually feeds the runtime dispatcher<a class="headerlink" href="#nothing-reads-standard-input-what-actually-feeds-the-runtime-dispatcher" title="Permanent link">&para;</a></h2>
+<h2 id="the-console-channel-what-actually-feeds-the-runtime-dispatcher">The console channel: what actually feeds the runtime dispatcher<a class="headerlink" href="#the-console-channel-what-actually-feeds-the-runtime-dispatcher" title="Permanent link">&para;</a></h2>
 <!-- verified: 0.2.6428.27798 @ 2026-08-15 -->
 
-<p>The <code>onLaunch: false</code> branch of <code>CommandLine.Process</code> is real and reachable, and <strong>it is not fed by the process's standard input</strong>. Nothing in the shipped code reads stdin as a command channel at all, so a line written to a headless server's redirected stdin has no consumer.</p>
-<p>Two independent reads of the dedicated-server build establish it.</p>
-<p><strong>1. No stdin API is used.</strong> Across all 442,274 decompiled lines of <code>Assembly-CSharp.dll</code> there are zero occurrences of <code>Console.ReadLine</code>, <code>Console.In</code>, <code>Console.OpenStandardInput</code>, <code>StandardInput</code> or <code>ReadLineAsync</code>. The single <code>.ReadLine(</code> in the assembly is <code>stringReader.ReadLine()</code> at line 117950, reading an in-memory string. <code>Assembly-CSharp-firstpass.dll</code> carries exactly one stdin reference, and it is MoonSharp's Lua platform accessor, not a console:</p>
-<div class="language-csharp highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="k">public</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="n">Stream</span><span class="w"> </span><span class="nf">IO_GetStandardStream</span><span class="p">(</span><span class="n">StandardFileType</span><span class="w"> </span><span class="n">type</span><span class="p">)</span>
-</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="p">{</span>
-</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">type</span><span class="w"> </span><span class="k">switch</span>
-</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">    </span><span class="p">{</span>
-</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">        </span><span class="n">StandardFileType</span><span class="p">.</span><span class="n">StdIn</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">Console</span><span class="p">.</span><span class="n">OpenStandardInput</span><span class="p">(),</span>
-</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="w">        </span><span class="n">StandardFileType</span><span class="p">.</span><span class="n">StdOut</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">Console</span><span class="p">.</span><span class="n">OpenStandardOutput</span><span class="p">(),</span>
-</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="w">        </span><span class="n">StandardFileType</span><span class="p">.</span><span class="n">StdErr</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">Console</span><span class="p">.</span><span class="n">OpenStandardError</span><span class="p">(),</span>
-</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="w">        </span><span class="n">_</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="k">throw</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">ArgumentException</span><span class="p">(</span><span class="s">&quot;type&quot;</span><span class="p">),</span>
-</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="w">    </span><span class="p">};</span>
-</span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="p">}</span>
-</span></code></pre></div>
-<p><strong>2. The call-site census.</strong> <code>CommandLine.Process(string)</code> (decompile line 97087) is the single-string entry point that prefixes a dash and forwards to <code>Process(string[], onLaunch: false)</code>:</p>
+<p>The dedicated server <strong>does</strong> have a console reader, and it <strong>does</strong> feed <code>CommandLine.Process</code>. What it does not do is read the process's standard input <strong>stream</strong>. It reads the Win32 <strong>console input buffer</strong>, one keystroke at a time, through <code>System.Console.ReadKey()</code>. A pipe attached to the child's stdin is a different object and never reaches that buffer, so a wrapper that writes a line into a headless server's redirected stdin gets a successful write and no effect. On top of that, the reader is not even constructed when <code>-logFile</code> is on the launch line, which is the usual way a headless server is run.</p>
+<p>Two independent reasons, either one sufficient. Both are below, with the evidence.</p>
+<h3 id="the-four-routes-into-the-dispatcher">The four routes into the dispatcher<a class="headerlink" href="#the-four-routes-into-the-dispatcher" title="Permanent link">&para;</a></h3>
+<p><code>CommandLine.Process(string)</code> (decompile line 97087) is the single-string entry point that prefixes a dash and forwards to <code>Process(string[], onLaunch: false)</code>:</p>
 <div class="language-csharp highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">Process</span><span class="p">(</span><span class="kt">string</span><span class="w"> </span><span class="n">input</span><span class="p">)</span>
 </span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="p">{</span>
 </span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="kt">string</span><span class="p">.</span><span class="n">IsNullOrEmpty</span><span class="p">(</span><span class="n">input</span><span class="p">))</span>
@@ -9344,71 +9454,223 @@
 </span><span id="__span-2-11"><a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="w">    </span><span class="p">}</span>
 </span><span id="__span-2-12"><a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a><span class="p">}</span>
 </span></code></pre></div>
-<p>It has exactly three callers in the whole assembly, and none of them is a console reader:</p>
+<p>The token <code>CommandLine.Process</code> occurs exactly four times in the assembly. <strong>Three are calls and the fourth is a method-group subscription</strong>, which is why a grep shaped like <code>CommandLine.Process(</code> finds only three and misses the one that matters here:</p>
 <table>
 <thead>
 <tr>
 <th>Line</th>
-<th>Caller</th>
+<th>Reference</th>
 <th>What sends it</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td>101957</td>
-<td><code>ServerRunMessage.Process</code></td>
+<td><code>ServerRunCommandMessage.Process</code> calls it</td>
 <td>A connected client's <code>serverrun</code>, gated on <code>Secret == Settings.CurrentData.ServerAuthSecret</code> and on the sender being in <code>NetworkBase.Clients</code></td>
 </tr>
 <tr>
+<td>215509</td>
+<td><code>_systemConsoleInput.OnInputReceived += CommandLine.Process;</code></td>
+<td><strong>The dedicated server's own system console.</strong> A line assembled from <code>Console.ReadKey()</code> keystrokes on a background thread</td>
+</tr>
+<tr>
 <td>215637</td>
-<td><code>ConsoleWindow.Submit()</code></td>
+<td><code>ConsoleWindow.Submit()</code> calls it</td>
 <td>The in-game console, in-process</td>
 </tr>
 <tr>
 <td>273780</td>
-<td><code>RichPresenceJoinRequested(Friend, string args)</code></td>
+<td><code>RichPresenceJoinRequested(Friend, string args)</code> calls it</td>
 <td>Steam rich-presence join arguments</td>
 </tr>
 </tbody>
 </table>
-<p>The fourth and last route into the dispatcher is <code>CommandLine.ProcessOnLaunch()</code> (line 97056), a <code>[RuntimeInitializeOnLoadMethod]</code> that calls <code>Process(CommandLineArgs, onLaunch: true)</code> on the launch line.</p>
-<p><strong>Measured live</strong>, game 0.2.6428.27798, 2026-08-15, on a headless server (<code>-batchmode -nographics</code>) in world with a control-plane plugin loaded:</p>
+<p>Plus <code>CommandLine.ProcessOnLaunch()</code> (line 97056), a <code>[RuntimeInitializeOnLoadMethod]</code> that calls <code>Process(CommandLineArgs, onLaunch: true)</code> on the launch line, with deferred entries drained later by <code>ExecutePostLaunchCommands()</code>.</p>
+<h3 id="reason-1-the-reader-is-keystrokes-not-a-stream">Reason 1: the reader is keystrokes, not a stream<a class="headerlink" href="#reason-1-the-reader-is-keystrokes-not-a-stream" title="Permanent link">&para;</a></h3>
+<p>The console lives in <code>UI.ImGuiUi.RocketSystemConsole</code> (line 107246), held by <code>Assets.Scripts.ConsoleWindow._systemConsoleInput</code> (line 215144). Its input thread, verbatim (line 107330):</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="k">private</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">ConsoleInputThread</span><span class="p">()</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="p">{</span>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">    </span><span class="n">_inputString</span><span class="p">.</span><span class="n">Append</span><span class="p">(</span><span class="n">_inputPrefix</span><span class="p">);</span>
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">    </span><span class="k">while</span><span class="w"> </span><span class="p">(</span><span class="n">_keepAlive</span><span class="p">)</span>
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">System</span><span class="p">.</span><span class="n">Console</span><span class="p">.</span><span class="n">CursorVisible</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="o">!</span><span class="n">System</span><span class="p">.</span><span class="n">Console</span><span class="p">.</span><span class="n">KeyAvailable</span><span class="p">)</span>
+</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="w">        </span><span class="p">{</span>
+</span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="w">            </span><span class="k">continue</span><span class="p">;</span>
+</span><span id="__span-3-9"><a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="w">        </span><span class="p">}</span>
+</span><span id="__span-3-10"><a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="w">        </span><span class="n">ConsoleKeyInfo</span><span class="w"> </span><span class="n">consoleKeyInfo</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">System</span><span class="p">.</span><span class="n">Console</span><span class="p">.</span><span class="n">ReadKey</span><span class="p">();</span>
+</span><span id="__span-3-11"><a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a><span class="w">        </span><span class="k">switch</span><span class="w"> </span><span class="p">(</span><span class="n">consoleKeyInfo</span><span class="p">.</span><span class="n">Key</span><span class="p">)</span>
+</span><span id="__span-3-12"><a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a><span class="w">        </span><span class="p">{</span>
+</span><span id="__span-3-13"><a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a><span class="w">        </span><span class="k">case</span><span class="w"> </span><span class="n">ConsoleKey</span><span class="p">.</span><span class="n">Enter</span><span class="p">:</span>
+</span><span id="__span-3-14"><a id="__codelineno-3-14" name="__codelineno-3-14" href="#__codelineno-3-14"></a><span class="w">            </span><span class="n">OnEnter</span><span class="p">();</span>
+</span><span id="__span-3-15"><a id="__codelineno-3-15" name="__codelineno-3-15" href="#__codelineno-3-15"></a><span class="w">            </span><span class="k">continue</span><span class="p">;</span>
+</span><span id="__span-3-16"><a id="__codelineno-3-16" name="__codelineno-3-16" href="#__codelineno-3-16"></a><span class="w">        </span><span class="k">case</span><span class="w"> </span><span class="n">ConsoleKey</span><span class="p">.</span><span class="n">Backspace</span><span class="p">:</span>
+</span><span id="__span-3-17"><a id="__codelineno-3-17" name="__codelineno-3-17" href="#__codelineno-3-17"></a><span class="w">            </span><span class="n">OnBackspace</span><span class="p">();</span>
+</span><span id="__span-3-18"><a id="__codelineno-3-18" name="__codelineno-3-18" href="#__codelineno-3-18"></a><span class="w">            </span><span class="k">continue</span><span class="p">;</span>
+</span><span id="__span-3-19"><a id="__codelineno-3-19" name="__codelineno-3-19" href="#__codelineno-3-19"></a><span class="w">        </span><span class="k">case</span><span class="w"> </span><span class="n">ConsoleKey</span><span class="p">.</span><span class="n">Escape</span><span class="p">:</span>
+</span><span id="__span-3-20"><a id="__codelineno-3-20" name="__codelineno-3-20" href="#__codelineno-3-20"></a><span class="w">            </span><span class="n">OnEscape</span><span class="p">();</span>
+</span><span id="__span-3-21"><a id="__codelineno-3-21" name="__codelineno-3-21" href="#__codelineno-3-21"></a><span class="w">            </span><span class="k">continue</span><span class="p">;</span>
+</span><span id="__span-3-22"><a id="__codelineno-3-22" name="__codelineno-3-22" href="#__codelineno-3-22"></a><span class="w">        </span><span class="p">}</span>
+</span><span id="__span-3-23"><a id="__codelineno-3-23" name="__codelineno-3-23" href="#__codelineno-3-23"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">consoleKeyInfo</span><span class="p">.</span><span class="n">KeyChar</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span>
+</span><span id="__span-3-24"><a id="__codelineno-3-24" name="__codelineno-3-24" href="#__codelineno-3-24"></a><span class="w">        </span><span class="p">{</span>
+</span><span id="__span-3-25"><a id="__codelineno-3-25" name="__codelineno-3-25" href="#__codelineno-3-25"></a><span class="w">            </span><span class="n">_inputString</span><span class="p">.</span><span class="n">Append</span><span class="p">(</span><span class="n">consoleKeyInfo</span><span class="p">.</span><span class="n">KeyChar</span><span class="p">);</span>
+</span><span id="__span-3-26"><a id="__codelineno-3-26" name="__codelineno-3-26" href="#__codelineno-3-26"></a><span class="w">        </span><span class="p">}</span>
+</span><span id="__span-3-27"><a id="__codelineno-3-27" name="__codelineno-3-27" href="#__codelineno-3-27"></a><span class="w">        </span><span class="n">RedrawInputLine</span><span class="p">();</span>
+</span><span id="__span-3-28"><a id="__codelineno-3-28" name="__codelineno-3-28" href="#__codelineno-3-28"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-3-29"><a id="__codelineno-3-29" name="__codelineno-3-29" href="#__codelineno-3-29"></a><span class="p">}</span>
+</span></code></pre></div>
+<p><code>Console.KeyAvailable</code> and <code>Console.ReadKey()</code> go to <code>PeekConsoleInput</code> / <code>ReadConsoleInput</code> on the standard <strong>input handle</strong>. When that handle is an anonymous pipe (<code>ProcessStartInfo.RedirectStandardInput = true</code>), those console APIs do not read the pipe: they fail or report nothing available, and the loop spins without ever consuming a byte. Nothing else in the assembly touches stdin. Across all 442,274 decompiled lines of <code>Assembly-CSharp.dll</code> there are zero occurrences of <code>Console.ReadLine</code>, <code>Console.In</code>, <code>Console.OpenStandardInput</code>, <code>StandardInput</code> or <code>ReadLineAsync</code>; the single <code>.ReadLine(</code> is <code>stringReader.ReadLine()</code> at line 117950, reading an in-memory string. <code>Assembly-CSharp-firstpass.dll</code> carries exactly one stdin reference, MoonSharp's Lua platform accessor, which is not a console:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="k">public</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="n">Stream</span><span class="w"> </span><span class="nf">IO_GetStandardStream</span><span class="p">(</span><span class="n">StandardFileType</span><span class="w"> </span><span class="n">type</span><span class="p">)</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="p">{</span>
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">type</span><span class="w"> </span><span class="k">switch</span>
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">        </span><span class="n">StandardFileType</span><span class="p">.</span><span class="n">StdIn</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">Console</span><span class="p">.</span><span class="n">OpenStandardInput</span><span class="p">(),</span>
+</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="w">        </span><span class="n">StandardFileType</span><span class="p">.</span><span class="n">StdOut</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">Console</span><span class="p">.</span><span class="n">OpenStandardOutput</span><span class="p">(),</span>
+</span><span id="__span-4-7"><a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="w">        </span><span class="n">StandardFileType</span><span class="p">.</span><span class="n">StdErr</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">Console</span><span class="p">.</span><span class="n">OpenStandardError</span><span class="p">(),</span>
+</span><span id="__span-4-8"><a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="w">        </span><span class="n">_</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="k">throw</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">ArgumentException</span><span class="p">(</span><span class="s">&quot;type&quot;</span><span class="p">),</span>
+</span><span id="__span-4-9"><a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="w">    </span><span class="p">};</span>
+</span><span id="__span-4-10"><a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a><span class="p">}</span>
+</span></code></pre></div>
+<p><code>Enter</code> is what turns the accumulated keystrokes into a command: <code>OnEnter()</code> strips the <code>"&gt; "</code> prefix, trims, and enqueues the line under <code>lock (_inputQueue)</code>. A <code>Tick()</code> loop drains that queue <strong>on the Unity thread</strong> and raises <code>OnInputReceived</code>, which is what makes console commands safe to run against game state:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="k">private</span><span class="w"> </span><span class="k">async</span><span class="w"> </span><span class="n">Task</span><span class="w"> </span><span class="nf">Tick</span><span class="p">()</span>
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="p">{</span>
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">    </span><span class="k">while</span><span class="w"> </span><span class="p">(</span><span class="n">_keepAlive</span><span class="p">)</span>
+</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">Thread</span><span class="p">.</span><span class="n">CurrentThread</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">_unityThread</span><span class="p">)</span>
+</span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="w">        </span><span class="p">{</span>
+</span><span id="__span-5-7"><a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="w">            </span><span class="k">lock</span><span class="w"> </span><span class="p">(</span><span class="n">_inputQueue</span><span class="p">)</span>
+</span><span id="__span-5-8"><a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a><span class="w">            </span><span class="p">{</span>
+</span><span id="__span-5-9"><a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a><span class="w">                </span><span class="k">while</span><span class="w"> </span><span class="p">(</span><span class="n">_inputQueue</span><span class="p">.</span><span class="n">Count</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span>
+</span><span id="__span-5-10"><a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a><span class="w">                </span><span class="p">{</span>
+</span><span id="__span-5-11"><a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a><span class="w">                    </span><span class="n">OnInputReceived</span><span class="o">?.</span><span class="n">Invoke</span><span class="p">(</span><span class="n">_inputQueue</span><span class="p">.</span><span class="n">Dequeue</span><span class="p">());</span>
+</span><span id="__span-5-12"><a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a><span class="w">                </span><span class="p">}</span>
+</span><span id="__span-5-13"><a id="__codelineno-5-13" name="__codelineno-5-13" href="#__codelineno-5-13"></a><span class="w">            </span><span class="p">}</span>
+</span><span id="__span-5-14"><a id="__codelineno-5-14" name="__codelineno-5-14" href="#__codelineno-5-14"></a><span class="w">        </span><span class="p">}</span>
+</span><span id="__span-5-15"><a id="__codelineno-5-15" name="__codelineno-5-15" href="#__codelineno-5-15"></a><span class="w">        </span><span class="k">await</span><span class="w"> </span><span class="n">Task</span><span class="p">.</span><span class="n">Delay</span><span class="p">(</span><span class="mi">100</span><span class="p">);</span>
+</span><span id="__span-5-16"><a id="__codelineno-5-16" name="__codelineno-5-16" href="#__codelineno-5-16"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-5-17"><a id="__codelineno-5-17" name="__codelineno-5-17" href="#__codelineno-5-17"></a><span class="p">}</span>
+</span></code></pre></div>
+<h3 id="reason-2-logfile-removes-the-console-entirely">Reason 2: <code>-logFile</code> removes the console entirely<a class="headerlink" href="#reason-2-logfile-removes-the-console-entirely" title="Permanent link">&para;</a></h3>
+<p><code>ConsoleWindow</code> gates both the construction and the wiring on the absence of <code>-logFile</code> (line 215190):</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="k">private</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">CustomLogFile</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">CommandLineArgs</span><span class="o">?.</span><span class="n">Contains</span><span class="p">(</span><span class="s">&quot;-logFile&quot;</span><span class="p">)</span><span class="w"> </span><span class="o">??</span><span class="w"> </span><span class="k">false</span><span class="p">;</span>
+</span></code></pre></div>
+<p>Construction, in <code>[RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)] ConsoleWindow._Init</code> (line 215203):</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">GameManager</span><span class="p">.</span><span class="n">IsBatchMode</span><span class="p">)</span>
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="p">{</span>
+</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="w">    </span><span class="n">CommandLineArgs</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Environment</span><span class="p">.</span><span class="n">GetCommandLineArgs</span><span class="p">().</span><span class="n">Skip</span><span class="p">(</span><span class="mi">1</span><span class="p">).</span><span class="n">ToList</span><span class="p">();</span>
+</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="w">    </span><span class="kt">string</span><span class="w"> </span><span class="n">text</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kt">string</span><span class="p">.</span><span class="n">Join</span><span class="p">(</span><span class="s">&quot; &quot;</span><span class="p">,</span><span class="w"> </span><span class="n">CommandLineArgs</span><span class="p">);</span>
+</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="w">    </span><span class="kt">string</span><span class="w"> </span><span class="n">gameVersion</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">GameManager</span><span class="p">.</span><span class="n">GetGameVersion</span><span class="p">();</span>
+</span><span id="__span-7-6"><a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">CustomLogFile</span><span class="p">)</span>
+</span><span id="__span-7-7"><a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-7-8"><a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a><span class="w">        </span><span class="n">_systemConsoleInput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">RocketSystemConsole</span><span class="p">(</span><span class="s">&quot;Stationeers - &quot;</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">gameVersion</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="s">&quot; &quot;</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">text</span><span class="p">);</span>
+</span><span id="__span-7-9"><a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-7-10"><a id="__codelineno-7-10" name="__codelineno-7-10" href="#__codelineno-7-10"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>Wiring, from <code>ConsoleWindow.Initialize()</code> (called at line 198456 in <code>GameManager</code>'s startup chain) via <code>WaitForGameToBeReadyThenOverrideConsoleInput()</code> (line 215503):</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="k">private</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">async</span><span class="w"> </span><span class="n">UniTaskVoid</span><span class="w"> </span><span class="nf">WaitForGameToBeReadyThenOverrideConsoleInput</span><span class="p">()</span>
+</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="p">{</span>
+</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="w">    </span><span class="k">await</span><span class="w"> </span><span class="n">UniTask</span><span class="p">.</span><span class="n">WaitUntil</span><span class="p">(()</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">GameManager</span><span class="p">.</span><span class="n">IsInitialized</span><span class="p">);</span>
+</span><span id="__span-8-4"><a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="w">    </span><span class="k">await</span><span class="w"> </span><span class="n">UniTask</span><span class="p">.</span><span class="n">Delay</span><span class="p">(</span><span class="mi">1000</span><span class="p">);</span>
+</span><span id="__span-8-5"><a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">CustomLogFile</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">_systemConsoleInput</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="k">null</span><span class="p">)</span>
+</span><span id="__span-8-6"><a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-8-7"><a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a><span class="w">        </span><span class="n">_systemConsoleInput</span><span class="p">.</span><span class="n">OnInputReceived</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">CommandLine</span><span class="p">.</span><span class="n">Process</span><span class="p">;</span>
+</span><span id="__span-8-8"><a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a><span class="w">        </span><span class="n">_systemConsoleInput</span><span class="p">.</span><span class="n">Ready</span><span class="p">(</span><span class="s">&quot;Stationeers - &quot;</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">GameManager</span><span class="p">.</span><span class="n">GetGameVersion</span><span class="p">());</span>
+</span><span id="__span-8-9"><a id="__codelineno-8-9" name="__codelineno-8-9" href="#__codelineno-8-9"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-8-10"><a id="__codelineno-8-10" name="__codelineno-8-10" href="#__codelineno-8-10"></a><span class="p">}</span>
+</span></code></pre></div>
+<p><code>Ready()</code> is also the only place <code>_inputThread.Start()</code> is called (line 107307), so without it the input thread never runs at all. With <code>-logFile</code> present there is no <code>RocketSystemConsole</code>, no input thread, no handler, and <code>ConsoleWindow.Print</code> routes through <code>UnityEngine.Debug.Log</code> into the file instead. <code>GameManager.IsBatchMode</code> is true for the dedicated build regardless of <code>-batchmode</code>, because <code>SetMatchMode</code> (line 197713) ORs <code>Application.isBatchMode</code> with <code>RuntimePlatform.LinuxServer</code> / <code>WindowsServer</code>. <code>RocketSystemConsole</code>'s constructor throws <code>"Don't use this outside of dedicated server builds"</code> on any other platform, so this console exists only on the two server builds.</p>
+<h3 id="measured-live">Measured live<a class="headerlink" href="#measured-live" title="Permanent link">&para;</a></h3>
+<p>Game 0.2.6428.27798, 2026-08-15, dedicated build, two arms.</p>
+<p><strong>Arm 1, the normal rig configuration</strong> (<code>-batchmode -nographics -logFile &lt;path&gt;</code>, in world, stdin redirected to a pipe owned by a wrapper, in-process control-plane plugin loaded). Two commands written to stdin and flushed, then the identical two run in-process:</p>
 <table>
 <thead>
 <tr>
 <th>Channel</th>
+<th>Command</th>
 <th>Result</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><code>quit</code> written to the process's redirected stdin, flushed</td>
-<td>Still running 90 s later, <strong>zero bytes</strong> appended to its <code>-logFile</code>.</td>
+<td>stdin pipe</td>
+<td><code>version</code></td>
+<td><strong>zero</strong> bytes appended to the log, no output line</td>
 </tr>
 <tr>
-<td><code>ConsoleWindow.Submit("quit")</code> called in-process</td>
-<td>Process exited <strong>2.55 s</strong> later with a full Unity shutdown dump in the log.</td>
+<td>stdin pipe</td>
+<td><code>settings ServerMaxPlayers 7</code></td>
+<td><code>setting.xml</code> unchanged at <code>4</code></td>
+</tr>
+<tr>
+<td>in-process <code>ConsoleWindow.Submit</code></td>
+<td><code>version</code></td>
+<td>printed and logged <code>version: 0.2.6428.27798</code></td>
+</tr>
+<tr>
+<td>in-process <code>ConsoleWindow.Submit</code></td>
+<td><code>settings ServerMaxPlayers 7</code></td>
+<td>logged <code>Changed setting 'ServerMaxPlayers' from '4' to '7'</code>; <code>setting.xml</code> now <code>7</code></td>
+</tr>
+<tr>
+<td>launch line</td>
+<td><code>-settings ServerMaxPlayers 4</code></td>
+<td>logged <code>Changed setting 'ServerMaxPlayers' from '10' to '4'</code> at boot</td>
 </tr>
 </tbody>
 </table>
-<p>A <code>ConsoleWindow.Submit("help")</code> between the two returned 452 console lines, so the server was healthy throughout and the stdin line was ignored rather than lost to a wedged process.</p>
-<p><strong>Consequence for tooling.</strong> A wrapper that owns a headless server's stdin can write to it successfully and change nothing: the write succeeds because the pipe is real, and nobody is reading the other end. The two channels that do reach a headless server's command dispatcher are <code>serverrun</code> from a connected client with the matching <code>ServerAuthSecret</code>, and an in-process caller of <code>ConsoleWindow.Submit</code> (a BepInEx plugin). There is no third.</p>
+<p>An earlier run of the same shape, recorded 2026-08-15: a stdin <code>quit</code> left the server running 90 s later with zero log bytes appended, while an in-process <code>ConsoleWindow.Submit("quit")</code> exited it in 2.55 s, and a <code>Submit("help")</code> between the two returned 452 console lines, so the server was healthy throughout and the stdin line was ignored rather than lost to a wedged process.</p>
+<p><strong>Arm 2, the isolating arm: same build, stdin still a redirected pipe, but <code>-logFile</code> REMOVED</strong> (<code>-batchmode -nographics -noclear</code>, no world, stdout captured). This is the configuration in which the console genuinely exists, and it is the arm that separates the two reasons. The captured stdout proves the console came all the way up:</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>08:47:45: Changed setting &#39;ServerMaxPlayers&#39; from &#39;10&#39; to &#39;4&#39;
+</span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>08:48:22: game manager initialized
+</span><span id="__span-9-3"><a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>***Stationeers - 0.2.6428.27798***
+</span><span id="__span-9-4"><a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a>Ready
+</span></code></pre></div>
+<p><code>***Stationeers - &lt;version&gt;***</code> and <code>Ready</code> are printed only by <code>RocketSystemConsole.Ready()</code>, which runs only after <code>OnInputReceived += CommandLine.Process</code>, and whose next statement after printing <code>Ready</code> is <code>_inputThread.Start()</code>. So the reader was constructed, the handler was attached and the input thread was started. Then, at t+180 s and t+200 s, <code>settings ServerMaxPlayers 9</code> and <code>version</code> were written to the process's stdin and flushed:</p>
+<table>
+<thead>
+<tr>
+<th>Witness</th>
+<th>Before</th>
+<th>After</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>setting.xml</code> <code>ServerMaxPlayers</code></td>
+<td><code>4</code></td>
+<td><code>4</code> (unchanged, checked at t+240 s and again at kill)</td>
+</tr>
+<tr>
+<td>stdout</td>
+<td>no <code>version:</code> line</td>
+<td>no <code>version:</code> line, no <code>Changed setting</code> line</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Removing <code>-logFile</code> does not make stdin work.</strong> Reason 1 stands on its own; reason 2 is an additional, earlier cut-off.</p>
+<p><strong>Consequence for tooling.</strong> A wrapper that owns a headless server's stdin can write to it successfully and change nothing: the write succeeds because the pipe is real, and the console API on the other end is not reading pipes. The channels that do reach a running headless server's command dispatcher are:</p>
+<ol>
+<li><strong>An in-process caller of <code>ConsoleWindow.Submit</code></strong> (a BepInEx plugin). Direct, synchronous, and returns the console output. This is what <code>TestRig</code>'s <code>POST /console/exec</code> uses.</li>
+<li><strong><code>serverrun &lt;command&gt;</code> from a connected client</strong> whose <code>ServerAuthSecret</code> matches the server's. The closest thing to RCON the game ships. Established from code (<code>ServerRunCommandMessage.Process</code> at :101957 ends in <code>CommandLine.Process(Command)</code>), not measured in the 2026-08-15 runs, which used no game client.</li>
+<li><strong>Real keystrokes typed at an attached console</strong>, when the server is started without <code>-logFile</code> in a terminal a human is sitting at. This is the vanilla operator experience and the reason the console exists; it is not drivable by writing to a pipe, and reaching it programmatically would mean synthesising key events into the console input buffer (<code>WriteConsoleInput</code>), which nothing in this repository does.</li>
+</ol>
+<p>And, before the server is running, the launch line itself (<code>ProcessOnLaunch</code>, plus <code>ExecutePostLaunchCommands</code> for anything needing <code>GameManager</code>). That is the channel <code>-load</code>, <code>-new</code>, <code>-settings</code> and <code>-settingspath</code> travel on, and it is fully reliable; the arm-1 table above shows it working in the same run in which stdin did nothing.</p>
 <h2 id="settings-settingxml-keys">Settings (<code>setting.xml</code> keys)<a class="headerlink" href="#settings-settingxml-keys" title="Permanent link">&para;</a></h2>
 <!-- verified: 0.2.6228.27061 @ 2026-04-28 -->
 
 <p>The <code>setting.xml</code> file path is computed lazily by <code>Settings.SettingData.Path</code> (line 248582):</p>
-<div class="language-csharp highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="n">Path</span>
-</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="p">{</span>
-</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">    </span><span class="k">get</span>
-</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">    </span><span class="p">{</span>
-</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="kt">string</span><span class="p">.</span><span class="n">IsNullOrEmpty</span><span class="p">(</span><span class="n">_path</span><span class="p">))</span>
-</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">        </span><span class="p">{</span>
-</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="w">            </span><span class="n">_path</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">System</span><span class="p">.</span><span class="n">IO</span><span class="p">.</span><span class="n">Path</span><span class="p">.</span><span class="n">Combine</span><span class="p">(</span><span class="n">StationSaveUtils</span><span class="p">.</span><span class="n">GetSavePath</span><span class="p">(),</span><span class="w"> </span><span class="s">&quot;setting.xml&quot;</span><span class="p">);</span>
-</span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="w">        </span><span class="p">}</span>
-</span><span id="__span-3-9"><a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">_path</span><span class="p">;</span>
-</span><span id="__span-3-10"><a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="w">    </span><span class="p">}</span>
-</span><span id="__span-3-11"><a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a><span class="w">    </span><span class="k">set</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">_path</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">value</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
-</span><span id="__span-3-12"><a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a><span class="p">}</span>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="n">Path</span>
+</span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="p">{</span>
+</span><span id="__span-10-3"><a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="w">    </span><span class="k">get</span>
+</span><span id="__span-10-4"><a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-10-5"><a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="kt">string</span><span class="p">.</span><span class="n">IsNullOrEmpty</span><span class="p">(</span><span class="n">_path</span><span class="p">))</span>
+</span><span id="__span-10-6"><a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a><span class="w">        </span><span class="p">{</span>
+</span><span id="__span-10-7"><a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a><span class="w">            </span><span class="n">_path</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">System</span><span class="p">.</span><span class="n">IO</span><span class="p">.</span><span class="n">Path</span><span class="p">.</span><span class="n">Combine</span><span class="p">(</span><span class="n">StationSaveUtils</span><span class="p">.</span><span class="n">GetSavePath</span><span class="p">(),</span><span class="w"> </span><span class="s">&quot;setting.xml&quot;</span><span class="p">);</span>
+</span><span id="__span-10-8"><a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a><span class="w">        </span><span class="p">}</span>
+</span><span id="__span-10-9"><a id="__codelineno-10-9" name="__codelineno-10-9" href="#__codelineno-10-9"></a><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">_path</span><span class="p">;</span>
+</span><span id="__span-10-10"><a id="__codelineno-10-10" name="__codelineno-10-10" href="#__codelineno-10-10"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-10-11"><a id="__codelineno-10-11" name="__codelineno-10-11" href="#__codelineno-10-11"></a><span class="w">    </span><span class="k">set</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">_path</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">value</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+</span><span id="__span-10-12"><a id="__codelineno-10-12" name="__codelineno-10-12" href="#__codelineno-10-12"></a><span class="p">}</span>
 </span></code></pre></div>
 <p>So <code>setting.xml</code> defaults to <code>&lt;SavePath&gt;/setting.xml</code> where <code>SavePath</code> is itself a SettingData field. <code>-settingspath &lt;file-path&gt;</code> (the SettingsPathCommand at line 98695) overrides this explicitly; useful for forcing a server's <code>setting.xml</code> to a specific location independent of <code>SavePath</code>.</p>
 <p><code>-settings &lt;Field&gt; &lt;Value&gt;</code> is reflection-based via <code>ClassManipulator&lt;Settings.SettingData&gt;</code> (the SettingsCommand at line 98668). Every field in SettingData below is settable by name (case-insensitive). After each set, <code>Settings.SaveSettings()</code> writes the value back to <code>setting.xml</code> and <code>NetworkManager.UpdateSessionData(ObjectInstance)</code> propagates the change.</p>
@@ -10063,7 +10325,70 @@
 <h2 id="command-line-flags">Command-line flags<a class="headerlink" href="#command-line-flags" title="Permanent link">&para;</a></h2>
 <!-- verified: 0.2.6228.27061 @ 2026-04-28 -->
 
-<p>The dispatch dictionary as registered in <code>CommandLine</code>'s static constructor (decompile lines 94944-95038). Names with multiple keys (aliases) are grouped. Where a command exposes <code>IsLaunchCmd = true</code>, it can be used as a <code>-name</code> flag at launch; otherwise it is runtime-only (stdin or <code>serverrun</code>).</p>
+<p>The dispatch dictionary as registered in <code>CommandLine</code>'s static constructor (decompile lines 94944-95038). Names with multiple keys (aliases) are grouped. Where a command exposes <code>IsLaunchCmd = true</code>, it can be used as a <code>-name</code> flag at launch; otherwise it is runtime-only, meaning the system console, <code>serverrun</code>, or an in-process <code>ConsoleWindow.Submit</code> (see "The console channel" above).</p>
+<p><strong>The table below was read at 0.2.6228.27061 and the dictionary has moved since.</strong> Re-read verbatim at 0.2.6428.27798 on 2026-08-15, the delta is ten keys; everything else in the dictionary is unchanged. Only the keys and classes were compared, so the <code>IsLaunchCmd</code> and HelpText columns still carry their 2026-04-28 reading and the section stamp reflects that.</p>
+<table>
+<thead>
+<tr>
+<th>Change</th>
+<th>Key</th>
+<th>Class</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>added</td>
+<td><code>announce</code></td>
+<td><code>AnnounceCommand</code></td>
+</tr>
+<tr>
+<td>added</td>
+<td><code>roomevaluator</code></td>
+<td><code>RoomEvaluatorCommand</code></td>
+</tr>
+<tr>
+<td>added</td>
+<td><code>pylonlog</code></td>
+<td><code>PylonLogCommand</code></td>
+</tr>
+<tr>
+<td>added</td>
+<td><code>deletenear</code></td>
+<td><code>DeleteNearCommand</code></td>
+</tr>
+<tr>
+<td>added</td>
+<td><code>voxelfillnear</code></td>
+<td><code>VoxelFillNearCommand</code></td>
+</tr>
+<tr>
+<td>added</td>
+<td><code>proxy</code></td>
+<td><code>ProxyCommand</code></td>
+</tr>
+<tr>
+<td>added</td>
+<td><code>organs</code></td>
+<td><code>OrgansCommand</code></td>
+</tr>
+<tr>
+<td>added</td>
+<td><code>thumbnail</code></td>
+<td><code>ThumbnailStudioCommand</code></td>
+</tr>
+<tr>
+<td>removed</td>
+<td><code>clients</code></td>
+<td><code>ClientsCommand</code> (the class is gone from the assembly entirely)</td>
+</tr>
+<tr>
+<td>removed</td>
+<td><code>networkdebug</code></td>
+<td><code>NetworkDebugWindowCommand</code> (the class is gone from the assembly entirely)</td>
+</tr>
+</tbody>
+</table>
+<p><code>clients</code> is the one with operational consequences: tooling that reads a connected-player count by issuing a <code>clients</code> console command has nothing to issue as of 0.2.6428.27798. <code>status</code> (<code>StatusCommand</code>) is still registered.</p>
 <table>
 <thead>
 <tr>
@@ -10626,24 +10951,24 @@
 <!-- verified: 0.2.6228.27061 @ 2026-04-28 -->
 
 <h3 id="-load-savename-worldname-loadgamecommand-line-96508"><code>-load &lt;savename&gt; [worldname]</code> (LoadGameCommand, line 96508)<a class="headerlink" href="#-load-savename-worldname-loadgamecommand-line-96508" title="Permanent link">&para;</a></h3>
-<div class="language-csharp highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="k">public</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="n">HelpText</span><span class="w"> </span><span class="o">=&gt;</span>
-</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">    </span><span class="s">&quot;Loads a saved world file. This can also be used to start a new game &quot;</span><span class="w"> </span><span class="o">+</span>
-</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">    </span><span class="s">&quot;via launch command. e.g -load \&quot;my game save\&quot; moon&quot;</span><span class="p">;</span>
-</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="k">public</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="kt">string</span><span class="p">[]</span><span class="w"> </span><span class="n">Arguments</span><span class="w"> </span><span class="o">=&gt;</span>
-</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">    </span><span class="k">new</span><span class="w"> </span><span class="kt">string</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="s">&quot;list&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;&lt;filename&gt;&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;&lt;filename&gt; (optional)&lt;worldname&gt;&quot;</span><span class="w"> </span><span class="p">};</span>
-</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="k">public</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">IsLaunchCmd</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="k">true</span><span class="p">;</span>
-</span><span id="__span-4-7"><a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="k">public</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">RequiresGameManagerIsInitialized</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="k">true</span><span class="p">;</span>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="k">public</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="n">HelpText</span><span class="w"> </span><span class="o">=&gt;</span>
+</span><span id="__span-11-2"><a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="w">    </span><span class="s">&quot;Loads a saved world file. This can also be used to start a new game &quot;</span><span class="w"> </span><span class="o">+</span>
+</span><span id="__span-11-3"><a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="w">    </span><span class="s">&quot;via launch command. e.g -load \&quot;my game save\&quot; moon&quot;</span><span class="p">;</span>
+</span><span id="__span-11-4"><a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="k">public</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="kt">string</span><span class="p">[]</span><span class="w"> </span><span class="n">Arguments</span><span class="w"> </span><span class="o">=&gt;</span>
+</span><span id="__span-11-5"><a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a><span class="w">    </span><span class="k">new</span><span class="w"> </span><span class="kt">string</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="s">&quot;list&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;&lt;filename&gt;&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;&lt;filename&gt; (optional)&lt;worldname&gt;&quot;</span><span class="w"> </span><span class="p">};</span>
+</span><span id="__span-11-6"><a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a><span class="k">public</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">IsLaunchCmd</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="k">true</span><span class="p">;</span>
+</span><span id="__span-11-7"><a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a><span class="k">public</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">RequiresGameManagerIsInitialized</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="k">true</span><span class="p">;</span>
 </span></code></pre></div>
 <p>Behaviour: if <code>&lt;savename&gt;</code> resolves to a directory under SavePath/saves containing exactly one <code>.save</code> file, load it. Otherwise, if <code>&lt;worldname&gt;</code> is provided, treat <code>&lt;savename&gt;</code> as the new save's name and start a new world on <code>&lt;worldname&gt;</code> with the default difficulty (Normal) and default start condition. Subcommand <code>list</code> (or <code>l</code>) prints the list of saves.</p>
 <h3 id="-loadlatest-savename-loadlatestcommand-line-96606"><code>-loadlatest [savename]</code> (LoadLatestCommand, line 96606)<a class="headerlink" href="#-loadlatest-savename-loadlatestcommand-line-96606" title="Permanent link">&para;</a></h3>
 <p>Without args: scans all subdirectories of <code>&lt;SavePath&gt;/saves</code>, picks the file with the most recent LastWriteTime, loads it. With <code>&lt;savename&gt;</code>: scans only that named directory for the most recent file. Falls through to LoadGame's logic if "Latest save not found".</p>
 <h3 id="-new-world-difficulty-startcondition-newgamecommand-line-97302"><code>-new &lt;world&gt; [difficulty] [startcondition]</code> (NewGameCommand, line 97302)<a class="headerlink" href="#-new-world-difficulty-startcondition-newgamecommand-line-97302" title="Permanent link">&para;</a></h3>
-<div class="language-csharp highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="k">public</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="n">HelpText</span><span class="w"> </span><span class="o">=&gt;</span>
-</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">    </span><span class="s">&quot;Starts a new game at specific world automatically from launch.&quot;</span><span class="w"> </span><span class="o">+</span>
-</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">    </span><span class="s">&quot;Must provide world name as argument&quot;</span><span class="p">;</span>
-</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="k">public</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="kt">string</span><span class="p">[]</span><span class="w"> </span><span class="n">Arguments</span><span class="w"> </span><span class="o">=&gt;</span>
-</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="w">    </span><span class="k">new</span><span class="w"> </span><span class="kt">string</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="s">&quot;worldname&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;difficulty&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;startcondition&quot;</span><span class="w"> </span><span class="p">};</span>
-</span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="k">public</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">IsLaunchCmd</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="k">true</span><span class="p">;</span>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="k">public</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="n">HelpText</span><span class="w"> </span><span class="o">=&gt;</span>
+</span><span id="__span-12-2"><a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="w">    </span><span class="s">&quot;Starts a new game at specific world automatically from launch.&quot;</span><span class="w"> </span><span class="o">+</span>
+</span><span id="__span-12-3"><a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a><span class="w">    </span><span class="s">&quot;Must provide world name as argument&quot;</span><span class="p">;</span>
+</span><span id="__span-12-4"><a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a><span class="k">public</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="kt">string</span><span class="p">[]</span><span class="w"> </span><span class="n">Arguments</span><span class="w"> </span><span class="o">=&gt;</span>
+</span><span id="__span-12-5"><a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a><span class="w">    </span><span class="k">new</span><span class="w"> </span><span class="kt">string</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="s">&quot;worldname&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;difficulty&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;startcondition&quot;</span><span class="w"> </span><span class="p">};</span>
+</span><span id="__span-12-6"><a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a><span class="k">public</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">IsLaunchCmd</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="k">true</span><span class="p">;</span>
 </span></code></pre></div>
 <p>Source-side defaults: world = <code>"Moon"</code>, difficulty = <code>"Normal"</code>, startcondition = <code>"Default"</code>. Validates each against <code>WorldSetting.Find</code> / <code>DifficultySetting.Find</code> / <code>DataCollection.Get&lt;StartConditionData&gt;</code>. Calls <code>World.StartNewWorld(worldId)</code> then prints <code>Started new game in world &lt;worldName&gt;</code>.</p>
 <p>Critical caveat: the source's <code>"Moon"</code> default is stale. The runtime's actual valid world ids (verified 2026-04-28 by passing <code>-new Moon</code> and reading the error message) are:</p>
@@ -10717,104 +11042,104 @@
 <p>The strings themselves live in <code>Assembly-CSharp</code>: <code>No such world name:</code> and <code>. Valid worlds:</code> are two halves of one composite format, alongside <code>Tried to start a new game but no world id was provided.</code>. The three lines a successful <code>-new</code> prints around them (<code>Creating new world '&lt;X&gt;' with difficulty ...</code>, <code>WorldSetting: &lt;X&gt; StartCondition: ...</code>, <code>World &lt;X&gt; created</code>, <code>Started new game in world &lt;X&gt;.</code>) are NOT in any assembly under <code>Managed/</code>, so they come from a mod or from composed output; do not key a detector on them.</p>
 <p><strong>Operational consequence.</strong> The set is on disk before launch, so an invalid <code>-new</code> is answerable without starting anything, and it costs a ninety-second boot to discover otherwise. Worse, the server does not exit on a rejected world name: it logs the line once and then runs indefinitely with no world at all, <code>GameState</code> <code>None</code> and <code>phase</code> <code>menu</code>, answering its control plane normally throughout. Nothing else about the process distinguishes that state from a world that is still loading. <code>TestRig/testrig.exe</code> validates <code>--new</code> against this catalogue before launching and scans for the rejection line while waiting for readiness.</p>
 <h3 id="save-name-save-delete-name-save-list-savecommand-line-96400"><code>save &lt;name&gt;</code> / <code>save delete &lt;name&gt;</code> / <code>save list</code> (SaveCommand, line 96400)<a class="headerlink" href="#save-name-save-delete-name-save-list-savecommand-line-96400" title="Permanent link">&para;</a></h3>
-<div class="language-csharp highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="k">public</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="n">HelpText</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="s">&quot;Saves the current game to specified path&quot;</span><span class="p">;</span>
-</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="k">public</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="kt">string</span><span class="p">[]</span><span class="w"> </span><span class="n">Arguments</span><span class="w"> </span><span class="o">=&gt;</span>
-</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">    </span><span class="k">new</span><span class="w"> </span><span class="kt">string</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="s">&quot;&lt;filename&gt;&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;delete (d | rm) &lt;filename&gt;&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;list (l)&quot;</span><span class="w"> </span><span class="p">};</span>
-</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="k">public</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">IsLaunchCmd</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="k">false</span><span class="p">;</span>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="k">public</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="n">HelpText</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="s">&quot;Saves the current game to specified path&quot;</span><span class="p">;</span>
+</span><span id="__span-13-2"><a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a><span class="k">public</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="kt">string</span><span class="p">[]</span><span class="w"> </span><span class="n">Arguments</span><span class="w"> </span><span class="o">=&gt;</span>
+</span><span id="__span-13-3"><a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a><span class="w">    </span><span class="k">new</span><span class="w"> </span><span class="kt">string</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="s">&quot;&lt;filename&gt;&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;delete (d | rm) &lt;filename&gt;&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;list (l)&quot;</span><span class="w"> </span><span class="p">};</span>
+</span><span id="__span-13-4"><a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a><span class="k">public</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">IsLaunchCmd</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="k">false</span><span class="p">;</span>
 </span></code></pre></div>
 <p>Behaviour: with no args, saves under <code>XmlSaveLoad.Instance.CurrentStationName</code>. With one positional arg that does not match <code>delete</code>/<code>d</code>/<code>rm</code>/<code>list</code>/<code>l</code>, saves under that name. Subcommands <code>delete</code>/<code>rm</code>/<code>d &lt;filename&gt;</code> remove a save directory recursively. <code>list</code>/<code>l</code> prints existing saves.</p>
 <p>Confirmation log line on success (line 96453):</p>
-<div class="language-csharp highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="n">ConsoleWindow</span><span class="p">.</span><span class="n">Print</span><span class="p">(</span><span class="s">&quot;Saved &quot;</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">stationName</span><span class="p">);</span>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-14-1"><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="n">ConsoleWindow</span><span class="p">.</span><span class="n">Print</span><span class="p">(</span><span class="s">&quot;Saved &quot;</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">stationName</span><span class="p">);</span>
 </span></code></pre></div>
 <p>This is the line <code>TestRig/testrig.exe save --target server --save-name &lt;X&gt;</code> polls for in <code>data/server.log</code> to confirm completion.</p>
 <p>Refuses to save when <code>GameState != Running &amp;&amp; != Paused</code>. Refuses on remote clients via <code>CommandBase.CannotAsClient("save")</code>.</p>
 <h3 id="quit-exit-leave-quitcommand-line-98133"><code>quit</code> / <code>exit</code> / <code>leave</code> (QuitCommand, line 98133)<a class="headerlink" href="#quit-exit-leave-quitcommand-line-98133" title="Permanent link">&para;</a></h3>
-<div class="language-csharp highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="k">public</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="nf">Execute</span><span class="p">(</span><span class="kt">string</span><span class="p">[]</span><span class="w"> </span><span class="n">args</span><span class="p">)</span>
-</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="p">{</span>
-</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="w">    </span><span class="n">ConsoleWindow</span><span class="p">.</span><span class="n">PrintAction</span><span class="p">(</span><span class="s">&quot;exiting game&quot;</span><span class="p">);</span>
-</span><span id="__span-8-4"><a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="w">    </span><span class="n">Application</span><span class="p">.</span><span class="n">Quit</span><span class="p">();</span>
-</span><span id="__span-8-5"><a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="k">null</span><span class="p">;</span>
-</span><span id="__span-8-6"><a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a><span class="p">}</span>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-15-1"><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="k">public</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="nf">Execute</span><span class="p">(</span><span class="kt">string</span><span class="p">[]</span><span class="w"> </span><span class="n">args</span><span class="p">)</span>
+</span><span id="__span-15-2"><a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a><span class="p">{</span>
+</span><span id="__span-15-3"><a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a><span class="w">    </span><span class="n">ConsoleWindow</span><span class="p">.</span><span class="n">PrintAction</span><span class="p">(</span><span class="s">&quot;exiting game&quot;</span><span class="p">);</span>
+</span><span id="__span-15-4"><a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a><span class="w">    </span><span class="n">Application</span><span class="p">.</span><span class="n">Quit</span><span class="p">();</span>
+</span><span id="__span-15-5"><a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="k">null</span><span class="p">;</span>
+</span><span id="__span-15-6"><a id="__codelineno-15-6" name="__codelineno-15-6" href="#__codelineno-15-6"></a><span class="p">}</span>
 </span></code></pre></div>
 <p>No autosave. The <code>Application.quitting</code> event cancels in-flight autosaves rather than waiting for them. To preserve state, send <code>save "&lt;name&gt;"</code> and wait for the <code>Saved &lt;name&gt;</code> line before sending <code>quit</code>.</p>
 <h3 id="-settings-field-value-settingscommand-line-98668"><code>-settings &lt;Field&gt; &lt;Value&gt;</code> (SettingsCommand, line 98668)<a class="headerlink" href="#-settings-field-value-settingscommand-line-98668" title="Permanent link">&para;</a></h3>
-<div class="language-csharp highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="k">internal</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nc">SettingsCommand</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="n">ClassManipulator</span><span class="o">&lt;</span><span class="n">Settings</span><span class="p">.</span><span class="n">SettingData</span><span class="o">&gt;</span>
-</span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="p">{</span>
-</span><span id="__span-9-3"><a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="n">HelpText</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="s">&quot;Change the settings.xml. e.g settings servermaxplayers 5&quot;</span><span class="p">;</span>
-</span><span id="__span-9-4"><a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="w">    </span><span class="k">protected</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="n">Settings</span><span class="p">.</span><span class="n">SettingData</span><span class="w"> </span><span class="n">ObjectInstance</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">Settings</span><span class="p">.</span><span class="n">CurrentData</span><span class="p">;</span>
-</span><span id="__span-9-5"><a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a>
-</span><span id="__span-9-6"><a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a><span class="w">    </span><span class="k">protected</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">OnValueChanged</span><span class="p">()</span>
-</span><span id="__span-9-7"><a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a><span class="w">    </span><span class="p">{</span>
-</span><span id="__span-9-8"><a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a><span class="w">        </span><span class="n">EnsureExistence</span><span class="p">();</span>
-</span><span id="__span-9-9"><a id="__codelineno-9-9" name="__codelineno-9-9" href="#__codelineno-9-9"></a><span class="w">        </span><span class="n">Assets</span><span class="p">.</span><span class="n">Scripts</span><span class="p">.</span><span class="n">Networking</span><span class="p">.</span><span class="n">NetworkManager</span><span class="p">.</span><span class="n">UpdateSessionData</span><span class="p">(</span><span class="n">ObjectInstance</span><span class="p">);</span>
-</span><span id="__span-9-10"><a id="__codelineno-9-10" name="__codelineno-9-10" href="#__codelineno-9-10"></a><span class="w">        </span><span class="n">Settings</span><span class="p">.</span><span class="n">SaveSettings</span><span class="p">();</span>
-</span><span id="__span-9-11"><a id="__codelineno-9-11" name="__codelineno-9-11" href="#__codelineno-9-11"></a><span class="w">    </span><span class="p">}</span>
-</span><span id="__span-9-12"><a id="__codelineno-9-12" name="__codelineno-9-12" href="#__codelineno-9-12"></a><span class="p">}</span>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-16-1"><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="k">internal</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nc">SettingsCommand</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="n">ClassManipulator</span><span class="o">&lt;</span><span class="n">Settings</span><span class="p">.</span><span class="n">SettingData</span><span class="o">&gt;</span>
+</span><span id="__span-16-2"><a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a><span class="p">{</span>
+</span><span id="__span-16-3"><a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="n">HelpText</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="s">&quot;Change the settings.xml. e.g settings servermaxplayers 5&quot;</span><span class="p">;</span>
+</span><span id="__span-16-4"><a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a><span class="w">    </span><span class="k">protected</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="n">Settings</span><span class="p">.</span><span class="n">SettingData</span><span class="w"> </span><span class="n">ObjectInstance</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">Settings</span><span class="p">.</span><span class="n">CurrentData</span><span class="p">;</span>
+</span><span id="__span-16-5"><a id="__codelineno-16-5" name="__codelineno-16-5" href="#__codelineno-16-5"></a>
+</span><span id="__span-16-6"><a id="__codelineno-16-6" name="__codelineno-16-6" href="#__codelineno-16-6"></a><span class="w">    </span><span class="k">protected</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">OnValueChanged</span><span class="p">()</span>
+</span><span id="__span-16-7"><a id="__codelineno-16-7" name="__codelineno-16-7" href="#__codelineno-16-7"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-16-8"><a id="__codelineno-16-8" name="__codelineno-16-8" href="#__codelineno-16-8"></a><span class="w">        </span><span class="n">EnsureExistence</span><span class="p">();</span>
+</span><span id="__span-16-9"><a id="__codelineno-16-9" name="__codelineno-16-9" href="#__codelineno-16-9"></a><span class="w">        </span><span class="n">Assets</span><span class="p">.</span><span class="n">Scripts</span><span class="p">.</span><span class="n">Networking</span><span class="p">.</span><span class="n">NetworkManager</span><span class="p">.</span><span class="n">UpdateSessionData</span><span class="p">(</span><span class="n">ObjectInstance</span><span class="p">);</span>
+</span><span id="__span-16-10"><a id="__codelineno-16-10" name="__codelineno-16-10" href="#__codelineno-16-10"></a><span class="w">        </span><span class="n">Settings</span><span class="p">.</span><span class="n">SaveSettings</span><span class="p">();</span>
+</span><span id="__span-16-11"><a id="__codelineno-16-11" name="__codelineno-16-11" href="#__codelineno-16-11"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-16-12"><a id="__codelineno-16-12" name="__codelineno-16-12" href="#__codelineno-16-12"></a><span class="p">}</span>
 </span></code></pre></div>
 <p>Reflection-driven. Any field on SettingData is settable by name (the ClassManipulator base handles the lookup, set, type coercion). Each set persists <code>setting.xml</code> and notifies NetworkManager.</p>
 <h3 id="-settingspath-file-path-settingspathcommand-line-98695"><code>-settingspath &lt;file-path&gt;</code> (SettingsPathCommand, line 98695)<a class="headerlink" href="#-settingspath-file-path-settingspathcommand-line-98695" title="Permanent link">&para;</a></h3>
-<div class="language-csharp highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="k">public</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="n">HelpText</span><span class="w"> </span><span class="o">=&gt;</span>
-</span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="w">    </span><span class="s">&quot;Sets the default settings path to a new location. &quot;</span><span class="w"> </span><span class="o">+</span>
-</span><span id="__span-10-3"><a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="w">    </span><span class="s">&quot;Launch command only. If none found default is used.&quot;</span><span class="p">;</span>
-</span><span id="__span-10-4"><a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="k">public</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="kt">string</span><span class="p">[]</span><span class="w"> </span><span class="n">Arguments</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="kt">string</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="s">&quot;&lt;full-directory-path&gt;&quot;</span><span class="w"> </span><span class="p">};</span>
-</span><span id="__span-10-5"><a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a><span class="k">public</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">IsLaunchCmd</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="k">true</span><span class="p">;</span>
-</span><span id="__span-10-6"><a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a>
-</span><span id="__span-10-7"><a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a><span class="k">public</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="nf">Execute</span><span class="p">(</span><span class="kt">string</span><span class="p">[]</span><span class="w"> </span><span class="n">args</span><span class="p">)</span>
-</span><span id="__span-10-8"><a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a><span class="p">{</span>
-</span><span id="__span-10-9"><a id="__codelineno-10-9" name="__codelineno-10-9" href="#__codelineno-10-9"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">args</span><span class="p">.</span><span class="n">Length</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span>
-</span><span id="__span-10-10"><a id="__codelineno-10-10" name="__codelineno-10-10" href="#__codelineno-10-10"></a><span class="w">    </span><span class="p">{</span>
-</span><span id="__span-10-11"><a id="__codelineno-10-11" name="__codelineno-10-11" href="#__codelineno-10-11"></a><span class="w">        </span><span class="n">FileInfo</span><span class="w"> </span><span class="n">fileInfo</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">FileInfo</span><span class="p">(</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]);</span>
-</span><span id="__span-10-12"><a id="__codelineno-10-12" name="__codelineno-10-12" href="#__codelineno-10-12"></a><span class="w">        </span><span class="n">Settings</span><span class="p">.</span><span class="n">SettingData</span><span class="p">.</span><span class="n">Path</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">fileInfo</span><span class="p">.</span><span class="n">FullName</span><span class="p">;</span>
-</span><span id="__span-10-13"><a id="__codelineno-10-13" name="__codelineno-10-13" href="#__codelineno-10-13"></a><span class="w">        </span><span class="n">ConsoleWindow</span><span class="p">.</span><span class="n">PrintAction</span><span class="p">(</span><span class="s">&quot;Set custom settings path: &quot;</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">fileInfo</span><span class="p">.</span><span class="n">FullName</span><span class="p">);</span>
-</span><span id="__span-10-14"><a id="__codelineno-10-14" name="__codelineno-10-14" href="#__codelineno-10-14"></a><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="k">null</span><span class="p">;</span>
-</span><span id="__span-10-15"><a id="__codelineno-10-15" name="__codelineno-10-15" href="#__codelineno-10-15"></a><span class="w">    </span><span class="p">}</span>
-</span><span id="__span-10-16"><a id="__codelineno-10-16" name="__codelineno-10-16" href="#__codelineno-10-16"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="s">&quot;Invalid syntax&quot;</span><span class="p">;</span>
-</span><span id="__span-10-17"><a id="__codelineno-10-17" name="__codelineno-10-17" href="#__codelineno-10-17"></a><span class="p">}</span>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-17-1"><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="k">public</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="n">HelpText</span><span class="w"> </span><span class="o">=&gt;</span>
+</span><span id="__span-17-2"><a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a><span class="w">    </span><span class="s">&quot;Sets the default settings path to a new location. &quot;</span><span class="w"> </span><span class="o">+</span>
+</span><span id="__span-17-3"><a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a><span class="w">    </span><span class="s">&quot;Launch command only. If none found default is used.&quot;</span><span class="p">;</span>
+</span><span id="__span-17-4"><a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a><span class="k">public</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="kt">string</span><span class="p">[]</span><span class="w"> </span><span class="n">Arguments</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="kt">string</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="s">&quot;&lt;full-directory-path&gt;&quot;</span><span class="w"> </span><span class="p">};</span>
+</span><span id="__span-17-5"><a id="__codelineno-17-5" name="__codelineno-17-5" href="#__codelineno-17-5"></a><span class="k">public</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">IsLaunchCmd</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="k">true</span><span class="p">;</span>
+</span><span id="__span-17-6"><a id="__codelineno-17-6" name="__codelineno-17-6" href="#__codelineno-17-6"></a>
+</span><span id="__span-17-7"><a id="__codelineno-17-7" name="__codelineno-17-7" href="#__codelineno-17-7"></a><span class="k">public</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="nf">Execute</span><span class="p">(</span><span class="kt">string</span><span class="p">[]</span><span class="w"> </span><span class="n">args</span><span class="p">)</span>
+</span><span id="__span-17-8"><a id="__codelineno-17-8" name="__codelineno-17-8" href="#__codelineno-17-8"></a><span class="p">{</span>
+</span><span id="__span-17-9"><a id="__codelineno-17-9" name="__codelineno-17-9" href="#__codelineno-17-9"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">args</span><span class="p">.</span><span class="n">Length</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span>
+</span><span id="__span-17-10"><a id="__codelineno-17-10" name="__codelineno-17-10" href="#__codelineno-17-10"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-17-11"><a id="__codelineno-17-11" name="__codelineno-17-11" href="#__codelineno-17-11"></a><span class="w">        </span><span class="n">FileInfo</span><span class="w"> </span><span class="n">fileInfo</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">FileInfo</span><span class="p">(</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]);</span>
+</span><span id="__span-17-12"><a id="__codelineno-17-12" name="__codelineno-17-12" href="#__codelineno-17-12"></a><span class="w">        </span><span class="n">Settings</span><span class="p">.</span><span class="n">SettingData</span><span class="p">.</span><span class="n">Path</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">fileInfo</span><span class="p">.</span><span class="n">FullName</span><span class="p">;</span>
+</span><span id="__span-17-13"><a id="__codelineno-17-13" name="__codelineno-17-13" href="#__codelineno-17-13"></a><span class="w">        </span><span class="n">ConsoleWindow</span><span class="p">.</span><span class="n">PrintAction</span><span class="p">(</span><span class="s">&quot;Set custom settings path: &quot;</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">fileInfo</span><span class="p">.</span><span class="n">FullName</span><span class="p">);</span>
+</span><span id="__span-17-14"><a id="__codelineno-17-14" name="__codelineno-17-14" href="#__codelineno-17-14"></a><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="k">null</span><span class="p">;</span>
+</span><span id="__span-17-15"><a id="__codelineno-17-15" name="__codelineno-17-15" href="#__codelineno-17-15"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-17-16"><a id="__codelineno-17-16" name="__codelineno-17-16" href="#__codelineno-17-16"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="s">&quot;Invalid syntax&quot;</span><span class="p">;</span>
+</span><span id="__span-17-17"><a id="__codelineno-17-17" name="__codelineno-17-17" href="#__codelineno-17-17"></a><span class="p">}</span>
 </span></code></pre></div>
 <p>Despite the help text saying "directory path", the implementation wraps the arg in <code>new FileInfo(args[0])</code> and assigns the full file path. So the argument is a file path (the <code>setting.xml</code> file itself), not a directory. Help text is misleading.</p>
 <h3 id="serverrun-commandline-serverruncommand-line-98588"><code>serverrun &lt;commandline&gt;</code> (ServerRunCommand, line 98588)<a class="headerlink" href="#serverrun-commandline-serverruncommand-line-98588" title="Permanent link">&para;</a></h3>
-<div class="language-csharp highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="k">public</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="n">HelpText</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="s">&quot;Sends a message to the server to perform server side commands&quot;</span><span class="p">;</span>
-</span><span id="__span-11-2"><a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="k">public</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="kt">string</span><span class="p">[]</span><span class="w"> </span><span class="n">Arguments</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="kt">string</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="s">&quot;Command&quot;</span><span class="w"> </span><span class="p">};</span>
-</span><span id="__span-11-3"><a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="k">public</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">IsLaunchCmd</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="k">false</span><span class="p">;</span>
-</span><span id="__span-11-4"><a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a>
-</span><span id="__span-11-5"><a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a><span class="k">public</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="nf">Execute</span><span class="p">(</span><span class="kt">string</span><span class="p">[]</span><span class="w"> </span><span class="n">args</span><span class="p">)</span>
-</span><span id="__span-11-6"><a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a><span class="p">{</span>
-</span><span id="__span-11-7"><a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">args</span><span class="p">.</span><span class="n">Length</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="s">&quot;Invalid syntax&quot;</span><span class="p">;</span>
-</span><span id="__span-11-8"><a id="__codelineno-11-8" name="__codelineno-11-8" href="#__codelineno-11-8"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">Assets</span><span class="p">.</span><span class="n">Scripts</span><span class="p">.</span><span class="n">Networking</span><span class="p">.</span><span class="n">NetworkManager</span><span class="p">.</span><span class="n">IsClient</span><span class="p">)</span>
-</span><span id="__span-11-9"><a id="__codelineno-11-9" name="__codelineno-11-9" href="#__codelineno-11-9"></a><span class="w">        </span><span class="n">SendMessageToServer</span><span class="p">(</span><span class="kt">string</span><span class="p">.</span><span class="n">Join</span><span class="p">(</span><span class="s">&quot; &quot;</span><span class="p">,</span><span class="w"> </span><span class="n">args</span><span class="p">));</span>
-</span><span id="__span-11-10"><a id="__codelineno-11-10" name="__codelineno-11-10" href="#__codelineno-11-10"></a><span class="w">    </span><span class="k">else</span>
-</span><span id="__span-11-11"><a id="__codelineno-11-11" name="__codelineno-11-11" href="#__codelineno-11-11"></a><span class="w">        </span><span class="n">ConsoleWindow</span><span class="p">.</span><span class="n">PrintError</span><span class="p">(</span><span class="s">&quot;Only clients can use this command&quot;</span><span class="p">);</span>
-</span><span id="__span-11-12"><a id="__codelineno-11-12" name="__codelineno-11-12" href="#__codelineno-11-12"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="k">null</span><span class="p">;</span>
-</span><span id="__span-11-13"><a id="__codelineno-11-13" name="__codelineno-11-13" href="#__codelineno-11-13"></a><span class="p">}</span>
-</span><span id="__span-11-14"><a id="__codelineno-11-14" name="__codelineno-11-14" href="#__codelineno-11-14"></a>
-</span><span id="__span-11-15"><a id="__codelineno-11-15" name="__codelineno-11-15" href="#__codelineno-11-15"></a><span class="k">private</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">SendMessageToServer</span><span class="p">(</span><span class="kt">string</span><span class="w"> </span><span class="n">command</span><span class="p">)</span>
-</span><span id="__span-11-16"><a id="__codelineno-11-16" name="__codelineno-11-16" href="#__codelineno-11-16"></a><span class="p">{</span>
-</span><span id="__span-11-17"><a id="__codelineno-11-17" name="__codelineno-11-17" href="#__codelineno-11-17"></a><span class="w">    </span><span class="n">NetworkClient</span><span class="p">.</span><span class="n">SendToServer</span><span class="p">(</span><span class="k">new</span><span class="w"> </span><span class="n">ServerRunCommandMessage</span>
-</span><span id="__span-11-18"><a id="__codelineno-11-18" name="__codelineno-11-18" href="#__codelineno-11-18"></a><span class="w">    </span><span class="p">{</span>
-</span><span id="__span-11-19"><a id="__codelineno-11-19" name="__codelineno-11-19" href="#__codelineno-11-19"></a><span class="w">        </span><span class="n">ClientId</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Assets</span><span class="p">.</span><span class="n">Scripts</span><span class="p">.</span><span class="n">Networking</span><span class="p">.</span><span class="n">NetworkManager</span><span class="p">.</span><span class="n">LocalClientId</span><span class="p">,</span>
-</span><span id="__span-11-20"><a id="__codelineno-11-20" name="__codelineno-11-20" href="#__codelineno-11-20"></a><span class="w">        </span><span class="n">Secret</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Settings</span><span class="p">.</span><span class="n">CurrentData</span><span class="p">.</span><span class="n">ServerAuthSecret</span><span class="p">,</span>
-</span><span id="__span-11-21"><a id="__codelineno-11-21" name="__codelineno-11-21" href="#__codelineno-11-21"></a><span class="w">        </span><span class="n">Command</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">command</span>
-</span><span id="__span-11-22"><a id="__codelineno-11-22" name="__codelineno-11-22" href="#__codelineno-11-22"></a><span class="w">    </span><span class="p">});</span>
-</span><span id="__span-11-23"><a id="__codelineno-11-23" name="__codelineno-11-23" href="#__codelineno-11-23"></a><span class="p">}</span>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-18-1"><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="k">public</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="n">HelpText</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="s">&quot;Sends a message to the server to perform server side commands&quot;</span><span class="p">;</span>
+</span><span id="__span-18-2"><a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a><span class="k">public</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="kt">string</span><span class="p">[]</span><span class="w"> </span><span class="n">Arguments</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="kt">string</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="s">&quot;Command&quot;</span><span class="w"> </span><span class="p">};</span>
+</span><span id="__span-18-3"><a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a><span class="k">public</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">IsLaunchCmd</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="k">false</span><span class="p">;</span>
+</span><span id="__span-18-4"><a id="__codelineno-18-4" name="__codelineno-18-4" href="#__codelineno-18-4"></a>
+</span><span id="__span-18-5"><a id="__codelineno-18-5" name="__codelineno-18-5" href="#__codelineno-18-5"></a><span class="k">public</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="nf">Execute</span><span class="p">(</span><span class="kt">string</span><span class="p">[]</span><span class="w"> </span><span class="n">args</span><span class="p">)</span>
+</span><span id="__span-18-6"><a id="__codelineno-18-6" name="__codelineno-18-6" href="#__codelineno-18-6"></a><span class="p">{</span>
+</span><span id="__span-18-7"><a id="__codelineno-18-7" name="__codelineno-18-7" href="#__codelineno-18-7"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">args</span><span class="p">.</span><span class="n">Length</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="s">&quot;Invalid syntax&quot;</span><span class="p">;</span>
+</span><span id="__span-18-8"><a id="__codelineno-18-8" name="__codelineno-18-8" href="#__codelineno-18-8"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">Assets</span><span class="p">.</span><span class="n">Scripts</span><span class="p">.</span><span class="n">Networking</span><span class="p">.</span><span class="n">NetworkManager</span><span class="p">.</span><span class="n">IsClient</span><span class="p">)</span>
+</span><span id="__span-18-9"><a id="__codelineno-18-9" name="__codelineno-18-9" href="#__codelineno-18-9"></a><span class="w">        </span><span class="n">SendMessageToServer</span><span class="p">(</span><span class="kt">string</span><span class="p">.</span><span class="n">Join</span><span class="p">(</span><span class="s">&quot; &quot;</span><span class="p">,</span><span class="w"> </span><span class="n">args</span><span class="p">));</span>
+</span><span id="__span-18-10"><a id="__codelineno-18-10" name="__codelineno-18-10" href="#__codelineno-18-10"></a><span class="w">    </span><span class="k">else</span>
+</span><span id="__span-18-11"><a id="__codelineno-18-11" name="__codelineno-18-11" href="#__codelineno-18-11"></a><span class="w">        </span><span class="n">ConsoleWindow</span><span class="p">.</span><span class="n">PrintError</span><span class="p">(</span><span class="s">&quot;Only clients can use this command&quot;</span><span class="p">);</span>
+</span><span id="__span-18-12"><a id="__codelineno-18-12" name="__codelineno-18-12" href="#__codelineno-18-12"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="k">null</span><span class="p">;</span>
+</span><span id="__span-18-13"><a id="__codelineno-18-13" name="__codelineno-18-13" href="#__codelineno-18-13"></a><span class="p">}</span>
+</span><span id="__span-18-14"><a id="__codelineno-18-14" name="__codelineno-18-14" href="#__codelineno-18-14"></a>
+</span><span id="__span-18-15"><a id="__codelineno-18-15" name="__codelineno-18-15" href="#__codelineno-18-15"></a><span class="k">private</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">SendMessageToServer</span><span class="p">(</span><span class="kt">string</span><span class="w"> </span><span class="n">command</span><span class="p">)</span>
+</span><span id="__span-18-16"><a id="__codelineno-18-16" name="__codelineno-18-16" href="#__codelineno-18-16"></a><span class="p">{</span>
+</span><span id="__span-18-17"><a id="__codelineno-18-17" name="__codelineno-18-17" href="#__codelineno-18-17"></a><span class="w">    </span><span class="n">NetworkClient</span><span class="p">.</span><span class="n">SendToServer</span><span class="p">(</span><span class="k">new</span><span class="w"> </span><span class="n">ServerRunCommandMessage</span>
+</span><span id="__span-18-18"><a id="__codelineno-18-18" name="__codelineno-18-18" href="#__codelineno-18-18"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-18-19"><a id="__codelineno-18-19" name="__codelineno-18-19" href="#__codelineno-18-19"></a><span class="w">        </span><span class="n">ClientId</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Assets</span><span class="p">.</span><span class="n">Scripts</span><span class="p">.</span><span class="n">Networking</span><span class="p">.</span><span class="n">NetworkManager</span><span class="p">.</span><span class="n">LocalClientId</span><span class="p">,</span>
+</span><span id="__span-18-20"><a id="__codelineno-18-20" name="__codelineno-18-20" href="#__codelineno-18-20"></a><span class="w">        </span><span class="n">Secret</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Settings</span><span class="p">.</span><span class="n">CurrentData</span><span class="p">.</span><span class="n">ServerAuthSecret</span><span class="p">,</span>
+</span><span id="__span-18-21"><a id="__codelineno-18-21" name="__codelineno-18-21" href="#__codelineno-18-21"></a><span class="w">        </span><span class="n">Command</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">command</span>
+</span><span id="__span-18-22"><a id="__codelineno-18-22" name="__codelineno-18-22" href="#__codelineno-18-22"></a><span class="w">    </span><span class="p">});</span>
+</span><span id="__span-18-23"><a id="__codelineno-18-23" name="__codelineno-18-23" href="#__codelineno-18-23"></a><span class="p">}</span>
 </span></code></pre></div>
 <p>Server-side handler (line 98631):</p>
-<div class="language-csharp highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="k">public</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">Process</span><span class="p">(</span><span class="kt">long</span><span class="w"> </span><span class="n">hostId</span><span class="p">)</span>
-</span><span id="__span-12-2"><a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="p">{</span>
-</span><span id="__span-12-3"><a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="kt">string</span><span class="p">.</span><span class="n">IsNullOrEmpty</span><span class="p">(</span><span class="n">Settings</span><span class="p">.</span><span class="n">CurrentData</span><span class="p">.</span><span class="n">ServerAuthSecret</span><span class="p">))</span>
-</span><span id="__span-12-4"><a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a><span class="w">    </span><span class="p">{</span>
-</span><span id="__span-12-5"><a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a><span class="w">        </span><span class="n">ConsoleWindow</span><span class="p">.</span><span class="n">PrintError</span><span class="p">(</span><span class="s">&quot;serverrun command can only be used if a ServerAuthSecret is set in setting.xml&quot;</span><span class="p">);</span>
-</span><span id="__span-12-6"><a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a><span class="w">        </span><span class="k">return</span><span class="p">;</span>
-</span><span id="__span-12-7"><a id="__codelineno-12-7" name="__codelineno-12-7" href="#__codelineno-12-7"></a><span class="w">    </span><span class="p">}</span>
-</span><span id="__span-12-8"><a id="__codelineno-12-8" name="__codelineno-12-8" href="#__codelineno-12-8"></a><span class="w">    </span><span class="n">Client</span><span class="w"> </span><span class="n">client</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">NetworkBase</span><span class="p">.</span><span class="n">Clients</span><span class="p">.</span><span class="n">Find</span><span class="p">(</span><span class="n">x</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">x</span><span class="p">.</span><span class="n">ClientId</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">ClientId</span><span class="p">);</span>
-</span><span id="__span-12-9"><a id="__codelineno-12-9" name="__codelineno-12-9" href="#__codelineno-12-9"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">client</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="k">null</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="p">...</span><span class="w"> </span><span class="n">ClientId</span><span class="w"> </span><span class="k">not</span><span class="w"> </span><span class="n">found</span><span class="w"> </span><span class="n">error</span><span class="w"> </span><span class="p">...</span><span class="w"> </span><span class="p">}</span>
-</span><span id="__span-12-10"><a id="__codelineno-12-10" name="__codelineno-12-10" href="#__codelineno-12-10"></a><span class="w">    </span><span class="k">else</span><span class="w"> </span><span class="nf">if</span><span class="w"> </span><span class="p">(</span><span class="n">Secret</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">Settings</span><span class="p">.</span><span class="n">CurrentData</span><span class="p">.</span><span class="n">ServerAuthSecret</span><span class="p">)</span>
-</span><span id="__span-12-11"><a id="__codelineno-12-11" name="__codelineno-12-11" href="#__codelineno-12-11"></a><span class="w">    </span><span class="p">{</span><span class="w"> </span><span class="p">...</span><span class="w"> </span><span class="n">mismatch</span><span class="w"> </span><span class="n">error</span><span class="w"> </span><span class="p">...</span><span class="w"> </span><span class="p">}</span>
-</span><span id="__span-12-12"><a id="__codelineno-12-12" name="__codelineno-12-12" href="#__codelineno-12-12"></a><span class="w">    </span><span class="k">else</span>
-</span><span id="__span-12-13"><a id="__codelineno-12-13" name="__codelineno-12-13" href="#__codelineno-12-13"></a><span class="w">    </span><span class="p">{</span>
-</span><span id="__span-12-14"><a id="__codelineno-12-14" name="__codelineno-12-14" href="#__codelineno-12-14"></a><span class="w">        </span><span class="n">ConsoleWindow</span><span class="p">.</span><span class="n">PrintAction</span><span class="p">(</span><span class="s">&quot;client &#39;&lt;name&gt;&#39; ran command &#39;&lt;cmd&gt;&#39;&quot;</span><span class="p">);</span>
-</span><span id="__span-12-15"><a id="__codelineno-12-15" name="__codelineno-12-15" href="#__codelineno-12-15"></a><span class="w">        </span><span class="n">CommandLine</span><span class="p">.</span><span class="n">Process</span><span class="p">(</span><span class="n">Command</span><span class="p">);</span>
-</span><span id="__span-12-16"><a id="__codelineno-12-16" name="__codelineno-12-16" href="#__codelineno-12-16"></a><span class="w">    </span><span class="p">}</span>
-</span><span id="__span-12-17"><a id="__codelineno-12-17" name="__codelineno-12-17" href="#__codelineno-12-17"></a><span class="p">}</span>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-19-1"><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="k">public</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">Process</span><span class="p">(</span><span class="kt">long</span><span class="w"> </span><span class="n">hostId</span><span class="p">)</span>
+</span><span id="__span-19-2"><a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a><span class="p">{</span>
+</span><span id="__span-19-3"><a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="kt">string</span><span class="p">.</span><span class="n">IsNullOrEmpty</span><span class="p">(</span><span class="n">Settings</span><span class="p">.</span><span class="n">CurrentData</span><span class="p">.</span><span class="n">ServerAuthSecret</span><span class="p">))</span>
+</span><span id="__span-19-4"><a id="__codelineno-19-4" name="__codelineno-19-4" href="#__codelineno-19-4"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-19-5"><a id="__codelineno-19-5" name="__codelineno-19-5" href="#__codelineno-19-5"></a><span class="w">        </span><span class="n">ConsoleWindow</span><span class="p">.</span><span class="n">PrintError</span><span class="p">(</span><span class="s">&quot;serverrun command can only be used if a ServerAuthSecret is set in setting.xml&quot;</span><span class="p">);</span>
+</span><span id="__span-19-6"><a id="__codelineno-19-6" name="__codelineno-19-6" href="#__codelineno-19-6"></a><span class="w">        </span><span class="k">return</span><span class="p">;</span>
+</span><span id="__span-19-7"><a id="__codelineno-19-7" name="__codelineno-19-7" href="#__codelineno-19-7"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-19-8"><a id="__codelineno-19-8" name="__codelineno-19-8" href="#__codelineno-19-8"></a><span class="w">    </span><span class="n">Client</span><span class="w"> </span><span class="n">client</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">NetworkBase</span><span class="p">.</span><span class="n">Clients</span><span class="p">.</span><span class="n">Find</span><span class="p">(</span><span class="n">x</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">x</span><span class="p">.</span><span class="n">ClientId</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">ClientId</span><span class="p">);</span>
+</span><span id="__span-19-9"><a id="__codelineno-19-9" name="__codelineno-19-9" href="#__codelineno-19-9"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">client</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="k">null</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="p">...</span><span class="w"> </span><span class="n">ClientId</span><span class="w"> </span><span class="k">not</span><span class="w"> </span><span class="n">found</span><span class="w"> </span><span class="n">error</span><span class="w"> </span><span class="p">...</span><span class="w"> </span><span class="p">}</span>
+</span><span id="__span-19-10"><a id="__codelineno-19-10" name="__codelineno-19-10" href="#__codelineno-19-10"></a><span class="w">    </span><span class="k">else</span><span class="w"> </span><span class="nf">if</span><span class="w"> </span><span class="p">(</span><span class="n">Secret</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">Settings</span><span class="p">.</span><span class="n">CurrentData</span><span class="p">.</span><span class="n">ServerAuthSecret</span><span class="p">)</span>
+</span><span id="__span-19-11"><a id="__codelineno-19-11" name="__codelineno-19-11" href="#__codelineno-19-11"></a><span class="w">    </span><span class="p">{</span><span class="w"> </span><span class="p">...</span><span class="w"> </span><span class="n">mismatch</span><span class="w"> </span><span class="n">error</span><span class="w"> </span><span class="p">...</span><span class="w"> </span><span class="p">}</span>
+</span><span id="__span-19-12"><a id="__codelineno-19-12" name="__codelineno-19-12" href="#__codelineno-19-12"></a><span class="w">    </span><span class="k">else</span>
+</span><span id="__span-19-13"><a id="__codelineno-19-13" name="__codelineno-19-13" href="#__codelineno-19-13"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-19-14"><a id="__codelineno-19-14" name="__codelineno-19-14" href="#__codelineno-19-14"></a><span class="w">        </span><span class="n">ConsoleWindow</span><span class="p">.</span><span class="n">PrintAction</span><span class="p">(</span><span class="s">&quot;client &#39;&lt;name&gt;&#39; ran command &#39;&lt;cmd&gt;&#39;&quot;</span><span class="p">);</span>
+</span><span id="__span-19-15"><a id="__codelineno-19-15" name="__codelineno-19-15" href="#__codelineno-19-15"></a><span class="w">        </span><span class="n">CommandLine</span><span class="p">.</span><span class="n">Process</span><span class="p">(</span><span class="n">Command</span><span class="p">);</span>
+</span><span id="__span-19-16"><a id="__codelineno-19-16" name="__codelineno-19-16" href="#__codelineno-19-16"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-19-17"><a id="__codelineno-19-17" name="__codelineno-19-17" href="#__codelineno-19-17"></a><span class="p">}</span>
 </span></code></pre></div>
 <p>So <code>serverrun</code> is the closest in-game equivalent to RCON. Both client and server need <code>ServerAuthSecret</code> set to the same string. The server then runs the wrapped command through <code>CommandLine.Process</code>, giving the client access to the entire command surface (save, kick, ban, status, etc.).</p>
 <h3 id="kick-clientid-and-ban-clientid-ban-refresh"><code>kick &lt;clientId&gt;</code> and <code>ban &lt;clientId&gt;</code> / <code>ban refresh</code><a class="headerlink" href="#kick-clientid-and-ban-clientid-ban-refresh" title="Permanent link">&para;</a></h3>
@@ -10838,23 +11163,23 @@
 <li><code>setting.xml</code> written to <code>&lt;SavePath&gt;/setting.xml</code> on first save, which (with empty SavePath) is the exe directory.</li>
 </ul>
 <h2 id="notes-for-the-testrig-launcher-dedicated-server-half">Notes for the TestRig launcher (dedicated-server half)<a class="headerlink" href="#notes-for-the-testrig-launcher-dedicated-server-half" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-05-18 -->
+<!-- verified: 0.2.6428.27798 @ 2026-08-15 -->
 
 <p>The flag set <code>TestRig/testrig.exe start --target server</code> applies:</p>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>-batchmode -nographics
-</span><span id="__span-13-2"><a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>-settingspath  &lt;DedicatedServer&gt;/data/setting.xml
-</span><span id="__span-13-3"><a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a>-logFile       &lt;DedicatedServer&gt;/data/server.log
-</span><span id="__span-13-4"><a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a>-settings SavePath           &lt;DedicatedServer&gt;/data
-</span><span id="__span-13-5"><a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a>-settings GamePort           28016
-</span><span id="__span-13-6"><a id="__codelineno-13-6" name="__codelineno-13-6" href="#__codelineno-13-6"></a>-settings UpdatePort         28015
-</span><span id="__span-13-7"><a id="__codelineno-13-7" name="__codelineno-13-7" href="#__codelineno-13-7"></a>-settings LocalIpAddress     127.0.0.1
-</span><span id="__span-13-8"><a id="__codelineno-13-8" name="__codelineno-13-8" href="#__codelineno-13-8"></a>-settings AutoSave           true
-</span><span id="__span-13-9"><a id="__codelineno-13-9" name="__codelineno-13-9" href="#__codelineno-13-9"></a>-settings AutoPauseServer    false
-</span><span id="__span-13-10"><a id="__codelineno-13-10" name="__codelineno-13-10" href="#__codelineno-13-10"></a>-settings UPNPEnabled        false
-</span><span id="__span-13-11"><a id="__codelineno-13-11" name="__codelineno-13-11" href="#__codelineno-13-11"></a>-settings ServerName         &quot;Local Test&quot;
-</span><span id="__span-13-12"><a id="__codelineno-13-12" name="__codelineno-13-12" href="#__codelineno-13-12"></a>-settings ServerMaxPlayers   4
-</span><span id="__span-13-13"><a id="__codelineno-13-13" name="__codelineno-13-13" href="#__codelineno-13-13"></a>-settings ServerAuthSecret   x
-</span><span id="__span-13-14"><a id="__codelineno-13-14" name="__codelineno-13-14" href="#__codelineno-13-14"></a>-load &lt;SaveName&gt; &lt;Map&gt;   OR   -new &lt;Map&gt;
+<div class="language-text highlight"><pre><span></span><code><span id="__span-20-1"><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a>-batchmode -nographics
+</span><span id="__span-20-2"><a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a>-settingspath  &lt;DedicatedServer&gt;/data/setting.xml
+</span><span id="__span-20-3"><a id="__codelineno-20-3" name="__codelineno-20-3" href="#__codelineno-20-3"></a>-logFile       &lt;DedicatedServer&gt;/data/server.log
+</span><span id="__span-20-4"><a id="__codelineno-20-4" name="__codelineno-20-4" href="#__codelineno-20-4"></a>-settings SavePath           &lt;DedicatedServer&gt;/data
+</span><span id="__span-20-5"><a id="__codelineno-20-5" name="__codelineno-20-5" href="#__codelineno-20-5"></a>-settings GamePort           28016
+</span><span id="__span-20-6"><a id="__codelineno-20-6" name="__codelineno-20-6" href="#__codelineno-20-6"></a>-settings UpdatePort         28015
+</span><span id="__span-20-7"><a id="__codelineno-20-7" name="__codelineno-20-7" href="#__codelineno-20-7"></a>-settings LocalIpAddress     127.0.0.1
+</span><span id="__span-20-8"><a id="__codelineno-20-8" name="__codelineno-20-8" href="#__codelineno-20-8"></a>-settings AutoSave           true
+</span><span id="__span-20-9"><a id="__codelineno-20-9" name="__codelineno-20-9" href="#__codelineno-20-9"></a>-settings AutoPauseServer    false
+</span><span id="__span-20-10"><a id="__codelineno-20-10" name="__codelineno-20-10" href="#__codelineno-20-10"></a>-settings UPNPEnabled        false
+</span><span id="__span-20-11"><a id="__codelineno-20-11" name="__codelineno-20-11" href="#__codelineno-20-11"></a>-settings ServerName         &quot;Local Test&quot;
+</span><span id="__span-20-12"><a id="__codelineno-20-12" name="__codelineno-20-12" href="#__codelineno-20-12"></a>-settings ServerMaxPlayers   4
+</span><span id="__span-20-13"><a id="__codelineno-20-13" name="__codelineno-20-13" href="#__codelineno-20-13"></a>-settings ServerAuthSecret   x
+</span><span id="__span-20-14"><a id="__codelineno-20-14" name="__codelineno-20-14" href="#__codelineno-20-14"></a>-load &lt;SaveName&gt; &lt;Map&gt;   OR   -new &lt;Map&gt;
 </span></code></pre></div>
 <p>Verified against the source:</p>
 <ul>
@@ -10862,6 +11187,7 @@
 <li><code>UPNPEnabled false</code> is correct for a loopback-only test rig; the default <code>true</code> would advertise via UPnP. Redundant with the loopback bind but kept for documentation.</li>
 <li>No <code>ServerPassword</code>. The server is loopback-only, so unauthenticated connections from outside the machine are impossible at the network layer; a connection password adds no protection in that topology and just gets in the way of agent-driven test loops. Earlier launcher revisions hardcoded <code>ServerPassword x</code>; that was removed once the LocalIpAddress pin landed.</li>
 <li><code>ServerAuthSecret x</code> is kept; matching value on the client unlocks <code>serverrun</code> for in-game admin commands without writing to the server's stdin (see ServerRunCommand at decompile line 98588).</li>
+<li><code>-logFile &lt;path&gt;</code> is load-bearing in two directions and worth stating explicitly. It gives the run a scrapable log, because <code>ConsoleWindow.Print</code> then routes through <code>UnityEngine.Debug.Log</code> into that file. It also <strong>removes the system console outright</strong>, since <code>ConsoleWindow.CustomLogFile</code> gates the <code>RocketSystemConsole</code> construction and its handler wiring. Dropping the flag would not buy a usable stdin channel (measured: see "The console channel", arm 2), it would only cost the log. Commands go through the in-process control plane; the flag stays.</li>
 <li><code>ServerMaxPlayers 4</code> is below the default of 10. No clamping is visible at the SettingData level; the source-of-truth for upper bound (1-30 in public docs) was not located this pass.</li>
 <li><code>AutoPauseServer false</code> keeps world simulation running with no clients connected (atmospheric simulation, growth, decay, autosave timer). Default is <code>true</code>. Required for tests that depend on game-time progression between client sessions.</li>
 <li><code>AutoSave true</code> matches the default; passing it explicitly is documentation, not a state change.</li>
@@ -10882,14 +11208,17 @@
 <li>
 <p>2026-08-15: added "Nothing reads standard input: what actually feeds the runtime dispatcher" from a fresh decompile of the DEDICATED SERVER build at <code>0.2.6428.27798</code> (<code>.work/decomp/0.2.6428.27798/Assembly-CSharp.DedicatedServer.decompiled.cs</code>, 442,274 lines, plus an <code>Assembly-CSharp-firstpass.dll</code> pass). Findings: zero occurrences of <code>Console.ReadLine</code> / <code>Console.In</code> / <code>Console.OpenStandardInput</code> / <code>StandardInput</code> / <code>ReadLineAsync</code> in <code>Assembly-CSharp</code>; the only stdin reference in <code>firstpass</code> is MoonSharp's <code>PlatformAccessor.IO_GetStandardStream</code>; <code>CommandLine.Process(string)</code> (97087) has exactly three callers, <code>ServerRunMessage.Process</code> (101957), <code>ConsoleWindow.Submit</code> (215637) and <code>RichPresenceJoinRequested</code> (273780), with <code>ProcessOnLaunch</code> (97056) the fourth route into the dispatcher. Corroborated by a live run on a headless server in world: a stdin <code>quit</code> left it running 90 s later with zero log bytes appended, an in-process <code>ConsoleWindow.Submit("quit")</code> exited it in 2.55 s, and a <code>Submit("help")</code> between them returned 452 lines. Additive; the Architecture section's older "(stdin path)" label is contradicted, is flagged inline and in Open Questions, and is left in place because changing stamped content requires the <code>Research/WORKFLOW.md</code> Rule 3 fresh validator, which was not run.</p>
 </li>
+<li>
+<p>2026-08-15: conflict on "does the dedicated server read stdin, and what feeds the runtime dispatcher", resolved by a fresh validator (<code>Research/WORKFLOW.md</code> Rule 3) working from its own decompile of <code>TestRig/DedicatedServer/install/rocketstation_DedicatedServer_Data/Managed/Assembly-CSharp.dll</code> (0.2.6428.27798, SHA-256 <code>4A925BE2...B66A4E39</code>) and its own live runs. <strong>Previous claim</strong> (Architecture, stamped 0.2.6228.27061): the <code>onLaunch: false</code> branch is "the stdin path". <strong>Competing claim</strong> (the additive 2026-08-15 section): nothing reads standard input, <code>CommandLine.Process(string)</code> has exactly three callers, none a console reader. <strong>Verdict: neither is right, and the observable outcome the additive section reported is correct while its mechanism is not.</strong> Three corrections. (1) The census missed a fourth reference: <code>_systemConsoleInput.OnInputReceived += CommandLine.Process;</code> at line 215509 is a method-group subscription, not a call, so a grep shaped <code>CommandLine.Process(</code> cannot see it. The dedicated server therefore DOES have a console reader wired to the dispatcher. (2) That reader is <code>UI.ImGuiUi.RocketSystemConsole.ConsoleInputThread</code> (107330), which uses <code>System.Console.KeyAvailable</code> and <code>System.Console.ReadKey()</code> against the Win32 console input buffer. It is not a stdin stream read, which is why the "zero occurrences of <code>Console.ReadLine</code> / <code>Console.In</code> / <code>Console.OpenStandardInput</code> / <code>StandardInput</code> / <code>ReadLineAsync</code>" grep is true and yet incomplete: the grep list omitted <code>ReadKey</code> / <code>KeyAvailable</code>, both of which the assembly does contain, exactly once each, in that thread. (3) A second, earlier cut-off was missing entirely: <code>ConsoleWindow.CustomLogFile =&gt; CommandLineArgs?.Contains("-logFile")</code> (215190) gates both the <code>new RocketSystemConsole(...)</code> at 215211 and the handler wiring at 215507, so under the rig's own launch line (which carries <code>-logFile</code>) the reader is never constructed and the input thread never starts. <strong>Result:</strong> the Architecture section's "(stdin path)" label is corrected to "the runtime path" and restamped; the additive section is renamed "The console channel: what actually feeds the runtime dispatcher", its census table corrected to four references with 215509 named, and <code>ServerRunMessage</code> corrected to <code>ServerRunCommandMessage</code>; the two mechanisms are documented with verbatim code; the "there is no third" channel claim is corrected to three runtime channels (in-process <code>ConsoleWindow.Submit</code>, <code>serverrun</code>, and real keystrokes at an attached console) plus the launch line. <strong>New live evidence</strong>, both arms on 0.2.6428.27798 this date: with <code>-logFile</code> and in world, <code>version</code> and <code>settings ServerMaxPlayers 7</code> written to the wrapper-owned stdin pipe produced a zero-byte log delta and left <code>setting.xml</code> at <code>4</code>, while the identical two commands through an in-process <code>ConsoleWindow.Submit</code> printed <code>version: 0.2.6428.27798</code> and moved <code>setting.xml</code> to <code>7</code>; and in the isolating arm, <code>-logFile</code> REMOVED so the console genuinely exists (stdout carries <code>***Stationeers - 0.2.6428.27798***</code> then <code>Ready</code>, printed only by <code>RocketSystemConsole.Ready()</code>, whose next statement is <code>_inputThread.Start()</code>), <code>settings ServerMaxPlayers 9</code> written to the same kind of stdin pipe still left <code>ServerMaxPlayers</code> at <code>4</code> and printed nothing. Removing <code>-logFile</code> does not make stdin work. The Open Questions entry that held this conflict is removed.</p>
+</li>
+<li>2026-08-15: <code>CommandLine</code>'s dispatch dictionary re-read verbatim at 0.2.6428.27798 while resolving the above. Ten keys differ from the 0.2.6228.27061 table on this page: <code>announce</code>, <code>roomevaluator</code>, <code>pylonlog</code>, <code>deletenear</code>, <code>voxelfillnear</code>, <code>proxy</code>, <code>organs</code> and <code>thumbnail</code> added; <code>clients</code> (<code>ClientsCommand</code>) and <code>networkdebug</code> (<code>NetworkDebugWindowCommand</code>) removed, both classes gone from the assembly entirely. Recorded as a delta table under the command table rather than by rewriting 90 rows, because only the key and class columns were compared and the <code>IsLaunchCmd</code> / HelpText columns were not re-read; that section's stamp stays at 0.2.6228.27061 for the same reason. Also corrected the Open Questions note on <code>IsLaunchCmd</code>: the launch path DOES enforce it (<code>if (_isLaunchCommands &amp;&amp; !value.IsLaunchCmd)</code> prints "Can not use command ... as a launch command"), the runtime path does not.</li>
 </ul>
 <h2 id="open-questions">Open questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>
 <!-- verified: 0.2.6428.27798 @ 2026-08-15 -->
 
 <ul>
-<li><strong>The Architecture section's "(stdin path)" label, pending a fresh validator.</strong> The 2026-08-15 census (see "Nothing reads standard input") found no stdin API used anywhere in <code>Assembly-CSharp</code> and exactly three callers of <code>CommandLine.Process(string)</code>, none of them a console reader, corroborated by a live run in which a stdin <code>quit</code> changed nothing and an in-process <code>ConsoleWindow.Submit("quit")</code> exited the process in 2.55 s. The new content is additive and is on the page; rewriting the older stamped wording requires the fresh-validator protocol in <code>Research/WORKFLOW.md</code> Rule 3 and has not been run. The two claims sit side by side until it is.</li>
 <li><code>ServerMaxPlayers</code> upper bound. The SettingData declares <code>int ServerMaxPlayers = 10</code> without obvious clamping. Public docs claim 1-30. Enforcement may live in UI input validation, the network join handler, or a server-side reject path; not verified this pass.</li>
-<li>The "(mixed)" <code>IsLaunchCmd</code> entries in the command table reflect commands whose class declarations were not read in detail this pass. The dispatcher does not visibly gate runtime stdin on <code>IsLaunchCmd</code>, so the flag may be advisory only; whether the launch path enforces it is unverified.</li>
+<li>The "(mixed)" <code>IsLaunchCmd</code> entries in the command table reflect commands whose class declarations were not read in detail this pass. The dispatcher gates the LAUNCH path on <code>IsLaunchCmd</code> (<code>if (_isLaunchCommands &amp;&amp; !value.IsLaunchCmd)</code> prints "Can not use command ... as a launch command") but does not gate the runtime path on it at all, so on the runtime path the flag is advisory. Which of the "(mixed)" entries declare it true is still unverified.</li>
 <li><code>StartLocalHost</code> consumer path. Hypothesised to be the client's main-menu "host on launch" path, not consumed by the dedicated build's <code>-load</code> / <code>-new</code> flow. Verifying would require following <code>Settings.CurrentData.StartLocalHost</code> references.</li>
 <li>The full HelpText / Arguments for the bulk of the (non-lifecycle) commands listed in the command table were not transcribed. Each marked <code>(not read this pass)</code> or <code>(debug)</code> is a candidate for follow-up if the launcher needs to invoke any of them.</li>
 </ul>
