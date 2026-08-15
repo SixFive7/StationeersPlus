@@ -147,7 +147,10 @@ public sealed partial class ServerHalf
 
         RemoveStaleCopy(build.Name, Path.Combine(_paths.PluginsDir, build.Name), "BepInEx Chainloader");
 
-        if (build.IsControlPlane) RemoveSupersededControlPlugins(build.Name);
+        // IsRigPlugin, not IsControlPlane: ScenarioRunner has no control plane of its own and
+        // lives under this half's dev-plugins/, so the load-path question answers false for it
+        // and the sweep never fired. The server ran it beside Local_TestRig.
+        if (build.IsRigPlugin) RemoveSupersededControlPlugins(build.Name);
 
         if (ModConfig.AddLocalEntry(_fs, _paths.ModConfig, localModDir))
         {
@@ -179,16 +182,17 @@ public sealed partial class ServerHalf
     }
 
     /// <summary>
-    /// Removes any OTHER control plugin from both of this half's load paths.
+    /// Removes any OTHER rig plugin from both of this half's load paths.
     /// </summary>
     /// <remarks>
-    /// <see cref="RemoveStaleCopy"/> handles ONE name in two paths; this handles two NAMES,
-    /// which is a different failure and one nothing else catches. The merged plugin and the
-    /// one it replaces are separate plugins with separate GUIDs, so the merged plugin's own
-    /// duplicate refusal never fires between them: both load, both patch, both bind. The
-    /// server's install carries <c>BepInEx/plugins/ClientDriver/</c> from the developer's own
-    /// tree, so this is the normal state of a server that has not been swept, not an exotic
-    /// one.
+    /// <see cref="RemoveStaleCopy"/> handles ONE name in two paths; this handles several
+    /// NAMES, which is a different failure and one nothing else catches. The merged plugin
+    /// and the two it replaces are separate plugins with separate GUIDs, so the merged
+    /// plugin's own duplicate refusal never fires between them: both load, both patch, and
+    /// for the client pair both bind. The server's install carries
+    /// <c>BepInEx/plugins/ClientDriver/</c> from the developer's own tree and
+    /// <c>BepInEx/plugins/ScenarioRunner/</c> from the rig's own history, so this is the
+    /// normal state of a server that has not been swept, not an exotic one.
     /// </remarks>
     private void RemoveSupersededControlPlugins(string deployed)
     {

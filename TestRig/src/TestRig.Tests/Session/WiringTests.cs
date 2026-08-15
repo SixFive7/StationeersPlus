@@ -209,6 +209,75 @@ public sealed class WiringTests
         Assert.True(fixture.Fs.FileExists(deployed), fixture.Output.All);
     }
 
+    // ---- the supersession set ----------------------------------------------
+
+    /// <summary>
+    ///     The set covers all three rig plugins, and it is symmetric.
+    /// </summary>
+    /// <remarks>
+    ///     <c>ScenarioRunner</c> was absent, so deploying the merged plugin swept
+    ///     <c>ClientDriver</c> and left the scenario dispatcher loading beside it.
+    /// </remarks>
+    [Fact]
+    public void EveryRigPluginSupersedesEveryOtherOne()
+    {
+        Assert.Equal(["TestRig", "ClientDriver", "ScenarioRunner"], ControlPlugins.Names);
+
+        Assert.Equal(["ClientDriver", "ScenarioRunner"], ControlPlugins.Superseded("TestRig"));
+        Assert.Equal(["TestRig", "ClientDriver"], ControlPlugins.Superseded("ScenarioRunner"));
+        Assert.Equal(["TestRig", "ScenarioRunner"], ControlPlugins.Superseded("ClientDriver"));
+
+        // Case-insensitively, because these are folder names on NTFS.
+        Assert.Equal(["ClientDriver", "ScenarioRunner"], ControlPlugins.Superseded("testrig"));
+    }
+
+    /// <summary>
+    ///     Sweeping is a question about the NAME; the client's Chainloader path is not.
+    /// </summary>
+    /// <remarks>
+    ///     <c>IsControlPlane</c> used to answer both, and because <c>ScenarioRunner</c> lives
+    ///     under the dedicated server's own <c>dev-plugins/</c> it answered false, so the
+    ///     sweep never saw it. Merging the two questions instead would have moved
+    ///     <c>ScenarioRunner</c> onto a client instance's Chainloader path, which is where the
+    ///     client's control plane has to be and nothing else may go.
+    /// </remarks>
+    [Fact]
+    public void ScenarioRunnerIsARigPluginButNotTheClientsControlPlane()
+    {
+        var fixture = new ClientFixture();
+        fixture.Fs.AddFile(
+            Path.Combine(
+                RigFixture.Home, "DedicatedServer", "dev-plugins", "ScenarioRunner", "ScenarioRunner",
+                "bin", "Release", "ScenarioRunner.dll"),
+            "build");
+
+        var build = fixture.Mods.Find("ScenarioRunner");
+
+        Assert.NotNull(build);
+        Assert.Equal(ModKind.DevPluginServer, build!.Kind);
+        Assert.True(build.IsRigPlugin);
+        Assert.False(build.IsControlPlane);
+        Assert.Equal(LoadPath.LaunchPad, build.LoadPathOn(RigHalf.Client));
+        Assert.Equal(LoadPath.LaunchPad, build.LoadPathOn(RigHalf.Server));
+    }
+
+    /// <summary>A mod under test is not a rig plugin, whatever it is called.</summary>
+    [Fact]
+    public void AModUnderTestIsNeverSweptAsASupersededRigPlugin()
+    {
+        var fixture = new ClientFixture();
+        fixture.Fs.AddFile(
+            Path.Combine(ClientFixture.RepoRoot, "Mods", "SprayPaintPlus", "SprayPaintPlus", "bin", "Release",
+                "SprayPaintPlus.dll"),
+            "build");
+
+        var build = fixture.Mods.Find("SprayPaintPlus");
+
+        Assert.NotNull(build);
+        Assert.False(build!.IsRigPlugin);
+        Assert.False(build.IsControlPlane);
+    }
+
     // ---- instance names are case-insensitive -------------------------------
 
     /// <summary>

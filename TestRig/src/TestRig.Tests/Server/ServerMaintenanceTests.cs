@@ -304,6 +304,78 @@ public sealed class ServerMaintenanceTests
         Assert.Contains(entries, e => e.Path.Equals(local, StringComparison.OrdinalIgnoreCase));
     }
 
+    /// <summary>
+    ///     Deploying the merged plugin sweeps ScenarioRunner out of both load paths.
+    /// </summary>
+    /// <remarks>
+    ///     Measured on the real rig 2026-08-15: the server was carrying
+    ///     <c>BepInEx/plugins/ScenarioRunner/</c> and <c>data/mods/Local_TestRig/</c> at the
+    ///     same time, because the supersession set knew <c>ClientDriver</c> and not
+    ///     <c>ScenarioRunner</c>. Two scenario dispatchers and two sim-tick patches, and the
+    ///     merged plugin's own duplicate refusal cannot see it: that check recognises a second
+    ///     copy of ITSELF by GUID.
+    /// </remarks>
+    [Fact]
+    public void DeployingTheMergedPluginRemovesScenarioRunnerFromBothLoadPaths()
+    {
+        var fixture = new ServerFixture().Installed();
+        var owner = fixture.Lease();
+
+        var root = Path.Combine(RigFixture.Home, "dev-plugins", "TestRig", "TestRig");
+        fixture.Fs.AddFile(Path.Combine(root, "bin", "Release", "TestRig.dll"), "merged");
+        fixture.Fs.AddFile(Path.Combine(root, "About", "About.xml"), "<About />");
+
+        var chainloader = Path.Combine(fixture.Paths.PluginsDir, "ScenarioRunner");
+        fixture.Fs.AddFile(Path.Combine(chainloader, "ScenarioRunner.dll"), "old");
+        var launchPad = Path.Combine(fixture.Paths.ModsDir, "Local_ScenarioRunner");
+        fixture.Fs.AddFile(Path.Combine(launchPad, "ScenarioRunner.dll"), "old");
+
+        fixture.Half.Deploy(["TestRig"], owner);
+
+        Assert.True(fixture.Fs.FileExists(
+            Path.Combine(fixture.Paths.ModsDir, "Local_TestRig", "TestRig.dll")));
+        Assert.False(fixture.Fs.DirectoryExists(chainloader));
+        Assert.False(fixture.Fs.DirectoryExists(launchPad));
+        Assert.True(fixture.Output.Said("superseded control plugin 'ScenarioRunner'"));
+    }
+
+    /// <summary>The sweep runs in the other direction too, so nothing has to know which is newer.</summary>
+    [Fact]
+    public void DeployingScenarioRunnerRemovesTheMergedPlugin()
+    {
+        var fixture = new ServerFixture().Installed();
+        var owner = fixture.Lease();
+
+        var root = Path.Combine(RigFixture.Home, "DedicatedServer", "dev-plugins", "ScenarioRunner", "ScenarioRunner");
+        fixture.Fs.AddFile(Path.Combine(root, "bin", "Release", "ScenarioRunner.dll"), "probe");
+        fixture.Fs.AddFile(Path.Combine(root, "About", "About.xml"), "<About />");
+
+        var merged = Path.Combine(fixture.Paths.ModsDir, "Local_TestRig");
+        fixture.Fs.AddFile(Path.Combine(merged, "TestRig.dll"), "merged");
+
+        fixture.Half.Deploy(["ScenarioRunner"], owner);
+
+        Assert.False(fixture.Fs.DirectoryExists(merged));
+        Assert.True(fixture.Output.Said("superseded control plugin 'TestRig'"));
+    }
+
+    /// <summary>A mod under test is never swept, however many rig plugins are around it.</summary>
+    [Fact]
+    public void DeployingAModUnderTestSweepsNothing()
+    {
+        var fixture = new ServerFixture().Installed();
+        var owner = fixture.Lease();
+        fixture.Client.AddRepositoryMod("SprayPaintPlus");
+
+        var merged = Path.Combine(fixture.Paths.ModsDir, "Local_TestRig");
+        fixture.Fs.AddFile(Path.Combine(merged, "TestRig.dll"), "merged");
+
+        fixture.Half.Deploy(["SprayPaintPlus"], owner);
+
+        Assert.True(fixture.Fs.DirectoryExists(merged));
+        Assert.False(fixture.Output.Said("superseded control plugin"));
+    }
+
     [Fact]
     public void ACopyInTheOTHERLoadPathIsRemovedWHOLEAndTheReasonIsReported()
     {

@@ -6,7 +6,7 @@ The in-process half of the rig: **one BepInEx plugin that loads into both the ga
 dotnet build TestRig/dev-plugins/TestRig/TestRig.sln -c Release
 ```
 
-**Both replaced trees still exist and are untouched. Nothing deploys this one yet** (the launcher does not know the path, see README, "Not wired up yet"). Do not delete `ClientRig/dev-plugins/ClientDriver/` or `DedicatedServer/dev-plugins/ScenarioRunner/` until parity has been proven on real hardware.
+**This is what both halves run.** `create` and `deploy` resolve it by name and sweep both predecessors out of both load paths, so `ClientRig/dev-plugins/ClientDriver/` and `DedicatedServer/dev-plugins/ScenarioRunner/` still build and are still deployable by name, but nothing resolves to them by default. A new name goes at the FRONT of `ControlPlugins.Names` in `TestRig/src/`, or it will not be swept: that set is about names, and leaving `ScenarioRunner` out of it is what let the dedicated server run two scenario dispatchers at once.
 
 ## Eight things to know before editing
 

@@ -92,8 +92,27 @@ public sealed record ModBuild(
     /// The control plane takes the Chainloader path on a client instance and nothing else
     /// does, because it has to load before StationeersLaunchPad runs. That is why
     /// <c>create</c> deploys it itself rather than leaving it to the deploy verb.
+    ///
+    /// This is a question about LOAD PATH, and it is deliberately not the same question as
+    /// <see cref="IsRigPlugin"/>. Conflating them would move <c>ScenarioRunner</c> onto a
+    /// client's Chainloader path, which is where the client's control plane has to be.
     /// </remarks>
     public bool IsControlPlane => Kind is ModKind.DevPluginClient or ModKind.DevPluginRig;
+
+    /// <summary>
+    /// Whether this build is one of the rig's own in-game plugins, past or present.
+    /// </summary>
+    /// <remarks>
+    /// This is what decides whether deploying it has to sweep the others, and it is a
+    /// question about the NAME rather than about the folder the source sits in.
+    /// <see cref="IsControlPlane"/> used to stand in for it, and because
+    /// <c>ScenarioRunner</c> lives under the dedicated server's own <c>dev-plugins/</c> it
+    /// answered false there, so nothing ever swept it: the server ran
+    /// <c>plugins/ScenarioRunner</c> and <c>mods/Local_TestRig</c> at once, which is two
+    /// scenario dispatchers and two sim-tick patches. The merged plugin's own duplicate
+    /// refusal cannot see that, because it recognises a second copy of ITSELF by GUID.
+    /// </remarks>
+    public bool IsRigPlugin => ControlPlugins.Names.Contains(Name, StringComparer.OrdinalIgnoreCase);
 }
 
 /// <summary>Which half a report or an action is about.</summary>
@@ -163,7 +182,7 @@ public static class LaunchPadMods
 }
 
 /// <summary>
-/// The names the rig's control plane has gone by, and what that means for a deploy.
+/// The names the rig's in-game plugin has gone by, and what that means for a deploy.
 /// </summary>
 /// <remarks>
 /// Both halves need this, which is why it is here and not in either one's layout type.
@@ -173,30 +192,46 @@ public static class ControlPlugins
     /// <summary>The merged plugin, which drives both halves and wins whenever it is built.</summary>
     public const string Merged = "TestRig";
 
-    /// <summary>The plugin the merged one replaces, kept as the fallback during the transition.</summary>
+    /// <summary>The CLIENT plugin the merged one replaces, kept as the fallback during the transition.</summary>
     public const string Legacy = "ClientDriver";
 
-    /// <summary>
-    /// Every name that has ever been the control plane, newest first.
-    /// </summary>
+    /// <summary>The DEDICATED SERVER plugin the merged one replaces.</summary>
     /// <remarks>
-    /// The set exists because the two names are DIFFERENT plugins, not two versions of one.
-    /// The merged plugin refuses a second load of itself by GUID, and that check cannot see
-    /// its predecessor at all: two GUIDs means two Awakes, two Harmony registrations of the
-    /// same methods and two binds of the same control port. Deploying one therefore has to
-    /// remove the other, which is what <see cref="Superseded"/> is for.
-    ///
-    /// A new control plugin is added at the FRONT of this list, never appended.
+    /// No HTTP control plane of its own: it is the scenario dispatcher and the sim-tick
+    /// patch, which the merged plugin absorbed. It still has to be swept, because two
+    /// dispatchers and two sim-tick patches is the same double-load the other pair causes.
     /// </remarks>
-    public static readonly IReadOnlyList<string> Names = [Merged, Legacy];
+    public const string LegacyServer = "ScenarioRunner";
 
     /// <summary>
-    /// The control-plugin names that must NOT be present once <paramref name="deployed"/> is.
+    /// Every name that has ever been one of the rig's in-game plugins, newest first.
+    /// </summary>
+    /// <remarks>
+    /// The set exists because these are DIFFERENT plugins, not versions of one. The merged
+    /// plugin refuses a second load of itself by GUID, and that check cannot see any
+    /// predecessor at all: separate GUIDs means separate Awakes, separate Harmony
+    /// registrations of the same methods and, for the pair that has one, two binds of the
+    /// same control port. Deploying one therefore has to remove the others, which is what
+    /// <see cref="Superseded"/> is for.
+    ///
+    /// <c>ScenarioRunner</c> was missing from this list, and it is the case that proves the
+    /// list has to be about names rather than about which folder a source tree sits in: it
+    /// lives under the dedicated server's own <c>dev-plugins/</c>, so every derived "is this
+    /// the control plane" test answered false for it and nothing ever swept it. Measured on
+    /// 2026-08-15, the server was carrying <c>BepInEx/plugins/ScenarioRunner/</c> and
+    /// <c>data/mods/Local_TestRig/</c> at the same time.
+    ///
+    /// A new plugin is added at the FRONT of this list, never appended.
+    /// </remarks>
+    public static readonly IReadOnlyList<string> Names = [Merged, Legacy, LegacyServer];
+
+    /// <summary>
+    /// The plugin names that must NOT be present once <paramref name="deployed"/> is.
     /// </summary>
     /// <remarks>
     /// Derived from <see cref="Names"/> rather than hardcoded per call site, so this keeps
-    /// working in both directions: a rig that has not built the merged plugin deploys the
-    /// legacy one and this removes the merged one, exactly as the other way round. Nothing
+    /// working in every direction: a rig that has not built the merged plugin deploys a
+    /// predecessor and this removes the merged one, exactly as the other way round. Nothing
     /// has to know which is newer.
     /// </remarks>
     public static IEnumerable<string> Superseded(string deployed) =>

@@ -100,7 +100,7 @@ Both rig save roots are **tier 3** under the repository save-tier rule (root `CL
 - `POST /host` refuses to create a world when the instance's save root is not isolated. The override is `requireIsolatedSavePath=false` and there is no correct reason to pass it.
 - `SavePathOverride` is written on every `create`, ahead of the mod seed. A failure to write it **throws** for `--role host` and **warns** for `--role client`. Treat the warning as a stop: start the instance once to generate `stationeers.launchpad.cfg`, then `create --force`.
 
-The merged in-game plugin removes both overrides outright, so passing either becomes a 400. It is built but **not deployed yet**, so until it is, the two hazards above are live.
+The merged in-game plugin removes both overrides outright, so passing either is a 400. It is deployed on both halves, so the first two hazards above are closed at the plugin; the third is a `create`-time hazard and is still live. `create` and `deploy` also sweep the predecessor plugins (`ClientDriver`, `ScenarioRunner`) out of both load paths, because two of them loading at once doubles every Harmony patch and the plugin's own duplicate refusal only recognises a second copy of itself.
 
 ## Never take the developer's foreground
 
