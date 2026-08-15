@@ -39,8 +39,15 @@ Desktop.ini
 .fleet/
 
 ## Local build config (Stationeers install path)
-## Copy Directory.Build.props.template to Directory.Build.props and set your path
-Directory.Build.props
+## Copy Directory.Build.props.template to Directory.Build.props and set your path.
+##
+## ANCHORED to the repository root. Unanchored, this pattern matches a
+## Directory.Build.props at ANY depth, which silently swallowed TestRig/src/'s own
+## props file: a fresh clone could not build the rig at all (CS0246 on
+## IReadOnlyList and Dictionary, because ImplicitUsings went with it), and the
+## binary's source digest counted a file the clone did not have, so the staleness
+## guard refused with exit 7 against a correctly published binary.
+/Directory.Build.props
 
 ## Developer-specific notes (copy DEV.md.template to DEV.md and fill in)
 DEV.md
