@@ -9024,25 +9024,33 @@
       
         <p class="research-meta-verified">
           <strong>Verified</strong>
-           in game version <code>0.2.6403.27689</code>
-           on 2026-08-09.
+           in game version <code>0.2.6428.27798</code>
+           on 2026-08-15.
         </p>
       
       
+        <p class="research-meta-created">
+          <strong>First written</strong> against game version <code>0.2.6403.27689</code>.
+        </p>
+      
       
         <details class="research-meta-sources">
-          <summary><strong>Sources</strong> (1)</summary>
+          <summary><strong>Sources</strong> (2)</summary>
           <ul>
             
               <li><code>.work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs (GameManager, NetworkServer, NetworkManager, Settings, World, SettingsCommand)</code></li>
+            
+              <li><code>{'$(StationeersPath)\\rocketstation_Data\\Managed\\Assembly-CSharp.dll :': 'Assets.Scripts.Networking.NetworkManager.TotalPlayersInGame'}</code></li>
             
           </ul>
         </details>
       
       
         <details class="research-meta-related">
-          <summary><strong>Related pages</strong> (4)</summary>
+          <summary><strong>Related pages</strong> (5)</summary>
           <ul>
+            
+              <li><code>../GameClasses/Client.md</code></li>
             
               <li><code>./NetworkRoles.md</code></li>
             
@@ -9288,7 +9296,7 @@
 
 <p><code>ProcessP2PSessionRequest</code> (:273110-273124) can flip a process sitting at the menu to <code>NetworkRole.Server</code> on an inbound Steam P2P request, with no local action. Because <code>CanBecome</code> then refuses <code>StartClient</code> (see above), a process this happens to can no longer join anything. Setting <code>UseSteamP2P</code> to false closes it.</p>
 <h2 id="dedicated-server-versus-listen-host">Dedicated server versus listen host<a class="headerlink" href="#dedicated-server-versus-listen-host" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6403.27689 @ 2026-08-09 -->
+<!-- verified: 0.2.6428.27798 @ 2026-08-15 -->
 
 <p>Same assembly, same <code>StartGame()</code>, one boolean apart.</p>
 <table>
@@ -9323,7 +9331,7 @@
 <tr>
 <td><code>TotalPlayersInGame</code></td>
 <td><code>Clients.Count + 0</code> (:272728)</td>
-<td><code>Clients.Count + 1</code></td>
+<td><code>Clients.Count + 1</code> (see below)</td>
 </tr>
 <tr>
 <td>Auto-pause with no clients</td>
@@ -9339,6 +9347,7 @@
 </table>
 <p>Carries over unchanged: the RakNet bind (<code>StartServer</code>), the <code>LocalIpAddress</code> loopback pin, <code>GamePort</code>, <code>VerifyConnection</code>, the join queue and <code>PackageJoinData</code>, <code>ServerPassword</code> and version checks, <code>NetworkServer.NetworkUpdate</code>, <code>serverrun</code> / <code>ServerAuthSecret</code>, blacklist, <code>ban</code> and <code>kick</code>.</p>
 <p>Does not carry over: <code>AutoPauseServer</code> (inert on a listen host, since both call sites are gated on <code>IsBatchMode</code>), the <code>-batchmode</code> stdin console quirk, and <code>LocalClientId == 0</code>. A listen host also renders and runs a real <code>GameManager.Update</code>, so anything that depends on the render loop applies to it as it would to any other client.</p>
+<p><strong>The <code>+1</code> on <code>TotalPlayersInGame</code> is not a fudge: it is the host itself, which is never in <code>NetworkBase.Clients</code>.</strong> That list holds joiners only, and a listen host's own <code>Client</code> lives on <code>NetworkManager.HostClient</code>. Anything that enumerates connected players has to union the two the way the game's own roster code does. Re-confirmed at 0.2.6428.27798, where the property reads <code>NetworkBase.Clients.Count + ((!GameManager.IsBatchMode) ? 1 : 0)</code>. Full mechanism, both union sites, and the client-side split: <a href="../../GameClasses/Client/">Client, "The roster is two collections"</a>.</p>
 <h2 id="nothing-rejects-a-second-client-connecting-from-the-same-machine">Nothing rejects a second client connecting from the same machine<a class="headerlink" href="#nothing-rejects-a-second-client-connecting-from-the-same-machine" title="Permanent link">&para;</a></h2>
 <!-- verified: 0.2.6403.27689 @ 2026-08-09 -->
 
@@ -9364,6 +9373,7 @@
 <!-- verified: 0.2.6403.27689 @ 2026-08-09 -->
 
 <ul>
+<li>2026-08-15: "Dedicated server versus listen host" re-read against 0.2.6428.27798 and restamped. The <code>TotalPlayersInGame</code> row still holds: the property reads <code>NetworkBase.Clients.Count + ((!GameManager.IsBatchMode) ? 1 : 0)</code>. Added why the <code>+1</code> exists, which the row stated arithmetically without saying: the host's own <code>Client</code> is never in <code>NetworkBase.Clients</code> and lives on <code>NetworkManager.HostClient</code> instead, so anything enumerating players has to union the two. Mechanism documented on <code>GameClasses/Client.md</code>, linked from here. No other section on this page was re-read, so they keep their 0.2.6403.27689 stamps.</li>
 <li>2026-08-09: page created. Full listen-host boot chain traced from <code>SettingType.StartLocalHost</code> through <code>GameManager.StartGame</code>, <code>NetworkServer.Host</code> and <code>NetworkManager.StartServer</code> against the 0.2.6403.27689 decompile. Established that the transport is RakNet rather than Steam, that a Steam lobby is fire-and-forget and not required, that <code>NetworkRole</code> has no <code>Host</code> value, and that <code>VerifyConnection</code> contains nothing that would reject a same-machine joiner.</li>
 </ul>
 <h2 id="open-questions">Open questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>

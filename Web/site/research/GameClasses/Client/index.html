@@ -1310,6 +1310,67 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#the-roster-is-two-collections-and-the-host-is-in-only-one" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The roster is two collections, and the host is in only one
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="The roster is two collections, and the host is in only one">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#the-game-unions-the-two-everywhere-it-presents-a-roster" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The game unions the two everywhere it presents a roster
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-receiving-side-sorts-them-back-into-the-same-two-buckets" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The receiving side sorts them back into the same two buckets
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#what-each-process-actually-holds" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What each process actually holds
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#connectionid-is-a-raknet-id-and-does-not-fit-an-int" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        connectionId is a RakNet id and does not fit an int
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#registeredhuman-is-unreliable" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -8780,6 +8841,67 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#the-roster-is-two-collections-and-the-host-is-in-only-one" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The roster is two collections, and the host is in only one
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="The roster is two collections, and the host is in only one">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#the-game-unions-the-two-everywhere-it-presents-a-roster" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The game unions the two everywhere it presents a roster
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-receiving-side-sorts-them-back-into-the-same-two-buckets" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The receiving side sorts them back into the same two buckets
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#what-each-process-actually-holds" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What each process actually holds
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#connectionid-is-a-raknet-id-and-does-not-fit-an-int" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        connectionId is a RakNet id and does not fit an int
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#registeredhuman-is-unreliable" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -8990,17 +9112,27 @@
       
         <p class="research-meta-verified">
           <strong>Verified</strong>
-           in game version <code>0.2.6403.27689</code>
-           on 2026-07-27.
+           in game version <code>0.2.6428.27798</code>
+           on 2026-08-15.
         </p>
       
       
+        <p class="research-meta-created">
+          <strong>First written</strong> against game version <code>0.2.6403.27689</code>.
+        </p>
+      
       
         <details class="research-meta-sources">
-          <summary><strong>Sources</strong> (6)</summary>
+          <summary><strong>Sources</strong> (9)</summary>
           <ul>
             
               <li><code>{'$(StationeersPath)\\rocketstation_Data\\Managed\\Assembly-CSharp.dll :': 'Assets.Scripts.Client'}</code></li>
+            
+              <li><code>{'$(StationeersPath)\\rocketstation_Data\\Managed\\Assembly-CSharp.dll :': 'NetworkBase'}</code></li>
+            
+              <li><code>{'$(StationeersPath)\\rocketstation_Data\\Managed\\Assembly-CSharp.dll :': 'Assets.Scripts.NetworkServer'}</code></li>
+            
+              <li><code>{'$(StationeersPath)\\rocketstation_Data\\Managed\\Assembly-CSharp.dll :': 'Assets.Scripts.Networking.NetworkManager'}</code></li>
             
               <li><code>{'$(StationeersPath)\\rocketstation_Data\\Managed\\Assembly-CSharp.dll :': 'Assets.Scripts.FragmentHandler'}</code></li>
             
@@ -9192,65 +9324,175 @@
 </span><span id="__span-1-31"><a id="__codelineno-1-31" name="__codelineno-1-31" href="#__codelineno-1-31"></a><span class="p">}</span>
 </span></code></pre></div>
 <p>Both check <code>NetworkManager.HostClient</code> first, then scan <code>NetworkBase.Clients</code>. Both return null when the instance is not in that list, which is what makes disconnect cleanup a Prefix-only job. See <a href="../../Patterns/ClientDisconnectedPrefix/">ClientDisconnected cleanup Prefix</a>.</p>
+<h2 id="the-roster-is-two-collections-and-the-host-is-in-only-one">The roster is two collections, and the host is in only one<a class="headerlink" href="#the-roster-is-two-collections-and-the-host-is-in-only-one" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6428.27798 @ 2026-08-15 -->
+
+<p><code>Find</code> checks <code>HostClient</code> separately for a reason: <strong>the host's own <code>Client</code> is never in <code>NetworkBase.Clients</code>.</strong> Code that builds a player list from that one collection silently omits the host, and on a listen host with no joiners it produces an empty list for a session that has a player in it.</p>
+<p><code>NetworkBase.Clients</code> (global-namespace <code>NetworkBase</code>) is:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">readonly</span><span class="w"> </span><span class="n">List</span><span class="o">&lt;</span><span class="n">Client</span><span class="o">&gt;</span><span class="w"> </span><span class="n">Clients</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">List</span><span class="o">&lt;</span><span class="n">Client</span><span class="o">&gt;</span><span class="p">(</span><span class="n">NetworkManager</span><span class="p">.</span><span class="n">MaxConnections</span><span class="p">);</span>
+</span></code></pre></div>
+<p>Its only writers are <code>NetworkBase.AddClient</code>, <code>NetworkBase.RemoveClient</code> and <code>NetworkBase.ClearClientsList</code>. On a server, <code>AddClient</code> has exactly one caller, <code>NetworkServer.VerifyConnection</code>, after the blacklist, password and version checks pass:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="n">NetworkBase</span><span class="p">.</span><span class="n">AddClient</span><span class="p">(</span><span class="n">client</span><span class="p">);</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="n">Achievements</span><span class="p">.</span><span class="n">AssessWelcomeAboard</span><span class="p">();</span>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="n">JoiningClients</span><span class="p">.</span><span class="n">Enqueue</span><span class="p">(</span><span class="n">client</span><span class="p">);</span>
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="n">client</span><span class="p">.</span><span class="n">SetState</span><span class="p">(</span><span class="n">ClientState</span><span class="p">.</span><span class="n">Queued</span><span class="p">);</span>
+</span></code></pre></div>
+<p>So server-side <code>Clients</code> holds <strong>joiners only</strong>. The host's record is built separately by <code>NetworkServer.PopulateHostClient</code>, which <code>GameManager.StartGame</code> calls when <code>RunSimulation</code>:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">PopulateHostClient</span><span class="p">()</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="p">{</span>
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">    </span><span class="n">NetworkManager</span><span class="p">.</span><span class="n">HostClient</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">Client</span>
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">        </span><span class="n">connectionId</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0L</span><span class="p">,</span>
+</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="w">        </span><span class="n">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">NetworkManager</span><span class="p">.</span><span class="n">Username</span><span class="p">,</span>
+</span><span id="__span-4-7"><a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="w">        </span><span class="n">ClientId</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">NetworkManager</span><span class="p">.</span><span class="n">LocalClientId</span><span class="p">,</span>
+</span><span id="__span-4-8"><a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="w">        </span><span class="n">IsHost</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">true</span><span class="p">,</span>
+</span><span id="__span-4-9"><a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="w">        </span><span class="n">state</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ClientState</span><span class="p">.</span><span class="n">Ready</span>
+</span><span id="__span-4-10"><a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a><span class="w">    </span><span class="p">};</span>
+</span><span id="__span-4-11"><a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a><span class="p">}</span>
+</span></code></pre></div>
+<h3 id="the-game-unions-the-two-everywhere-it-presents-a-roster">The game unions the two everywhere it presents a roster<a class="headerlink" href="#the-game-unions-the-two-everywhere-it-presents-a-roster" title="Permanent link">&para;</a></h3>
+<p>Console roster, <code>NetworkManager.LogClientRosterToConsole</code>:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="n">List</span><span class="o">&lt;</span><span class="n">Client</span><span class="o">&gt;</span><span class="w"> </span><span class="n">clients</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">NetworkBase</span><span class="p">.</span><span class="n">Clients</span><span class="p">;</span>
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="n">ConsoleWindow</span><span class="p">.</span><span class="n">PrintAction</span><span class="p">(</span><span class="s">$&quot;Clients: {clients.Count}&quot;</span><span class="p">);</span>
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="n">List</span><span class="o">&lt;</span><span class="p">(</span><span class="kt">string</span><span class="p">,</span><span class="w"> </span><span class="kt">uint</span><span class="p">)[]</span><span class="o">&gt;</span><span class="w"> </span><span class="n">list</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">List</span><span class="o">&lt;</span><span class="p">(</span><span class="kt">string</span><span class="p">,</span><span class="w"> </span><span class="kt">uint</span><span class="p">)[]</span><span class="o">&gt;</span><span class="p">(</span><span class="n">clients</span><span class="p">.</span><span class="n">Count</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">);</span>
+</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="k">foreach</span><span class="w"> </span><span class="p">(</span><span class="n">Client</span><span class="w"> </span><span class="n">item</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">clients</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">list</span><span class="p">.</span><span class="n">Add</span><span class="p">(</span><span class="n">ClientRosterRow</span><span class="p">(</span><span class="n">item</span><span class="p">));</span><span class="w"> </span><span class="p">}</span>
+</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">HostClient</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="k">null</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">list</span><span class="p">.</span><span class="n">Add</span><span class="p">(</span><span class="n">ClientRosterRow</span><span class="p">(</span><span class="n">HostClient</span><span class="p">));</span><span class="w"> </span><span class="p">}</span>
+</span></code></pre></div>
+<p>Wire player list, <code>NetworkManager.SerialisePlayerList</code>, which carries the guard worth copying:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="n">Network</span><span class="p">.</span><span class="n">WriteIndex</span><span class="o">&lt;</span><span class="kt">byte</span><span class="o">&gt;</span><span class="p">(</span><span class="n">writer</span><span class="p">,</span><span class="w"> </span><span class="k">out</span><span class="w"> </span><span class="kt">var</span><span class="w"> </span><span class="n">count</span><span class="p">,</span><span class="w"> </span><span class="k">out</span><span class="w"> </span><span class="kt">var</span><span class="w"> </span><span class="n">bufferIndex</span><span class="p">);</span>
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">HostClient</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="k">null</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">Client</span><span class="p">.</span><span class="n">Find</span><span class="p">(</span><span class="n">HostClient</span><span class="p">.</span><span class="n">ClientId</span><span class="p">)</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="k">null</span><span class="p">)</span>
+</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="p">{</span>
+</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="w">    </span><span class="n">HostClient</span><span class="p">.</span><span class="n">Write</span><span class="p">(</span><span class="n">writer</span><span class="p">);</span>
+</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="w">    </span><span class="n">count</span><span class="o">++</span><span class="p">;</span>
+</span><span id="__span-6-6"><a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a><span class="p">}</span>
+</span><span id="__span-6-7"><a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="k">foreach</span><span class="w"> </span><span class="p">(</span><span class="n">Client</span><span class="w"> </span><span class="n">client</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">NetworkBase</span><span class="p">.</span><span class="n">Clients</span><span class="p">)</span>
+</span><span id="__span-6-8"><a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a><span class="p">{</span>
+</span><span id="__span-6-9"><a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">client</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="k">null</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">client</span><span class="p">.</span><span class="n">RoundTripTime</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">-</span><span class="mi">1</span><span class="p">;</span><span class="w"> </span><span class="n">client</span><span class="p">.</span><span class="n">Write</span><span class="p">(</span><span class="n">writer</span><span class="p">);</span><span class="w"> </span><span class="n">count</span><span class="o">++</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+</span><span id="__span-6-10"><a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a><span class="p">}</span>
+</span></code></pre></div>
+<p><code>Client.Find(HostClient.ClientId) == null</code> is the deduplication: emit the host row only when the host is not already in <code>Clients</code>.</p>
+<h3 id="the-receiving-side-sorts-them-back-into-the-same-two-buckets">The receiving side sorts them back into the same two buckets<a class="headerlink" href="#the-receiving-side-sorts-them-back-into-the-same-two-buckets" title="Permanent link">&para;</a></h3>
+<p><code>Client.DeserialiseClient</code> routes on the <code>IsHost</code> flag, and drops a record whose <code>ClientId</code> is 0 before either branch:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">num</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0L</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">return</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="n">Client</span><span class="w"> </span><span class="n">client</span><span class="p">;</span>
+</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">flag</span><span class="p">)</span>
+</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="p">{</span>
+</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">NetworkManager</span><span class="p">.</span><span class="n">HostClient</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="k">null</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">NetworkManager</span><span class="p">.</span><span class="n">HostClient</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">Client</span><span class="p">();</span><span class="w"> </span><span class="p">}</span>
+</span><span id="__span-7-6"><a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a><span class="w">    </span><span class="n">client</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">NetworkManager</span><span class="p">.</span><span class="n">HostClient</span><span class="p">;</span>
+</span><span id="__span-7-7"><a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a><span class="p">}</span>
+</span><span id="__span-7-8"><a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a><span class="k">else</span>
+</span><span id="__span-7-9"><a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a><span class="p">{</span>
+</span><span id="__span-7-10"><a id="__codelineno-7-10" name="__codelineno-7-10" href="#__codelineno-7-10"></a><span class="w">    </span><span class="n">client</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Find</span><span class="p">(</span><span class="n">num</span><span class="p">)</span><span class="w"> </span><span class="o">??</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">Client</span><span class="p">();</span>
+</span><span id="__span-7-11"><a id="__codelineno-7-11" name="__codelineno-7-11" href="#__codelineno-7-11"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">NetworkBase</span><span class="p">.</span><span class="n">Clients</span><span class="p">.</span><span class="n">Contains</span><span class="p">(</span><span class="n">client</span><span class="p">))</span>
+</span><span id="__span-7-12"><a id="__codelineno-7-12" name="__codelineno-7-12" href="#__codelineno-7-12"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-7-13"><a id="__codelineno-7-13" name="__codelineno-7-13" href="#__codelineno-7-13"></a><span class="w">        </span><span class="n">NetworkBase</span><span class="p">.</span><span class="n">AddClient</span><span class="p">(</span><span class="n">client</span><span class="p">);</span>
+</span><span id="__span-7-14"><a id="__codelineno-7-14" name="__codelineno-7-14" href="#__codelineno-7-14"></a><span class="w">        </span><span class="n">Achievements</span><span class="p">.</span><span class="n">AssessWelcomeAboard</span><span class="p">();</span>
+</span><span id="__span-7-15"><a id="__codelineno-7-15" name="__codelineno-7-15" href="#__codelineno-7-15"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-7-16"><a id="__codelineno-7-16" name="__codelineno-7-16" href="#__codelineno-7-16"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>So on a joined client, <code>Clients</code> holds <strong>itself</strong> (its own row arrives with <code>IsHost</code> false) and <code>HostClient</code> holds the host. The <code>ClientId == 0</code> early return is the game's own rule for "not a real player", and 0 is exactly what a dedicated server's <code>HostClient</code> carries, because <code>PlayerCookie</code> is not loaded in batch mode.</p>
+<h3 id="what-each-process-actually-holds">What each process actually holds<a class="headerlink" href="#what-each-process-actually-holds" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Process</th>
+<th><code>NetworkBase.Clients</code></th>
+<th><code>NetworkManager.HostClient</code></th>
+<th><code>TotalPlayersInGame</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Dedicated server</td>
+<td>every joiner</td>
+<td>itself, <code>ClientId</code> 0, <code>connectionId</code> 0</td>
+<td><code>Clients.Count</code></td>
+</tr>
+<tr>
+<td>Listen host</td>
+<td>every joiner</td>
+<td>itself, real <code>ClientId</code>, <code>connectionId</code> 0</td>
+<td><code>Clients.Count + 1</code></td>
+</tr>
+<tr>
+<td>Joined client</td>
+<td>itself</td>
+<td>the host</td>
+<td><code>Clients.Count + 1</code></td>
+</tr>
+<tr>
+<td>Single player</td>
+<td>empty</td>
+<td>null</td>
+<td>1</td>
+</tr>
+</tbody>
+</table>
+<p>The count property is:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">TotalPlayersInGame</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">NetworkBase</span><span class="p">.</span><span class="n">Clients</span><span class="p">.</span><span class="n">Count</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="p">((</span><span class="o">!</span><span class="n">GameManager</span><span class="p">.</span><span class="n">IsBatchMode</span><span class="p">)</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">);</span>
+</span></code></pre></div>
+<p>which is the same union stated arithmetically: the <code>+1</code> is the <code>HostClient</code> that is not in the list, and batch mode drops it because a dedicated server's host record is not a player. A roster built as "<code>HostClient</code> when its <code>ClientId</code> is not 0 and not already in <code>Clients</code>, then every entry in <code>Clients</code>" has a length equal to <code>TotalPlayersInGame</code> on both server kinds, which makes the two independently checkable against each other.</p>
+<h3 id="connectionid-is-a-raknet-id-and-does-not-fit-an-int"><code>connectionId</code> is a RakNet id and does not fit an <code>int</code><a class="headerlink" href="#connectionid-is-a-raknet-id-and-does-not-fit-an-int" title="Permanent link">&para;</a></h3>
+<p><code>connectionId</code> is declared <code>long</code> (212222) and the values are far past <code>int</code> range. Two, observed on a loopback join in the rig on 0.2.6428.27798: <code>189151461494586169</code> and <code>1044835390751713754</code>. The second is also past 2^53, so it does not survive a JSON reader that parses numbers through <code>double</code> either. Anything that serializes a <code>Client</code> for a tool outside the process should carry <code>connectionId</code> as a string, the same way <code>ClientId</code> has to be.</p>
 <h2 id="registeredhuman-is-unreliable">RegisteredHuman is unreliable<a class="headerlink" href="#registeredhuman-is-unreliable" title="Permanent link">&para;</a></h2>
 <!-- verified: 0.2.6403.27689 @ 2026-07-27 -->
 
 <p><code>RegisteredHuman</code> is an auto-property with a private setter (line 212232):</p>
-<div class="language-csharp highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="k">public</span><span class="w"> </span><span class="n">Human</span><span class="w"> </span><span class="n">RegisteredHuman</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">get</span><span class="p">;</span><span class="w"> </span><span class="k">private</span><span class="w"> </span><span class="k">set</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="k">public</span><span class="w"> </span><span class="n">Human</span><span class="w"> </span><span class="n">RegisteredHuman</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">get</span><span class="p">;</span><span class="w"> </span><span class="k">private</span><span class="w"> </span><span class="k">set</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
 </span></code></pre></div>
 <p>The identifier appears <strong>exactly three times in the whole assembly</strong>: the declaration (212232), one assignment (212463), and one read (212827).</p>
 <h3 id="the-single-assignment-site">The single assignment site<a class="headerlink" href="#the-single-assignment-site" title="Permanent link">&para;</a></h3>
 <p><code>Client.Register</code> (lines 212456-212466) is the only writer:</p>
-<div class="language-csharp highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">Register</span><span class="p">(</span><span class="n">Human</span><span class="w"> </span><span class="n">thing</span><span class="p">,</span><span class="w"> </span><span class="kt">ulong</span><span class="w"> </span><span class="n">ownerClientId</span><span class="p">)</span>
-</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="p">{</span>
-</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">ownerClientId</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="mi">0L</span><span class="p">)</span>
-</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">    </span><span class="p">{</span>
-</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">        </span><span class="n">Client</span><span class="w"> </span><span class="n">client</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Find</span><span class="p">(</span><span class="n">ownerClientId</span><span class="p">);</span>
-</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">client</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="k">null</span><span class="p">)</span>
-</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="w">        </span><span class="p">{</span>
-</span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="w">            </span><span class="n">client</span><span class="p">.</span><span class="n">RegisteredHuman</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">thing</span><span class="p">;</span>
-</span><span id="__span-3-9"><a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="w">        </span><span class="p">}</span>
-</span><span id="__span-3-10"><a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="w">    </span><span class="p">}</span>
-</span><span id="__span-3-11"><a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a><span class="p">}</span>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">Register</span><span class="p">(</span><span class="n">Human</span><span class="w"> </span><span class="n">thing</span><span class="p">,</span><span class="w"> </span><span class="kt">ulong</span><span class="w"> </span><span class="n">ownerClientId</span><span class="p">)</span>
+</span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="p">{</span>
+</span><span id="__span-10-3"><a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">ownerClientId</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="mi">0L</span><span class="p">)</span>
+</span><span id="__span-10-4"><a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-10-5"><a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a><span class="w">        </span><span class="n">Client</span><span class="w"> </span><span class="n">client</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Find</span><span class="p">(</span><span class="n">ownerClientId</span><span class="p">);</span>
+</span><span id="__span-10-6"><a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">client</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="k">null</span><span class="p">)</span>
+</span><span id="__span-10-7"><a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a><span class="w">        </span><span class="p">{</span>
+</span><span id="__span-10-8"><a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a><span class="w">            </span><span class="n">client</span><span class="p">.</span><span class="n">RegisteredHuman</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">thing</span><span class="p">;</span>
+</span><span id="__span-10-9"><a id="__codelineno-10-9" name="__codelineno-10-9" href="#__codelineno-10-9"></a><span class="w">        </span><span class="p">}</span>
+</span><span id="__span-10-10"><a id="__codelineno-10-10" name="__codelineno-10-10" href="#__codelineno-10-10"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-10-11"><a id="__codelineno-10-11" name="__codelineno-10-11" href="#__codelineno-10-11"></a><span class="p">}</span>
 </span></code></pre></div>
 <p>Note both guards. A <code>Human</code> whose owner client is not currently in <code>NetworkBase.Clients</code> registers nowhere, silently, with no log line.</p>
 <h3 id="its-only-caller-is-guarded-by-a-change-check">Its only caller is guarded by a change check<a class="headerlink" href="#its-only-caller-is-guarded-by-a-change-check" title="Permanent link">&para;</a></h3>
 <p><code>Client.Register</code> is called from exactly one place: the <code>Thing.OwnerClientId</code> setter (lines 317651-317668, <code>Assets.Scripts.Objects.Thing</code>):</p>
-<div class="language-csharp highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="k">public</span><span class="w"> </span><span class="kt">ulong</span><span class="w"> </span><span class="n">OwnerClientId</span>
-</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="p">{</span>
-</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">    </span><span class="k">get</span>
-</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">    </span><span class="p">{</span>
-</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">_ownerClientId</span><span class="p">;</span>
-</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="w">    </span><span class="p">}</span>
-</span><span id="__span-4-7"><a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="w">    </span><span class="k">set</span>
-</span><span id="__span-4-8"><a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="w">    </span><span class="p">{</span>
-</span><span id="__span-4-9"><a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="k">value</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">_ownerClientId</span><span class="p">)</span>
-</span><span id="__span-4-10"><a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a><span class="w">        </span><span class="p">{</span>
-</span><span id="__span-4-11"><a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a><span class="w">            </span><span class="n">_ownerClientId</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">value</span><span class="p">;</span>
-</span><span id="__span-4-12"><a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a><span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="k">this</span><span class="w"> </span><span class="k">is</span><span class="w"> </span><span class="n">Human</span><span class="w"> </span><span class="n">thing</span><span class="p">)</span>
-</span><span id="__span-4-13"><a id="__codelineno-4-13" name="__codelineno-4-13" href="#__codelineno-4-13"></a><span class="w">            </span><span class="p">{</span>
-</span><span id="__span-4-14"><a id="__codelineno-4-14" name="__codelineno-4-14" href="#__codelineno-4-14"></a><span class="w">                </span><span class="n">Client</span><span class="p">.</span><span class="n">Register</span><span class="p">(</span><span class="n">thing</span><span class="p">,</span><span class="w"> </span><span class="n">_ownerClientId</span><span class="p">);</span>
-</span><span id="__span-4-15"><a id="__codelineno-4-15" name="__codelineno-4-15" href="#__codelineno-4-15"></a><span class="w">            </span><span class="p">}</span>
-</span><span id="__span-4-16"><a id="__codelineno-4-16" name="__codelineno-4-16" href="#__codelineno-4-16"></a><span class="w">        </span><span class="p">}</span>
-</span><span id="__span-4-17"><a id="__codelineno-4-17" name="__codelineno-4-17" href="#__codelineno-4-17"></a><span class="w">    </span><span class="p">}</span>
-</span><span id="__span-4-18"><a id="__codelineno-4-18" name="__codelineno-4-18" href="#__codelineno-4-18"></a><span class="p">}</span>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="k">public</span><span class="w"> </span><span class="kt">ulong</span><span class="w"> </span><span class="n">OwnerClientId</span>
+</span><span id="__span-11-2"><a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="p">{</span>
+</span><span id="__span-11-3"><a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="w">    </span><span class="k">get</span>
+</span><span id="__span-11-4"><a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-11-5"><a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">_ownerClientId</span><span class="p">;</span>
+</span><span id="__span-11-6"><a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-11-7"><a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a><span class="w">    </span><span class="k">set</span>
+</span><span id="__span-11-8"><a id="__codelineno-11-8" name="__codelineno-11-8" href="#__codelineno-11-8"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-11-9"><a id="__codelineno-11-9" name="__codelineno-11-9" href="#__codelineno-11-9"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="k">value</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">_ownerClientId</span><span class="p">)</span>
+</span><span id="__span-11-10"><a id="__codelineno-11-10" name="__codelineno-11-10" href="#__codelineno-11-10"></a><span class="w">        </span><span class="p">{</span>
+</span><span id="__span-11-11"><a id="__codelineno-11-11" name="__codelineno-11-11" href="#__codelineno-11-11"></a><span class="w">            </span><span class="n">_ownerClientId</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">value</span><span class="p">;</span>
+</span><span id="__span-11-12"><a id="__codelineno-11-12" name="__codelineno-11-12" href="#__codelineno-11-12"></a><span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="k">this</span><span class="w"> </span><span class="k">is</span><span class="w"> </span><span class="n">Human</span><span class="w"> </span><span class="n">thing</span><span class="p">)</span>
+</span><span id="__span-11-13"><a id="__codelineno-11-13" name="__codelineno-11-13" href="#__codelineno-11-13"></a><span class="w">            </span><span class="p">{</span>
+</span><span id="__span-11-14"><a id="__codelineno-11-14" name="__codelineno-11-14" href="#__codelineno-11-14"></a><span class="w">                </span><span class="n">Client</span><span class="p">.</span><span class="n">Register</span><span class="p">(</span><span class="n">thing</span><span class="p">,</span><span class="w"> </span><span class="n">_ownerClientId</span><span class="p">);</span>
+</span><span id="__span-11-15"><a id="__codelineno-11-15" name="__codelineno-11-15" href="#__codelineno-11-15"></a><span class="w">            </span><span class="p">}</span>
+</span><span id="__span-11-16"><a id="__codelineno-11-16" name="__codelineno-11-16" href="#__codelineno-11-16"></a><span class="w">        </span><span class="p">}</span>
+</span><span id="__span-11-17"><a id="__codelineno-11-17" name="__codelineno-11-17" href="#__codelineno-11-17"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-11-18"><a id="__codelineno-11-18" name="__codelineno-11-18" href="#__codelineno-11-18"></a><span class="p">}</span>
 </span></code></pre></div>
 <p>The backing field is <code>private ulong _ownerClientId;</code> (line 317035), and every occurrence of it in the entire assembly is inside this property (317035, 317655, 317659, 317661, 317664). No code path writes the field directly, so every <code>OwnerClientId</code> write does run the <code>Client.Register</code> hook. But the <code>if (value != _ownerClientId)</code> guard means <strong>assigning the same value again is a no-op that never re-drives registration</strong>.</p>
 <h3 id="consequence-null-for-the-whole-session-on-a-dedicated-server">Consequence: null for the whole session on a dedicated server<a class="headerlink" href="#consequence-null-for-the-whole-session-on-a-dedicated-server" title="Permanent link">&para;</a></h3>
 <p><code>Thing.DeserializeSave</code> (line 321303) restores ownership through the public setter (line 321319):</p>
-<div class="language-csharp highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="k">base</span><span class="p">.</span><span class="n">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">saveData</span><span class="p">.</span><span class="n">PrefabName</span><span class="p">;</span>
-</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="n">CustomName</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">saveData</span><span class="p">.</span><span class="n">CustomName</span><span class="p">;</span>
-</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="n">OwnerClientId</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">saveData</span><span class="p">.</span><span class="n">OwnerSteamId</span><span class="p">;</span>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="k">base</span><span class="p">.</span><span class="n">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">saveData</span><span class="p">.</span><span class="n">PrefabName</span><span class="p">;</span>
+</span><span id="__span-12-2"><a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="n">CustomName</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">saveData</span><span class="p">.</span><span class="n">CustomName</span><span class="p">;</span>
+</span><span id="__span-12-3"><a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a><span class="n">OwnerClientId</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">saveData</span><span class="p">.</span><span class="n">OwnerSteamId</span><span class="p">;</span>
 </span></code></pre></div>
 <p>That is a property write, so it does reach <code>Client.Register</code>. But at world-load time no client is connected, <code>Find(ownerClientId)</code> returns null, and the registration is dropped with no log line. Later, when that same owner actually connects, their <code>Human</code> already carries the correct <code>OwnerClientId</code>, so the setter's change guard rejects the write and <code>Client.Register</code> is never retried.</p>
 <p>Net effect: on a dedicated server, <code>Client.RegisteredHuman</code> stays null for the entire session for any player whose character came out of the save. That is the normal case for every returning player.</p>
 <p>The path that does register is <code>Human.SetBasicsData</code> (line 361978):</p>
-<div class="language-csharp highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="k">public</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">SetBasicsData</span><span class="p">(</span><span class="kt">ulong</span><span class="w"> </span><span class="n">clientId</span><span class="p">,</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="n">clientUserName</span><span class="p">)</span>
-</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="p">{</span>
-</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">    </span><span class="n">OnServer</span><span class="p">.</span><span class="n">PublishCustomName</span><span class="p">(</span><span class="k">this</span><span class="p">,</span><span class="w"> </span><span class="n">clientUserName</span><span class="p">);</span>
-</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="w">    </span><span class="k">base</span><span class="p">.</span><span class="n">OwnerClientId</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">clientId</span><span class="p">;</span>
-</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="w">    </span><span class="k">base</span><span class="p">.</span><span class="n">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;Character_&quot;</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">clientUserName</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="s">&quot;_&quot;</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">clientId</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="s">&quot;_&quot;</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">clientUserName</span><span class="p">;</span>
-</span><span id="__span-6-6"><a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a><span class="p">}</span>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="k">public</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">SetBasicsData</span><span class="p">(</span><span class="kt">ulong</span><span class="w"> </span><span class="n">clientId</span><span class="p">,</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="n">clientUserName</span><span class="p">)</span>
+</span><span id="__span-13-2"><a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a><span class="p">{</span>
+</span><span id="__span-13-3"><a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a><span class="w">    </span><span class="n">OnServer</span><span class="p">.</span><span class="n">PublishCustomName</span><span class="p">(</span><span class="k">this</span><span class="p">,</span><span class="w"> </span><span class="n">clientUserName</span><span class="p">);</span>
+</span><span id="__span-13-4"><a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a><span class="w">    </span><span class="k">base</span><span class="p">.</span><span class="n">OwnerClientId</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">clientId</span><span class="p">;</span>
+</span><span id="__span-13-5"><a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a><span class="w">    </span><span class="k">base</span><span class="p">.</span><span class="n">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;Character_&quot;</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">clientUserName</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="s">&quot;_&quot;</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">clientId</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="s">&quot;_&quot;</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">clientUserName</span><span class="p">;</span>
+</span><span id="__span-13-6"><a id="__codelineno-13-6" name="__codelineno-13-6" href="#__codelineno-13-6"></a><span class="p">}</span>
 </span></code></pre></div>
 <p>It has three call sites: <code>Human.DeserializeOnJoin</code> (line 362008, inside the method declared at 361998), <code>Human.CreateCharacter</code> (362118), and <code>Human.MoveBodyBagToSlot</code> (369583). <code>DeserializeOnJoin</code> is the joining client's side of the join handshake, not the server's, and <code>CreateCharacter</code> runs on character creation, which a returning player does not go through.</p>
 <h3 id="it-is-also-never-cleared">It is also never cleared<a class="headerlink" href="#it-is-also-never-cleared" title="Permanent link">&para;</a></h3>
@@ -9260,42 +9502,42 @@
 <!-- verified: 0.2.6403.27689 @ 2026-07-27 -->
 
 <p>The single read (line 212827) lives in <code>FragmentHandler.Receive(byte[] bytes, int size, bool isServer)</code> (<code>public static class FragmentHandler</code> at 212509, <code>Receive</code> declared at 212759), inside <code>case 2:</code> of the reassembly switch:</p>
-<div class="language-csharp highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="n">_waiting</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">true</span><span class="p">;</span>
-</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="kt">int</span><span class="w"> </span><span class="n">count</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">BitConverter</span><span class="p">.</span><span class="n">ToInt32</span><span class="p">(</span><span class="n">_buffer</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">);</span>
-</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="n">RocketBinaryReader</span><span class="w"> </span><span class="n">rocketBinaryReader</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">RocketBinaryReader</span><span class="p">(</span><span class="k">new</span><span class="w"> </span><span class="n">MemoryStream</span><span class="p">(</span><span class="n">LZ4Codec</span><span class="p">.</span><span class="n">Unwrap</span><span class="p">(</span><span class="n">_buffer</span><span class="p">),</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">count</span><span class="p">));</span>
-</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">isServer</span><span class="p">)</span>
-</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="p">{</span>
-</span><span id="__span-7-6"><a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a><span class="w">    </span><span class="kt">ulong</span><span class="w"> </span><span class="n">num2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">rocketBinaryReader</span><span class="p">.</span><span class="n">ReadUInt64</span><span class="p">();</span>
-</span><span id="__span-7-7"><a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a><span class="w">    </span><span class="n">Client</span><span class="w"> </span><span class="n">client</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Client</span><span class="p">.</span><span class="n">Find</span><span class="p">(</span><span class="n">num2</span><span class="p">);</span>
-</span><span id="__span-7-8"><a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">client</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="k">null</span><span class="p">)</span>
-</span><span id="__span-7-9"><a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a><span class="w">    </span><span class="p">{</span>
-</span><span id="__span-7-10"><a id="__codelineno-7-10" name="__codelineno-7-10" href="#__codelineno-7-10"></a><span class="w">        </span><span class="n">ConsoleWindow</span><span class="p">.</span><span class="n">PrintError</span><span class="p">(</span><span class="s">$&quot;error &#39;{num2}&#39; not found when reading client thing state&quot;</span><span class="p">);</span>
-</span><span id="__span-7-11"><a id="__codelineno-7-11" name="__codelineno-7-11" href="#__codelineno-7-11"></a><span class="w">        </span><span class="k">break</span><span class="p">;</span>
-</span><span id="__span-7-12"><a id="__codelineno-7-12" name="__codelineno-7-12" href="#__codelineno-7-12"></a><span class="w">    </span><span class="p">}</span>
-</span><span id="__span-7-13"><a id="__codelineno-7-13" name="__codelineno-7-13" href="#__codelineno-7-13"></a><span class="w">    </span><span class="n">Human</span><span class="w"> </span><span class="n">registeredHuman</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">client</span><span class="p">.</span><span class="n">RegisteredHuman</span><span class="p">;</span>
-</span><span id="__span-7-14"><a id="__codelineno-7-14" name="__codelineno-7-14" href="#__codelineno-7-14"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">((</span><span class="kt">bool</span><span class="p">)</span><span class="n">registeredHuman</span><span class="p">)</span>
-</span><span id="__span-7-15"><a id="__codelineno-7-15" name="__codelineno-7-15" href="#__codelineno-7-15"></a><span class="w">    </span><span class="p">{</span>
-</span><span id="__span-7-16"><a id="__codelineno-7-16" name="__codelineno-7-16" href="#__codelineno-7-16"></a><span class="w">        </span><span class="n">registeredHuman</span><span class="p">.</span><span class="n">ProcessUpdate</span><span class="p">(</span><span class="n">rocketBinaryReader</span><span class="p">,</span><span class="w"> </span><span class="n">registeredHuman</span><span class="p">.</span><span class="n">NetworkUpdateFlags</span><span class="p">);</span>
-</span><span id="__span-7-17"><a id="__codelineno-7-17" name="__codelineno-7-17" href="#__codelineno-7-17"></a><span class="w">    </span><span class="p">}</span>
-</span><span id="__span-7-18"><a id="__codelineno-7-18" name="__codelineno-7-18" href="#__codelineno-7-18"></a><span class="w">    </span><span class="k">else</span>
-</span><span id="__span-7-19"><a id="__codelineno-7-19" name="__codelineno-7-19" href="#__codelineno-7-19"></a><span class="w">    </span><span class="p">{</span>
-</span><span id="__span-7-20"><a id="__codelineno-7-20" name="__codelineno-7-20" href="#__codelineno-7-20"></a><span class="w">        </span><span class="n">ConsoleWindow</span><span class="p">.</span><span class="n">PrintError</span><span class="p">(</span><span class="s">$&quot;error &#39;{num2}&#39; has no thing when reading client state&quot;</span><span class="p">);</span>
-</span><span id="__span-7-21"><a id="__codelineno-7-21" name="__codelineno-7-21" href="#__codelineno-7-21"></a><span class="w">    </span><span class="p">}</span>
-</span><span id="__span-7-22"><a id="__codelineno-7-22" name="__codelineno-7-22" href="#__codelineno-7-22"></a><span class="p">}</span>
-</span><span id="__span-7-23"><a id="__codelineno-7-23" name="__codelineno-7-23" href="#__codelineno-7-23"></a><span class="k">else</span>
-</span><span id="__span-7-24"><a id="__codelineno-7-24" name="__codelineno-7-24" href="#__codelineno-7-24"></a><span class="p">{</span>
-</span><span id="__span-7-25"><a id="__codelineno-7-25" name="__codelineno-7-25" href="#__codelineno-7-25"></a><span class="w">    </span><span class="n">ReadStateImmediate</span><span class="p">(</span><span class="n">rocketBinaryReader</span><span class="p">);</span>
-</span><span id="__span-7-26"><a id="__codelineno-7-26" name="__codelineno-7-26" href="#__codelineno-7-26"></a><span class="p">}</span>
-</span><span id="__span-7-27"><a id="__codelineno-7-27" name="__codelineno-7-27" href="#__codelineno-7-27"></a><span class="k">break</span><span class="p">;</span>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-14-1"><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="n">_waiting</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">true</span><span class="p">;</span>
+</span><span id="__span-14-2"><a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a><span class="kt">int</span><span class="w"> </span><span class="n">count</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">BitConverter</span><span class="p">.</span><span class="n">ToInt32</span><span class="p">(</span><span class="n">_buffer</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">);</span>
+</span><span id="__span-14-3"><a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a><span class="n">RocketBinaryReader</span><span class="w"> </span><span class="n">rocketBinaryReader</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">RocketBinaryReader</span><span class="p">(</span><span class="k">new</span><span class="w"> </span><span class="n">MemoryStream</span><span class="p">(</span><span class="n">LZ4Codec</span><span class="p">.</span><span class="n">Unwrap</span><span class="p">(</span><span class="n">_buffer</span><span class="p">),</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">count</span><span class="p">));</span>
+</span><span id="__span-14-4"><a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">isServer</span><span class="p">)</span>
+</span><span id="__span-14-5"><a id="__codelineno-14-5" name="__codelineno-14-5" href="#__codelineno-14-5"></a><span class="p">{</span>
+</span><span id="__span-14-6"><a id="__codelineno-14-6" name="__codelineno-14-6" href="#__codelineno-14-6"></a><span class="w">    </span><span class="kt">ulong</span><span class="w"> </span><span class="n">num2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">rocketBinaryReader</span><span class="p">.</span><span class="n">ReadUInt64</span><span class="p">();</span>
+</span><span id="__span-14-7"><a id="__codelineno-14-7" name="__codelineno-14-7" href="#__codelineno-14-7"></a><span class="w">    </span><span class="n">Client</span><span class="w"> </span><span class="n">client</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Client</span><span class="p">.</span><span class="n">Find</span><span class="p">(</span><span class="n">num2</span><span class="p">);</span>
+</span><span id="__span-14-8"><a id="__codelineno-14-8" name="__codelineno-14-8" href="#__codelineno-14-8"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">client</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="k">null</span><span class="p">)</span>
+</span><span id="__span-14-9"><a id="__codelineno-14-9" name="__codelineno-14-9" href="#__codelineno-14-9"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-14-10"><a id="__codelineno-14-10" name="__codelineno-14-10" href="#__codelineno-14-10"></a><span class="w">        </span><span class="n">ConsoleWindow</span><span class="p">.</span><span class="n">PrintError</span><span class="p">(</span><span class="s">$&quot;error &#39;{num2}&#39; not found when reading client thing state&quot;</span><span class="p">);</span>
+</span><span id="__span-14-11"><a id="__codelineno-14-11" name="__codelineno-14-11" href="#__codelineno-14-11"></a><span class="w">        </span><span class="k">break</span><span class="p">;</span>
+</span><span id="__span-14-12"><a id="__codelineno-14-12" name="__codelineno-14-12" href="#__codelineno-14-12"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-14-13"><a id="__codelineno-14-13" name="__codelineno-14-13" href="#__codelineno-14-13"></a><span class="w">    </span><span class="n">Human</span><span class="w"> </span><span class="n">registeredHuman</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">client</span><span class="p">.</span><span class="n">RegisteredHuman</span><span class="p">;</span>
+</span><span id="__span-14-14"><a id="__codelineno-14-14" name="__codelineno-14-14" href="#__codelineno-14-14"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">((</span><span class="kt">bool</span><span class="p">)</span><span class="n">registeredHuman</span><span class="p">)</span>
+</span><span id="__span-14-15"><a id="__codelineno-14-15" name="__codelineno-14-15" href="#__codelineno-14-15"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-14-16"><a id="__codelineno-14-16" name="__codelineno-14-16" href="#__codelineno-14-16"></a><span class="w">        </span><span class="n">registeredHuman</span><span class="p">.</span><span class="n">ProcessUpdate</span><span class="p">(</span><span class="n">rocketBinaryReader</span><span class="p">,</span><span class="w"> </span><span class="n">registeredHuman</span><span class="p">.</span><span class="n">NetworkUpdateFlags</span><span class="p">);</span>
+</span><span id="__span-14-17"><a id="__codelineno-14-17" name="__codelineno-14-17" href="#__codelineno-14-17"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-14-18"><a id="__codelineno-14-18" name="__codelineno-14-18" href="#__codelineno-14-18"></a><span class="w">    </span><span class="k">else</span>
+</span><span id="__span-14-19"><a id="__codelineno-14-19" name="__codelineno-14-19" href="#__codelineno-14-19"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-14-20"><a id="__codelineno-14-20" name="__codelineno-14-20" href="#__codelineno-14-20"></a><span class="w">        </span><span class="n">ConsoleWindow</span><span class="p">.</span><span class="n">PrintError</span><span class="p">(</span><span class="s">$&quot;error &#39;{num2}&#39; has no thing when reading client state&quot;</span><span class="p">);</span>
+</span><span id="__span-14-21"><a id="__codelineno-14-21" name="__codelineno-14-21" href="#__codelineno-14-21"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-14-22"><a id="__codelineno-14-22" name="__codelineno-14-22" href="#__codelineno-14-22"></a><span class="p">}</span>
+</span><span id="__span-14-23"><a id="__codelineno-14-23" name="__codelineno-14-23" href="#__codelineno-14-23"></a><span class="k">else</span>
+</span><span id="__span-14-24"><a id="__codelineno-14-24" name="__codelineno-14-24" href="#__codelineno-14-24"></a><span class="p">{</span>
+</span><span id="__span-14-25"><a id="__codelineno-14-25" name="__codelineno-14-25" href="#__codelineno-14-25"></a><span class="w">    </span><span class="n">ReadStateImmediate</span><span class="p">(</span><span class="n">rocketBinaryReader</span><span class="p">);</span>
+</span><span id="__span-14-26"><a id="__codelineno-14-26" name="__codelineno-14-26" href="#__codelineno-14-26"></a><span class="p">}</span>
+</span><span id="__span-14-27"><a id="__codelineno-14-27" name="__codelineno-14-27" href="#__codelineno-14-27"></a><span class="k">break</span><span class="p">;</span>
 </span></code></pre></div>
 <p>The branch runs only for a packet arriving on <code>NetworkChannel.StateTick</code> while the local role is Server. <code>NetworkChannel.StateTick</code> appears exactly twice in the whole assembly:</p>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>212541:     private static NetworkChannel Channel = NetworkChannel.StateTick;
-</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>273553:             case NetworkChannel.StateTick:
+<div class="language-text highlight"><pre><span></span><code><span id="__span-15-1"><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a>212541:     private static NetworkChannel Channel = NetworkChannel.StateTick;
+</span><span id="__span-15-2"><a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a>273553:             case NetworkChannel.StateTick:
 </span></code></pre></div>
 <p>Line 212541 is the static channel field that both of the class's sends use. Line 273553 is the sole dispatcher into <code>Receive</code>, and it is also what supplies <code>isServer</code>:</p>
-<div class="language-csharp highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="k">case</span><span class="w"> </span><span class="n">NetworkChannel</span><span class="p">.</span><span class="n">StateTick</span><span class="p">:</span>
-</span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="w">    </span><span class="n">FragmentHandler</span><span class="p">.</span><span class="n">Receive</span><span class="p">(</span><span class="n">Buffer</span><span class="p">,</span><span class="w"> </span><span class="n">num2</span><span class="p">,</span><span class="w"> </span><span class="n">NetworkRole</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">NetworkRole</span><span class="p">.</span><span class="n">Server</span><span class="p">);</span>
-</span><span id="__span-9-3"><a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="w">    </span><span class="k">break</span><span class="p">;</span>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-16-1"><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="k">case</span><span class="w"> </span><span class="n">NetworkChannel</span><span class="p">.</span><span class="n">StateTick</span><span class="p">:</span>
+</span><span id="__span-16-2"><a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a><span class="w">    </span><span class="n">FragmentHandler</span><span class="p">.</span><span class="n">Receive</span><span class="p">(</span><span class="n">Buffer</span><span class="p">,</span><span class="w"> </span><span class="n">num2</span><span class="p">,</span><span class="w"> </span><span class="n">NetworkRole</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">NetworkRole</span><span class="p">.</span><span class="n">Server</span><span class="p">);</span>
+</span><span id="__span-16-3"><a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a><span class="w">    </span><span class="k">break</span><span class="p">;</span>
 </span></code></pre></div>
 <p>The only two sends on that channel are <code>FragmentHandler.SendFragmentHeader</code> (declared 212694, sends at 212700) and <code>FragmentHandler.Send</code> (declared 212703, sends at 212732), and both go through <code>NetworkServer.SendToClientsDirect(..., Channel, excludeConnecting: true, -1L)</code>, that is, server to clients. <strong>Nothing sends on <code>StateTick</code> toward the server</strong>, so a server never receives a <code>StateTick</code> packet, <code>isServer</code> is never true inside <code>Receive</code>, and neither the <code>RegisteredHuman</code> read nor the <code>PrintError</code> at 212834 ever executes in this build.</p>
 <p>Client-to-server state actually travels on <code>NetworkChannel.GeneralTraffic</code> as <code>ProcessedMessage</code> types, and never touches <code>RegisteredHuman</code>.</p>
@@ -9305,55 +9547,60 @@
 
 <p><code>Thing.OwnerClientId</code> is the value that does survive a reconnect, because it is serialized into the save as <code>OwnerSteamId</code> and restored on load. Three vanilla lookups build on it.</p>
 <p><code>Human.Find(ulong clientId)</code> (lines 362067-362077):</p>
-<div class="language-csharp highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="n">Human</span><span class="w"> </span><span class="nf">Find</span><span class="p">(</span><span class="kt">ulong</span><span class="w"> </span><span class="n">clientId</span><span class="p">)</span>
-</span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="p">{</span>
-</span><span id="__span-10-3"><a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="w">    </span><span class="k">foreach</span><span class="w"> </span><span class="p">(</span><span class="n">Human</span><span class="w"> </span><span class="n">allHuman</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">AllHumans</span><span class="p">)</span>
-</span><span id="__span-10-4"><a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="w">    </span><span class="p">{</span>
-</span><span id="__span-10-5"><a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">allHuman</span><span class="p">.</span><span class="n">OwnerClientId</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">clientId</span><span class="p">)</span>
-</span><span id="__span-10-6"><a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a><span class="w">        </span><span class="p">{</span>
-</span><span id="__span-10-7"><a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a><span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="n">allHuman</span><span class="p">;</span>
-</span><span id="__span-10-8"><a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a><span class="w">        </span><span class="p">}</span>
-</span><span id="__span-10-9"><a id="__codelineno-10-9" name="__codelineno-10-9" href="#__codelineno-10-9"></a><span class="w">    </span><span class="p">}</span>
-</span><span id="__span-10-10"><a id="__codelineno-10-10" name="__codelineno-10-10" href="#__codelineno-10-10"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="k">null</span><span class="p">;</span>
-</span><span id="__span-10-11"><a id="__codelineno-10-11" name="__codelineno-10-11" href="#__codelineno-10-11"></a><span class="p">}</span>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-17-1"><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="n">Human</span><span class="w"> </span><span class="nf">Find</span><span class="p">(</span><span class="kt">ulong</span><span class="w"> </span><span class="n">clientId</span><span class="p">)</span>
+</span><span id="__span-17-2"><a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a><span class="p">{</span>
+</span><span id="__span-17-3"><a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a><span class="w">    </span><span class="k">foreach</span><span class="w"> </span><span class="p">(</span><span class="n">Human</span><span class="w"> </span><span class="n">allHuman</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">AllHumans</span><span class="p">)</span>
+</span><span id="__span-17-4"><a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-17-5"><a id="__codelineno-17-5" name="__codelineno-17-5" href="#__codelineno-17-5"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">allHuman</span><span class="p">.</span><span class="n">OwnerClientId</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">clientId</span><span class="p">)</span>
+</span><span id="__span-17-6"><a id="__codelineno-17-6" name="__codelineno-17-6" href="#__codelineno-17-6"></a><span class="w">        </span><span class="p">{</span>
+</span><span id="__span-17-7"><a id="__codelineno-17-7" name="__codelineno-17-7" href="#__codelineno-17-7"></a><span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="n">allHuman</span><span class="p">;</span>
+</span><span id="__span-17-8"><a id="__codelineno-17-8" name="__codelineno-17-8" href="#__codelineno-17-8"></a><span class="w">        </span><span class="p">}</span>
+</span><span id="__span-17-9"><a id="__codelineno-17-9" name="__codelineno-17-9" href="#__codelineno-17-9"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-17-10"><a id="__codelineno-17-10" name="__codelineno-17-10" href="#__codelineno-17-10"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="k">null</span><span class="p">;</span>
+</span><span id="__span-17-11"><a id="__codelineno-17-11" name="__codelineno-17-11" href="#__codelineno-17-11"></a><span class="p">}</span>
 </span></code></pre></div>
 <p><code>Entity.GetClientEntity(ulong clientId)</code> (lines 302434-302444) is the same shape over <code>Entity.AllEntities</code>:</p>
-<div class="language-csharp highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="n">Entity</span><span class="w"> </span><span class="nf">GetClientEntity</span><span class="p">(</span><span class="kt">ulong</span><span class="w"> </span><span class="n">clientId</span><span class="p">)</span>
-</span><span id="__span-11-2"><a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="p">{</span>
-</span><span id="__span-11-3"><a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="w">    </span><span class="k">foreach</span><span class="w"> </span><span class="p">(</span><span class="n">Entity</span><span class="w"> </span><span class="n">allEntity</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">AllEntities</span><span class="p">)</span>
-</span><span id="__span-11-4"><a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="w">    </span><span class="p">{</span>
-</span><span id="__span-11-5"><a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">allEntity</span><span class="p">.</span><span class="n">OwnerClientId</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">clientId</span><span class="p">)</span>
-</span><span id="__span-11-6"><a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a><span class="w">        </span><span class="p">{</span>
-</span><span id="__span-11-7"><a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a><span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="n">allEntity</span><span class="p">;</span>
-</span><span id="__span-11-8"><a id="__codelineno-11-8" name="__codelineno-11-8" href="#__codelineno-11-8"></a><span class="w">        </span><span class="p">}</span>
-</span><span id="__span-11-9"><a id="__codelineno-11-9" name="__codelineno-11-9" href="#__codelineno-11-9"></a><span class="w">    </span><span class="p">}</span>
-</span><span id="__span-11-10"><a id="__codelineno-11-10" name="__codelineno-11-10" href="#__codelineno-11-10"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="k">null</span><span class="p">;</span>
-</span><span id="__span-11-11"><a id="__codelineno-11-11" name="__codelineno-11-11" href="#__codelineno-11-11"></a><span class="p">}</span>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-18-1"><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="n">Entity</span><span class="w"> </span><span class="nf">GetClientEntity</span><span class="p">(</span><span class="kt">ulong</span><span class="w"> </span><span class="n">clientId</span><span class="p">)</span>
+</span><span id="__span-18-2"><a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a><span class="p">{</span>
+</span><span id="__span-18-3"><a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a><span class="w">    </span><span class="k">foreach</span><span class="w"> </span><span class="p">(</span><span class="n">Entity</span><span class="w"> </span><span class="n">allEntity</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">AllEntities</span><span class="p">)</span>
+</span><span id="__span-18-4"><a id="__codelineno-18-4" name="__codelineno-18-4" href="#__codelineno-18-4"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-18-5"><a id="__codelineno-18-5" name="__codelineno-18-5" href="#__codelineno-18-5"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">allEntity</span><span class="p">.</span><span class="n">OwnerClientId</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">clientId</span><span class="p">)</span>
+</span><span id="__span-18-6"><a id="__codelineno-18-6" name="__codelineno-18-6" href="#__codelineno-18-6"></a><span class="w">        </span><span class="p">{</span>
+</span><span id="__span-18-7"><a id="__codelineno-18-7" name="__codelineno-18-7" href="#__codelineno-18-7"></a><span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="n">allEntity</span><span class="p">;</span>
+</span><span id="__span-18-8"><a id="__codelineno-18-8" name="__codelineno-18-8" href="#__codelineno-18-8"></a><span class="w">        </span><span class="p">}</span>
+</span><span id="__span-18-9"><a id="__codelineno-18-9" name="__codelineno-18-9" href="#__codelineno-18-9"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-18-10"><a id="__codelineno-18-10" name="__codelineno-18-10" href="#__codelineno-18-10"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="k">null</span><span class="p">;</span>
+</span><span id="__span-18-11"><a id="__codelineno-18-11" name="__codelineno-18-11" href="#__codelineno-18-11"></a><span class="p">}</span>
 </span></code></pre></div>
 <p>The game's own disconnect-cleanup test, <code>CleanupDisconnected</code> (lines 96602-96609, in <code>Util.Commands.CleanupPlayersCommand</code> declared at 96526), takes a third route and goes through the brain:</p>
-<div class="language-csharp highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="k">private</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">CleanupDisconnected</span><span class="p">(</span><span class="n">Human</span><span class="w"> </span><span class="n">human</span><span class="p">,</span><span class="w"> </span><span class="n">List</span><span class="o">&lt;</span><span class="n">Human</span><span class="o">&gt;</span><span class="w"> </span><span class="n">toDestroy</span><span class="p">)</span>
-</span><span id="__span-12-2"><a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="p">{</span>
-</span><span id="__span-12-3"><a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a><span class="w">    </span><span class="n">Brain</span><span class="w"> </span><span class="n">brain</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">human</span><span class="o">?.</span><span class="n">BrainSlot</span><span class="o">?.</span><span class="n">Occupant</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">Brain</span><span class="p">;</span>
-</span><span id="__span-12-4"><a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">((</span><span class="kt">bool</span><span class="p">)</span><span class="n">brain</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">Client</span><span class="p">.</span><span class="n">Find</span><span class="p">(</span><span class="n">brain</span><span class="p">.</span><span class="n">ClientId</span><span class="p">)</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="k">null</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="o">!</span><span class="n">toDestroy</span><span class="p">.</span><span class="n">Contains</span><span class="p">(</span><span class="n">human</span><span class="p">))</span>
-</span><span id="__span-12-5"><a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a><span class="w">    </span><span class="p">{</span>
-</span><span id="__span-12-6"><a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a><span class="w">        </span><span class="n">toDestroy</span><span class="p">.</span><span class="n">Add</span><span class="p">(</span><span class="n">human</span><span class="p">);</span>
-</span><span id="__span-12-7"><a id="__codelineno-12-7" name="__codelineno-12-7" href="#__codelineno-12-7"></a><span class="w">    </span><span class="p">}</span>
-</span><span id="__span-12-8"><a id="__codelineno-12-8" name="__codelineno-12-8" href="#__codelineno-12-8"></a><span class="p">}</span>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-19-1"><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="k">private</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">CleanupDisconnected</span><span class="p">(</span><span class="n">Human</span><span class="w"> </span><span class="n">human</span><span class="p">,</span><span class="w"> </span><span class="n">List</span><span class="o">&lt;</span><span class="n">Human</span><span class="o">&gt;</span><span class="w"> </span><span class="n">toDestroy</span><span class="p">)</span>
+</span><span id="__span-19-2"><a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a><span class="p">{</span>
+</span><span id="__span-19-3"><a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a><span class="w">    </span><span class="n">Brain</span><span class="w"> </span><span class="n">brain</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">human</span><span class="o">?.</span><span class="n">BrainSlot</span><span class="o">?.</span><span class="n">Occupant</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">Brain</span><span class="p">;</span>
+</span><span id="__span-19-4"><a id="__codelineno-19-4" name="__codelineno-19-4" href="#__codelineno-19-4"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">((</span><span class="kt">bool</span><span class="p">)</span><span class="n">brain</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">Client</span><span class="p">.</span><span class="n">Find</span><span class="p">(</span><span class="n">brain</span><span class="p">.</span><span class="n">ClientId</span><span class="p">)</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="k">null</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="o">!</span><span class="n">toDestroy</span><span class="p">.</span><span class="n">Contains</span><span class="p">(</span><span class="n">human</span><span class="p">))</span>
+</span><span id="__span-19-5"><a id="__codelineno-19-5" name="__codelineno-19-5" href="#__codelineno-19-5"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-19-6"><a id="__codelineno-19-6" name="__codelineno-19-6" href="#__codelineno-19-6"></a><span class="w">        </span><span class="n">toDestroy</span><span class="p">.</span><span class="n">Add</span><span class="p">(</span><span class="n">human</span><span class="p">);</span>
+</span><span id="__span-19-7"><a id="__codelineno-19-7" name="__codelineno-19-7" href="#__codelineno-19-7"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-19-8"><a id="__codelineno-19-8" name="__codelineno-19-8" href="#__codelineno-19-8"></a><span class="p">}</span>
 </span></code></pre></div>
 <p>This is vanilla's own precedent for "who is disconnected": <code>Client.Find(brain.ClientId) == null</code>, keyed off <code>Brain.ClientId</code>, not off <code>Client.RegisteredHuman</code>.</p>
 <h3 id="trap-reject-clientid-0-before-any-of-these-lookups">Trap: reject clientId == 0 before any of these lookups<a class="headerlink" href="#trap-reject-clientid-0-before-any-of-these-lookups" title="Permanent link">&para;</a></h3>
 <p><code>OwnerClientId</code> is 0 on every unowned <code>Thing</code> in the world, so <code>Human.Find(0)</code> returns an arbitrary unowned <code>Human</code> rather than nothing. A <code>Client</code> that has not completed its handshake still has <code>ClientId == 0</code>, so this is reachable from real code, not just from a bug.</p>
-<div class="language-csharp highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">client</span><span class="p">.</span><span class="n">ClientId</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0UL</span><span class="p">)</span>
-</span><span id="__span-13-2"><a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a><span class="w">    </span><span class="k">return</span><span class="p">;</span>
-</span><span id="__span-13-3"><a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a>
-</span><span id="__span-13-4"><a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a><span class="n">Human</span><span class="w"> </span><span class="n">owner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Human</span><span class="p">.</span><span class="n">Find</span><span class="p">(</span><span class="n">client</span><span class="p">.</span><span class="n">ClientId</span><span class="p">);</span>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-20-1"><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">client</span><span class="p">.</span><span class="n">ClientId</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0UL</span><span class="p">)</span>
+</span><span id="__span-20-2"><a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a><span class="w">    </span><span class="k">return</span><span class="p">;</span>
+</span><span id="__span-20-3"><a id="__codelineno-20-3" name="__codelineno-20-3" href="#__codelineno-20-3"></a>
+</span><span id="__span-20-4"><a id="__codelineno-20-4" name="__codelineno-20-4" href="#__codelineno-20-4"></a><span class="n">Human</span><span class="w"> </span><span class="n">owner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Human</span><span class="p">.</span><span class="n">Find</span><span class="p">(</span><span class="n">client</span><span class="p">.</span><span class="n">ClientId</span><span class="p">);</span>
 </span></code></pre></div>
 <p><code>Client.Register</code> already encodes the same guard as its first condition (<code>if (ownerClientId != 0L)</code>).</p>
 <h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
 <!-- verified: 0.2.6403.27689 @ 2026-07-27 -->
 
 <ul>
-<li>2026-07-27: page created. All content verified against game version 0.2.6403.27689. Covers the full <code>Client</code> member list (class body 212198-212508), both <code>Find</code> overloads, and the finding that <code>Client.RegisteredHuman</code> is unreliable: three assembly-wide occurrences (212232 declaration, 212463 assignment, 212827 read), single writer <code>Client.Register</code> (212456-212466), single caller <code>Thing.OwnerClientId</code> setter (317651-317668) whose change guard prevents any retry, backing field <code>_ownerClientId</code> (317035) written nowhere else, and the <code>Thing.DeserializeSave</code> (321303, assignment at 321319) path that drops the registration at world-load time. Also records that the property is never cleared, that its only read site inside <code>FragmentHandler.Receive</code> (212759, read at 212827) is unreachable because both <code>NetworkChannel.StateTick</code> sends are server to clients, and the reliable <code>OwnerClientId</code>-keyed alternatives (<code>Human.Find</code> 362067, <code>Entity.GetClientEntity</code> 302434, <code>CleanupPlayersCommand.CleanupDisconnected</code> 96602) plus the <code>clientId == 0</code> trap. Additive page; no existing verified content was contradicted. Corrects two namespace assumptions carried in the source material: <code>Client</code>, <code>FragmentHandler</code>, and <code>NetworkServer</code> live in <code>Assets.Scripts</code> (block 195722-223977), while <code>NetworkBase</code> (39197) is in the global namespace and <code>NetworkChannel</code> (272554) is in <code>Assets.Scripts.Networking</code>.</li>
+<li>
+<p>2026-07-27: page created. All content verified against game version 0.2.6403.27689. Covers the full <code>Client</code> member list (class body 212198-212508), both <code>Find</code> overloads, and the finding that <code>Client.RegisteredHuman</code> is unreliable: three assembly-wide occurrences (212232 declaration, 212463 assignment, 212827 read), single writer <code>Client.Register</code> (212456-212466), single caller <code>Thing.OwnerClientId</code> setter (317651-317668) whose change guard prevents any retry, backing field <code>_ownerClientId</code> (317035) written nowhere else, and the <code>Thing.DeserializeSave</code> (321303, assignment at 321319) path that drops the registration at world-load time. Also records that the property is never cleared, that its only read site inside <code>FragmentHandler.Receive</code> (212759, read at 212827) is unreachable because both <code>NetworkChannel.StateTick</code> sends are server to clients, and the reliable <code>OwnerClientId</code>-keyed alternatives (<code>Human.Find</code> 362067, <code>Entity.GetClientEntity</code> 302434, <code>CleanupPlayersCommand.CleanupDisconnected</code> 96602) plus the <code>clientId == 0</code> trap. Additive page; no existing verified content was contradicted. Corrects two namespace assumptions carried in the source material: <code>Client</code>, <code>FragmentHandler</code>, and <code>NetworkServer</code> live in <code>Assets.Scripts</code> (block 195722-223977), while <code>NetworkBase</code> (39197) is in the global namespace and <code>NetworkChannel</code> (272554) is in <code>Assets.Scripts.Networking</code>.</p>
+</li>
+<li>
+<p>2026-08-15: added "The roster is two collections, and the host is in only one" against 0.2.6428.27798. Establishes that <code>NetworkBase.Clients</code> holds joiners only (<code>public static readonly List&lt;Client&gt;</code>, written solely by <code>AddClient</code> / <code>RemoveClient</code> / <code>ClearClientsList</code>, and <code>AddClient</code> called only from <code>NetworkServer.VerifyConnection</code>), that the host's own record is built by <code>NetworkServer.PopulateHostClient</code> onto <code>NetworkManager.HostClient</code> and never added to that list, and that the game unions the two at both presentation sites (<code>NetworkManager.LogClientRosterToConsole</code> appends <code>HostClient</code> after the list; <code>NetworkManager.SerialisePlayerList</code> writes it first under <code>Client.Find(HostClient.ClientId) == null</code>). Records the receiving side's split in <code>Client.DeserialiseClient</code> (<code>IsHost</code> to <code>HostClient</code>, everything else into <code>Clients</code> behind a <code>Contains</code> guard, <code>ClientId == 0</code> dropped outright), the per-process holdings table, and <code>TotalPlayersInGame =&gt; NetworkBase.Clients.Count + ((!GameManager.IsBatchMode) ? 1 : 0)</code> as the same union stated arithmetically, which confirms the row already on <code>GameSystems/ListenHost.md</code>. Also records that <code>connectionId</code> values are RakNet ids past both <code>int</code> and 2^53 (<code>189151461494586169</code> and <code>1044835390751713754</code>, observed on a loopback join in the rig). Additive; no existing verified content was contradicted, and the earlier sections keep their 0.2.6403.27689 stamps because they were not re-read.</p>
+</li>
 </ul>
 <h2 id="open-questions">Open questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>
 <ul>
