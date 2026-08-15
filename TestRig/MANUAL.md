@@ -69,10 +69,10 @@ Twenty-two verbs you can type, plus `host-mode`, which is internal: the detached
 | `remove --target <name>` | needs | refused | delete the tree and the instance's save root |
 | `start` | needs | must enter a world in the same call: `--load <SaveName> --map <Map>` or `--new <Map>`, and `--new` is validated against the install's world catalogue before anything launches | boots to the MENU and no further; entering a world is a separate `call` |
 | `wait --stage <s>` | free (refreshes) | `ping`, `modsLoaded`, `inWorld` or `process`; `menu` refused | `ping`, `modsLoaded`, `menu`, `inWorld` |
-| `save [--save-name <n>]` | needs | `--save-name` required, confirmed from the log | `--save-name` optional, confirmed by the plugin |
+| `save [--save-name <n>]` | needs | `--save-name` required, submitted to the server's own console through `/console/exec`, confirmed from the log or the file on disk | `--save-name` optional, confirmed by the plugin |
 | `stop [--save-name] [--release]` | not gated | save first if named, `quit`, then kill after the grace period | host-aware ordered teardown |
 | `call --path <p> [--body <json>]` | needs | one HTTP request to the server's own control plane on `127.0.0.1:27750` | one HTTP request to each named instance's control plane |
-| `send --command '<text>'` | needs | one line into the server's stdin, fire and forget | refused |
+| `send --command '<text>'` | needs | one line into the server's stdin, which the game does not read; warns and names `call --path /console/exec` | refused |
 | `playtest [--only <pattern>]` | not gated | rig-wide; the harness takes a lock PER CHECK | same |
 
 `stop` is deliberately not lock-gated, so an orphan or an expired session can always be cleaned up with no ceremony and no `--as`. It refuses while another session's lock is **live**, and `--break-lock` on it is human-gated like everywhere else.
@@ -179,7 +179,7 @@ Every option, its default, and which verbs read it. Anything typed against a ver
 
 | Option | Default | Means |
 |---|---|---|
-| `--command '<text>'` | none | one line for the dedicated server's stdin. Fire and forget. `send` only. |
+| `--command '<text>'` | none | one line for the dedicated server's stdin, which reaches the wrapper and no further. `send` only, and `send` says so. To run a console command, use `call --path /console/exec --body '{"command":"<text>"}'`. |
 | `--path <p>` | none | a control-plane path, for example `/status`. `call` only. |
 | `--body <json>` | none | raw JSON request body for `call`. **Never parsed here**, so anything in it reaches the plugin verbatim. |
 | `--call-timeout-seconds <n>` | 0 | how long ONE control-plane request may take. 0 derives it from the request's own `timeoutMs` plus 30 s, floored at 120 s and at 300 s for `/host`, `/connect`, `/save`, `/load`, `/newworld` and `/waitfor`, capped at an hour. |
@@ -288,7 +288,7 @@ dotnet build Mods/SprayPaintPlus/SprayPaintPlus.sln -c Release
 testrig deploy SprayPaintPlus --target server --as <id>
 testrig start  --target server --as <id> --load Luna --map Lunar   # or --new Lunar
 testrig wait   --target server --stage inWorld --wait-seconds 600
-# drive it: testrig send / testrig logs --grep / InspectorPlus request files,
+# drive it: testrig call --path /console/exec / testrig logs --grep / InspectorPlus request files,
 # or join a driven client to 127.0.0.1:28016 with call --path /connect
 testrig stop --target server --as <id> --save-name AfterRun --release
 ```
@@ -371,7 +371,7 @@ Attestation derives from a check's own location through `[CallerFilePath]`: the 
 
 `TestRig/DedicatedServer/` holds `install/` (the SteamCMD-managed binaries plus the mirrored `BepInEx/` tree and the doorstop loader) and `data/` (`setting.xml`, `server.log`, `saves/`, `scripts/`, `mods/`, the pid files and the control file). State is split out of the install tree so binaries can be wiped and re-installed without losing worlds.
 
-**Lifecycle.** `start` launches a detached wrapper (the binary re-invoking itself as `host-mode`) with no console window, so nothing claims focus. The wrapper owns the server process: it spawns it with redirected stdin, polls `data/control.cmd` every 250 ms and forwards each command. `data/host.pid` is the wrapper, `data/server.pid` is the game, `data/control.cmd` is a one-command queue written by atomic rename. On exit the wrapper removes all three. If the wrapper itself is killed the server can be orphaned; `status` detects that and `stop` cleans it up.
+**Lifecycle.** `start` launches a detached wrapper (the binary re-invoking itself as `host-mode`) with no console window, so nothing claims focus. The wrapper owns the server process: it spawns it with redirected stdin, polls `data/control.cmd` every 250 ms and forwards each command into it, where the game reads none of them (see `RESEARCH.md`, "Stdin does not reach a batch-mode server"). Console commands go to `/console/exec` on `127.0.0.1:27750` instead, which is where `save` and the graceful half of `stop` send theirs. `data/host.pid` is the wrapper, `data/server.pid` is the game, `data/control.cmd` is a one-command queue written by atomic rename. On exit the wrapper removes all three. If the wrapper itself is killed the server can be orphaned; `status` detects that and `stop` cleans it up.
 
 **The flag set `start` applies:**
 

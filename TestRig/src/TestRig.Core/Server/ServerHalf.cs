@@ -6,7 +6,7 @@ using TestRig.Core.Session;
 namespace TestRig.Core.Server;
 
 /// <summary>
-/// The dedicated-server half: one headless install, driven through its stdin by a wrapper.
+/// The dedicated-server half: one headless install, driven through its own control plane.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -17,9 +17,13 @@ namespace TestRig.Core.Server;
 /// and the two are not interchangeable.
 /// </para>
 /// <para>
-/// The console's answers go to the in-game console rather than the Unity <c>-logFile</c>, so
-/// the stdin channel is fire and forget by necessity, and everything that has to be READ
-/// back comes from the log or from the filesystem instead.
+/// A wrapper owns the process and holds its redirected stdin, and that stdin reaches
+/// nothing: the console command a headless server acts on arrives from inside the process,
+/// through the merged plugin's <c>/console/exec</c> on <see cref="ControlPort"/>. Both verbs
+/// that have to make the game DO something (<c>save</c> and the graceful half of
+/// <c>stop</c>) go that way, and the console's own answers come back with them. What still
+/// comes from the log or the filesystem is what the log and the filesystem are better
+/// witnesses for: a save that lands frames later, and the connection lifecycle.
 /// </para>
 /// </remarks>
 public sealed partial class ServerHalf
@@ -135,9 +139,12 @@ public sealed partial class ServerHalf
     /// 0 when the process is not alive, deliberately: it favours freeing the rig (SERVER-005).
     /// </para>
     /// <para>
-    /// Scanned out of the log because the <c>clients</c> and <c>status</c> console commands
-    /// write to the in-game console and not to the Unity <c>-logFile</c>, so they cannot be
-    /// scraped. The connection lifecycle IS logged (SERVER-006).
+    /// Scanned out of the log rather than asked of the console. The connection lifecycle IS
+    /// logged (SERVER-006), and this count gates the session lock, so it must answer for a
+    /// server with no plugin deployed as well as one with. There is no <c>clients</c> console
+    /// command to ask in any case: it existed once and does not at 0.2.6428.27798, while
+    /// <c>status</c> still does and writes to the in-game console rather than the Unity
+    /// <c>-logFile</c>, so scraping it was never an option either.
     /// </para>
     /// <para>
     /// <b>Spec D-06: the two patterns behind this are unverified against any current build.</b>
@@ -206,12 +213,19 @@ public sealed partial class ServerHalf
     /// is defensive rather than load-bearing (SERVER-092).
     /// </para>
     /// <para>
-    /// <b>Spec D-04, unresolved.</b> Two separate observations at two game versions record
-    /// the batch-mode stdin doing nothing at all, and three verbs ride on this channel. The
-    /// path is kept because the parity rule is that a feature broken in the old rig is still
-    /// a feature, and because nothing else can reach a headless server's console. What
-    /// changes here is that the CALLERS verify the filesystem rather than only the log, so a
-    /// silent no-op is reported as an unconfirmed save rather than as a success.
+    /// <b>Spec D-04, resolved: this channel does not reach the game, and the reason is not a
+    /// bug in the relay.</b> The launcher's whole half of it works (the wrapper consumed a
+    /// control file in 0.26 s, measured), and the game acts on nothing that arrives here,
+    /// because no reader on a headless server is attached to a redirected pipe. The mechanism
+    /// is on <c>SubmitSaveAsync</c> in ServerHalf.Lifecycle.cs, and the game internals are in
+    /// <c>Research/GameSystems/DedicatedServerSettings.md</c>.
+    /// </para>
+    /// <para>
+    /// It survives as a FALLBACK and only as one. <c>save</c> and <c>stop</c> both go through
+    /// <see cref="Endpoints.ConsoleExec"/> first and reach here only on a server whose plugin
+    /// is not deployed or did not load, where there is nothing else to try. The one caller
+    /// that is not a fallback is <see cref="SendAsync"/>, the <c>send</c> verb, which is a
+    /// direct request for this channel and says what it is worth every time it is used.
     /// </para>
     /// </remarks>
     public async Task SendCommandAsync(string command, CancellationToken ct = default)
@@ -248,17 +262,28 @@ public sealed partial class ServerHalf
     /// The dedicated server's OTHER control channel: one line into its stdin.
     /// </summary>
     /// <remarks>
-    /// Fire and forget by necessity, because the console writes its answers to the in-game
-    /// console and not to the log, so there is nothing to read back. That is why <c>call</c>
-    /// and <c>send</c> are two verbs rather than one with two transports: they are two real
-    /// channels with different properties, and this one is the only route to the game's own
-    /// console commands on a headless server.
+    /// <para>
+    /// Fire and forget, and now measured to be fire and nothing. It is kept as a verb because
+    /// it is the only way to exercise the wrapper's relay end to end, and because removing a
+    /// verb an agent may have in a script is a worse failure than a verb that says plainly
+    /// what it does; but every use warns, because a channel that looks alive and is not is
+    /// the thing that cost this rig months of misattributed silence.
+    /// </para>
+    /// <para>
+    /// <c>call --target server --path /console/exec</c> is what this verb was for: it reaches
+    /// the same console from inside the process, and it answers with the lines the command
+    /// printed instead of with nothing.
+    /// </para>
     /// </remarks>
     public async Task SendAsync(string command, string? callerId = null, CancellationToken ct = default)
     {
         AssertGate("send", callerId);
         await SendCommandAsync(command, ct).ConfigureAwait(false);
         Say($"[Send] Queued on the server's stdin: {command}");
+        Warn("[Send] That stdin does not reach the game. No reader on a headless server is attached to a "
+             + "redirected pipe, and a command written there was measured on 0.2.6428.27798 to produce a "
+             + "zero-byte log delta. Use the console the server does read: testrig call --target server --path "
+             + Endpoints.ConsoleExec + " --body '{\"command\":\"" + command + "\"}'");
     }
 
     // ---- the HTTP control plane --------------------------------------------

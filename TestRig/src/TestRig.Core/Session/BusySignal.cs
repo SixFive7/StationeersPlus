@@ -138,9 +138,11 @@ public sealed partial class BusyProbe
 
     /// <summary>Net connected clients from a server-format log. Pure and side-effect free.</summary>
     /// <remarks>
-    /// The <c>clients</c> and <c>status</c> console commands write to the in-game console
-    /// rather than the Unity log file, so they cannot be scraped; the connection lifecycle
-    /// IS logged, so the log is scanned instead. A force-killed server leaves N ready
+    /// There is no console command to ask: <c>clients</c> existed once and is gone at
+    /// 0.2.6428.27798, and <c>status</c>, which remains, writes to the in-game console rather
+    /// than the Unity log file. The connection lifecycle IS logged, so the log is scanned
+    /// instead, which also means this answers on a server with no plugin deployed and the
+    /// control plane could not. A force-killed server leaves N ready
     /// lines with no matching disconnects and the count stays high for ever, which only
     /// reaches the busy signal once the pid check has already passed, and the pid check
     /// verifies process identity.

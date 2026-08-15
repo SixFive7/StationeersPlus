@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text.Json;
 using TestRig.Contracts;
 using TestRig.Core.Client;
 using TestRig.Core.Rig;
@@ -242,9 +243,10 @@ public sealed partial class ServerHalf
     /// <remarks>
     /// SERVER-081, spec D-03. A <c>-new</c> world has an empty <c>CurrentStationName</c>, so
     /// every autosave fails with "Save Failed: Folder name is empty." until a first NAMED
-    /// save assigns one, and the only channel that can do that is the stdin path. The
-    /// PowerShell offered <c>-New</c> as a first-class option with no warning attached, so a
-    /// soak run could produce hours of simulation and no save at all.
+    /// save assigns one, and the only channel that can do that is the server's own console,
+    /// reached through the merged plugin's control plane. The PowerShell offered <c>-New</c>
+    /// as a first-class option with no warning attached, so a soak run could produce hours of
+    /// simulation and no save at all.
     /// </remarks>
     private void WarnAboutNewWorldSaves(string map)
     {
@@ -370,10 +372,10 @@ public sealed partial class ServerHalf
     /// </para>
     /// <para>
     /// Two independent confirmations, and either is enough. The LOG, anchored and
-    /// case-sensitive and accepting the nameless first-time line; and the FILE, because the
-    /// stdin channel has two recorded no-op observations and a confirmation that only ever
-    /// reads a log cannot tell "the command did nothing" from "the log format moved"
-    /// (SERVER-106 fixed).
+    /// case-sensitive and accepting the nameless first-time line; and the FILE, because a
+    /// confirmation that only ever reads a log cannot tell "the command did nothing" from
+    /// "the log format moved" (SERVER-106 fixed). Both are downstream of the channel, which
+    /// is what let them keep working while the channel underneath them did not.
     /// </para>
     /// <para>
     /// The contract is identical to the client half's and stays identical: confirmed or warn,
@@ -409,9 +411,19 @@ public sealed partial class ServerHalf
 
         Warn($"[Save] No confirmation within {waitSeconds}s ({outcome.Evidence}). Treat this world as NOT saved: "
              + "it may have completed silently or failed. testrig logs --target server --grep Saved shows what the "
-             + "server actually did, and the stdin channel itself has recorded no-op observations, so also check "
-             + $"whether {Path.Combine(_paths.World(saveName), saveName + ".save")} exists.");
+             + "server actually did, and so does whether "
+             + $"{Path.Combine(_paths.World(saveName), saveName + ".save")} exists and when it was written.");
         return false;
+    }
+
+    /// <summary>Which channel actually carried the save command.</summary>
+    private enum SaveChannel
+    {
+        /// <summary>The server's own console, in process, through the control plane.</summary>
+        Console,
+
+        /// <summary>The wrapper's stdin, which a headless server does not read.</summary>
+        Stdin,
     }
 
     /// <summary>Queues the save and waits, without the gate or the reporting.</summary>
@@ -429,8 +441,8 @@ public sealed partial class ServerHalf
         // offset and could never match.
         var watcher = new ServerLogWatcher(_fs, _paths.LogFile);
 
-        await SendCommandAsync($"save \"{saveName}\"", ct).ConfigureAwait(false);
-        Say($"[Save] Queued save '{saveName}' on the server. Waiting for confirmation (up to {waitSeconds}s)...");
+        var channel = await SubmitSaveAsync(saveName, ct).ConfigureAwait(false);
+        Say($"[Save] Waiting for '{saveName}' to land (up to {waitSeconds}s)...");
 
         var deadline = _clock.UtcNow.AddSeconds(waitSeconds);
         var foreignFailures = new List<string>();
@@ -474,8 +486,108 @@ public sealed partial class ServerHalf
             : $"nothing confirmed within {waitSeconds}s; the log did carry {foreignFailures.Count} failure line(s) "
               + $"that name no save of this name, so they were not treated as this save's: {string.Join("; ", foreignFailures.Take(3))}";
 
+        // Naming the channel is the difference between "the server was asked and said nothing"
+        // and "the server was never asked", which are not the same problem and do not have the
+        // same remedy.
+        if (channel == SaveChannel.Stdin)
+        {
+            detail += "; and the command only ever reached the wrapper's stdin, which this server does not read, "
+                      + "so the likeliest explanation is that no save was ever attempted";
+        }
+
         return new SaveOutcome(SaveVerdict.Timeout, detail);
     }
+
+    /// <summary>
+    /// Submits the save to the server's own console, and reports which channel took it.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>The control plane is the channel that works, and stdin is the one that does not.</b>
+    /// This used to write <c>save "&lt;name&gt;"</c> to the wrapper's control file and call it
+    /// queued. Nothing on a dedicated server reads standard input: the only reader wired to the
+    /// command dispatcher is <c>RocketSystemConsole.ConsoleInputThread</c>, which polls
+    /// <c>Console.KeyAvailable</c> and <c>Console.ReadKey</c> against the Win32 console input
+    /// buffer rather than a stream, and a redirected pipe is not one. That reader is not even
+    /// constructed under this half's launch line, because
+    /// <c>ConsoleWindow.CustomLogFile => CommandLineArgs.Contains("-logFile")</c> gates it and
+    /// the rig always passes <c>-logFile</c>. Measured on 0.2.6428.27798: a command on that
+    /// stdin produces a zero-byte log delta, while the identical command through the plane
+    /// runs. Game internals: <c>Research/GameSystems/DedicatedServerSettings.md</c>, "The
+    /// console channel: what actually feeds the runtime dispatcher".
+    /// </para>
+    /// <para>
+    /// Stdin stays as the fallback for the same reason <c>stop</c> keeps it (a server whose
+    /// plugin is not deployed or did not load has no other channel at all), with one
+    /// difference that is said out loud rather than left to be discovered: a quit has a
+    /// force-kill behind it and a save has nothing behind it, so a save that falls back here
+    /// is not expected to happen.
+    /// </para>
+    /// <para>
+    /// The answer's own console lines are deliberately NOT a third witness. The game's save
+    /// runs as a task over later frames, so what the console has printed by the time this call
+    /// returns says the command was accepted and nothing about whether the world landed. The
+    /// log and the file are what decide that, and they are unchanged.
+    /// </para>
+    /// </remarks>
+    private async Task<SaveChannel> SubmitSaveAsync(string saveName, CancellationToken ct)
+    {
+        // Serialised rather than interpolated, so the quotes the console command needs around
+        // the name are escaped by the same writer both halves agree on.
+        var body = JsonSerializer.Serialize(
+            new ConsoleExecRequest { Command = $"save \"{saveName}\"" },
+            RigJsonContext.Default.ConsoleExecRequest);
+
+        ControlAnswer answer;
+        try
+        {
+            answer = await _control
+                .RawAsync(ControlPort, Endpoints.ConsoleExec, body, SaveCallSeconds, ct)
+                .ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            return await FallBackToStdinAsync(
+                saveName, $"its control plane could not be reached ({ex.GetType().Name})", ct).ConfigureAwait(false);
+        }
+
+        if (!answer.Answered)
+        {
+            return await FallBackToStdinAsync(
+                saveName,
+                $"nothing answered on 127.0.0.1:{ControlPort} ({answer.TransportError})",
+                ct).ConfigureAwait(false);
+        }
+
+        if (answer.HttpStatus != RigStatus.Ok)
+        {
+            return await FallBackToStdinAsync(
+                saveName,
+                $"its control plane refused the command (HTTP {answer.HttpStatus}: {ControlPlane.ErrorDetail(answer)})",
+                ct).ConfigureAwait(false);
+        }
+
+        Say($"[Save] Submitted save \"{saveName}\" to the server's own console on 127.0.0.1:{ControlPort}.");
+        return SaveChannel.Console;
+    }
+
+    /// <summary>Writes the save to the wrapper's stdin, saying plainly what that is worth.</summary>
+    private async Task<SaveChannel> FallBackToStdinAsync(string saveName, string why, CancellationToken ct)
+    {
+        Warn($"[Save] The server did not take the save through its own console ({why}), so it goes to the "
+             + "wrapper's stdin instead, which a headless server does not read: measured on 0.2.6428.27798, a "
+             + "command written there produces no log delta at all. Do not expect this save to happen. Deploy the "
+             + "plugin and restart the server: testrig deploy TestRig --target server --as <id>");
+
+        await SendCommandAsync($"save \"{saveName}\"", ct).ConfigureAwait(false);
+        return SaveChannel.Stdin;
+    }
+
+    /// <summary>
+    /// How long the save SUBMISSION itself may take. Not the confirmation budget, which is the
+    /// wait: the console answers as soon as it has run the command, and the world lands later.
+    /// </summary>
+    private const int SaveCallSeconds = 30;
 
     // =====================================================================
     // stop
