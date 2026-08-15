@@ -255,7 +255,9 @@ testrig start --target host1 --as <id>
 testrig wait  --target host1 --stage menu
 testrig call  --target host1 --as <id> --path /host --body '{"world":"Lunar"}'
 #   200 only once NetworkServer.IsHosting is true. The body carries hostPort, the
-#   resolved savePath, localClientId, the roster and a full /status.
+#   resolved savePath, localClientId, the roster and a full /status. A CREATED world
+#   is also given a station name (stationName, defaulting to the world id), which is
+#   what makes it saveable at all; check stationNameAssigned.
 testrig wait  --target host1 --stage inWorld --wait-seconds 600
 
 testrig start --target client1 --as <id>
@@ -508,7 +510,7 @@ The `/status` fields a multiplayer test reads:
 | Endpoint | Notes |
 |---|---|
 | `POST /connect` | `{address, port, wait, timeoutMs, suppressTimeout, allowDuplicateIdentity}`. Direct Connect. Refuses a join into a known ClientId clash. |
-| `POST /host` | `{save\|world, difficulty, start, port, serverName, password, maxPlayers, wait, timeoutMs, allowDuplicateIdentity}`. Load or create the world AND serve it. Must start from the menu. Defaults: `port` = the manifest's game port, `maxPlayers` 4, `difficulty` Normal, `timeoutMs` 300000. 200 only once `IsHosting` is true. The save-root isolation requirement is unconditional and fails closed; the merged plugin removes the `requireIsolatedSavePath` parameter outright and answers 400 if it is passed. |
+| `POST /host` | `{save\|world, stationName, difficulty, start, port, serverName, password, maxPlayers, wait, timeoutMs, allowDuplicateIdentity}`. Load or create the world AND serve it. Must start from the menu. Defaults: `port` = the manifest's game port, `maxPlayers` 4, `difficulty` Normal, `timeoutMs` 300000. 200 only once `IsHosting` is true. **A CREATED world is given a station name**, by a first named save once it is hosting; `stationName` defaults to the world id, and an empty string opts out. It reports `stationName` and `stationNameAssigned`, and warns on a 200 when the name did not take, because a world with no station name cannot be saved by anything: the bare console `save`, `POST /save` with no name and the game's own autosave all resolve through `XmlSaveLoad.CurrentStationName`, which a console `new` leaves empty. A world loaded from a save already has one. The save-root isolation requirement is unconditional and fails closed; the merged plugin removes the `requireIsolatedSavePath` parameter outright and answers 400 if it is passed. |
 | `POST /disconnect` | `{wait, timeoutMs}`. Back to the main menu. |
 | `POST /quit` | `{hard}`. `Application.Quit()`, or a `Process.Kill` when `hard`. |
 | `GET /saves` | local save list. |

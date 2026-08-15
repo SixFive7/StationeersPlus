@@ -147,6 +147,19 @@ The reason is that neither could ever have been a guard. Both endpoints are reac
 - **`/host`**: the isolation requirement is unconditional and fails closed the same way.
 - **Passing either removed parameter is a 400 that names the removal**, and nothing is changed or done. Silently ignoring a parameter the caller believed in is how a caller ends up trusting a result it should not. This is the same shape `/dlc/remove` already used for its nine grant-shaped fields.
 
+## A world this plugin creates gets a station name
+
+`POST /host` with a `world` id runs the console `new` command, and a world created that way has an **empty `XmlSaveLoad.CurrentStationName`**. Every save resolves through that name: the bare console `save`, `POST /save` with no name, and the game's own autosave. So a created world could not be saved by anything, and the launcher's ordered teardown found out at the one moment it cannot act on it, refusing to quit on top of an unsaved world and then losing it. It reproduced on every host check.
+
+So `/host` names what it creates, once the world is up and hosting, which is the earliest point the save command is not refused (it is scoped `HostOrSinglePlayer` and takes only `Running` or `Paused`). The name is a first NAMED save, and `CurrentStationName` is read back afterwards to prove it took, because a save confirming is not the same claim as the name being assigned.
+
+- `stationName` defaults to the world id. An empty string opts out deliberately, and the response says what that costs.
+- A world **loaded** from a save already has its name and is never touched.
+- Failure is a `warning` on a 200, never a refusal: hosting is what this endpoint asserts and it has already succeeded. `stationNameAssigned` is the field to read.
+- There is no setter worth reaching for. The game assigns the name as a side effect of a named save, and going around it would name a world without writing it, which is worse than either end.
+
+The dedicated server half has always had the same problem and only warned about it, in the launcher: `--new <Map>` prints that autosaves will fail with "Save Failed: Folder name is empty." until a first named save. That warning stands; the server's world is created through stdin, not through this endpoint.
+
 ## Scenarios: armed at boot AND callable over HTTP
 
 Both paths exist. Roughly seven probes are genuinely load-ordered and no HTTP call can be timed against a world load: `sun-noon` (the light freeze has to be in force before anything measures light), `pgp-fresh-device-trace` (the construction events are the point), `pgp-umbilical-saveload-set` and `pgp-priority-deprioritization-probe` (both write before a save), and the multi-tick state machines `pgp-rearch-suite`, `ptp-standalone-suite`, `pgp-chain-fixture`, `pgp-mixedwire-fixture`, `pgp-2cycle-freeze`, `pgp-deprioritization-multilevel`. Those stay armed at boot. Everything else is a one-shot over settled state and is invoked directly.
