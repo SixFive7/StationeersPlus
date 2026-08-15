@@ -6,7 +6,7 @@ Out of scope here: frontmatter schema, section-stamp format, Verification Histor
 
 This file is referenced by:
 
-- `research-hook-decompile.ps1` (fires on reads of `rocketstation_Data/Managed/**`).
+- `research-hook-decompile.ps1` (fires on any touch of decompiled game code: a read of `*.decompiled.cs` or of anything under `.work/decomp/`, a Glob of `rocketstation_Data/Managed/`, or a Bash command that decompiles or inspects either).
 - A one-line pointer in repo-root `CLAUDE.md`.
 
 Read it in full the first time the reminder surfaces in a session; re-read when starting research or mod work after a break.
