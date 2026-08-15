@@ -2,12 +2,13 @@
 title: Dedicated Server Settings
 type: GameSystems
 created_in: 0.2.6228.27061
-verified_in: 0.2.6228.27061
-verified_at: 2026-05-18
+verified_in: 0.2.6428.27798
+verified_at: 2026-08-15
 sources:
   - rocketstation_Data/Managed/Assembly-CSharp.dll :: Settings.SettingData (decompile lines 248232-248613)
   - rocketstation_Data/Managed/Assembly-CSharp.dll :: CommandLine (decompile lines 94926-95177)
   - rocketstation_Data/Managed/Assembly-CSharp.dll :: SaveCommand / QuitCommand / LoadGameCommand / LoadLatestCommand / NewGameCommand / SettingsCommand / SettingsPathCommand / ServerRunCommand / BanCommand
+  - rocketstation_DedicatedServer_Data/StreamingAssets/Worlds/*/*.xml :: GameData/WorldSettings/World[@Id]
 related:
   - GameSystems/NetworkRoles.md
   - Patterns/ServerAuthoritativeSimulation.md
@@ -361,6 +362,30 @@ Critical caveat: the source's `"Moon"` default is stale. The runtime's actual va
 - `Vulcan` (marked Deprecated)
 
 `WorldSetting.Find("Moon")` returns null because the world ids live in JSON / data files that were updated past the source's hardcoded default; `WorldSetting.Find` looks them up by id from the data store. So `-new Moon` (or no world arg, which falls back to "Moon") fails with `No such world name: Moon. Valid worlds: Europa3, Lunar, Mars2, MimasHerschel, Venus, Vulcan (Deprecated), Vulcan2`. Always pass an explicit valid id.
+
+#### Where the valid ids live on disk, and how to read them without launching
+<!-- verified: 0.2.6428.27798 @ 2026-08-15 -->
+
+The data store behind `WorldSetting.Find` is loaded from `StreamingAssets/Worlds/`: one folder per world, holding one or more `<Name>.xml`, each a `GameData` document whose `WorldSettings` element contains one or more `<World Id="...">`. **The accepted id is that `Id` attribute, and it is not the folder name in four of the nine folders** on 0.2.6428.27798:
+
+| Folder | File | `World Id` |
+|---|---|---|
+| `Europa` | `Europa.xml` | `Europa3` |
+| `Lunar` | `Lunar.xml` | `Lunar` |
+| `Mars2` | `Mars2.xml` | `Mars2` |
+| `Mimas` | `MimasHerschel.xml` | `MimasHerschel` |
+| `Venus` | `Venus.xml` | `Venus` |
+| `Vulcan` | `Vulcan.xml` | `Vulcan` (`Hidden="true" Deprecated="true"`) |
+| `Vulcan` | `VulcanV2.xml` | `Vulcan2` |
+| `Tutorial1` ... `Tutorial6` | various | `Tutorial1`, `Airlock`, `FurnaceBasics`, `Manufacturing` |
+
+Scanning folder names would therefore refuse `Europa3` and `MimasHerschel` and accept `Europa` and `Mimas`, all four wrongly, and would miss `Vulcan2` entirely because two worlds share the `Vulcan` folder in two files.
+
+**Tutorial worlds are excluded from the `-new` set, and the discriminator is `<IsTutorial Value="true" />` inside the `World` element**, not the folder name and not the id. Parsing every `World Id` and dropping the ones carrying that marker reproduces exactly the seven the server prints, which is the check that the rule is the right one.
+
+The strings themselves live in `Assembly-CSharp`: `No such world name: ` and `. Valid worlds: ` are two halves of one composite format, alongside `Tried to start a new game but no world id was provided.`. The three lines a successful `-new` prints around them (`Creating new world '<X>' with difficulty ...`, `WorldSetting: <X> StartCondition: ...`, `World <X> created`, `Started new game in world <X>.`) are NOT in any assembly under `Managed/`, so they come from a mod or from composed output; do not key a detector on them.
+
+**Operational consequence.** The set is on disk before launch, so an invalid `-new` is answerable without starting anything, and it costs a ninety-second boot to discover otherwise. Worse, the server does not exit on a rejected world name: it logs the line once and then runs indefinitely with no world at all, `GameState` `None` and `phase` `menu`, answering its control plane normally throughout. Nothing else about the process distinguishes that state from a world that is still loading. `TestRig/testrig.exe` validates `--new` against this catalogue before launching and scans for the rejection line while waiting for readiness.
 
 ### `save <name>` / `save delete <name>` / `save list` (SaveCommand, line 96400)
 
