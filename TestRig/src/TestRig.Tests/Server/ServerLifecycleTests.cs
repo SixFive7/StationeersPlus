@@ -524,12 +524,87 @@ public sealed class ServerLifecycleTests
     [Fact]
     public void ASaveNameWithNothingRunningIsReportedAsIgnored()
     {
+        // Genuinely nothing running: no game process to hold a world, and no wrapper either.
+        // A save cannot be delivered by any channel, so the name cannot be honoured and
+        // saying so out loud is the whole of the correct behaviour. A dropped save that
+        // reports nothing is how a caller learns afterwards that the world went.
+        //
+        // This test used to plant a LIVE game process with a dead wrapper and call that
+        // "nothing running". That is the ORPHANED server, it is saveable through the
+        // control plane, and it is the case below.
         var fixture = new ServerFixture().Installed();
-        fixture.Processes.Add(9101, RigConstants.ServerImageName, fixture.Clock.UtcNow);
-        PidFiles.Write(fixture.Fs, fixture.Paths.PidFile, 9101, fixture.Clock.UtcNow);
 
         fixture.Stop(saveName: "Luna");
+
         Assert.True(fixture.Output.Warned("--save-name ignored"));
+        Assert.True(fixture.Output.Said("nothing running"));
+    }
+
+    [Fact]
+    public void AnOrphanedServerWhosePlaneAnswersIsSavedRatherThanHavingTheSaveNameDropped()
+    {
+        // The wrapper was the test only because the save went out over the wrapper's stdin
+        // control file. It goes to the server's own console on /console/exec now, exactly as
+        // the quit does, so a dead wrapper stops neither. The guard that still required one
+        // silently ignored --save-name here and killed the world the caller had explicitly
+        // asked to keep, which is data loss on the one path that asked for the opposite.
+        var fixture = new ServerFixture().Installed().Running().AnsweringStatus();
+        fixture.Processes.Kill(9100);
+        fixture.Client.Transport.Standing(
+            ServerHalf.ControlPort, Endpoints.ConsoleExec, ScriptedAnswer.Ok("{\"ok\":true}"));
+
+        var landed = false;
+        fixture.Client.Rig.Sleeper.OnDelay = _ =>
+        {
+            if (!landed)
+            {
+                // The world hits the disk, which is the save confirmation's own witness.
+                fixture.Fs.AddFile(Path.Combine(fixture.Paths.World("Luna"), "Luna.save"), "world bytes");
+                landed = true;
+                return;
+            }
+
+            fixture.Processes.Kill(9101);
+        };
+
+        fixture.Stop(saveName: "Luna");
+
+        var console = fixture.Client.Transport.Sent
+            .Where(sent => sent.Port == ServerHalf.ControlPort && sent.Path == Endpoints.ConsoleExec)
+            .Select(static sent => sent.Body ?? "")
+            .ToList();
+
+        Assert.False(fixture.Output.Warned("--save-name ignored"));
+        Assert.Contains(console, body => body.Contains("save", StringComparison.Ordinal)
+                                         && body.Contains("Luna", StringComparison.Ordinal));
+        Assert.True(fixture.Output.Said("Submitted save \"Luna\" to the server's own console"));
+
+        // Attempted AND landed: stop warns exactly when the save is not confirmed, so the
+        // absence of that warning is this path's statement that the world is on disk.
+        Assert.False(fixture.Output.Warned("No save confirmation within"));
+
+        // And in that order: the world is saved, and only then is the server asked to quit.
+        var saveAt = console.FindIndex(body => body.Contains("Luna", StringComparison.Ordinal));
+        var quitAt = console.FindIndex(body => body.Contains("quit", StringComparison.Ordinal));
+        Assert.True(quitAt > saveAt && saveAt >= 0, $"save at {saveAt}, quit at {quitAt}");
+    }
+
+    [Fact]
+    public void AnOrphanedServerWithNoPlaneAtAllStillReportsTheSaveNameAsIgnored()
+    {
+        // The other half of the same guard, and it must not soften. Nothing scripted on this
+        // port, so the plane is silent: a server whose plugin is not deployed or did not
+        // load, whose wrapper is gone, and which therefore has no channel a save could
+        // travel on. Attempting one anyway would report a save that never happened.
+        var fixture = new ServerFixture().Installed().Running();
+        fixture.Processes.Kill(9100);
+
+        fixture.Stop(saveName: "Luna", teardownSeconds: 4);
+
+        Assert.True(fixture.Output.Warned("--save-name ignored"));
+        Assert.DoesNotContain(
+            fixture.Client.Transport.Sent,
+            sent => sent.Path == Endpoints.ConsoleExec && (sent.Body ?? "").Contains("save", StringComparison.Ordinal));
     }
 
     [Fact]

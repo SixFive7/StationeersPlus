@@ -802,10 +802,19 @@ public sealed partial class ServerHalf
     /// Stops the dedicated server, optionally saving first.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// The save confirmation uses the WAIT budget, never the teardown grace. This branch was
     /// the last place in the rig where the two were still conflated: it fed the teardown
     /// grace into a save confirmation, so raising the kill timeout also, silently, raised how
     /// long a save was given to land (SERVER-125).
+    /// </para>
+    /// <para>
+    /// Whether the save is attempted at all is <see cref="ASaveCanBeDeliveredAsync"/>, which
+    /// asks whether a channel exists rather than whether the wrapper is alive. The save
+    /// happens BEFORE the nothing-running early-out, so a name that cannot be honoured is
+    /// reported in every case instead of being dropped along the one route that returns
+    /// early.
+    /// </para>
     /// </remarks>
     public async Task StopAsync(
         string? callerId = null,
@@ -820,6 +829,31 @@ public sealed partial class ServerHalf
         var serverAlive = ServerAlive;
         var wrapperAlive = WrapperAlive;
 
+        if (!string.IsNullOrEmpty(saveName))
+        {
+            if (await ASaveCanBeDeliveredAsync(serverAlive, wrapperAlive, ct).ConfigureAwait(false))
+            {
+                Say($"[Stop] Saving as '{saveName}' first...");
+                try
+                {
+                    var outcome = await SaveAndConfirmAsync(saveName, waitSeconds, ct).ConfigureAwait(false);
+                    if (!outcome.Confirmed)
+                    {
+                        Warn($"[Stop] No save confirmation within {waitSeconds}s ({outcome.Evidence}); continuing "
+                             + "with quit. Treat that world as NOT saved.");
+                    }
+                }
+                catch (RigRefusalException ex)
+                {
+                    Warn($"[Stop] Save failed: {ex.Message}");
+                }
+            }
+            else
+            {
+                Warn($"[Stop] --save-name ignored: {WhyASaveCannotBeDelivered(serverAlive)}");
+            }
+        }
+
         if (!serverAlive && !wrapperAlive)
         {
             Say("[Stop] Dedicated server: nothing running.");
@@ -832,31 +866,86 @@ public sealed partial class ServerHalf
             return;
         }
 
-        if (!string.IsNullOrEmpty(saveName) && serverAlive && wrapperAlive)
-        {
-            Say($"[Stop] Saving as '{saveName}' first...");
-            try
-            {
-                var outcome = await SaveAndConfirmAsync(saveName, waitSeconds, ct).ConfigureAwait(false);
-                if (!outcome.Confirmed)
-                {
-                    Warn($"[Stop] No save confirmation within {waitSeconds}s ({outcome.Evidence}); continuing "
-                         + "with quit. Treat that world as NOT saved.");
-                }
-            }
-            catch (RigRefusalException ex)
-            {
-                Warn($"[Stop] Save failed: {ex.Message}");
-            }
-        }
-        else if (!string.IsNullOrEmpty(saveName))
-        {
-            Warn("[Stop] --save-name ignored: the server or its host wrapper is not running.");
-        }
-
         await TeardownAsync(teardownSeconds, ct).ConfigureAwait(false);
         Say("[Stop] Dedicated server stopped.");
     }
+
+    /// <summary>
+    /// Whether a save could actually be DELIVERED to the game right now.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>A live wrapper is not the question, and only ever was because of the channel.</b>
+    /// This branch used to require one, for exactly one reason: the save went out as
+    /// <c>save "&lt;name&gt;"</c> written to the wrapper's stdin control file. It goes to the
+    /// server's own console through <see cref="Endpoints.ConsoleExec"/> now (see
+    /// <see cref="SubmitSaveAsync"/>), which needs no wrapper at all. So an ORPHANED server,
+    /// one whose wrapper died while the game process is alive and answering, can be saved
+    /// exactly as it can already be quit. The old guard ignored <c>--save-name</c> there
+    /// without a word and then force-killed the world the caller had explicitly asked to
+    /// keep, which is data loss on the one path that asked for the opposite.
+    /// </para>
+    /// <para>
+    /// It mirrors <see cref="TeardownAsync"/>: the control plane is the channel that works,
+    /// and stdin is the fallback that matters only on a server whose plugin is not deployed
+    /// or did not load. The live game process is the one thing still checked first, because
+    /// neither channel can write a world that no process holds any more.
+    /// </para>
+    /// <para>
+    /// The wrapper is tested before the plane only because it is free. The answer is the same
+    /// either way, and a healthy rig then pays for no extra round trip. With no wrapper the
+    /// plane is asked with a short <c>/status</c>, which is a question ABOUT the channel
+    /// rather than an attempt to use it: submitting the save into silence instead would warn
+    /// about a stdin fallback that is not there either, and take the whole submission budget
+    /// to arrive at the answer one probe gives immediately.
+    /// </para>
+    /// </remarks>
+    private async Task<bool> ASaveCanBeDeliveredAsync(bool serverAlive, bool wrapperAlive, CancellationToken ct)
+    {
+        if (!serverAlive) return false;
+        if (wrapperAlive) return true;
+
+        StatusResponse? status;
+        try
+        {
+            (status, _) = await StatusAsync(SaveChannelProbeSeconds, ct).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // A probe that misbehaved is not evidence of a channel. The teardown below still
+            // runs either way, exactly as it does when the plane refuses a quit.
+            Say($"[Stop] The server's control plane could not be reached ({ex.GetType().Name}).");
+            return false;
+        }
+
+        if (status is null) return false;
+
+        Say($"[Stop] The host wrapper is gone, but the server answers on 127.0.0.1:{ControlPort}, which is the "
+            + "channel a save goes out on. Saving through it.");
+        return true;
+    }
+
+    /// <summary>Why an ignored <c>--save-name</c> could not have been honoured.</summary>
+    /// <remarks>
+    /// The two cases are not one sentence: no process at all means there was no world in
+    /// memory to write, while a live process with no channel means there IS one and it is
+    /// about to go unsaved. Only the second is a loss, and only the second has a remedy.
+    /// </remarks>
+    private string WhyASaveCannotBeDelivered(bool serverAlive) =>
+        serverAlive
+            ? $"the host wrapper is gone and nothing answered on 127.0.0.1:{ControlPort}, so neither channel a "
+              + "save can travel on is available. The world this process is holding is NOT saved and is about to "
+              + "go. Deploy the plugin so an orphaned server can be saved as well as quit: testrig deploy TestRig "
+              + "--target server --as <id>"
+            : "the dedicated server process is not running, so no world is loaded and there is nothing to write. "
+              + "A save on this half is a console command inside the running game; it cannot persist a world no "
+              + "process holds any more.";
+
+    /// <summary>
+    /// How long the channel probe gets. Not the save's own budget, and not the confirmation's:
+    /// this is one loopback <c>/status</c> against a process that is already up.
+    /// </summary>
+    private const int SaveChannelProbeSeconds = 10;
 
     // =====================================================================
     // wait
