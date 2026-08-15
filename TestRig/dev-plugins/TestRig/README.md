@@ -9,7 +9,7 @@ It replaces two plugins that did the same job in one process each:
 | `ClientDriver` | the loopback HTTP control plane inside a game client | `TestRig/ClientRig/dev-plugins/ClientDriver/` |
 | `ScenarioRunner` | in-process probes on the dedicated server | `TestRig/DedicatedServer/dev-plugins/ScenarioRunner/` |
 
-**Both source trees still exist and are untouched.** This one is built alongside them until parity is proven against real hardware. Nothing deploys it yet; see "Not wired up yet" at the bottom.
+**Both source trees still exist and still build**, so a rig that has not built this one is not stranded, but nothing resolves to them by default any more: `create` and `deploy` resolve this plugin by name and sweep both predecessors out of both load paths. See "Wiring, and what the two replaced trees are still for" at the bottom.
 
 - Assembly / ModID: `TestRig` / `net.sixfive7.testrig`. `WorkshopHandle` is 0 and stays 0.
 - Target: `net472`, the game's Mono runtime.
@@ -51,12 +51,12 @@ The obstacle was what runs the work the listener accepts.
 
    | Hook | Covers | Rate | Both builds? |
    |---|---|---|---|
-   | UniTask player-loop boot loop | everything before the first scene load, which headless is **frames 0-1834** | per frame, then retires | yes |
-   | pump host `MonoBehaviour.Update` | **boot**, from the first scene load: frame 0 on a client, frame 1834 on the server | ~25 Hz throughout | yes |
+   | UniTask player-loop boot loop | everything before the first scene load, which headless is **frames 0 to ~1600-1850** | per frame, then retires | yes |
+   | pump host `MonoBehaviour.Update` | **boot**, from the first scene load: frame 0 on a client, ~1600-1850 on the server | ~25 Hz throughout | yes |
    | `Assets.Scripts.GameManager.Update` postfix | steady state | ~24 Hz once `GameState.Running`, but **0.11-0.16/s before it** | yes |
    | `ImGuiManager.LateUpdate` postfix | the client splash window | per frame | client only (absent from the server assembly) |
 
-   `GameManager.Update` alone would leave the control plane effectively frozen for the whole 80-90 s boot, which is exactly the window a caller spends polling for readiness. The pump host covers it on a client. It does not on the dedicated server, because the first `sceneLoaded` there is frame 1834, and the boot loop is what covers that; see "The pump host" below.
+   `GameManager.Update` alone would leave the control plane effectively frozen for the whole 80-90 s boot, which is exactly the window a caller spends polling for readiness. The pump host covers it on a client. It does not on the dedicated server, because the first `sceneLoaded` there is over a thousand frames in, and the boot loop is what covers that; see "The pump host" below.
 
 The choice is logged at load and readable on `/ping` (`host`, `pumpStrategy`, `pumpReady`), `/instance` and `/status` (`host` block plus `driver.pumpStrategy`, `driver.pumpDrainReady`, `driver.pumpGameMarshalReady`, `driver.pumpHooks`, `driver.pumpNote`, `driver.mainThreadDrains`, `driver.hostUpdateDrains`, `driver.pumpHostCreatedAtFrame`, `driver.pumpBootLoopDrains`, `driver.pumpBootLoopState`, `driver.scenesLoaded`). Every 504 body names the strategy, both routes' readiness, and which hooks resolved.
 
@@ -70,11 +70,13 @@ That is the real mechanism behind the repo lore that "`Update` does not reliably
 
 Static state is what survives, and that is what this plugin relies on: the listener is owned by a static, the Harmony patches persist, background threads persist, and so does a `SceneManager.sceneLoaded` subscription registered in `Awake`. So the pump host is created from **the first `sceneLoaded` callback**, at 282 ms and still at frame 0. Measured, it then survives indefinitely and misses nothing: Update 5867 at `Time.frameCount` 5867, no gap. Recreating at the later Base scene load instead puts the object at frame 1925 and loses everything before it. The handler stays subscribed so a later scene load re-creates the host if it ever dies again, and the two main-thread postfixes call the same idempotent creator as a backstop. Nothing creates it in `Awake`.
 
-### The first scene load is frame 0 on a client and frame 1834 on the dedicated server
+### The first scene load is frame 0 on a client and over a thousand frames in on the dedicated server
 
-That difference was assumed away and is now measured. The server's own log line says it: `pump host created at frame 1834 (scene load 1)`. Headless there is no splash and no menu scene, so the first scene load is the mod-content load, and 1834 frames pass before it with **no log output at all** between "ready on http://127.0.0.1:27750/" and the pump-host line.
+That difference was assumed away and is now measured. The server's own log line says it: `pump host created at frame 1834 (scene load 1)`. Headless there is no splash and no menu scene, so the first scene load is the mod-content load, and those frames pass before it with **no log output at all** between "ready on http://127.0.0.1:27750/" and the pump-host line.
 
-Nothing else was covering that window either, and the plugin's own code proves it: the `GameManager.Update` postfix calls the same idempotent `EnsurePumpHost()`, and the host was still logged as created from "scene load 1", so that postfix had fired **zero** times before frame 1834. `UnityMainThreadDispatcher` cannot help, because it drains from `ManagerUpdate` whose sole caller is that same `GameManager.Update`, and `ImGuiManager.LateUpdate` does not exist in the server assembly. So every `Main(...)`-wrapped route queued work that nothing would run and answered 504 after its 20 s budget, for the whole first ~1834 frames of every headless boot.
+**The number is a sample, not a constant.** 1834 in that instrumented run and **1635** in the first real one, on the same game build, because what varies is how much work happens before the mod-content load and that depends on the mod set. Nothing here keys off the value: the boot loop covers whatever the window turns out to be. `pumpHostCreatedAtFrame` is reported so a run can state what it got, and it is not an assertion target.
+
+Nothing else was covering that window either, and the plugin's own code proves it: the `GameManager.Update` postfix calls the same idempotent `EnsurePumpHost()`, and the host was still logged as created from "scene load 1", so that postfix had fired **zero** times before it. `UnityMainThreadDispatcher` cannot help, because it drains from `ManagerUpdate` whose sole caller is that same `GameManager.Update`, and `ImGuiManager.LateUpdate` does not exist in the server assembly. So every `Main(...)`-wrapped route queued work that nothing would run and answered 504 after its 20 s budget, for the whole first thousand-odd frames of every headless boot.
 
 Nothing in the launcher noticed, which is why this went unmeasured: the server half's `wait` uses process liveness and an InspectorPlus request-file probe rather than the HTTP plane, and `call --target server` refuses outright today. The cost was paid only by an agent hand-driving `127.0.0.1:27750` during a boot.
 
@@ -222,7 +224,7 @@ Two smaller things went with them. The roster loop is indexed rather than `forea
 
 Verify with `ls TestRig/dev-plugins/TestRig/TestRig/bin/Release/`: `TestRig.dll` and `About/`, nothing else.
 
-**Gap to close:** the four scenario paths are not in `TestRig.Contracts.Endpoints` yet, so they are the only string literals in the dispatch table (`Router.ScenariosPath` and friends). Adding them to Contracts is a one-line change per path, and it belongs to whoever owns `TestRig/src/`.
+**Gap to close:** the four scenario paths are in `TestRig.Contracts.Endpoints` now (`Scenarios`, `ScenarioRun`, `ScenarioArm`, `ScenarioDisarm`), but this dispatch table still carries its own literals (`Router.ScenariosPath` and friends). Switching those four cases to the Contracts consts is the one remaining place a rename there would not break this build.
 
 ## Ports
 
@@ -242,4 +244,4 @@ That is enforced by the build, not asserted in a comment. `TestRig.csproj` carri
 - **Deploying it sweeps both predecessors, from both load paths.** `ControlPlugins.Names` is the set, and it is about NAMES rather than about which folder a source tree sits in. That distinction is the whole of the bug it had: `ScenarioRunner` lives under the dedicated server's own `dev-plugins/`, so every derived "is this the control plane" test answered false for it and nothing swept it. Measured 2026-08-15, the server was running `BepInEx/plugins/ScenarioRunner/` beside `data/mods/Local_TestRig/`: two scenario dispatchers and two sim-tick patches. The plugin's own duplicate refusal cannot catch that, because it recognises a second copy of ITSELF by GUID and a predecessor carries a different one.
 - **The two replaced trees are kept, not wired.** `ClientRig/dev-plugins/ClientDriver/` and `DedicatedServer/dev-plugins/ScenarioRunner/` still build and are still deployable BY NAME, so a rig that has not built this one is not stranded, and deploying either sweeps this one in turn. Nothing resolves to them by default any more.
 - **The rig's state reset keys off the old config file names** (`net.clientdriver.cfg`, `net.scenariorunner.cfg`) and blanks `net.scenariorunner.cfg`'s `Scenario` value. The merged plugin writes `net.sixfive7.testrig.cfg`. The reset's scenario-blanking rule becomes unnecessary rather than wrong: the armed set has moved out of the config file precisely so that rule cannot disarm a session, but the reset should be told about the new file name so it restores config the same way it does today.
-- **The client half is proven; the dedicated server half is not.** All eight Spray Paint Plus checks ran against two instances carrying `TestRig.dll`, host plus joiner. No dedicated-server process has been started with it: every check is listen-host based, so nothing has yet exercised this assembly headless. The headless pump design rests on instrumented probes against the real dedicated server on 0.2.6428.27798, not on a run of this plugin.
+- **Both halves have now been run.** All eight Spray Paint Plus checks ran against two instances carrying `TestRig.dll`, host plus joiner. The dedicated server was then started with it for the first time on 2026-08-15: `deploy TestRig --target server` swept `ScenarioRunner`, the server came up on a new Lunar world, reached `inWorld` through its own control plane, and `call --target server` answered `/status` and `/scenarios`, with exactly one load measured in its own log. That run is also where the pump-host frame turned out to be variable (above) and where the accept loop's stack-trace noise on an early client disconnect was found.
