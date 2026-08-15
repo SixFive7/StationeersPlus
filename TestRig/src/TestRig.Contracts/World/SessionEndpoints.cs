@@ -125,6 +125,19 @@ public sealed record HostRequest
     [JsonPropertyName("world")]
     public string? World { get; init; }
 
+    /// <summary>
+    ///     The station name a newly created world is given, by a first named save.
+    /// </summary>
+    /// <remarks>
+    ///     Only meaningful alongside <see cref="World"/>; a world loaded from a save already has
+    ///     one. Absent means the world id. An EMPTY string means "leave it unnamed", which is a
+    ///     world nothing can ever save: the bare console <c>save</c>, <c>POST /save</c> with no
+    ///     name and the game's own autosave all resolve through
+    ///     <c>XmlSaveLoad.CurrentStationName</c>, which a console <c>new</c> leaves empty.
+    /// </remarks>
+    [JsonPropertyName("stationName")]
+    public string? StationName { get; init; }
+
     [JsonPropertyName("difficulty")]
     public string? Difficulty { get; init; }
 
@@ -212,6 +225,24 @@ public sealed record HostResponse : IWireResult
 
     [JsonPropertyName("save")]
     public string? Save { get; init; }
+
+    /// <summary>The station name a created world was given. Null when a save was loaded instead.</summary>
+    [JsonPropertyName("stationName")]
+    public string? StationName { get; init; }
+
+    /// <summary>
+    ///     Whether the first named save that assigns <see cref="StationName"/> confirmed.
+    /// </summary>
+    /// <remarks>
+    ///     False on a created world means nothing can save it yet, and <c>warning</c> says why.
+    ///     The response is still 200: hosting is what this endpoint asserts, and it succeeded.
+    /// </remarks>
+    [JsonPropertyName("stationNameAssigned")]
+    public bool? StationNameAssigned { get; init; }
+
+    /// <summary>Set on a 200 that is nonetheless worth reading, notably an unnamed created world.</summary>
+    [JsonPropertyName("warning")]
+    public string? Warning { get; init; }
 
     [JsonPropertyName("savePath")]
     public string? SavePath { get; init; }

@@ -329,7 +329,7 @@ public sealed class CheckRunner
 
             if (host.World is null && host.Save is null) continue;
 
-            context.Act(host.Name, Contracts.Endpoints.Host, new Contracts.HostRequest
+            var hosted = context.Act(host.Name, Contracts.Endpoints.Host, new Contracts.HostRequest
             {
                 World = host.World,
                 Save = host.Save,
@@ -337,6 +337,25 @@ public sealed class CheckRunner
             }, blocking: true);
 
             context.WaitStage(host.Name, Stage.InWorld, worldWaitSeconds);
+
+            // A world created from a world id is named by the host endpoint, with a first named
+            // save. When that does not happen the world cannot be saved by anything, and the
+            // symptom surfaces at TEARDOWN as a refusal to quit on top of an unsaved world, which
+            // is the worst place to learn it. Recorded here instead, on the check that caused it,
+            // while it is still fixable. Not fatal: the check itself is unaffected, and calling it
+            // inconclusive would throw away a real measurement over a housekeeping failure.
+            if (host.World is not null)
+            {
+                var named = hosted.As<Contracts.HostResponse>()?.StationNameAssigned;
+                if (named is false)
+                {
+                    context.TeardownNotes.Add(
+                        $"'{host.Name}' created world '{host.World}' with no station name, so nothing can save it: " +
+                        "the ordered teardown will refuse and the world is lost on quit.");
+                    _deps.Log?.Invoke(
+                        $"[Playtest]   {host.Name}: world '{host.World}' has NO station name; it cannot be saved.");
+                }
+            }
 
             var status = context.TryReadStatus(host.Name);
             var probe = new FlakeProbe(ProbeKind.PostState, host.Name, Contracts.Endpoints.Host, Status: status);
@@ -385,11 +404,12 @@ public sealed class CheckRunner
             context.RecordLauncher("stop", $"-Target {name}", stop);
             if (stop.Success) continue;
 
-            // ONE retry with force. The launcher refuses to quit on top of a world whose save
-            // it could not confirm, and a check's world is created fresh from a world id with
-            // no station name, so a save with no name has nothing to save under and the
-            // refusal fires on EVERY host check. Unhandled, that leaves the instance up and
-            // the rig lock held.
+            // ONE retry with force. The launcher refuses to quit on top of a world whose save it
+            // could not confirm, and unhandled that leaves the instance up and the rig lock held.
+            // It used to fire on EVERY host check, because a world created from a world id had no
+            // station name and a save with no name had nothing to save under; the host endpoint
+            // now names what it creates, and BringUp records it when that fails. This stays as the
+            // backstop for every other reason a save can fail to confirm.
             var forced = _deps.Launcher.StopInstance(name, context.Owner, StopTimeoutSeconds, force: true);
             context.RecordLauncher("stop", $"-Target {name} -Force", forced);
 

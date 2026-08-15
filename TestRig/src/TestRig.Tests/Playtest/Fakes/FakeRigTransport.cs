@@ -52,6 +52,9 @@ public sealed class FakeRigTransport : IRigTransport
     /// <summary>Instances whose /host answers 200 while /status keeps saying not hosting.</summary>
     public HashSet<string> HostDoesNotStick { get; } = new(StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>Instances whose created world comes up with no station name, so nothing can save it.</summary>
+    public HashSet<string> StationNameDoesNotStick { get; } = new(StringComparer.OrdinalIgnoreCase);
+
     /// <summary>Connect attempts that answer with a timeout before one succeeds.</summary>
     public int ConnectFailuresBeforeSuccess { get; set; }
 
@@ -146,6 +149,17 @@ public sealed class FakeRigTransport : IRigTransport
             state.Roster.Add(new ConnectedClient { ClientId = "900000000001", Username = state.Name, IsHost = true, State = "settled" });
         }
 
+        // The plugin names a world it CREATED, by performing the first named save, because a
+        // console 'new' leaves CurrentStationName empty and nothing can save a world without it.
+        // Modelled here rather than assumed away: a check's world comes from a world id, so the
+        // unnamed case is the DEFAULT case on this rig and a fake that always reports a name
+        // would hide the very state the teardown trips over.
+        var stationName = world is null
+            ? null
+            : body?["stationName"]?.GetValue<string>() ?? world;
+        var named = stationName is { Length: > 0 } && !StationNameDoesNotStick.Contains(state.Name);
+        if (named) state.StationName = stationName;
+
         return Json(200, new HostResponse
         {
             Ok = true,
@@ -154,6 +168,9 @@ public sealed class FakeRigTransport : IRigTransport
             HostPort = state.HostPort,
             World = world,
             Save = save,
+            StationName = stationName,
+            StationNameAssigned = world is null ? null : named,
+            Warning = world is not null && !named ? "hosting, but this world has no station name." : null,
             SaveRoot = "instance",
         });
     }

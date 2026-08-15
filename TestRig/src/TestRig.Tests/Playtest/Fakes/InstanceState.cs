@@ -40,6 +40,15 @@ public sealed class InstanceState
 
     public string? RequestedSave { get; set; }
 
+    /// <summary>
+    /// The world's station name, empty until a first NAMED save assigns one.
+    /// </summary>
+    /// <remarks>
+    /// A world created from a world id has none, and every later save resolves through it, so a
+    /// save with no name has nothing to save under until this is set.
+    /// </remarks>
+    public string? StationName { get; set; }
+
     public int? ConnectedTo { get; set; }
 
     public List<ConnectedClient> Roster { get; } = [];

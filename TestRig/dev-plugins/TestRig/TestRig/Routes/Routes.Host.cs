@@ -91,6 +91,23 @@ namespace TestRig
             int timeoutMs = Json.GetInt(body, "timeoutMs", 300000);
             bool allowDuplicateIdentity = Json.GetBool(body, "allowDuplicateIdentity", false);
 
+            // A world created by the console 'new' command has an EMPTY CurrentStationName, and
+            // that is the name every later save resolves through: the bare 'save' command, this
+            // plugin's POST /save with no name, and the game's own autosave. So a created world
+            // cannot be saved by anything at all until a first NAMED save assigns one, and the
+            // launcher's ordered teardown discovers that at the worst possible moment, when the
+            // world it is about to quit on top of is the thing it was trying to keep. Measured on
+            // every host check: "no 'name' was given and the current station name could not be
+            // read" and then "Save not confirmed; --force, quitting anyway".
+            //
+            // So this endpoint names what it creates. Default is the world id, which is the only
+            // thing a caller that passed nothing has told us about the world. Pass stationName to
+            // choose, or an empty string to deliberately leave it unnamed and accept that nothing
+            // can save it. A world LOADED from a save already has its name and is never touched.
+            string stationName = Json.Has(body, "stationName")
+                ? Json.GetStr(body, "stationName", "")
+                : world;
+
             if (port < 1 || port > 65535)
                 return HttpResponse.Error(
                     "port " + port.ToString(CultureInfo.InvariantCulture) + " is out of range; pass 1-65535", 400);
@@ -248,6 +265,16 @@ namespace TestRig
                 return HttpResponse.Json(o.ToString(), 409);
             }
 
+            // Only for a world this endpoint CREATED, and only once it is up and hosting: the
+            // save command is scoped HostOrSinglePlayer and refuses anything but Running or
+            // Paused, so there is no earlier point at which this could work.
+            string stationNameError = null;
+            bool stationNameAssigned = false;
+            if (haveWorld && !string.IsNullOrEmpty(stationName))
+            {
+                stationNameAssigned = AssignStationName(stationName, 180000, out stationNameError);
+            }
+
             var ok = new Json.Obj()
                 .Bit("ok", true)
                 .Str("role", "listenHost")
@@ -257,6 +284,8 @@ namespace TestRig
                 .Bit("hasPassword", !string.IsNullOrEmpty(password))
                 .Str("world", haveWorld ? world : null)
                 .Str("save", haveSave ? save : null)
+                .Str("stationName", haveWorld ? stationName : null)
+                .Bit("stationNameAssigned", stationNameAssigned)
                 .Str("savePath", saveRoot)
                 .Str("saveRoot", isolated ? "instance" : "default")
                 .Str("localClientId", SafeMain(
@@ -270,8 +299,98 @@ namespace TestRig
                     () => StateReporter.ConnectedClientsJson(), "[]"))
                 .Str("joinWith", "POST /connect {\"address\":\"127.0.0.1\",\"port\":" +
                                  port.ToString(CultureInfo.InvariantCulture) + "} from another instance");
+
+            // Still a 200: the world is up and hosting, which is what this endpoint asserts. But
+            // an unnamed world cannot be saved by anything, so a caller that reads only the status
+            // code must not be left to discover that at teardown.
+            if (haveWorld && !stationNameAssigned)
+            {
+                ok.Str("warning", string.IsNullOrEmpty(stationName)
+                    ? "hosting, but stationName was explicitly empty so this world has no station " +
+                      "name. Nothing can save it: the bare save command, POST /save with no name " +
+                      "and the game's own autosave all resolve through CurrentStationName. POST " +
+                      "/save {\"name\":\"<X>\"} assigns one."
+                    : "hosting, but the first named save that would have assigned the station name " +
+                      "did not confirm (" + (stationNameError ?? "no detail") + "). Until one does, " +
+                      "nothing can save this world and the launcher's ordered teardown will refuse " +
+                      "to quit on top of it. Retry with POST /save {\"name\":\"" + stationName + "\"}.");
+            }
+
             AttachStatus(ok);
             return HttpResponse.Json(ok.ToString());
+        }
+
+        /// <summary>
+        ///     Gives a freshly created world its station name, by performing the first named save.
+        /// </summary>
+        /// <remarks>
+        ///     There is no setter for <c>XmlSaveLoad.Instance.CurrentStationName</c> worth reaching
+        ///     for: the game assigns it as a side effect of a named save, and going around that
+        ///     would name the world without writing it, which is a worse state than either end.
+        ///     So this is exactly what <c>POST /save</c> does, minus the reporting: submit
+        ///     <c>save "&lt;name&gt;"</c> and wait for the game's own console confirmation.
+        ///
+        ///     Failure is never fatal to the caller. Hosting is what <c>/host</c> asserts and it
+        ///     has already succeeded by the time this runs; an unnamed world is a warning on a 200.
+        /// </remarks>
+        private static bool AssignStationName(string name, int timeoutMs, out string detail)
+        {
+            detail = null;
+
+            foreach (char c in name)
+            {
+                if (c == '"' || c < ' ' || c == '\u007f')
+                {
+                    detail = "the name contains a quote or a control character, which breaks the " +
+                             "console command it is submitted through";
+                    return false;
+                }
+            }
+
+            string sanitized = SanitizeSaveName(name);
+            long beforeSeq = ConsoleTap.NextSeq;
+
+            var submit = Main(() =>
+            {
+                ConsoleWindow.Submit("save \"" + name + "\"");
+                return OkJson();
+            });
+            if (submit.Status != 200)
+            {
+                detail = "the save command could not be submitted (status " +
+                         submit.Status.ToString(CultureInfo.InvariantCulture) + ")";
+                return false;
+            }
+
+            string failureLine = null;
+            string outcome = PollUntil(timeoutMs, () =>
+            {
+                foreach (var line in ConsoleTap.Snapshot(beforeSeq, 500, null, "console"))
+                {
+                    string text = line.Text ?? "";
+                    if (IsSaveFailureLine(text)) { failureLine = text; return "failed"; }
+                    if (IsSaveConfirmedLine(text, name, sanitized)) return "console";
+                }
+                return null;
+            });
+
+            if (outcome == "console")
+            {
+                // Read back rather than assumed: the console line proves a save happened, and this
+                // proves the thing the save was FOR, which is the name every later save resolves.
+                string assigned = SafeMain(CurrentStationName, null);
+                if (!string.IsNullOrEmpty(assigned)) return true;
+
+                detail = "the save confirmed but CurrentStationName is still empty, so a later save " +
+                         "with no name will still have nothing to save under";
+                return false;
+            }
+
+            detail = outcome == "failed"
+                ? "the game reported the save failed: " + failureLine
+                : "the save did not confirm within " +
+                  (timeoutMs / 1000).ToString(CultureInfo.InvariantCulture) + "s";
+            return false;
         }
 
         // ---- save -----------------------------------------------------------

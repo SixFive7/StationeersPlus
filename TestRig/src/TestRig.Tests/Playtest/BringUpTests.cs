@@ -116,6 +116,48 @@ public sealed class BringUpTests
         Assert.Contains("hostie POST /host", fixture.Transport.Requests);
     }
 
+    /// <summary>
+    ///     A created world gets a station name, which is what makes it saveable at all.
+    /// </summary>
+    /// <remarks>
+    ///     A console <c>new</c> leaves <c>XmlSaveLoad.CurrentStationName</c> empty, and every
+    ///     save resolves through it: the bare console command, <c>POST /save</c> with no name,
+    ///     and the game's own autosave. So a check's world could not be saved by anything, and
+    ///     the launcher's ordered teardown discovered it at the one moment it cannot act on it.
+    /// </remarks>
+    [Fact]
+    public void ACreatedWorldIsGivenAStationNameSoItCanBeSaved()
+    {
+        var fixture = Rig();
+        var ctx = fixture.Context(HostAndJoiner());
+        new CheckRunner(fixture.Dependencies).BringUp(ctx);
+
+        Assert.Equal("Lunar", fixture.Transport.State("hostie").StationName);
+        Assert.Empty(ctx.TeardownNotes);
+    }
+
+    /// <summary>
+    ///     A world that ends up unnamed is recorded on the check that caused it, not at teardown.
+    /// </summary>
+    /// <remarks>
+    ///     Not inconclusive: the check's own measurement is unaffected, and throwing away a real
+    ///     result over a housekeeping failure is the trade this harness never makes.
+    /// </remarks>
+    [Fact]
+    public void AWorldThatEndsUpWithNoStationNameIsRecordedAtBringUpRatherThanAtTeardown()
+    {
+        var fixture = Rig();
+        fixture.Transport.StationNameDoesNotStick.Add("hostie");
+        var ctx = fixture.Context(HostAndJoiner());
+
+        new CheckRunner(fixture.Dependencies).BringUp(ctx);
+
+        Assert.Null(fixture.Transport.State("hostie").StationName);
+        var note = Assert.Single(ctx.TeardownNotes);
+        Assert.Contains("no station name", note, StringComparison.Ordinal);
+        Assert.Contains("lost on quit", note, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void AHostSpecWithNeitherWorldNorSaveStopsAtTheMenu()
     {
