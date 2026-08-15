@@ -283,8 +283,10 @@ WHY IT IS A RUNTIME DUMP (cannot be derived statically)
   Battery class; Mirrored Devices' prefabs share classes with vanilla. Names/classes cannot classify.)
 
 PIPELINE (4 stages)
-  1) ScenarioRunner scenario "device-port-dump"  (committed)
-     TestRig/DedicatedServer/dev-plugins/ScenarioRunner/ScenarioRunner/Dispatcher.DevicePortDump.cs
+  1) TestRig plugin scenario "device-port-dump"  (committed)
+     TestRig/dev-plugins/TestRig/TestRig/Scenarios/Dispatcher.DevicePortDump.cs
+     (was ScenarioRunner; that plugin and ClientDriver merged into one TestRig plugin that
+      loads into both the dedicated server and a game client)
      Walks Prefab.AllPrefabs; per power/data-bearing SmallGrid emits:
        prefabName, prefabHash, displayName, type, isDevice, hasDataConnection,
        ports[]  : SmallGrid.OpenEnds -> each Connection.ConnectionType (NetworkType flags
@@ -296,14 +298,26 @@ PIPELINE (4 stages)
                   -> InternalCellType (RocketInternalCellType flags) + StrictlyInternal.
      Writes <dediInstall>/BepInEx/device-port-dump.json.
   2) Run on the dedicated server WITH THE FULL MOD SET LOADED:
-       dotnet build TestRig/DedicatedServer/dev-plugins/ScenarioRunner/ScenarioRunner.sln -c Release
-       pwsh -NoProfile -File TestRig/testrig.ps1 lock -Purpose "device-port dump"
-       testrig stop -Target server -As <id>
-       testrig deploy ScenarioRunner -Target server -As <id> -Configuration Release
-       set TestRig/DedicatedServer/install/BepInEx/config/net.scenariorunner.cfg  [Probe] Scenario = device-port-dump
-       testrig start -Target server -As <id> -New Lunar
-       wait for "device-port-dump END" in TestRig/DedicatedServer/install/BepInEx/LogOutput.log
+       dotnet build TestRig/dev-plugins/TestRig/TestRig.sln -c Release
+       TestRig/testrig.exe lock   --purpose "device-port dump"          (prints TESTRIG-OWNER <id>)
+       TestRig/testrig.exe stop   --target server --as <id>
+       TestRig/testrig.exe deploy TestRig --target server --as <id>
+       TestRig/testrig.exe start  --target server --new Lunar --as <id>
+       TestRig/testrig.exe wait   --target server --stage inWorld --wait-seconds 600
+       TestRig/testrig.exe call   --target server --as <id> --path "/scenario/run?id=device-port-dump&ticks=4"
        copy TestRig/DedicatedServer/install/BepInEx/device-port-dump.json
+       TestRig/testrig.exe unlock --as <id>
+     ARMING CHANGED. The scenario is no longer armed by a BepInEx config value: the merged
+     plugin moved the armed set out of config entirely (it lives under the BepInEx root as
+     testrig/scenarios.armed, written by POST /scenario/arm), precisely so the rig's session
+     reset cannot silently disarm a probe. device-port-dump is NOT boot-ordered, so it is
+     invoked directly with /scenario/run, which returns its own [ScenarioRunner] lines in the
+     response body. Nothing is grepped out of a log and no restart is needed.
+     TICKS. Scenario bodies run on the SIMULATION tick, and a dedicated server with no client
+     connected runs ZERO ticks: the game parks the world about five seconds after start. The
+     rig's server has InspectorPlus's "Force Unpause Without Client" enabled in
+     install/BepInEx/config/net.inspectorplus.cfg for exactly this. Without it, connect a client
+     first or the run comes back empty. GET /scenarios reports ticksSeen and warns when it is 0.
      SANITY: a correct full-mod run logs ~ totalPrefabs=2041 emitted=378 mods=77 rocketFamily=92.
      If you see ~ totalPrefabs=1562 emitted=321 mod=0 mods=1, the Workshop mods did NOT load
      (vanilla-only) and the dump is WRONG: the mods must be synced into TestRig/DedicatedServer/data/mods/
@@ -720,8 +734,10 @@ WHY IT IS A RUNTIME DUMP (cannot be derived statically)
   Battery class; Mirrored Devices' prefabs share classes with vanilla. Names/classes cannot classify.)
 
 PIPELINE (4 stages)
-  1) ScenarioRunner scenario "device-port-dump"  (committed)
-     TestRig/DedicatedServer/dev-plugins/ScenarioRunner/ScenarioRunner/Dispatcher.DevicePortDump.cs
+  1) TestRig plugin scenario "device-port-dump"  (committed)
+     TestRig/dev-plugins/TestRig/TestRig/Scenarios/Dispatcher.DevicePortDump.cs
+     (was ScenarioRunner; that plugin and ClientDriver merged into one TestRig plugin that
+      loads into both the dedicated server and a game client)
      Walks Prefab.AllPrefabs; per power/data-bearing SmallGrid emits:
        prefabName, prefabHash, displayName, type, isDevice, hasDataConnection,
        ports[]  : SmallGrid.OpenEnds -> each Connection.ConnectionType (NetworkType flags
@@ -733,14 +749,26 @@ PIPELINE (4 stages)
                   -> InternalCellType (RocketInternalCellType flags) + StrictlyInternal.
      Writes <dediInstall>/BepInEx/device-port-dump.json.
   2) Run on the dedicated server WITH THE FULL MOD SET LOADED:
-       dotnet build TestRig/DedicatedServer/dev-plugins/ScenarioRunner/ScenarioRunner.sln -c Release
-       pwsh -NoProfile -File TestRig/testrig.ps1 lock -Purpose "device-port dump"
-       testrig stop -Target server -As <id>
-       testrig deploy ScenarioRunner -Target server -As <id> -Configuration Release
-       set TestRig/DedicatedServer/install/BepInEx/config/net.scenariorunner.cfg  [Probe] Scenario = device-port-dump
-       testrig start -Target server -As <id> -New Lunar
-       wait for "device-port-dump END" in TestRig/DedicatedServer/install/BepInEx/LogOutput.log
+       dotnet build TestRig/dev-plugins/TestRig/TestRig.sln -c Release
+       TestRig/testrig.exe lock   --purpose "device-port dump"          (prints TESTRIG-OWNER <id>)
+       TestRig/testrig.exe stop   --target server --as <id>
+       TestRig/testrig.exe deploy TestRig --target server --as <id>
+       TestRig/testrig.exe start  --target server --new Lunar --as <id>
+       TestRig/testrig.exe wait   --target server --stage inWorld --wait-seconds 600
+       TestRig/testrig.exe call   --target server --as <id> --path "/scenario/run?id=device-port-dump&ticks=4"
        copy TestRig/DedicatedServer/install/BepInEx/device-port-dump.json
+       TestRig/testrig.exe unlock --as <id>
+     ARMING CHANGED. The scenario is no longer armed by a BepInEx config value: the merged
+     plugin moved the armed set out of config entirely (it lives under the BepInEx root as
+     testrig/scenarios.armed, written by POST /scenario/arm), precisely so the rig's session
+     reset cannot silently disarm a probe. device-port-dump is NOT boot-ordered, so it is
+     invoked directly with /scenario/run, which returns its own [ScenarioRunner] lines in the
+     response body. Nothing is grepped out of a log and no restart is needed.
+     TICKS. Scenario bodies run on the SIMULATION tick, and a dedicated server with no client
+     connected runs ZERO ticks: the game parks the world about five seconds after start. The
+     rig's server has InspectorPlus's "Force Unpause Without Client" enabled in
+     install/BepInEx/config/net.inspectorplus.cfg for exactly this. Without it, connect a client
+     first or the run comes back empty. GET /scenarios reports ticksSeen and warns when it is 0.
      SANITY: a correct full-mod run logs ~ totalPrefabs=2041 emitted=378 mods=77 rocketFamily=92.
      If you see ~ totalPrefabs=1562 emitted=321 mod=0 mods=1, the Workshop mods did NOT load
      (vanilla-only) and the dump is WRONG: the mods must be synced into TestRig/DedicatedServer/data/mods/
