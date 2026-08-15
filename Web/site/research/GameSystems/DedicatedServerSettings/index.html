@@ -4215,6 +4215,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="-new &lt;world&gt; [difficulty] [startcondition] (NewGameCommand, line 97302)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#where-the-valid-ids-live-on-disk-and-how-to-read-them-without-launching" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Where the valid ids live on disk, and how to read them without launching
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
         
           <li class="md-nav__item">
@@ -8938,6 +8955,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="-new &lt;world&gt; [difficulty] [startcondition] (NewGameCommand, line 97302)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#where-the-valid-ids-live-on-disk-and-how-to-read-them-without-launching" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Where the valid ids live on disk, and how to read them without launching
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
         
           <li class="md-nav__item">
@@ -9144,14 +9178,18 @@
       
         <p class="research-meta-verified">
           <strong>Verified</strong>
-           in game version <code>0.2.6228.27061</code>
-           on 2026-05-18.
+           in game version <code>0.2.6428.27798</code>
+           on 2026-08-15.
         </p>
       
       
+        <p class="research-meta-created">
+          <strong>First written</strong> against game version <code>0.2.6228.27061</code>.
+        </p>
+      
       
         <details class="research-meta-sources">
-          <summary><strong>Sources</strong> (3)</summary>
+          <summary><strong>Sources</strong> (4)</summary>
           <ul>
             
               <li><code>{'rocketstation_Data/Managed/Assembly-CSharp.dll :': 'Settings.SettingData (decompile lines 248232-248613)'}</code></li>
@@ -9159,6 +9197,8 @@
               <li><code>{'rocketstation_Data/Managed/Assembly-CSharp.dll :': 'CommandLine (decompile lines 94926-95177)'}</code></li>
             
               <li><code>{'rocketstation_Data/Managed/Assembly-CSharp.dll :': 'SaveCommand / QuitCommand / LoadGameCommand / LoadLatestCommand / NewGameCommand / SettingsCommand / SettingsPathCommand / ServerRunCommand / BanCommand'}</code></li>
+            
+              <li><code>{'rocketstation_DedicatedServer_Data/StreamingAssets/Worlds/*/*.xml :': 'GameData/WorldSettings/World[@Id]'}</code></li>
             
           </ul>
         </details>
@@ -10508,6 +10548,65 @@
 <li><code>Vulcan</code> (marked Deprecated)</li>
 </ul>
 <p><code>WorldSetting.Find("Moon")</code> returns null because the world ids live in JSON / data files that were updated past the source's hardcoded default; <code>WorldSetting.Find</code> looks them up by id from the data store. So <code>-new Moon</code> (or no world arg, which falls back to "Moon") fails with <code>No such world name: Moon. Valid worlds: Europa3, Lunar, Mars2, MimasHerschel, Venus, Vulcan (Deprecated), Vulcan2</code>. Always pass an explicit valid id.</p>
+<h4 id="where-the-valid-ids-live-on-disk-and-how-to-read-them-without-launching">Where the valid ids live on disk, and how to read them without launching<a class="headerlink" href="#where-the-valid-ids-live-on-disk-and-how-to-read-them-without-launching" title="Permanent link">&para;</a></h4>
+<!-- verified: 0.2.6428.27798 @ 2026-08-15 -->
+
+<p>The data store behind <code>WorldSetting.Find</code> is loaded from <code>StreamingAssets/Worlds/</code>: one folder per world, holding one or more <code>&lt;Name&gt;.xml</code>, each a <code>GameData</code> document whose <code>WorldSettings</code> element contains one or more <code>&lt;World Id="..."&gt;</code>. <strong>The accepted id is that <code>Id</code> attribute, and it is not the folder name in four of the nine folders</strong> on 0.2.6428.27798:</p>
+<table>
+<thead>
+<tr>
+<th>Folder</th>
+<th>File</th>
+<th><code>World Id</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Europa</code></td>
+<td><code>Europa.xml</code></td>
+<td><code>Europa3</code></td>
+</tr>
+<tr>
+<td><code>Lunar</code></td>
+<td><code>Lunar.xml</code></td>
+<td><code>Lunar</code></td>
+</tr>
+<tr>
+<td><code>Mars2</code></td>
+<td><code>Mars2.xml</code></td>
+<td><code>Mars2</code></td>
+</tr>
+<tr>
+<td><code>Mimas</code></td>
+<td><code>MimasHerschel.xml</code></td>
+<td><code>MimasHerschel</code></td>
+</tr>
+<tr>
+<td><code>Venus</code></td>
+<td><code>Venus.xml</code></td>
+<td><code>Venus</code></td>
+</tr>
+<tr>
+<td><code>Vulcan</code></td>
+<td><code>Vulcan.xml</code></td>
+<td><code>Vulcan</code> (<code>Hidden="true" Deprecated="true"</code>)</td>
+</tr>
+<tr>
+<td><code>Vulcan</code></td>
+<td><code>VulcanV2.xml</code></td>
+<td><code>Vulcan2</code></td>
+</tr>
+<tr>
+<td><code>Tutorial1</code> ... <code>Tutorial6</code></td>
+<td>various</td>
+<td><code>Tutorial1</code>, <code>Airlock</code>, <code>FurnaceBasics</code>, <code>Manufacturing</code></td>
+</tr>
+</tbody>
+</table>
+<p>Scanning folder names would therefore refuse <code>Europa3</code> and <code>MimasHerschel</code> and accept <code>Europa</code> and <code>Mimas</code>, all four wrongly, and would miss <code>Vulcan2</code> entirely because two worlds share the <code>Vulcan</code> folder in two files.</p>
+<p><strong>Tutorial worlds are excluded from the <code>-new</code> set, and the discriminator is <code>&lt;IsTutorial Value="true" /&gt;</code> inside the <code>World</code> element</strong>, not the folder name and not the id. Parsing every <code>World Id</code> and dropping the ones carrying that marker reproduces exactly the seven the server prints, which is the check that the rule is the right one.</p>
+<p>The strings themselves live in <code>Assembly-CSharp</code>: <code>No such world name:</code> and <code>. Valid worlds:</code> are two halves of one composite format, alongside <code>Tried to start a new game but no world id was provided.</code>. The three lines a successful <code>-new</code> prints around them (<code>Creating new world '&lt;X&gt;' with difficulty ...</code>, <code>WorldSetting: &lt;X&gt; StartCondition: ...</code>, <code>World &lt;X&gt; created</code>, <code>Started new game in world &lt;X&gt;.</code>) are NOT in any assembly under <code>Managed/</code>, so they come from a mod or from composed output; do not key a detector on them.</p>
+<p><strong>Operational consequence.</strong> The set is on disk before launch, so an invalid <code>-new</code> is answerable without starting anything, and it costs a ninety-second boot to discover otherwise. Worse, the server does not exit on a rejected world name: it logs the line once and then runs indefinitely with no world at all, <code>GameState</code> <code>None</code> and <code>phase</code> <code>menu</code>, answering its control plane normally throughout. Nothing else about the process distinguishes that state from a world that is still loading. <code>TestRig/testrig.exe</code> validates <code>--new</code> against this catalogue before launching and scans for the rejection line while waiting for readiness.</p>
 <h3 id="save-name-save-delete-name-save-list-savecommand-line-96400"><code>save &lt;name&gt;</code> / <code>save delete &lt;name&gt;</code> / <code>save list</code> (SaveCommand, line 96400)<a class="headerlink" href="#save-name-save-delete-name-save-list-savecommand-line-96400" title="Permanent link">&para;</a></h3>
 <div class="language-csharp highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="k">public</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="n">HelpText</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="s">&quot;Saves the current game to specified path&quot;</span><span class="p">;</span>
 </span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="k">public</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="kt">string</span><span class="p">[]</span><span class="w"> </span><span class="n">Arguments</span><span class="w"> </span><span class="o">=&gt;</span>
