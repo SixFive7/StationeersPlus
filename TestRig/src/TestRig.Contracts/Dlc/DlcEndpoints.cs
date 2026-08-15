@@ -93,9 +93,19 @@ public sealed record DlcState
     [JsonPropertyName("removedShared")]
     public string? RemovedShared { get; init; }
 
-    /// <summary>The <c>epoch.session</c> the baseline was captured in. A later session invalidates it.</summary>
+    /// <summary>
+    ///     The <c>epoch.session</c> the baseline was captured in. A later session
+    ///     invalidates it.
+    /// </summary>
+    /// <remarks>
+    ///     A <c>long</c>, matching <see cref="EpochBlock.Session"/>, which is the value the
+    ///     plugin copies in here. It was <c>int?</c>, so one field said the session counter
+    ///     was 32 bits wide and another said 64. The counter never gets near either bound,
+    ///     but a wire type narrower than its source is the defect class that made
+    ///     <c>connectionId</c> take a whole endpoint down, and agreeing costs nothing.
+    /// </remarks>
     [JsonPropertyName("baselineSession")]
-    public int? BaselineSession { get; init; }
+    public long? BaselineSession { get; init; }
 
     [JsonPropertyName("removeCalls")]
     public int? RemoveCalls { get; init; }
@@ -306,8 +316,9 @@ public sealed record DlcRestoreResponse : IWireResult
     [JsonPropertyName("sharedAfter")]
     public string? SharedAfter { get; init; }
 
+    /// <summary>A <c>long</c>, matching <see cref="EpochBlock.Session"/> and <see cref="DlcState.BaselineSession"/>.</summary>
     [JsonPropertyName("baselineSession")]
-    public int? BaselineSession { get; init; }
+    public long? BaselineSession { get; init; }
 
     [JsonPropertyName("error")]
     public string? Error { get; init; }

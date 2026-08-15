@@ -24,6 +24,33 @@ namespace TestRig.Playtest.Seams;
 ///     publishes NativeAOT where reflection-based serialization is trimmed away entirely.
 ///     </para>
 /// </remarks>
+/// <summary>
+///     The plugin answered with something this launcher's wire contract cannot represent.
+/// </summary>
+/// <remarks>
+///     <para>
+///     Distinct from <see cref="RigTransportException"/>, which means the answer never
+///     arrived. This one means it arrived and the two sides disagree about its shape, which
+///     is a defect in one of them and is never transient.
+///     </para>
+///     <para>
+///     The message names the field, because the failure it replaces named nothing. A
+///     <c>long</c> connection id in an <c>int?</c> made the deserializer throw, the reader
+///     return null for the entire response, and the harness conclude a joiner sitting in the
+///     world had never arrived.
+///     </para>
+/// </remarks>
+public sealed class RigWireFormatException : Exception
+{
+    public RigWireFormatException(string message) : base(message)
+    {
+    }
+
+    public RigWireFormatException(string message, Exception inner) : base(message, inner)
+    {
+    }
+}
+
 public static class RigWire
 {
     /// <summary>Serializes a Contracts request record to a JSON body.</summary>
@@ -62,9 +89,30 @@ public static class RigWire
 
     /// <summary>Parses a response body as one of the Contracts response records.</summary>
     /// <remarks>
-    ///     Returns null when the body is not that shape at all. A caller that gets null has a
-    ///     transport or routing problem, not a value; it never gets to conclude anything.
+    ///     <para>
+    ///     <b>Null means the plugin sent nothing.</b> An empty body is the only thing that
+    ///     produces one. Anything present that will not parse throws
+    ///     <see cref="RigWireFormatException"/> naming the field, what the contract wanted
+    ///     and what arrived.
+    ///     </para>
+    ///     <para>
+    ///     This used to swallow every <see cref="JsonException"/> and return null, which made
+    ///     the two cases indistinguishable and turned a one-field defect into a total one.
+    ///     <c>ConnectedClient.ConnectionId</c> was typed <c>int?</c> against a <c>long</c>
+    ///     RakNet id; the throw took out the WHOLE <c>/status</c> payload, the host's roster
+    ///     read as empty, and four playtest checks reported
+    ///     <c>inconclusive (joiner-not-in-roster)</c> against a rig that was joining
+    ///     perfectly. Nothing anywhere said the word <c>connectionId</c>.
+    ///     </para>
+    ///     <para>
+    ///     A throw is right rather than merely louder, because no caller can act on this.
+    ///     A body that is well formed but does not fit the contract fits no better on the
+    ///     next poll, so a reader loop that treated null as "not ready yet" burned its whole
+    ///     timeout and then blamed the game. The runner classifies the throw as
+    ///     <c>inconclusive/wire-format</c>, so it accuses the wire and never the mod.
+    ///     </para>
     /// </remarks>
+    /// <exception cref="RigWireFormatException">The body is present and does not parse as <typeparamref name="T"/>.</exception>
     public static T? Deserialize<T>(string json) where T : class
     {
         if (string.IsNullOrWhiteSpace(json)) return null;
@@ -73,9 +121,95 @@ public static class RigWire
         {
             return JsonSerializer.Deserialize(json, typeof(T), RigJson.Context) as T;
         }
+        catch (JsonException ex)
+        {
+            throw new RigWireFormatException(Diagnose(typeof(T), json, ex), ex);
+        }
+    }
+
+    /// <summary>
+    ///     Builds the sentence <see cref="Deserialize{T}"/> throws: which field, what the
+    ///     contract wanted, what actually arrived.
+    /// </summary>
+    /// <remarks>
+    ///     <see cref="JsonException.Path"/> carries the field, so the value at it can be read
+    ///     back out of the body and quoted. That is the whole point: "expected string, got the
+    ///     number 189151461494586169" names the fix, where "returned null" named nothing.
+    /// </remarks>
+    internal static string Diagnose(Type target, string json, JsonException ex)
+    {
+        ArgumentNullException.ThrowIfNull(target);
+        ArgumentNullException.ThrowIfNull(ex);
+
+        // "$" is the root, which names nothing more than the type already does.
+        var path = string.IsNullOrEmpty(ex.Path) || ex.Path == "$" ? null : ex.Path;
+        var found = path is null ? null : ValueAt(json, path);
+
+        var where = path is null
+            ? $"'{target.Name}'"
+            : $"'{target.Name}' at {path}";
+
+        var what = found is null
+            ? string.Empty
+            : $" The value there is {found}.";
+
+        return
+            $"The plugin's answer does not fit {where}, so nothing could be read from it. " +
+            "This is a wire contract defect, not a value: the field is typed more narrowly here than the " +
+            "plugin can emit, or the two disagree about number against string." + what +
+            $" {ex.Message}";
+    }
+
+    /// <summary>Renders the token at a <see cref="JsonException.Path"/>, or null when it cannot be found.</summary>
+    private static string? ValueAt(string json, string path)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(json);
+            var element = document.RootElement;
+
+            foreach (var step in Steps(path))
+            {
+                if (int.TryParse(step, NumberStyles.Integer, CultureInfo.InvariantCulture, out var index))
+                {
+                    if (element.ValueKind != JsonValueKind.Array || index >= element.GetArrayLength()) return null;
+                    element = element[index];
+                    continue;
+                }
+
+                if (element.ValueKind != JsonValueKind.Object || !element.TryGetProperty(step, out element)) return null;
+            }
+
+            var raw = element.GetRawText();
+            if (raw.Length > 120) raw = raw[..120] + "...";
+            return $"the {element.ValueKind.ToString().ToLowerInvariant()} {raw}";
+        }
         catch (JsonException)
         {
+            // The body is not well-formed JSON at all, so there is no token to quote. The
+            // serializer's own message already says where it gave up.
             return null;
+        }
+    }
+
+    /// <summary>Splits <c>$.connectedClients[0].connectionId</c> into its steps.</summary>
+    private static IEnumerable<string> Steps(string path)
+    {
+        foreach (var part in path.Split('.'))
+        {
+            if (part.Length == 0 || part == "$") continue;
+
+            var bracket = part.IndexOf('[', StringComparison.Ordinal);
+            if (bracket < 0)
+            {
+                yield return part;
+                continue;
+            }
+
+            if (bracket > 0) yield return part[..bracket];
+
+            foreach (var index in part[bracket..].Split('[', StringSplitOptions.RemoveEmptyEntries))
+                yield return index.TrimEnd(']');
         }
     }
 

@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.Text.Json.Nodes;
 using TestRig.Contracts;
 using TestRig.Playtest.Evidence;
@@ -351,5 +352,108 @@ public sealed class PrimitivesTests
     {
         var json = RigWire.Serialize(new ConfigSetRequest { Guid = "g", Section = "s", Key = "k", Value = "true", Save = false });
         Assert.Equal("""{"guid":"g","section":"s","key":"k","value":"true","save":false}""", json);
+    }
+
+    // ---- a body that does not fit the contract is loud, and names the field ----
+
+    /// <summary>
+    ///     Null means the plugin sent nothing, and it means only that.
+    /// </summary>
+    [Fact]
+    public void AnEmptyBodyIsTheOnlyThingThatDeserializesToNull()
+    {
+        Assert.Null(RigWire.Deserialize<StatusResponse>(string.Empty));
+        Assert.Null(RigWire.Deserialize<StatusResponse>("   "));
+    }
+
+    /// <summary>
+    ///     The original defect, from the reading end. A <c>long</c> connection id against the
+    ///     old <c>int?</c> made the deserializer throw, and the catch turned one bad field
+    ///     into a null for the WHOLE response, so the host's roster read as empty and the
+    ///     harness said the joiner had never arrived.
+    /// </summary>
+    [Fact]
+    public void ABodyThatDoesNotFitTheContractThrowsAndNamesTheFieldAndTheValue()
+    {
+        // referenceId is a long on a Thing row, so a string there is the same class of
+        // disagreement in the other direction, and it is one the current contract still
+        // rejects.
+        var thrown = Assert.Throws<RigWireFormatException>(() => RigWire.Deserialize<ThingResponse>(
+            """{"ok":true,"things":[{"requestedRefId":"442","found":true,"referenceId":"442"}]}"""));
+
+        Assert.Contains("things[0].referenceId", thrown.Message, StringComparison.Ordinal);
+        Assert.Contains("\"442\"", thrown.Message, StringComparison.Ordinal);
+        Assert.Contains("ThingResponse", thrown.Message, StringComparison.Ordinal);
+        Assert.IsType<JsonException>(thrown.InnerException);
+    }
+
+    /// <summary>A number where the contract wants a string is named the same way.</summary>
+    [Fact]
+    public void ANumberWhereTheContractWantsAStringIsNamedWithItsValue()
+    {
+        var thrown = Assert.Throws<RigWireFormatException>(() => RigWire.Deserialize<StatusResponse>(
+            """{"ok":true,"connectedClients":[{"clientId":"1","connectionId":189151461494586169}]}"""));
+
+        Assert.Contains("connectedClients[0].connectionId", thrown.Message, StringComparison.Ordinal);
+        Assert.Contains("189151461494586169", thrown.Message, StringComparison.Ordinal);
+        Assert.Contains("number", thrown.Message, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    ///     A body that is not JSON at all still throws rather than vanishing, and says where
+    ///     the parse gave up. There is no token to quote, so it does not invent one.
+    /// </summary>
+    [Fact]
+    public void ABodyThatIsNotJsonAtAllStillThrowsRatherThanVanishing()
+    {
+        var thrown = Assert.Throws<RigWireFormatException>(
+            () => RigWire.Deserialize<StatusResponse>("<html>404 not found</html>"));
+
+        Assert.Contains("StatusResponse", thrown.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain("The value there is", thrown.Message, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    ///     The throw is classified as <c>inconclusive/wire-format</c>, so it accuses the wire
+    ///     rather than the mod, and does so under a name a report reader can act on. It used
+    ///     to be indistinguishable from "the plugin sent nothing".
+    /// </summary>
+    [Fact]
+    public void AWireFormatFailureIsClassifiedInconclusiveUnderItsOwnDetector()
+    {
+        var thrown = Assert.Throws<RigWireFormatException>(() => RigWire.Deserialize<StatusResponse>(
+            """{"ok":true,"connectedClients":[{"clientId":"1","connectionId":189151461494586169}]}"""));
+
+        var classified = SignalClassifier.Classify(thrown);
+
+        Assert.Equal(CheckOutcome.Inconclusive, classified.Outcome);
+        Assert.Equal(Detectors.WireFormat, classified.Detector);
+        Assert.Contains("connectedClients[0].connectionId", classified.Message, StringComparison.Ordinal);
+        Assert.NotEqual(Detectors.UnclassifiedError, classified.Detector);
+    }
+
+    /// <summary>A wire-format failure nested inside another throw is still found.</summary>
+    [Fact]
+    public void AWireFormatFailureIsFoundThroughAnInnerChain()
+    {
+        var inner = new RigWireFormatException("the plugin's answer does not fit 'StatusResponse'");
+        var classified = SignalClassifier.Classify(new InvalidOperationException("rethrown", inner));
+
+        Assert.Equal(Detectors.WireFormat, classified.Detector);
+        Assert.Equal(CheckOutcome.Inconclusive, classified.Outcome);
+    }
+
+    /// <summary>
+    ///     A real signal still wins. A check that declared itself inconclusive must not be
+    ///     relabelled just because something wire-shaped is in its inner chain.
+    /// </summary>
+    [Fact]
+    public void ASignalStillOutranksAWireFormatFailureInTheSameChain()
+    {
+        var signal = PlaytestSignal.Inconclusive("the check declined", Detectors.CheckDeclined);
+        var wrapped = new InvalidOperationException("outer", new AggregateException(
+            signal, new RigWireFormatException("does not fit")));
+
+        Assert.Equal(Detectors.CheckDeclined, SignalClassifier.Classify(wrapped).Detector);
     }
 }

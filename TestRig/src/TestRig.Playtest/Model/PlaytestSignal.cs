@@ -1,3 +1,5 @@
+using TestRig.Playtest.Seams;
+
 namespace TestRig.Playtest.Model;
 
 /// <summary>
@@ -110,6 +112,33 @@ public static class SignalClassifier
         return null;
     }
 
+    /// <summary>Finds a wire-format failure in an exception or its inner chain, or null.</summary>
+    /// <remarks>
+    ///     The same walk as <see cref="Find"/>, and for the same reason: a check that catches
+    ///     and rethrows inside a <c>finally</c> nests the original.
+    /// </remarks>
+    public static RigWireFormatException? FindFormat(Exception? exception)
+    {
+        var current = exception;
+        for (var depth = 0; current is not null && depth <= MaxInnerDepth; depth++)
+        {
+            if (current is RigWireFormatException format) return format;
+
+            if (current is AggregateException aggregate)
+            {
+                foreach (var inner in aggregate.InnerExceptions)
+                {
+                    var found = FindFormat(inner);
+                    if (found is not null) return found;
+                }
+            }
+
+            current = current.InnerException;
+        }
+
+        return null;
+    }
+
     /// <summary>
     ///     Classify anything thrown out of a check body.
     /// </summary>
@@ -131,6 +160,23 @@ public static class SignalClassifier
                 signal.Detector,
                 signal.Message,
                 signal.Detail);
+        }
+
+        // A wire-contract mismatch is inconclusive like anything else unmarked, but it gets
+        // its own name because the remedy is a code change rather than a re-run, and because
+        // the failure it replaced reported a joiner as absent from a roster it was in.
+        var format = FindFormat(exception);
+        if (format is not null)
+        {
+            return new ErrorClassification(
+                CheckOutcome.Inconclusive,
+                Detectors.WireFormat,
+                format.Message,
+                PlaytestJson.Detail(new Dictionary<string, object?>
+                {
+                    ["type"] = format.GetType().FullName,
+                    ["inner"] = format.InnerException?.Message,
+                }));
         }
 
         return new ErrorClassification(

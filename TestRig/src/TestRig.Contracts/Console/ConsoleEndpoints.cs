@@ -138,8 +138,21 @@ public sealed record ConsoleBufferLine
     [JsonPropertyName("time")]
     public string? Time { get; init; }
 
+    /// <summary>
+    ///     The packed ImGui colour, <b>unsigned</b>. <c>ConsoleWindow.ConsoleLine.Color</c>
+    ///     is a <c>uint</c> and the plugin writes it as a bare JSON number.
+    /// </summary>
+    /// <remarks>
+    ///     Typed <c>int</c> this overflowed on every opaque colour, because the alpha byte
+    ///     sets the high bit: the default is
+    ///     <c>ColorConvertFloat4ToU32(0.7, 0.7, 0.7, 1.0)</c>, comfortably past
+    ///     <c>int.MaxValue</c>. One row was enough to take the whole <c>/console/buffer</c>
+    ///     response down, the same way an oversized <c>connectionId</c> took
+    ///     <c>/status</c> down. Found by auditing the assembly after that one, not by any
+    ///     test: the sample in <c>WireTrapFieldTests</c> used the value 3.
+    /// </remarks>
     [JsonPropertyName("color")]
-    public int Color { get; init; }
+    public uint Color { get; init; }
 
     [JsonPropertyName("text")]
     public string? Text { get; init; }

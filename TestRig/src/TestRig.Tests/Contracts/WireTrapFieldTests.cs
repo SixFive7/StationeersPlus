@@ -92,13 +92,74 @@ public sealed class WireTrapFieldTests
             """
             {"ok":true,"connectedClients":[
               {"clientId":"900000000002","username":"joiner","state":"Connected",
-               "isHost":false,"connectionId":2}]}
+               "isHost":false,"connectionId":"189151461494586169"}]}
             """);
 
         ConnectedClient row = Assert.Single(parsed.ConnectedClients!);
         Assert.Equal("900000000002", row.ClientId);
         Assert.Equal("Connected", row.State);
-        Assert.Equal(2, row.ConnectionId);
+        Assert.Equal("189151461494586169", row.ConnectionId);
+    }
+
+    /// <summary>
+    ///     <c>connectionId</c> is a RakNet <c>long</c>, and it is a <b>string</b> on the wire
+    ///     like the <c>clientId</c> beside it.
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///     This was typed <c>int?</c> and the sample here asserted <c>connectionId == 2</c>,
+    ///     which is why 1,688 tests never caught it. The two values below are the ones
+    ///     measured on one real join, and both are past 2^53, let alone 2^31: the deserializer
+    ///     threw on the value, <c>RigWire.Deserialize</c> returned null for the WHOLE
+    ///     <c>/status</c> payload, and four of eight playtest checks reported
+    ///     <c>inconclusive (joiner-not-in-roster)</c> against a rig that was joining
+    ///     perfectly.
+    ///     </para>
+    ///     <para>
+    ///     A listen host's own row carries <c>"0"</c>, from
+    ///     <c>NetworkServer.PopulateHostClient</c>, so the small case has to keep working too.
+    ///     Both are asserted here.
+    ///     </para>
+    /// </remarks>
+    [Fact]
+    public void RosterConnectionIdIsAStringAndSurvivesTheMeasuredRakNetIds()
+    {
+        var parsed = Parse<StatusResponse>(
+            """
+            {"ok":true,"connectedClients":[
+              {"clientId":"900000000001","username":"hostie","state":"Connected",
+               "isHost":true,"connectionId":"0"},
+              {"clientId":"900000000002","username":"joiner","state":"Connected",
+               "isHost":false,"connectionId":"189151461494586169"},
+              {"clientId":"900000000003","username":"second","state":"Connected",
+               "isHost":false,"connectionId":"1044835390751713754"}]}
+            """);
+
+        Assert.Equal(3, parsed.ConnectedClients!.Length);
+
+        // The host's own row: small, and still a string.
+        Assert.Equal("0", parsed.ConnectedClients[0].ConnectionId);
+        Assert.True(parsed.ConnectedClients[0].IsHost);
+
+        // Both measured joiner ids, exact to the last digit. Rendered through a double they
+        // would come back as 189151461494586180 and 1044835390751713800.
+        Assert.Equal("189151461494586169", parsed.ConnectedClients[1].ConnectionId);
+        Assert.Equal("1044835390751713754", parsed.ConnectedClients[2].ConnectionId);
+
+        Assert.NotEqual(189151461494586169d.ToString("R"), parsed.ConnectedClients[1].ConnectionId);
+        Assert.NotEqual(1044835390751713754d.ToString("R"), parsed.ConnectedClients[2].ConnectionId);
+    }
+
+    /// <summary>
+    ///     The old spelling must not bind. A bare number where the contract wants a string is
+    ///     the exact shape that took the endpoint down, so it has to be a throw and not a
+    ///     tolerated coercion.
+    /// </summary>
+    [Fact]
+    public void RosterConnectionIdRejectsTheOldNumericSpelling()
+    {
+        Assert.Throws<JsonException>(() => Parse<StatusResponse>(
+            """{"ok":true,"connectedClients":[{"clientId":"900000000002","connectionId":2}]}"""));
     }
 
     /// <summary>
@@ -175,6 +236,35 @@ public sealed class WireTrapFieldTests
         Assert.Null(parsed.State.RemovedOwnedMask);
         Assert.Null(parsed.State.BaselineSession);
         Assert.Equal("None", parsed.State.Shared);
+    }
+
+    /// <summary>
+    ///     <c>baselineSession</c> is a copy of <c>epoch.session</c>, so it is a <c>long</c>
+    ///     here as it is there.
+    /// </summary>
+    /// <remarks>
+    ///     It was <c>int?</c> on both DLC records while <c>EpochBlock.Session</c> was
+    ///     <c>long</c>, which is the same defect class as <c>connectionId</c>: one wire type
+    ///     narrower than the value's own source. The counter never approaches either bound in
+    ///     practice, so this asserts the agreement rather than an observed overflow.
+    /// </remarks>
+    [Fact]
+    public void DlcBaselineSessionIsALongLikeTheEpochSessionItCopies()
+    {
+        var parsed = Parse<DlcResponse>(
+            """
+            {"ok":true,"epoch":{"session":4294967296},
+             "state":{"ownedMask":6,"owned":"MetallicPaints","sharedMask":0,"shared":"None",
+                      "overridden":true,"baselineSession":4294967296,"removeCalls":1,
+                      "ownedFieldReachable":true,"gameInitialized":true}}
+            """);
+
+        Assert.Equal(4294967296L, parsed.Epoch!.Session);
+        Assert.Equal(4294967296L, parsed.State!.BaselineSession);
+
+        var restore = Parse<DlcRestoreResponse>(
+            """{"ok":true,"instance":"joiner","baselineSession":4294967296}""");
+        Assert.Equal(4294967296L, restore.BaselineSession);
     }
 
     /// <summary>The pre-initialisation refusal carries <c>gameInitialized</c> at the top level as well as inside state.</summary>
@@ -284,8 +374,45 @@ public sealed class WireTrapFieldTests
 
         Assert.Equal(0, parsed.Lines![0].I);
         Assert.Equal("12:01:02", parsed.Lines[0].Time);
-        Assert.Equal(3, parsed.Lines[0].Color);
+        Assert.Equal(3u, parsed.Lines[0].Color);
         Assert.Equal(1024, parsed.BufferSize);
+    }
+
+    /// <summary>
+    ///     A console row's <c>color</c> is an <b>unsigned</b> packed ImGui colour, and every
+    ///     opaque one is past <c>int.MaxValue</c>.
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///     The same defect as <c>connectionId</c>, found by auditing the assembly after it:
+    ///     <c>ConsoleWindow.ConsoleLine.Color</c> is a <c>uint</c>, the plugin writes it as a
+    ///     bare number, and this was typed <c>int</c>. The alpha byte sets the high bit, so
+    ///     the DEFAULT colour alone overflowed and one row was enough to take the whole
+    ///     <c>/console/buffer</c> response down.
+    ///     </para>
+    ///     <para>
+    ///     The sample above uses 3, which fits an <c>int</c>, which is precisely why nothing
+    ///     caught it. Both bounds are asserted here.
+    ///     </para>
+    /// </remarks>
+    [Fact]
+    public void ConsoleBufferColorSurvivesAnOpaquePackedColourAboveIntMaxValue()
+    {
+        var parsed = Parse<ConsoleBufferResponse>(
+            """
+            {"ok":true,"count":3,"bufferSize":1024,
+             "lines":[{"i":0,"time":"12:01:02","color":4289374890,"text":"the default grey"},
+                      {"i":1,"time":"12:01:01","color":4294901760,"text":"opaque red"},
+                      {"i":2,"time":"12:01:00","color":0,"text":"headless, where ImGui is stubbed"}]}
+            """);
+
+        Assert.Equal(4289374890u, parsed.Lines![0].Color);
+        Assert.Equal(4294901760u, parsed.Lines[1].Color);
+        Assert.Equal(0u, parsed.Lines[2].Color);
+
+        // Both of the first two are past int.MaxValue, which is the whole point.
+        Assert.True(parsed.Lines[0].Color > int.MaxValue);
+        Assert.True(parsed.Lines[1].Color > int.MaxValue);
     }
 
     // ---- /nearby: customColorIndex, not colorIndex -----------------------

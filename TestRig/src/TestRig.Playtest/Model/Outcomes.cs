@@ -75,6 +75,18 @@ public static class Detectors
     /// <summary>A reader could not reach its source and nothing more specific matched.</summary>
     public const string ReaderUnreachable = "reader-unreachable";
 
+    /// <summary>
+    ///     The plugin's answer arrived and does not fit the wire contract.
+    /// </summary>
+    /// <remarks>
+    ///     Separate from <see cref="ReaderUnreachable"/> on purpose: the source was reached
+    ///     and answered, so the fault is a disagreement between this assembly's records and
+    ///     what the plugin emits, and the remedy is a code change on one side rather than a
+    ///     re-run. Without it, a <c>long</c> connection id in an <c>int?</c> field made every
+    ///     read of <c>/status</c> return null and the harness reported the joiner missing.
+    /// </remarks>
+    public const string WireFormat = "wire-format";
+
     /// <summary>The rig lock could not be taken, or was taken without an owner id.</summary>
     public const string RigUnavailable = "rig-unavailable";
 

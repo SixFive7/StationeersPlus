@@ -209,6 +209,30 @@ public sealed record ConnectedClient
     [JsonPropertyName("isHost")]
     public bool IsHost { get; init; }
 
+    /// <summary>
+    ///     A <b>string</b>, for the same reason as <see cref="ClientId"/> and beside it in
+    ///     the same row.
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///     <c>Client.connectionId</c> is a <c>long</c> RakNet connection id and the values
+    ///     are enormous: 189151461494586169 and 1044835390751713754, both measured on one
+    ///     join. This was typed <c>int?</c>, so <c>System.Text.Json</c> threw on the value,
+    ///     the reader returned null <b>for the whole</b> <c>/status</c> payload rather than
+    ///     for one field, and the host's roster read as permanently empty. Four of eight
+    ///     playtest checks answered <c>inconclusive (joiner-not-in-roster)</c> against a rig
+    ///     that was joining perfectly.
+    ///     </para>
+    ///     <para>
+    ///     A string rather than a <c>long</c>, which would also hold it. Both ids in this row
+    ///     are identities, both are past 2^53, and nothing on this side computes with either;
+    ///     a reader that goes through a double (a browser, a JSON viewer, anything reading an
+    ///     evidence file) truncates a bare number of that size silently. Two ids side by side
+    ///     spelled two different ways is the inconsistency that costs the next reader, so they
+    ///     match. A listen host's own row carries <c>"0"</c>, which is what
+    ///     <c>NetworkServer.PopulateHostClient</c> assigns.
+    ///     </para>
+    /// </remarks>
     [JsonPropertyName("connectionId")]
-    public int? ConnectionId { get; init; }
+    public string? ConnectionId { get; init; }
 }

@@ -395,9 +395,11 @@ namespace TestRig
         ///     </para>
         ///
         ///     <para>
-        ///     ClientId travels as a string, matching <c>/instance</c>, because a JSON number goes
-        ///     through double on the reading side and silently loses precision above 2^53. A
-        ///     truncated ClientId is exactly the failure these ids exist to detect.
+        ///     BOTH ids on a row travel as strings. ClientId matches <c>/instance</c>, because a
+        ///     JSON number goes through double on the reading side and silently loses precision
+        ///     above 2^53, and a truncated ClientId is exactly the failure these ids exist to
+        ///     detect. connectionId joined it once the launcher's record agreed; see
+        ///     <see cref="ClientRow"/> for what the disagreement cost.
         ///     </para>
         /// </summary>
         internal static string ConnectedClientsJson()
@@ -454,13 +456,12 @@ namespace TestRig
         }
 
         /// <summary>
-        ///     One roster row.
+        ///     One roster row. <b>Both ids are strings.</b>
         ///
         ///     <para>
-        ///     <c>connectionId</c> is the reason this method exists rather than being inlined.
         ///     <c>Client.connectionId</c> is a <c>long</c> holding a RakNet connection id, and the
         ///     values are enormous: 189151461494586169 and 1044835390751713754 in one measured
-        ///     join. Emitted as a raw JSON number it does not fit the launcher's <c>int?</c>, so
+        ///     join. Emitted as a raw JSON number it did not fit the launcher's <c>int?</c>, so
         ///     System.Text.Json threw on the WHOLE /status payload, the launcher's reader returned
         ///     null, and its roster poll concluded the joiner had never arrived. That is what
         ///     produced three attempts of "roster did not grow (0 then 0)" against a host whose own
@@ -468,11 +469,19 @@ namespace TestRig
         ///     </para>
         ///
         ///     <para>
-        ///     So the number is emitted only when it round-trips Int32, and the exact value always
-        ///     rides beside it as a string. The proper fix is for the launcher's
-        ///     <c>ConnectedClient.ConnectionId</c> to become a string, the same way
-        ///     <c>clientId</c> already is and for the same reason; until it does, an id past
-        ///     2^31 reads null here rather than taking the response down with it.
+        ///     This emitted the number only when it round-tripped Int32, with the exact value beside
+        ///     it as <c>connectionIdString</c>. That degradation was a plugin-side patch for a
+        ///     launcher-side type error, and it is gone: <c>ConnectedClient.ConnectionId</c> is now
+        ///     a <c>string</c>, exactly as <c>clientId</c> is and for the same reason, so the true
+        ///     value goes out unconditionally under its own name and the second spelling is gone
+        ///     with it. Nothing read it; the only reader of either was a unit test.
+        ///     </para>
+        ///
+        ///     <para>
+        ///     The rule the pair of them stands for: <b>never emit a game id as a bare JSON number
+        ///     without checking what the launcher's Contracts record types it as.</b> An id is
+        ///     compared, never computed, so a string costs nothing and cannot overflow or lose
+        ///     precision in any reader.
         ///     </para>
         /// </summary>
         private static string ClientRow(Assets.Scripts.Client client)
@@ -482,15 +491,7 @@ namespace TestRig
             try { row.Str("username", client.name); } catch { }
             try { row.Str("state", client.state.ToString()); } catch { }
             try { row.Bit("isHost", client.IsHost); } catch { }
-            try
-            {
-                long connectionId = client.connectionId;
-                if (connectionId >= int.MinValue && connectionId <= int.MaxValue)
-                    row.Int("connectionId", connectionId);
-                else row.Raw("connectionId", "null");
-                row.Str("connectionIdString", connectionId.ToString(CultureInfo.InvariantCulture));
-            }
-            catch { }
+            try { row.Str("connectionId", client.connectionId.ToString(CultureInfo.InvariantCulture)); } catch { }
             return row.ToString();
         }
 
