@@ -46,7 +46,8 @@ public sealed record CliResult(int ExitCode, string StdOut, string StdErr)
 /// <para>
 /// Every run is pointed at a throwaway rig home, a throwaway source install and a throwaway
 /// user-data folder, so no test can reach the one real session lock, the real instance trees
-/// or the developer's saves. No test starts a game process.
+/// or the developer's saves. No test starts the game: where a live process is needed it is a
+/// copy of the shell wearing a game image name, and it is bounded in seconds.
 /// </para>
 /// </remarks>
 public sealed class CliFixture : IDisposable
@@ -163,9 +164,38 @@ public sealed class CliFixture : IDisposable
     /// a silent client cannot be holding a world, a silent host might be.
     /// </para>
     /// </remarks>
-    public static IDisposable ClaimInstanceWithALiveProcess(string home, string instance)
+    public static StandInProcess ClaimInstanceWithALiveProcess(string home, string instance)
     {
-        var stand = Path.Combine(home, "rocketstation.exe");
+        var stand = StartStandIn(home, "rocketstation");
+
+        var dir = Path.Combine(home, "ClientRig", "data", instance);
+        Directory.CreateDirectory(dir);
+        File.WriteAllText(Path.Combine(dir, "game.pid"), stand.ProcessId.ToString(CultureInfo.InvariantCulture));
+
+        return stand;
+    }
+
+    /// <summary>
+    /// A live process wearing a game image name, in a directory of the caller's choosing.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The rig identifies a game process by its image NAME and attributes it by its image
+    /// PATH, so a copy of the shell in a chosen folder reproduces either half of that
+    /// question exactly. Put it inside a rig home to make the rig's own liveness checks see
+    /// it; put it anywhere else to stand for a game process belonging to somebody else.
+    /// </para>
+    /// <para>
+    /// Thirty seconds, not three hundred. Every test it serves answers in well under one, and
+    /// a process wearing a game image name is visible to every rig session on this machine:
+    /// bounding the window bounds the blast radius if a test host dies before its finally
+    /// runs.
+    /// </para>
+    /// </remarks>
+    public static StandInProcess StartStandIn(string directory, string imageName)
+    {
+        Directory.CreateDirectory(directory);
+        var stand = Path.Combine(directory, imageName + ".exe");
         File.Copy(Path.Combine(Environment.SystemDirectory, "cmd.exe"), stand, overwrite: true);
 
         var start = new ProcessStartInfo(stand)
@@ -174,27 +204,22 @@ public sealed class CliFixture : IDisposable
             CreateNoWindow = true,
             RedirectStandardOutput = true,
             RedirectStandardInput = true,
-            WorkingDirectory = home,
+            WorkingDirectory = directory,
         };
-        // Thirty seconds, not three hundred. The test it serves refuses in well under one, and
-        // a process named 'rocketstation' is visible to every rig session on this machine as
-        // an untracked game process: bounding the window bounds the blast radius if a test
-        // host dies before its finally runs.
         start.ArgumentList.Add("/c");
         start.ArgumentList.Add("ping -n 30 127.0.0.1");
 
         var process = Process.Start(start)
-            ?? throw new InvalidOperationException("could not start the stand-in instance process");
-
-        var dir = Path.Combine(home, "ClientRig", "data", instance);
-        Directory.CreateDirectory(dir);
-        File.WriteAllText(Path.Combine(dir, "game.pid"), process.Id.ToString(CultureInfo.InvariantCulture));
+            ?? throw new InvalidOperationException($"could not start the stand-in process at {stand}");
 
         return new StandInProcess(process);
     }
 
-    private sealed class StandInProcess(Process process) : IDisposable
+    /// <summary>A stand-in process, killed when the test that started it finishes.</summary>
+    public sealed class StandInProcess(Process process) : IDisposable
     {
+        public int ProcessId { get; } = process.Id;
+
         public void Dispose()
         {
             try

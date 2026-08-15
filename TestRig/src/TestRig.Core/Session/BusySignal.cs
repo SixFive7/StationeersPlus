@@ -14,10 +14,13 @@ public sealed record InstanceState(string Name, int ProcessId, string? Role, int
 /// <summary>How an untracked game process relates to this rig.</summary>
 public enum OrphanScope
 {
-    /// <summary>Its image lives inside a rig tree, or it is a dedicated server, which the developer never runs outside the rig.</summary>
+    /// <summary>Its image lives inside one of THIS rig's own trees.</summary>
     Rig,
 
-    /// <summary>The developer's own client, running out of the real install. Never reported.</summary>
+    /// <summary>
+    /// A game process running out of somebody else's tree: the developer's own client, a
+    /// second rig home, a dedicated server nothing here installed. Never reported.
+    /// </summary>
     Foreign,
 
     /// <summary>
@@ -296,7 +299,38 @@ public sealed partial class BusyProbe
         return tracked;
     }
 
-    /// <summary>Untracked game processes that belong to this rig.</summary>
+    /// <summary>Untracked game processes that belong to THIS rig.</summary>
+    /// <remarks>
+    /// <para>
+    /// The image path decides it, and nothing else does. A process is ours when its
+    /// executable lives under one of this rig's own trees (the dedicated-server install, or
+    /// any recorded instance root), unknown when its path cannot be read at all, and
+    /// somebody else's otherwise.
+    /// </para>
+    /// <para>
+    /// There used to be one exception: an untracked dedicated server was scoped to this rig
+    /// WHEREVER it lived, on the reasoning that the developer does not run one outside the
+    /// rig. That is an assumption about a person, and the rig cannot check it. What it did
+    /// check was every other dedicated server on the machine, which it then reported as an
+    /// orphan, and a reported orphan blocks every state reset with no remedy this rig can
+    /// offer: it cannot stop a process it did not start. A second clone of this repository,
+    /// or a server the developer runs for anybody else, pinned the first rig permanently.
+    /// </para>
+    /// <para>
+    /// Measured 2026-08-15: an orphaned <c>rocketstation_DedicatedServer</c> that no pid file
+    /// claimed, running out of a folder no rig owns, made <c>reset --dry-run</c> exit 6
+    /// against a rig home in a temp folder that had never held a server at all. It also
+    /// failed the CLI suite, which is how it was found. The gate's own justification is that
+    /// an orphan "writes to exactly the folders being deleted"; a server outside this rig's
+    /// install writes to its own, so the refusal was not protecting anything.
+    /// </para>
+    /// <para>
+    /// The rig's own server can only ever run from <c>DediInstall</c> (<c>ServerPaths.Exe</c>
+    /// is built from it and <c>update-game</c> installs into it), so the path rule already
+    /// covers every server this rig could have started, and one whose path cannot be read is
+    /// still reported as <see cref="OrphanScope.Unknown"/> rather than dropped.
+    /// </para>
+    /// </remarks>
     public IReadOnlyList<OrphanProcess> FindOrphans()
     {
         var result = new List<OrphanProcess>();
@@ -342,16 +376,6 @@ public sealed partial class BusyProbe
                             break;
                         }
                     }
-                }
-
-                // An untracked dedicated server is ours wherever it lives, because the
-                // developer does not run one outside the rig. That only holds while the two
-                // image names are actually distinct, hence the explicit inequality.
-                if (scope != OrphanScope.Rig
-                    && string.Equals(proc.ImageName, _paths.ServerImage, StringComparison.OrdinalIgnoreCase)
-                    && !string.Equals(_paths.ServerImage, _paths.ClientImage, StringComparison.OrdinalIgnoreCase))
-                {
-                    scope = OrphanScope.Rig;
                 }
 
                 if (scope == OrphanScope.Foreign) continue;

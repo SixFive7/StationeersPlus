@@ -404,16 +404,77 @@ public sealed class BusySignalTests
     }
 
     [Fact]
-    public void AnUntrackedDedicatedServerIsOursWhereverItLives()
+    public void AnUntrackedDedicatedServerInThisRigsInstallIsOurs()
     {
         var rig = new RigFixture();
         rig.Processes.Add(7004, rig.Paths.ServerImage);
-        rig.ImagePaths[7004] = @"Z:\somewhere\else\rocketstation_DedicatedServer.exe";
+        rig.ImagePaths[7004] = Path.Combine(rig.Paths.DediInstall, "rocketstation_DedicatedServer.exe");
 
         var orphans = rig.Busy.FindOrphans();
 
         Assert.Single(orphans);
         Assert.Equal(OrphanScope.Rig, orphans[0].Scope);
+    }
+
+    /// <summary>
+    /// A dedicated server this rig did not install is not this rig's orphan.
+    /// </summary>
+    /// <remarks>
+    /// It used to be. The rule was "an untracked dedicated server is ours wherever it lives,
+    /// because the developer does not run one outside the rig", which is an assumption about
+    /// a person that the rig cannot check, and it cost a refusal with no remedy: a reported
+    /// orphan blocks every state reset, and this rig cannot stop a process it did not start.
+    /// A second clone of this repository, or a server run for anybody else, pinned the first
+    /// rig for as long as it lived.
+    ///
+    /// Measured 2026-08-15 on the shipped binary: an orphaned rocketstation_DedicatedServer
+    /// out of a folder no rig owns made "reset --dry-run" exit 6 against a rig home in a temp
+    /// folder that had never held a server at all.
+    /// </remarks>
+    [Fact]
+    public void AnUntrackedDedicatedServerSomewhereElseIsNotOurs()
+    {
+        var rig = new RigFixture();
+        rig.Processes.Add(7004, rig.Paths.ServerImage);
+        rig.ImagePaths[7004] = @"Z:\somewhere\else\rocketstation_DedicatedServer.exe";
+
+        Assert.Empty(rig.Busy.FindOrphans());
+        Assert.True(rig.Planner.CheckGate().Allowed, "somebody else's server must not block this rig's reset");
+    }
+
+    /// <summary>
+    /// A dedicated server under a SECOND recorded instance root is still ours.
+    /// </summary>
+    /// <remarks>
+    /// The path rule is what carries the whole answer now, so it has to cover every tree this
+    /// rig records and not merely the install (CLIENT-007 in the other direction).
+    /// </remarks>
+    [Fact]
+    public void AnUntrackedDedicatedServerUnderARecordedInstanceRootIsOurs()
+    {
+        var rig = new RigFixture();
+        rig.Processes.Add(7005, rig.Paths.ServerImage);
+        rig.ImagePaths[7005] = Path.Combine(RigFixture.InstancesRoot, "srv", "rocketstation_DedicatedServer.exe");
+
+        Assert.Equal(OrphanScope.Rig, Assert.Single(rig.Busy.FindOrphans()).Scope);
+    }
+
+    /// <summary>
+    /// A dedicated server whose image path cannot be read is still reported.
+    /// </summary>
+    /// <remarks>
+    /// The safe direction survives the scoping change: dropping the one process nobody can
+    /// identify is how an orphan stays invisible, and this is the case the "wherever it
+    /// lives" rule was really covering.
+    /// </remarks>
+    [Fact]
+    public void AnUntrackedDedicatedServerWithNoReadableImagePathIsStillReported()
+    {
+        var rig = new RigFixture();
+        rig.Processes.Add(7006, rig.Paths.ServerImage);
+
+        Assert.Equal(OrphanScope.Unknown, Assert.Single(rig.Busy.FindOrphans()).Scope);
+        Assert.False(rig.Planner.CheckGate().Allowed);
     }
 
     [Fact]

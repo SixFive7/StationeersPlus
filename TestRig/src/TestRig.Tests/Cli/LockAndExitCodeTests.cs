@@ -1,4 +1,5 @@
 using System.Text.Json;
+using TestRig.Tests.Infrastructure;
 using Xunit;
 
 namespace TestRig.Tests.Cli;
@@ -401,6 +402,56 @@ public sealed class LockAndExitCodeTests(CliFixture rig)
         Assert.Equal(Ok, doc.RootElement.GetProperty("exitCode").GetInt32());
         Assert.True(values.GetProperty("whatIf").GetBoolean());
         Assert.Equal(0, values.GetProperty("worldDeletes").GetInt32());
+    }
+
+    /// <summary>
+    /// A game process running out of somebody else's folder is not this rig's orphan.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Measured 2026-08-15, and it is why this test exists at CLI level rather than only over
+    /// a fake process table. An orphaned <c>rocketstation_DedicatedServer</c> that no pid file
+    /// claimed, out of a folder no rig owns, made
+    /// <see cref="ResetNeedsTheLockAndDryRunChangesNothing"/> exit 6 with no source change
+    /// involved, and it passed again once that process died. The composition binds the REAL
+    /// process table, so an isolated <c>TESTRIG_HOME</c> never isolated this: the scan asked
+    /// the machine, and the rule it applied claimed every dedicated server on it.
+    /// </para>
+    /// <para>
+    /// Two things are being pinned, and the first is production behaviour rather than a test
+    /// affordance. A reported orphan blocks every state reset, and this rig can neither stop
+    /// nor identify a process it did not start, so claiming somebody else's server was a
+    /// refusal with no remedy. The second is the suite's own hermeticity, which falls out of
+    /// the first: what the developer happens to be running must not decide the result.
+    /// </para>
+    /// <para>
+    /// The stand-in wears the server image name on purpose. The client image was already
+    /// scoped correctly by path and reproduces nothing.
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public void AGameProcessOutsideEveryRigTreeIsNotThisRigsOrphan()
+    {
+        using var elsewhere = new TempDirectory("foreign-game");
+        using var foreign = CliFixture.StartStandIn(elsewhere.Path, "rocketstation_DedicatedServer");
+
+        var (home, owner) = rig.LockedHome("foreignserver");
+
+        var reset = rig.RunIn(home, "reset", "--as", owner, "--dry-run", "--json");
+        using var plan = reset.Json();
+        Assert.Equal(Ok, plan.RootElement.GetProperty("exitCode").GetInt32());
+        Assert.False(
+            plan.RootElement.GetProperty("values").GetProperty("wouldRefuse").GetBoolean(),
+            $"the dry run says the real reset would refuse\n{reset.All}");
+
+        // And it is not merely uncounted: it is not named either, so nobody is sent to kill a
+        // pid that was never this rig's.
+        var status = rig.RunIn(home, "status", "--as", owner, "--json");
+        using var doc = status.Json();
+        Assert.DoesNotContain(
+            $"pid {foreign.ProcessId}",
+            doc.RootElement.GetProperty("values").GetProperty("busyDetail").GetString() ?? string.Empty,
+            StringComparison.Ordinal);
     }
 
     [Fact]
