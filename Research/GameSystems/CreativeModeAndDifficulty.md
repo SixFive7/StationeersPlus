@@ -214,7 +214,7 @@ public override bool IsLaunchCmd => true;
 - `difficulty` (no args): prints `DifficultySetting.Current.DebugPrint()`.
 - `difficulty <name>`: `DifficultySetting.Find(name)` then `DifficultySetting.SetCurrent(...)`. Passing `difficulty Creative` puts the world into creative.
 - Host-only: calls `CommandBase.CannotAsClient("difficulty")` (line 95379), so a remote client is blocked. No single-player block. `IsLaunchCmd => true` (also a launch flag; defers via `WaitExecute` until `GameManager.IsInitialized` if not ready).
-- No network push inside Execute (see Networking above). Logic-only, no UI dependency, so it works headless IF stdin reaches the dispatcher.
+- No network push inside Execute (see Networking above). Logic-only, no UI dependency, so it works headless. Reaching it on a dedicated server means an in-process `ConsoleWindow.Submit` (a BepInEx plugin) or `serverrun` from a connected client with the matching `ServerAuthSecret`. It does NOT mean writing to the process's stdin: nothing reads a stdin stream, and the system console reads keystrokes from the Win32 console input buffer instead. See [DedicatedServerSettings, "The console channel"](./DedicatedServerSettings.md).
 
 `worldsetting` (`WorldSettingWindowCommand`, line 100254) only opens an ImGui authoring window (a no-op on `-batchmode -nographics`); `world` (`PrintWorldSettingsCommand`, line 98090) only prints. Neither sets game mode.
 
@@ -233,6 +233,8 @@ Completeness caveat: flipping ONLY `WorldManager.Instance.GameMode` enables the 
 
 ## Verification history
 <!-- verified: 0.2.6228.27061 @ 2026-06-25 -->
+
+- 2026-08-15: the `difficulty` command section carried the conditional "so it works headless IF stdin reaches the dispatcher". A fresh validator resolved that condition at 0.2.6428.27798 under `Research/WORKFLOW.md` Rule 3: stdin never reaches the dispatcher, in any configuration. The dedicated server's console reads keystrokes from the Win32 console input buffer via `System.Console.ReadKey()` and is not constructed at all when `-logFile` is on the launch line; nothing in the assembly reads a stdin stream. Result: the conditional is replaced with the two channels that do work on a headless server, an in-process `ConsoleWindow.Submit` and `serverrun`. No claim about `difficulty` itself was re-read against the game, so the section stamp did not move. Evidence: [DedicatedServerSettings, "The console channel"](./DedicatedServerSettings.md).
 
 - 2026-06-25: page created from a decompile read of `Assembly-CSharp` at game version 0.2.6228.27061 (`.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs`) plus the live `difficultySettings.xml` content data. The `GameMode` enum, `WorldManager.GameMode`/`SetCreativeMode`/`IsCreative`, the `DifficultySetting.SetCurrent` -> `SetCreativeMode` bridge, the `XmlSaveLoad.WorldData`/`LoadWorld` save path, the `DifficultySettingsCommand`, the join handshake (`SerializeOnJoin`/`DeserializeOnJoin`), and the `SyncGameMode` (id 78) live-sync are all verbatim from the decompile with line numbers. The stock `Creative` difficulty preset block is verbatim from `difficultySettings.xml`. The `<DifficultySetting Id="Normal" />` / `<WorldSetting Id="Lunar" />` save shape was confirmed against a real Luna save's world.xml.
 

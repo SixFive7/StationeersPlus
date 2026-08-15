@@ -8,6 +8,7 @@ sources:
   - .work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs :: line 267571 (StationAutoSave), 267592 (ResetAutoSave), 267612 (AutoSaveNow), 264928 (SaveHelper.DoAutoSave), 264943 (SaveHelper.PrepareToSave)
 related:
   - ./SimulationTickDriverHooks.md
+  - ./DedicatedServerSettings.md
   - ../Workflows/StationeersLaunchPadDedicatedServer.md
 tags: [save-load, threading]
 ---
@@ -69,11 +70,12 @@ On a dedicated server started with `-new <Map>`, `XmlSaveLoad.Instance.CurrentSt
 
 Consequences:
 
-- A `-new` world produces NO real autosaves until it gets a name. The stdin console `save "<name>"` path would assign one, but stdin console commands are a no-op on the batch-mode dedicated server (observed at 0.2.6228.27061 and re-confirmed at 0.2.6403.27689: `save` queued via the launcher control file produced no save folder, no log response). Starting with `-load <SaveName>` instead gives the world a name from the start and autosaves work normally.
+- A `-new` world produces NO real autosaves until it gets a name. A console `save "<name>"` assigns one, but **delivering it by writing to the server process's stdin is a no-op** (observed at 0.2.6228.27061 and re-confirmed at 0.2.6403.27689: `save` queued via the launcher control file produced no save folder and no log response; the cause was found at 0.2.6428.27798 on 2026-08-15 and is not what the wording here implied until then). The server's console reads keystrokes from the Win32 console input buffer via `Console.ReadKey()`, never a stdin stream, and with `-logFile` on the launch line the console object is not constructed at all: [DedicatedServerSettings, "The console channel"](./DedicatedServerSettings.md). The same `save "<name>"` DOES work when delivered in-process, through a BepInEx plugin calling `ConsoleWindow.Submit`, or from a connected client via `serverrun`. Starting with `-load <SaveName>` instead gives the world a name from the start and autosaves work normally, and remains the simplest route.
 - When a test plan uses "an AutoSave line" as the world-is-ticking readiness marker (`TestRig/RESEARCH.md`, "Dedicated-server internals worth knowing"), on a `-new` world watch for the `Save Failed: Folder name is empty.` line instead; it is emitted at the same cadence and implies the same unpaused-and-running state.
 
 ## Verification history
 
+- 2026-08-15: the cause behind this page's "stdin save no-op" cross-check was determined at 0.2.6428.27798 by a fresh validator under `Research/WORKFLOW.md` Rule 3. The OBSERVATION recorded here at 0.2.6228.27061 and 0.2.6403.27689 is upheld exactly: a `save` queued through the launcher's control file (which relays into the server's redirected stdin) produces no save folder and no log line. The IMPLIED cause was wrong. The server's console does exist and does feed `CommandLine.Process`, but it reads keystrokes from the Win32 console input buffer via `Console.ReadKey()` rather than any stdin stream, and it is not constructed at all when `-logFile` is on the launch line, which the rig always passes. Result: the "Fresh -new worlds cannot autosave" consequence bullet is reworded to separate the observation from the mechanism, to point at the resolved section, and to record that the same `save "<name>"` DOES assign a station name when delivered in-process or via `serverrun`. Full evidence and the paired live arms: [DedicatedServerSettings, "The console channel"](./DedicatedServerSettings.md), 2026-08-15 entry. No timer or save-gate claim on this page was re-read, so no section stamp moved.
 - 2026-08-13: the two TestRig launchers were replaced by one, `TestRig/testrig.ps1`, with positional verbs and `-Target`, and the rig's per-half documents were consolidated into `TestRig/CLAUDE.md`, `TestRig/MANUAL.md` and `TestRig/RESEARCH.md`. Pointers and command spellings on this page follow. No game-internals claim changed and none was re-verified, so no section stamp moved.
 - 2026-07-02: page created during the headless-tick investigation. Timer/gate code quoted verbatim from the 0.2.6403.27689 client decompile (lines 267571-267633); the empty-folder failure and its exact +interval timing observed live on the dedicated server the same day. The "stdin save no-op" cross-check is the launcher `-Save` command timing out with no `Saved` line and no folder appearing under `data/saves/`.
 

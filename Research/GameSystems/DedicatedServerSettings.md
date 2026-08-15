@@ -8,14 +8,17 @@ sources:
   - rocketstation_Data/Managed/Assembly-CSharp.dll :: Settings.SettingData (decompile lines 248232-248613)
   - rocketstation_Data/Managed/Assembly-CSharp.dll :: CommandLine (decompile lines 94926-95177)
   - rocketstation_Data/Managed/Assembly-CSharp.dll :: SaveCommand / QuitCommand / LoadGameCommand / LoadLatestCommand / NewGameCommand / SettingsCommand / SettingsPathCommand / ServerRunCommand / BanCommand
-  - rocketstation_DedicatedServer_Data/Managed/Assembly-CSharp.dll :: CommandLine.Process / ConsoleWindow.Submit / ServerRunMessage.Process / RichPresenceJoinRequested (decompile lines 97056, 97087, 97100, 101957, 215637, 273780)
+  - rocketstation_DedicatedServer_Data/Managed/Assembly-CSharp.dll :: CommandLine.Process / ConsoleWindow.Submit / ServerRunCommandMessage.Process / RichPresenceJoinRequested (decompile lines 97056, 97087, 97100, 101957, 215637, 273780)
+  - rocketstation_DedicatedServer_Data/Managed/Assembly-CSharp.dll :: Assets.Scripts.ConsoleWindow._Init / CustomLogFile / Initialize / WaitForGameToBeReadyThenOverrideConsoleInput (decompile lines 215144, 215190, 215203-215231, 215503-215511)
+  - rocketstation_DedicatedServer_Data/Managed/Assembly-CSharp.dll :: UI.ImGuiUi.RocketSystemConsole (decompile lines 107246-107460, ConsoleInputThread at 107330)
   - rocketstation_DedicatedServer_Data/Managed/Assembly-CSharp-firstpass.dll :: MoonSharp PlatformAccessor.IO_GetStandardStream
   - rocketstation_DedicatedServer_Data/StreamingAssets/Worlds/*/*.xml :: GameData/WorldSettings/World[@Id]
 related:
   - GameSystems/NetworkRoles.md
   - Patterns/ServerAuthoritativeSimulation.md
   - Patterns/SinglePlayerNetworkRole.md
-tags: [network, save-load]
+  - Patterns/GameLoggingSinks.md
+tags: [network, save-load, chat]
 ---
 
 # Dedicated Server Settings
@@ -26,14 +29,28 @@ Three orthogonal configuration layers determine how the server runs:
 
 1. **Unity built-in launch flags** (`-batchmode`, `-nographics`, `-logFile <path>`, `-screen-*`, etc.) are consumed by the Unity engine before any Stationeers code runs. They are not in this page; see Unity's command-line reference.
 2. **Stationeers settings** (`Settings.SettingData`, persisted to `setting.xml`). 80+ XML-serialized fields covering both client UI/performance and server behaviour. Set via `-settings <Field> <Value>` on the launch line, written into `setting.xml` by the runtime, or hand-edited in the file.
-3. **Stationeers commands** (`CommandLine` dispatcher, 70+ entries). Same dictionary serves both launch flags (with `-` prefix, multiple per launch) and runtime stdin (no prefix, one per line). Each command exposes `HelpText`, `Arguments`, and `IsLaunchCmd`.
+3. **Stationeers commands** (`CommandLine` dispatcher, 70+ entries). Same dictionary serves both launch flags (with `-` prefix, multiple per launch) and runtime console input (no prefix, one per line). Each command exposes `HelpText`, `Arguments`, and `IsLaunchCmd`.
 
 ## Architecture
-<!-- verified: 0.2.6228.27061 @ 2026-04-28 -->
+<!-- verified: 0.2.6428.27798 @ 2026-08-15 -->
 
-The single dispatcher is `CommandLine.Process(string[], bool onLaunch = false)` (decompile line 95111). When `onLaunch` is true (called from `[RuntimeInitializeOnLoadMethod] CommandLine.ProcessOnLaunch`), every `-name` token starts a new command and subsequent non-dash tokens accumulate as that command's arguments. When `onLaunch` is false (stdin path), only the first token may be `-name`-prefixed; later tokens are arguments to the first command. Same dispatch table either way.
+The single dispatcher is `CommandLine.Process(string[], bool onLaunch = false)` (decompile line 95111). When `onLaunch` is true (called from `[RuntimeInitializeOnLoadMethod] CommandLine.ProcessOnLaunch`), every `-name` token starts a new command and subsequent non-dash tokens accumulate as that command's arguments. When `onLaunch` is false (the runtime path), only the first token may be `-name`-prefixed; later tokens are arguments to the first command. Same dispatch table either way.
 
-> **The "stdin path" label above is contradicted by a later pass and is pending a fresh-validator resolution.** The `onLaunch: false` branch is real, but a 2026-08-15 call-site census on 0.2.6428.27798 found it has exactly three callers, none of which reads standard input, and found no stdin API used anywhere in the assembly. See "Nothing reads standard input: what actually feeds the runtime dispatcher" below, and the Open Questions entry.
+The runtime path is **not** the process's standard input, and calling it "the stdin path" (as this section did until 2026-08-15) predicts the wrong thing: see "The console channel" below for what actually feeds it and for the two independent reasons a write to a headless server's redirected stdin changes nothing.
+
+An unknown command name is silently dropped on the launch path and reported on the runtime path, which is why an unrecognised Unity or third-party flag on the launch line produces no error:
+
+```csharp
+if (!_commandsMap.TryGetValue(text2, out var value))
+{
+    if (!_isLaunchCommands)
+    {
+        ConsoleWindow.PrintError(ConsoleStrings.Error.CommandUnknown.AsString(text), suppressStacktrace: true);
+    }
+}
+```
+
+A command whose `RequiresGameManagerIsInitialized` is true and that arrives before `GameManager` is up is queued in `_postLaunchCommands` rather than run or dropped. The queue is drained by `CommandLine.ExecutePostLaunchCommands()` (line 97167), called once from `GameManager`'s startup chain at line 198538, immediately after `DifficultySetting.SetCurrent()` and a few statements before `IsInitialized = true`. That is how `-load` and `-new` (both `RequiresGameManagerIsInitialized => true`) run at all.
 
 The dispatch dictionary is initialised in the static constructor of `CommandLine` (line 94942):
 
@@ -68,29 +85,16 @@ Two helpers used inside Execute bodies are worth knowing about:
 - `CommandBase.CannotAsClient(name)` returns true when the local process is a remote client, blocking commands that only make sense on the server (Save, Ban, Kick).
 - `CommandBase.CannotInSinglePlayer(name)` returns true in single-player, blocking client/server-only commands like Ban.
 
-## Nothing reads standard input: what actually feeds the runtime dispatcher
+## The console channel: what actually feeds the runtime dispatcher
 <!-- verified: 0.2.6428.27798 @ 2026-08-15 -->
 
-The `onLaunch: false` branch of `CommandLine.Process` is real and reachable, and **it is not fed by the process's standard input**. Nothing in the shipped code reads stdin as a command channel at all, so a line written to a headless server's redirected stdin has no consumer.
+The dedicated server **does** have a console reader, and it **does** feed `CommandLine.Process`. What it does not do is read the process's standard input **stream**. It reads the Win32 **console input buffer**, one keystroke at a time, through `System.Console.ReadKey()`. A pipe attached to the child's stdin is a different object and never reaches that buffer, so a wrapper that writes a line into a headless server's redirected stdin gets a successful write and no effect. On top of that, the reader is not even constructed when `-logFile` is on the launch line, which is the usual way a headless server is run.
 
-Two independent reads of the dedicated-server build establish it.
+Two independent reasons, either one sufficient. Both are below, with the evidence.
 
-**1. No stdin API is used.** Across all 442,274 decompiled lines of `Assembly-CSharp.dll` there are zero occurrences of `Console.ReadLine`, `Console.In`, `Console.OpenStandardInput`, `StandardInput` or `ReadLineAsync`. The single `.ReadLine(` in the assembly is `stringReader.ReadLine()` at line 117950, reading an in-memory string. `Assembly-CSharp-firstpass.dll` carries exactly one stdin reference, and it is MoonSharp's Lua platform accessor, not a console:
+### The four routes into the dispatcher
 
-```csharp
-public override Stream IO_GetStandardStream(StandardFileType type)
-{
-    return type switch
-    {
-        StandardFileType.StdIn => Console.OpenStandardInput(),
-        StandardFileType.StdOut => Console.OpenStandardOutput(),
-        StandardFileType.StdErr => Console.OpenStandardError(),
-        _ => throw new ArgumentException("type"),
-    };
-}
-```
-
-**2. The call-site census.** `CommandLine.Process(string)` (decompile line 97087) is the single-string entry point that prefixes a dash and forwards to `Process(string[], onLaunch: false)`:
+`CommandLine.Process(string)` (decompile line 97087) is the single-string entry point that prefixes a dash and forwards to `Process(string[], onLaunch: false)`:
 
 ```csharp
 public static void Process(string input)
@@ -107,26 +111,171 @@ public static void Process(string input)
 }
 ```
 
-It has exactly three callers in the whole assembly, and none of them is a console reader:
+The token `CommandLine.Process` occurs exactly four times in the assembly. **Three are calls and the fourth is a method-group subscription**, which is why a grep shaped like `CommandLine.Process(` finds only three and misses the one that matters here:
 
-| Line | Caller | What sends it |
+| Line | Reference | What sends it |
 |---|---|---|
-| 101957 | `ServerRunMessage.Process` | A connected client's `serverrun`, gated on `Secret == Settings.CurrentData.ServerAuthSecret` and on the sender being in `NetworkBase.Clients` |
-| 215637 | `ConsoleWindow.Submit()` | The in-game console, in-process |
-| 273780 | `RichPresenceJoinRequested(Friend, string args)` | Steam rich-presence join arguments |
+| 101957 | `ServerRunCommandMessage.Process` calls it | A connected client's `serverrun`, gated on `Secret == Settings.CurrentData.ServerAuthSecret` and on the sender being in `NetworkBase.Clients` |
+| 215509 | `_systemConsoleInput.OnInputReceived += CommandLine.Process;` | **The dedicated server's own system console.** A line assembled from `Console.ReadKey()` keystrokes on a background thread |
+| 215637 | `ConsoleWindow.Submit()` calls it | The in-game console, in-process |
+| 273780 | `RichPresenceJoinRequested(Friend, string args)` calls it | Steam rich-presence join arguments |
 
-The fourth and last route into the dispatcher is `CommandLine.ProcessOnLaunch()` (line 97056), a `[RuntimeInitializeOnLoadMethod]` that calls `Process(CommandLineArgs, onLaunch: true)` on the launch line.
+Plus `CommandLine.ProcessOnLaunch()` (line 97056), a `[RuntimeInitializeOnLoadMethod]` that calls `Process(CommandLineArgs, onLaunch: true)` on the launch line, with deferred entries drained later by `ExecutePostLaunchCommands()`.
 
-**Measured live**, game 0.2.6428.27798, 2026-08-15, on a headless server (`-batchmode -nographics`) in world with a control-plane plugin loaded:
+### Reason 1: the reader is keystrokes, not a stream
 
-| Channel | Result |
-|---|---|
-| `quit` written to the process's redirected stdin, flushed | Still running 90 s later, **zero bytes** appended to its `-logFile`. |
-| `ConsoleWindow.Submit("quit")` called in-process | Process exited **2.55 s** later with a full Unity shutdown dump in the log. |
+The console lives in `UI.ImGuiUi.RocketSystemConsole` (line 107246), held by `Assets.Scripts.ConsoleWindow._systemConsoleInput` (line 215144). Its input thread, verbatim (line 107330):
 
-A `ConsoleWindow.Submit("help")` between the two returned 452 console lines, so the server was healthy throughout and the stdin line was ignored rather than lost to a wedged process.
+```csharp
+private void ConsoleInputThread()
+{
+    _inputString.Append(_inputPrefix);
+    while (_keepAlive)
+    {
+        if (!System.Console.CursorVisible || !System.Console.KeyAvailable)
+        {
+            continue;
+        }
+        ConsoleKeyInfo consoleKeyInfo = System.Console.ReadKey();
+        switch (consoleKeyInfo.Key)
+        {
+        case ConsoleKey.Enter:
+            OnEnter();
+            continue;
+        case ConsoleKey.Backspace:
+            OnBackspace();
+            continue;
+        case ConsoleKey.Escape:
+            OnEscape();
+            continue;
+        }
+        if (consoleKeyInfo.KeyChar != 0)
+        {
+            _inputString.Append(consoleKeyInfo.KeyChar);
+        }
+        RedrawInputLine();
+    }
+}
+```
 
-**Consequence for tooling.** A wrapper that owns a headless server's stdin can write to it successfully and change nothing: the write succeeds because the pipe is real, and nobody is reading the other end. The two channels that do reach a headless server's command dispatcher are `serverrun` from a connected client with the matching `ServerAuthSecret`, and an in-process caller of `ConsoleWindow.Submit` (a BepInEx plugin). There is no third.
+`Console.KeyAvailable` and `Console.ReadKey()` go to `PeekConsoleInput` / `ReadConsoleInput` on the standard **input handle**. When that handle is an anonymous pipe (`ProcessStartInfo.RedirectStandardInput = true`), those console APIs do not read the pipe: they fail or report nothing available, and the loop spins without ever consuming a byte. Nothing else in the assembly touches stdin. Across all 442,274 decompiled lines of `Assembly-CSharp.dll` there are zero occurrences of `Console.ReadLine`, `Console.In`, `Console.OpenStandardInput`, `StandardInput` or `ReadLineAsync`; the single `.ReadLine(` is `stringReader.ReadLine()` at line 117950, reading an in-memory string. `Assembly-CSharp-firstpass.dll` carries exactly one stdin reference, MoonSharp's Lua platform accessor, which is not a console:
+
+```csharp
+public override Stream IO_GetStandardStream(StandardFileType type)
+{
+    return type switch
+    {
+        StandardFileType.StdIn => Console.OpenStandardInput(),
+        StandardFileType.StdOut => Console.OpenStandardOutput(),
+        StandardFileType.StdErr => Console.OpenStandardError(),
+        _ => throw new ArgumentException("type"),
+    };
+}
+```
+
+`Enter` is what turns the accumulated keystrokes into a command: `OnEnter()` strips the `"> "` prefix, trims, and enqueues the line under `lock (_inputQueue)`. A `Tick()` loop drains that queue **on the Unity thread** and raises `OnInputReceived`, which is what makes console commands safe to run against game state:
+
+```csharp
+private async Task Tick()
+{
+    while (_keepAlive)
+    {
+        if (Thread.CurrentThread == _unityThread)
+        {
+            lock (_inputQueue)
+            {
+                while (_inputQueue.Count > 0)
+                {
+                    OnInputReceived?.Invoke(_inputQueue.Dequeue());
+                }
+            }
+        }
+        await Task.Delay(100);
+    }
+}
+```
+
+### Reason 2: `-logFile` removes the console entirely
+
+`ConsoleWindow` gates both the construction and the wiring on the absence of `-logFile` (line 215190):
+
+```csharp
+private static bool CustomLogFile => CommandLineArgs?.Contains("-logFile") ?? false;
+```
+
+Construction, in `[RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)] ConsoleWindow._Init` (line 215203):
+
+```csharp
+if (GameManager.IsBatchMode)
+{
+    CommandLineArgs = Environment.GetCommandLineArgs().Skip(1).ToList();
+    string text = string.Join(" ", CommandLineArgs);
+    string gameVersion = GameManager.GetGameVersion();
+    if (!CustomLogFile)
+    {
+        _systemConsoleInput = new RocketSystemConsole("Stationeers - " + gameVersion + " " + text);
+    }
+}
+```
+
+Wiring, from `ConsoleWindow.Initialize()` (called at line 198456 in `GameManager`'s startup chain) via `WaitForGameToBeReadyThenOverrideConsoleInput()` (line 215503):
+
+```csharp
+private static async UniTaskVoid WaitForGameToBeReadyThenOverrideConsoleInput()
+{
+    await UniTask.WaitUntil(() => GameManager.IsInitialized);
+    await UniTask.Delay(1000);
+    if (!CustomLogFile && _systemConsoleInput != null)
+    {
+        _systemConsoleInput.OnInputReceived += CommandLine.Process;
+        _systemConsoleInput.Ready("Stationeers - " + GameManager.GetGameVersion());
+    }
+}
+```
+
+`Ready()` is also the only place `_inputThread.Start()` is called (line 107307), so without it the input thread never runs at all. With `-logFile` present there is no `RocketSystemConsole`, no input thread, no handler, and `ConsoleWindow.Print` routes through `UnityEngine.Debug.Log` into the file instead. `GameManager.IsBatchMode` is true for the dedicated build regardless of `-batchmode`, because `SetMatchMode` (line 197713) ORs `Application.isBatchMode` with `RuntimePlatform.LinuxServer` / `WindowsServer`. `RocketSystemConsole`'s constructor throws `"Don't use this outside of dedicated server builds"` on any other platform, so this console exists only on the two server builds.
+
+### Measured live
+
+Game 0.2.6428.27798, 2026-08-15, dedicated build, two arms.
+
+**Arm 1, the normal rig configuration** (`-batchmode -nographics -logFile <path>`, in world, stdin redirected to a pipe owned by a wrapper, in-process control-plane plugin loaded). Two commands written to stdin and flushed, then the identical two run in-process:
+
+| Channel | Command | Result |
+|---|---|---|
+| stdin pipe | `version` | **zero** bytes appended to the log, no output line |
+| stdin pipe | `settings ServerMaxPlayers 7` | `setting.xml` unchanged at `4` |
+| in-process `ConsoleWindow.Submit` | `version` | printed and logged `version: 0.2.6428.27798` |
+| in-process `ConsoleWindow.Submit` | `settings ServerMaxPlayers 7` | logged `Changed setting 'ServerMaxPlayers' from '4' to '7'`; `setting.xml` now `7` |
+| launch line | `-settings ServerMaxPlayers 4` | logged `Changed setting 'ServerMaxPlayers' from '10' to '4'` at boot |
+
+An earlier run of the same shape, recorded 2026-08-15: a stdin `quit` left the server running 90 s later with zero log bytes appended, while an in-process `ConsoleWindow.Submit("quit")` exited it in 2.55 s, and a `Submit("help")` between the two returned 452 console lines, so the server was healthy throughout and the stdin line was ignored rather than lost to a wedged process.
+
+**Arm 2, the isolating arm: same build, stdin still a redirected pipe, but `-logFile` REMOVED** (`-batchmode -nographics -noclear`, no world, stdout captured). This is the configuration in which the console genuinely exists, and it is the arm that separates the two reasons. The captured stdout proves the console came all the way up:
+
+```
+08:47:45: Changed setting 'ServerMaxPlayers' from '10' to '4'
+08:48:22: game manager initialized
+***Stationeers - 0.2.6428.27798***
+Ready
+```
+
+`***Stationeers - <version>***` and `Ready` are printed only by `RocketSystemConsole.Ready()`, which runs only after `OnInputReceived += CommandLine.Process`, and whose next statement after printing `Ready` is `_inputThread.Start()`. So the reader was constructed, the handler was attached and the input thread was started. Then, at t+180 s and t+200 s, `settings ServerMaxPlayers 9` and `version` were written to the process's stdin and flushed:
+
+| Witness | Before | After |
+|---|---|---|
+| `setting.xml` `ServerMaxPlayers` | `4` | `4` (unchanged, checked at t+240 s and again at kill) |
+| stdout | no `version:` line | no `version:` line, no `Changed setting` line |
+
+**Removing `-logFile` does not make stdin work.** Reason 1 stands on its own; reason 2 is an additional, earlier cut-off.
+
+**Consequence for tooling.** A wrapper that owns a headless server's stdin can write to it successfully and change nothing: the write succeeds because the pipe is real, and the console API on the other end is not reading pipes. The channels that do reach a running headless server's command dispatcher are:
+
+1. **An in-process caller of `ConsoleWindow.Submit`** (a BepInEx plugin). Direct, synchronous, and returns the console output. This is what `TestRig`'s `POST /console/exec` uses.
+2. **`serverrun <command>` from a connected client** whose `ServerAuthSecret` matches the server's. The closest thing to RCON the game ships. Established from code (`ServerRunCommandMessage.Process` at :101957 ends in `CommandLine.Process(Command)`), not measured in the 2026-08-15 runs, which used no game client.
+3. **Real keystrokes typed at an attached console**, when the server is started without `-logFile` in a terminal a human is sitting at. This is the vanilla operator experience and the reason the console exists; it is not drivable by writing to a pipe, and reaching it programmatically would mean synthesising key events into the console input buffer (`WriteConsoleInput`), which nothing in this repository does.
+
+And, before the server is running, the launch line itself (`ProcessOnLaunch`, plus `ExecutePostLaunchCommands` for anything needing `GameManager`). That is the channel `-load`, `-new`, `-settings` and `-settingspath` travel on, and it is fully reliable; the arm-1 table above shows it working in the same run in which stdin did nothing.
 
 ## Settings (`setting.xml` keys)
 <!-- verified: 0.2.6228.27061 @ 2026-04-28 -->
@@ -285,7 +434,24 @@ These fields live in the same SettingData struct and are settable on a dedicated
 ## Command-line flags
 <!-- verified: 0.2.6228.27061 @ 2026-04-28 -->
 
-The dispatch dictionary as registered in `CommandLine`'s static constructor (decompile lines 94944-95038). Names with multiple keys (aliases) are grouped. Where a command exposes `IsLaunchCmd = true`, it can be used as a `-name` flag at launch; otherwise it is runtime-only (stdin or `serverrun`).
+The dispatch dictionary as registered in `CommandLine`'s static constructor (decompile lines 94944-95038). Names with multiple keys (aliases) are grouped. Where a command exposes `IsLaunchCmd = true`, it can be used as a `-name` flag at launch; otherwise it is runtime-only, meaning the system console, `serverrun`, or an in-process `ConsoleWindow.Submit` (see "The console channel" above).
+
+**The table below was read at 0.2.6228.27061 and the dictionary has moved since.** Re-read verbatim at 0.2.6428.27798 on 2026-08-15, the delta is ten keys; everything else in the dictionary is unchanged. Only the keys and classes were compared, so the `IsLaunchCmd` and HelpText columns still carry their 2026-04-28 reading and the section stamp reflects that.
+
+| Change | Key | Class |
+|---|---|---|
+| added | `announce` | `AnnounceCommand` |
+| added | `roomevaluator` | `RoomEvaluatorCommand` |
+| added | `pylonlog` | `PylonLogCommand` |
+| added | `deletenear` | `DeleteNearCommand` |
+| added | `voxelfillnear` | `VoxelFillNearCommand` |
+| added | `proxy` | `ProxyCommand` |
+| added | `organs` | `OrgansCommand` |
+| added | `thumbnail` | `ThumbnailStudioCommand` |
+| removed | `clients` | `ClientsCommand` (the class is gone from the assembly entirely) |
+| removed | `networkdebug` | `NetworkDebugWindowCommand` (the class is gone from the assembly entirely) |
+
+`clients` is the one with operational consequences: tooling that reads a connected-player count by issuing a `clients` console command has nothing to issue as of 0.2.6428.27798. `status` (`StatusCommand`) is still registered.
 
 | Name(s) | Class | IsLaunchCmd | HelpText (verbatim where present) |
 |---|---|---|---|
@@ -603,7 +769,7 @@ If you launch `rocketstation_DedicatedServer.exe -batchmode -nographics -new Lun
 - `setting.xml` written to `<SavePath>/setting.xml` on first save, which (with empty SavePath) is the exe directory.
 
 ## Notes for the TestRig launcher (dedicated-server half)
-<!-- verified: 0.2.6228.27061 @ 2026-05-18 -->
+<!-- verified: 0.2.6428.27798 @ 2026-08-15 -->
 
 The flag set `TestRig/testrig.exe start --target server` applies:
 
@@ -630,6 +796,7 @@ Verified against the source:
 - `UPNPEnabled false` is correct for a loopback-only test rig; the default `true` would advertise via UPnP. Redundant with the loopback bind but kept for documentation.
 - No `ServerPassword`. The server is loopback-only, so unauthenticated connections from outside the machine are impossible at the network layer; a connection password adds no protection in that topology and just gets in the way of agent-driven test loops. Earlier launcher revisions hardcoded `ServerPassword x`; that was removed once the LocalIpAddress pin landed.
 - `ServerAuthSecret x` is kept; matching value on the client unlocks `serverrun` for in-game admin commands without writing to the server's stdin (see ServerRunCommand at decompile line 98588).
+- `-logFile <path>` is load-bearing in two directions and worth stating explicitly. It gives the run a scrapable log, because `ConsoleWindow.Print` then routes through `UnityEngine.Debug.Log` into that file. It also **removes the system console outright**, since `ConsoleWindow.CustomLogFile` gates the `RocketSystemConsole` construction and its handler wiring. Dropping the flag would not buy a usable stdin channel (measured: see "The console channel", arm 2), it would only cost the log. Commands go through the in-process control plane; the flag stays.
 - `ServerMaxPlayers 4` is below the default of 10. No clamping is visible at the SettingData level; the source-of-truth for upper bound (1-30 in public docs) was not located this pass.
 - `AutoPauseServer false` keeps world simulation running with no clients connected (atmospheric simulation, growth, decay, autosave timer). Default is `true`. Required for tests that depend on game-time progression between client sessions.
 - `AutoSave true` matches the default; passing it explicitly is documentation, not a state change.
@@ -647,11 +814,13 @@ Verified against the source:
 
 - 2026-08-15: added "Nothing reads standard input: what actually feeds the runtime dispatcher" from a fresh decompile of the DEDICATED SERVER build at `0.2.6428.27798` (`.work/decomp/0.2.6428.27798/Assembly-CSharp.DedicatedServer.decompiled.cs`, 442,274 lines, plus an `Assembly-CSharp-firstpass.dll` pass). Findings: zero occurrences of `Console.ReadLine` / `Console.In` / `Console.OpenStandardInput` / `StandardInput` / `ReadLineAsync` in `Assembly-CSharp`; the only stdin reference in `firstpass` is MoonSharp's `PlatformAccessor.IO_GetStandardStream`; `CommandLine.Process(string)` (97087) has exactly three callers, `ServerRunMessage.Process` (101957), `ConsoleWindow.Submit` (215637) and `RichPresenceJoinRequested` (273780), with `ProcessOnLaunch` (97056) the fourth route into the dispatcher. Corroborated by a live run on a headless server in world: a stdin `quit` left it running 90 s later with zero log bytes appended, an in-process `ConsoleWindow.Submit("quit")` exited it in 2.55 s, and a `Submit("help")` between them returned 452 lines. Additive; the Architecture section's older "(stdin path)" label is contradicted, is flagged inline and in Open Questions, and is left in place because changing stamped content requires the `Research/WORKFLOW.md` Rule 3 fresh validator, which was not run.
 
+- 2026-08-15: conflict on "does the dedicated server read stdin, and what feeds the runtime dispatcher", resolved by a fresh validator (`Research/WORKFLOW.md` Rule 3) working from its own decompile of `TestRig/DedicatedServer/install/rocketstation_DedicatedServer_Data/Managed/Assembly-CSharp.dll` (0.2.6428.27798, SHA-256 `4A925BE2...B66A4E39`) and its own live runs. **Previous claim** (Architecture, stamped 0.2.6228.27061): the `onLaunch: false` branch is "the stdin path". **Competing claim** (the additive 2026-08-15 section): nothing reads standard input, `CommandLine.Process(string)` has exactly three callers, none a console reader. **Verdict: neither is right, and the observable outcome the additive section reported is correct while its mechanism is not.** Three corrections. (1) The census missed a fourth reference: `_systemConsoleInput.OnInputReceived += CommandLine.Process;` at line 215509 is a method-group subscription, not a call, so a grep shaped `CommandLine.Process(` cannot see it. The dedicated server therefore DOES have a console reader wired to the dispatcher. (2) That reader is `UI.ImGuiUi.RocketSystemConsole.ConsoleInputThread` (107330), which uses `System.Console.KeyAvailable` and `System.Console.ReadKey()` against the Win32 console input buffer. It is not a stdin stream read, which is why the "zero occurrences of `Console.ReadLine` / `Console.In` / `Console.OpenStandardInput` / `StandardInput` / `ReadLineAsync`" grep is true and yet incomplete: the grep list omitted `ReadKey` / `KeyAvailable`, both of which the assembly does contain, exactly once each, in that thread. (3) A second, earlier cut-off was missing entirely: `ConsoleWindow.CustomLogFile => CommandLineArgs?.Contains("-logFile")` (215190) gates both the `new RocketSystemConsole(...)` at 215211 and the handler wiring at 215507, so under the rig's own launch line (which carries `-logFile`) the reader is never constructed and the input thread never starts. **Result:** the Architecture section's "(stdin path)" label is corrected to "the runtime path" and restamped; the additive section is renamed "The console channel: what actually feeds the runtime dispatcher", its census table corrected to four references with 215509 named, and `ServerRunMessage` corrected to `ServerRunCommandMessage`; the two mechanisms are documented with verbatim code; the "there is no third" channel claim is corrected to three runtime channels (in-process `ConsoleWindow.Submit`, `serverrun`, and real keystrokes at an attached console) plus the launch line. **New live evidence**, both arms on 0.2.6428.27798 this date: with `-logFile` and in world, `version` and `settings ServerMaxPlayers 7` written to the wrapper-owned stdin pipe produced a zero-byte log delta and left `setting.xml` at `4`, while the identical two commands through an in-process `ConsoleWindow.Submit` printed `version: 0.2.6428.27798` and moved `setting.xml` to `7`; and in the isolating arm, `-logFile` REMOVED so the console genuinely exists (stdout carries `***Stationeers - 0.2.6428.27798***` then `Ready`, printed only by `RocketSystemConsole.Ready()`, whose next statement is `_inputThread.Start()`), `settings ServerMaxPlayers 9` written to the same kind of stdin pipe still left `ServerMaxPlayers` at `4` and printed nothing. Removing `-logFile` does not make stdin work. The Open Questions entry that held this conflict is removed.
+- 2026-08-15: `CommandLine`'s dispatch dictionary re-read verbatim at 0.2.6428.27798 while resolving the above. Ten keys differ from the 0.2.6228.27061 table on this page: `announce`, `roomevaluator`, `pylonlog`, `deletenear`, `voxelfillnear`, `proxy`, `organs` and `thumbnail` added; `clients` (`ClientsCommand`) and `networkdebug` (`NetworkDebugWindowCommand`) removed, both classes gone from the assembly entirely. Recorded as a delta table under the command table rather than by rewriting 90 rows, because only the key and class columns were compared and the `IsLaunchCmd` / HelpText columns were not re-read; that section's stamp stays at 0.2.6228.27061 for the same reason. Also corrected the Open Questions note on `IsLaunchCmd`: the launch path DOES enforce it (`if (_isLaunchCommands && !value.IsLaunchCmd)` prints "Can not use command ... as a launch command"), the runtime path does not.
+
 ## Open questions
 <!-- verified: 0.2.6428.27798 @ 2026-08-15 -->
 
-- **The Architecture section's "(stdin path)" label, pending a fresh validator.** The 2026-08-15 census (see "Nothing reads standard input") found no stdin API used anywhere in `Assembly-CSharp` and exactly three callers of `CommandLine.Process(string)`, none of them a console reader, corroborated by a live run in which a stdin `quit` changed nothing and an in-process `ConsoleWindow.Submit("quit")` exited the process in 2.55 s. The new content is additive and is on the page; rewriting the older stamped wording requires the fresh-validator protocol in `Research/WORKFLOW.md` Rule 3 and has not been run. The two claims sit side by side until it is.
 - `ServerMaxPlayers` upper bound. The SettingData declares `int ServerMaxPlayers = 10` without obvious clamping. Public docs claim 1-30. Enforcement may live in UI input validation, the network join handler, or a server-side reject path; not verified this pass.
-- The "(mixed)" `IsLaunchCmd` entries in the command table reflect commands whose class declarations were not read in detail this pass. The dispatcher does not visibly gate runtime stdin on `IsLaunchCmd`, so the flag may be advisory only; whether the launch path enforces it is unverified.
+- The "(mixed)" `IsLaunchCmd` entries in the command table reflect commands whose class declarations were not read in detail this pass. The dispatcher gates the LAUNCH path on `IsLaunchCmd` (`if (_isLaunchCommands && !value.IsLaunchCmd)` prints "Can not use command ... as a launch command") but does not gate the runtime path on it at all, so on the runtime path the flag is advisory. Which of the "(mixed)" entries declare it true is still unverified.
 - `StartLocalHost` consumer path. Hypothesised to be the client's main-menu "host on launch" path, not consumed by the dedicated build's `-load` / `-new` flow. Verifying would require following `Settings.CurrentData.StartLocalHost` references.
 - The full HelpText / Arguments for the bulk of the (non-lifecycle) commands listed in the command table were not transcribed. Each marked `(not read this pass)` or `(debug)` is a candidate for follow-up if the launcher needs to invoke any of them.
