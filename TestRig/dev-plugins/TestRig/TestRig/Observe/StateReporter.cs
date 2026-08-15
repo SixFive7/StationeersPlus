@@ -67,6 +67,16 @@ namespace TestRig
             {
                 o.Str("networkRole", NetworkManager.NetworkRole.ToString());
                 o.Str("networkState", NetworkManager.NetworkState.ToString());
+                // THESE THREE ARE RAW, AND THEY READ BACKWARDS FOR A LISTEN HOST. Assert on
+                // 'role' and 'hosting' above, never on these. A listen host is
+                // NetworkRole.Server, so it answers isClient=false and isServer=true even though
+                // it has a player character and is by every other measure a client; the dedicated
+                // server answers identically and is one boolean apart (GameManager.IsBatchMode).
+                // IsActive/IsClient/IsServer are three views of one enum field, not three
+                // independent booleans: Assembly-CSharp NetworkManager, IsActive => NetworkRole !=
+                // None, IsClient => NetworkRole == Client, IsServer => NetworkRole == Server. They
+                // are reported because a raw reading is sometimes what a diagnosis needs, not
+                // because a caller should branch on them. See Role().
                 o.Bit("isClient", NetworkManager.IsClient);
                 o.Bit("isServer", NetworkManager.IsServer);
                 o.Bit("isActive", NetworkManager.IsActive);
@@ -79,6 +89,11 @@ namespace TestRig
             o.Bit("hosting", Hosting());
             o.Int("hostPort", HostPort());
             o.Raw("connectedClients", ConnectedClientsJson());
+            // Only present when the roster read threw, and it exists because an empty array is
+            // indistinguishable from "nobody is connected". That ambiguity is what made a real
+            // join look like a failed one for a whole playtest session, so a roster that could
+            // not be read now says so beside itself instead of answering [] and looking fine.
+            if (RosterError != null) o.Str("connectedClientsError", RosterError);
 
             // ---- save hygiene -------------------------------------------------
             // Four fields that together answer "where does this instance write, and will it host
@@ -181,12 +196,22 @@ namespace TestRig
                 .Str("pumpNote", MainThreadPump.StrategyNote)
                 .Int("mainThreadDrains", MainThreadPump.MainThreadDrains)
                 // The boot-window pump. GameManager.Update runs at 0.11-0.16/s until
-                // GameState.Running, so during the 80-90 s boot these three fields are the whole
-                // reason the control plane answers at all. pumpHostCreatedAtFrame should read 0:
-                // the object is created at the first sceneLoaded callback, ~282 ms in, still at
-                // frame 0. A -1 there means no scene has loaded yet.
+                // GameState.Running, so during the 80-90 s boot these fields are the whole reason
+                // the control plane answers at all.
+                //
+                // pumpHostCreatedAtFrame is NOT the same number on the two halves, and expecting 0
+                // everywhere was wrong: the object is created at the first sceneLoaded callback,
+                // which is 282 ms and frame 0 on a client but frame 1834 on the dedicated server,
+                // where there is no splash or menu scene and the first load is the mod-content
+                // load. A -1 means no scene has loaded yet. bootLoopDrains is what covers the
+                // stretch before it: on a client it retires after a handful of frames, and on the
+                // dedicated server 0 there while pumpHostCreatedAtFrame is large means the boot
+                // window went unpumped, which is what made every Main(...) route 504 for the first
+                // ~1834 frames of a headless boot.
                 .Int("hostUpdateDrains", MainThreadPump.HostUpdateDrains)
                 .Int("pumpHostCreatedAtFrame", MainThreadPump.PumpHostCreatedAtFrame)
+                .Int("pumpBootLoopDrains", MainThreadPump.BootLoopDrains)
+                .Str("pumpBootLoopState", MainThreadPump.BootLoopState)
                 .Int("scenesLoaded", MainThreadPump.ScenesLoaded)
                 // Climbs once per simulation tick and is NOT an error: it is the counter proving
                 // the off-main-thread drain guard is in force.
@@ -332,37 +357,135 @@ namespace TestRig
         private static string TriState(bool? value)
             => value.HasValue ? (value.Value ? "true" : "false") : "null";
 
+        /// <summary>Set by <see cref="ConnectedClientsJson"/> when the roster could not be read.</summary>
+        internal static string RosterError;
+
         /// <summary>
         ///     The server-side roster, which is what makes "did the second instance actually arrive"
         ///     assertable from the host without asking the joiner. Empty on anything that is not a
-        ///     server: <c>NetworkBase.Clients</c> is a static list that a joined client never fills.
+        ///     server, because the roster is the server's answer.
         ///
+        ///     <para>
+        ///     TWO SOURCES, AND THE HOST IS ONLY IN THE SECOND. This read used to be
+        ///     <c>NetworkBase.Clients</c> alone, and a listen host is never in that list: the sole
+        ///     writer is <c>NetworkBase.AddClient</c>, called only from
+        ///     <c>NetworkServer.VerifyConnection</c>, so the list holds JOINERS. The host's own
+        ///     record is built separately by <c>NetworkServer.PopulateHostClient</c> and parked on
+        ///     <c>NetworkManager.HostClient</c>. The game unions the two everywhere it presents a
+        ///     roster: <c>NetworkManager.LogClientRosterToConsole</c> walks <c>Clients</c> and then
+        ///     appends <c>HostClient</c>, and <c>NetworkManager.SerialisePlayerList</c> writes
+        ///     <c>HostClient</c> first under exactly the guard used below
+        ///     (<c>Client.Find(HostClient.ClientId) == null</c>) and then every entry in
+        ///     <c>Clients</c>. Verified against 0.2.6428.27798.
+        ///     </para>
+        ///
+        ///     <para>
+        ///     The union also makes the roster reconcile with <c>playersInGame</c>, which is
+        ///     <c>NetworkManager.TotalPlayersInGame => Clients.Count + (IsBatchMode ? 0 : 1)</c>. A
+        ///     listen host adds itself, a dedicated server does not, and this method matches by
+        ///     skipping a <c>HostClient</c> whose <c>ClientId</c> is 0. That is the game's own rule
+        ///     for "not a real player", applied in <c>Client.DeserialiseClient</c>, and 0 is what a
+        ///     dedicated server has, because <c>PlayerCookie</c> is not loaded in batch mode.
+        ///     </para>
+        ///
+        ///     <para>
         ///     ClientId travels as a string, matching <c>/instance</c>, because a JSON number goes
         ///     through double on the reading side and silently loses precision above 2^53. A
         ///     truncated ClientId is exactly the failure these ids exist to detect.
+        ///     </para>
         /// </summary>
         internal static string ConnectedClientsJson()
         {
             var rows = new List<string>();
+            RosterError = null;
             try
             {
                 if (!NetworkManager.IsServer) return "[]";
+
+                Assets.Scripts.Client host = null;
+                try { host = NetworkManager.HostClient; } catch { }
+
                 var clients = NetworkBase.Clients;
-                if (clients == null) return "[]";
-                foreach (var client in clients)
+
+                if (host != null && host.ClientId != 0 && !IsInClientList(clients, host.ClientId))
+                    rows.Add(ClientRow(host));
+
+                if (clients != null)
                 {
-                    if (client == null) continue;
-                    var row = new Json.Obj();
-                    try { row.Str("clientId", client.ClientId.ToString(CultureInfo.InvariantCulture)); } catch { }
-                    try { row.Str("username", client.name); } catch { }
-                    try { row.Str("state", client.state.ToString()); } catch { }
-                    try { row.Bit("isHost", client.IsHost); } catch { }
-                    try { row.Int("connectionId", client.connectionId); } catch { }
-                    rows.Add(row.ToString());
+                    // Indexed, not foreach. A joiner is added and removed from this list by the
+                    // network layer, and a List<T> enumerator throws "collection was modified" if
+                    // that lands mid-read. The old foreach was inside the catch below, so such a
+                    // throw returned [] and read as "nobody is connected": the single most
+                    // expensive wrong answer this endpoint can give. Indexing cannot throw that.
+                    for (int i = 0; i < clients.Count; i++)
+                    {
+                        Assets.Scripts.Client client = null;
+                        try { client = clients[i]; } catch { break; }
+                        if (client == null) continue;
+                        rows.Add(ClientRow(client));
+                    }
                 }
             }
-            catch { return "[]"; }
+            catch (Exception ex)
+            {
+                RosterError = "the server-side roster could not be read, so this array is empty for " +
+                              "a reason that is NOT 'nobody is connected': " + ex.Message;
+                return "[]";
+            }
             return "[" + string.Join(",", rows.ToArray()) + "]";
+        }
+
+        private static bool IsInClientList(List<Assets.Scripts.Client> clients, ulong clientId)
+        {
+            if (clients == null) return false;
+            for (int i = 0; i < clients.Count; i++)
+            {
+                Assets.Scripts.Client client = null;
+                try { client = clients[i]; } catch { return false; }
+                if (client != null && client.ClientId == clientId) return true;
+            }
+            return false;
+        }
+
+        /// <summary>
+        ///     One roster row.
+        ///
+        ///     <para>
+        ///     <c>connectionId</c> is the reason this method exists rather than being inlined.
+        ///     <c>Client.connectionId</c> is a <c>long</c> holding a RakNet connection id, and the
+        ///     values are enormous: 189151461494586169 and 1044835390751713754 in one measured
+        ///     join. Emitted as a raw JSON number it does not fit the launcher's <c>int?</c>, so
+        ///     System.Text.Json threw on the WHOLE /status payload, the launcher's reader returned
+        ///     null, and its roster poll concluded the joiner had never arrived. That is what
+        ///     produced three attempts of "roster did not grow (0 then 0)" against a host whose own
+        ///     console showed the client verified, served and ready.
+        ///     </para>
+        ///
+        ///     <para>
+        ///     So the number is emitted only when it round-trips Int32, and the exact value always
+        ///     rides beside it as a string. The proper fix is for the launcher's
+        ///     <c>ConnectedClient.ConnectionId</c> to become a string, the same way
+        ///     <c>clientId</c> already is and for the same reason; until it does, an id past
+        ///     2^31 reads null here rather than taking the response down with it.
+        ///     </para>
+        /// </summary>
+        private static string ClientRow(Assets.Scripts.Client client)
+        {
+            var row = new Json.Obj();
+            try { row.Str("clientId", client.ClientId.ToString(CultureInfo.InvariantCulture)); } catch { }
+            try { row.Str("username", client.name); } catch { }
+            try { row.Str("state", client.state.ToString()); } catch { }
+            try { row.Bit("isHost", client.IsHost); } catch { }
+            try
+            {
+                long connectionId = client.connectionId;
+                if (connectionId >= int.MinValue && connectionId <= int.MaxValue)
+                    row.Int("connectionId", connectionId);
+                else row.Raw("connectionId", "null");
+                row.Str("connectionIdString", connectionId.ToString(CultureInfo.InvariantCulture));
+            }
+            catch { }
+            return row.ToString();
         }
 
         internal static string PlayerJson()

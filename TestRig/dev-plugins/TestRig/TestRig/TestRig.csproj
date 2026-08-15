@@ -86,6 +86,19 @@
       <HintPath>$(StationeersPath)\rocketstation_Data\Managed\Unity.Mathematics.dll</HintPath>
       <Private>False</Private>
     </Reference>
+    <!--
+      The boot-window drain in Transport/MainThreadPump.cs. UniTask's player loop is the only
+      thing running on the Unity main thread before the first scene load on the dedicated server,
+      where that load is frame 1834 rather than frame 0: PlayerLoopHelper.Init carries
+      [RuntimeInitializeOnLoadMethod(AfterAssembliesLoaded)], so it is installed before this
+      plugin's Awake. Present in both installs (checked: the dedicated server ships
+      rocketstation_DedicatedServer_Data\Managed\UniTask.dll), and never copied, like every other
+      game assembly here.
+    -->
+    <Reference Include="UniTask">
+      <HintPath>$(StationeersPath)\rocketstation_Data\Managed\UniTask.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
     <Reference Include="UnityEngine">
       <HintPath>$(StationeersPath)\rocketstation_Data\Managed\UnityEngine.dll</HintPath>
       <Private>False</Private>

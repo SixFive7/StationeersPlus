@@ -97,6 +97,12 @@ namespace TestRig
             try { _hostPort = hosting == 1 ? NetworkServer.HostPort : 0; } catch { _hostPort = 0; }
             try
             {
+                // JOINERS ONLY, and deliberately not the same number as
+                // /status.connectedClients.Length. This is the raw NetworkBase.Clients count, which
+                // the sole writer NetworkBase.AddClient fills from NetworkServer.VerifyConnection,
+                // so a listen host is never in it; the roster adds NetworkManager.HostClient on top.
+                // On a listen host the two therefore differ by exactly one. This one stays raw
+                // because it is sampled every frame and the contract names it as that count.
                 var clients = NetworkManager.IsServer ? NetworkBase.Clients : null;
                 _clients = clients == null ? 0 : clients.Count;
             }

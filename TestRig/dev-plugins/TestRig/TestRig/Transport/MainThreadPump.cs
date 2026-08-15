@@ -78,9 +78,18 @@ namespace TestRig
     ///         does not save it: the call appears to succeed (scene name "DontDestroyOnLoad",
     ///         handle -12) but does not bind, because no scene is loaded at that moment, and the
     ///         DDOL object and a plain one beside it die 1 ms apart. So the host here is created
-    ///         from the first <c>SceneManager.sceneLoaded</c> callback (282 ms, still frame 0),
-    ///         after which it survives indefinitely and misses nothing: Update 5867 at
-    ///         <c>Time.frameCount</c> 5867, no gap.
+    ///         from the first <c>SceneManager.sceneLoaded</c> callback, after which it survives
+    ///         indefinitely and misses nothing: Update 5867 at <c>Time.frameCount</c> 5867, no gap.
+    ///         That callback is 282 ms and frame 0 on a CLIENT; on the dedicated server it is frame
+    ///         1834, which is why the boot loop below exists.
+    ///     </description></item>
+    ///     <item><description>
+    ///         <c>UniTask</c>'s player loop is what covers the dedicated server's first 1834
+    ///         frames, through <c>StartBootDrainLoop</c>. It is the only mechanism alive that
+    ///         early headless, because <c>PlayerLoopHelper.Init</c> is a
+    ///         <c>RuntimeInitializeOnLoadMethod(AfterAssembliesLoaded)</c> and therefore runs
+    ///         before any scene and before this plugin's Awake, while nothing in the game assembly
+    ///         is running yet at all.
     ///     </description></item>
     ///     </list>
     ///
@@ -89,9 +98,18 @@ namespace TestRig
     ///     <c>GameState.Running</c>, while frames were advancing at 25 Hz the whole time. Relying
     ///     on it alone would leave the control plane effectively frozen for the whole 80-90 s
     ///     boot, which is exactly the window in which a caller is polling for readiness. The
-    ///     recreated host's <c>Update</c> runs at ~25 Hz from frame 0 and covers it. Recreating
-    ///     later than the first <c>sceneLoaded</c> does not work: at the Base scene load the
-    ///     object appears at frame 1925 and everything before it is lost.</para>
+    ///     recreated host's <c>Update</c> runs at ~25 Hz and covers it. Recreating later than the
+    ///     first <c>sceneLoaded</c> does not work: at the Base scene load the object appears at
+    ///     frame 1925 and everything before it is lost.</para>
+    ///
+    ///     <para><b>And the first <c>sceneLoaded</c> is not frame 0 headless.</b> It is frame 0 on
+    ///     a client (282 ms) and frame 1834 on the dedicated server, where there is no splash or
+    ///     menu scene and the first load is the mod-content load. So on the server the pump host
+    ///     starts 1834 frames late, and nothing else was live in the gap: the
+    ///     <c>GameManager.Update</c> postfix also creates the host, and the host was still logged
+    ///     as created from "scene load 1", so that postfix had fired zero times. That window is
+    ///     covered by <c>StartBootDrainLoop</c>, a UniTask player-loop drain that runs from load
+    ///     until the pump host exists and then retires.</para>
     ///
     ///     <para><b>Do not use <c>FixedUpdate</c> for anything the control plane depends on.</b>
     ///     <c>Update</c> and <c>LateUpdate</c> are unaffected by pause (24.85-25.06 per second in
@@ -330,11 +348,45 @@ namespace TestRig
         /// <summary>sceneLoaded callbacks seen. The first one is what creates the pump host.</summary>
         internal static int ScenesLoaded;
 
-        /// <summary>Time.frameCount when the pump host was created. Expect 0, from the first scene load.</summary>
+        /// <summary>
+        ///     <c>Time.frameCount</c> when the pump host was created, which is the first
+        ///     <c>SceneManager.sceneLoaded</c> callback. <b>It is not the same number on the two
+        ///     halves and cannot be.</b>
+        ///
+        ///     <list type="bullet">
+        ///     <item><description>
+        ///         <b>Client: 0.</b> The first scene load arrives at 282 ms, still at frame 0.
+        ///     </description></item>
+        ///     <item><description>
+        ///         <b>Dedicated server: about 1834.</b> Measured on 0.2.6428.27798, logged by
+        ///         <see cref="EnsurePumpHost"/> as "pump host created at frame 1834 (scene load 1)".
+        ///         Headless there is no splash or menu scene, so the first scene load is the
+        ///         mod-content load, and 1834 frames pass before it with no log output at all.
+        ///     </description></item>
+        ///     </list>
+        ///
+        ///     -1 means no scene has loaded yet. See <see cref="BootLoopState"/> for what covers
+        ///     the gap before this point.
+        /// </summary>
         internal static int PumpHostCreatedAtFrame = -1;
 
-        /// <summary>Drains that came from the pump host's own Update. This is the boot coverage.</summary>
+        /// <summary>Drains that came from the pump host's own Update.</summary>
         internal static long HostUpdateDrains;
+
+        /// <summary>
+        ///     Drains from the pre-scene boot loop. On the dedicated server this is the only
+        ///     coverage that exists before <see cref="PumpHostCreatedAtFrame"/>, so a run where it
+        ///     stays at 0 while that frame is large means the boot window is unpumped again.
+        /// </summary>
+        internal static long BootLoopDrains;
+
+        /// <summary>
+        ///     What the boot loop is doing: <c>not started</c>, <c>running</c>, <c>retired ...</c>
+        ///     or a failure. Reported on /status and in every 504 body, because the loop rides a
+        ///     mechanism this plugin does not own and its absence has to be visible rather than
+        ///     inferred from a slow boot.
+        /// </summary>
+        internal static string BootLoopState = "not started";
 
         // Which hooks resolved at patch time. Set by the patch classes so the unavailable text can
         // say "ImGuiManager.LateUpdate: absent" rather than leaving a caller to guess.
@@ -350,7 +402,8 @@ namespace TestRig
                         ? "live from frame " + PumpHostCreatedAtFrame + " (boot coverage, ~25 Hz)"
                         : (_sceneHookInstalled ? "waiting for the first sceneLoaded" : "NOT INSTALLED")) +
                    ", ImGuiManager.LateUpdate=" + (ImGuiLateUpdateHooked ? "patched" : "absent (expected on the dedicated server: the method is not in that assembly)") +
-                   ", ElectricityManager.ElectricityTick=" + (SimTickHooked ? "patched (liveness only, never drains)" : "ABSENT");
+                   ", ElectricityManager.ElectricityTick=" + (SimTickHooked ? "patched (liveness only, never drains)" : "ABSENT") +
+                   ", bootLoop=" + BootLoopState + " (" + BootLoopDrains + " drains; covers everything before the first scene load)";
         }
 
         internal static string StrategyName => _strategy == null ? "none" : _strategy.Name;
@@ -378,6 +431,83 @@ namespace TestRig
             // patches, sceneLoaded subscriptions and background threads registered in Awake all
             // keep working after the component is gone.
             InstallSceneLoadedHost();
+            StartBootDrainLoop();
+        }
+
+        /// <summary>
+        ///     Drains the queue every frame from load until the pump host exists, which on the
+        ///     dedicated server is the whole first 1834 frames.
+        ///
+        ///     <para><b>Why this is here at all.</b> The pump host is created at the first
+        ///     <c>SceneManager.sceneLoaded</c>, and headless that callback arrives at frame 1834
+        ///     rather than frame 0 (measured on 0.2.6428.27798; the client gets it at 282 ms, still
+        ///     frame 0). Nothing else covered that stretch: the <c>GameManager.Update</c> postfix
+        ///     also calls <see cref="EnsurePumpHost"/>, and the host was still logged as created
+        ///     from "scene load 1", which proves that postfix fired ZERO times before then;
+        ///     <c>UnityMainThreadDispatcher</c> drains from <c>ManagerUpdate</c>, whose sole caller
+        ///     is that same <c>GameManager.Update</c>; and <c>ImGuiManager.LateUpdate</c> does not
+        ///     exist in the server assembly. So every <c>Main(...)</c>-wrapped route spent that
+        ///     window queueing work that nothing would run and answering 504 after its 20 s budget.
+        ///     The BepInEx log shows the shape of it plainly: 1834 frames pass between "ready on
+        ///     http://127.0.0.1:27750/" and "pump host created", with no line in between.</para>
+        ///
+        ///     <para><b>Why UniTask and not a GameObject.</b> Nothing in the game assembly is alive
+        ///     in that window, so no Harmony hook can reach it. UniTask is: the game ships it, both
+        ///     halves load it, and <c>PlayerLoopHelper.Init</c> carries
+        ///     <c>[RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterAssembliesLoaded)]</c>,
+        ///     which runs before any scene and therefore before this plugin's Awake. Its player-loop
+        ///     subsystems are engine state rather than a scene object, so they are in the same
+        ///     category as the Harmony patches and the sceneLoaded subscription: the things that
+        ///     survive the plugin component being destroyed at frame 0.</para>
+        ///
+        ///     <para><b>Why it is safe.</b> The loop is not privileged: it calls the same
+        ///     <see cref="Drain"/> as every other hook, and that refuses to execute anything off the
+        ///     captured main thread. If <c>PlayerLoopTiming.Update</c> ever resumed somewhere else,
+        ///     the result would be <see cref="OffThreadPumpsRefused"/> climbing, not Unity work on a
+        ///     worker. It retires the moment the pump host exists, so on a client it runs for a
+        ///     handful of frames, and any failure to start leaves behaviour exactly as it was.</para>
+        /// </summary>
+        private static void StartBootDrainLoop()
+        {
+            try
+            {
+                BootDrainLoop().Forget();
+                BootLoopState = "running";
+            }
+            catch (Exception ex)
+            {
+                BootLoopState = "unavailable: " + ex.Message;
+                Plugin.Log?.LogWarning("the boot drain loop could not start, so the control plane " +
+                                       "will not answer Unity-touching requests until the first scene " +
+                                       "load creates the pump host: " + ex.Message);
+            }
+        }
+
+        private static async Cysharp.Threading.Tasks.UniTaskVoid BootDrainLoop()
+        {
+            try
+            {
+                while (_pumpHost == null)
+                {
+                    await Cysharp.Threading.Tasks.UniTask.Yield(
+                        Cysharp.Threading.Tasks.PlayerLoopTiming.Update);
+                    BootLoopDrains++;
+                    FramesSeen++;
+                    try { FrameCount = Time.frameCount; } catch { }
+                    Drain("BootLoop");
+                }
+
+                BootLoopState = "retired at frame " + PumpHostCreatedAtFrame + " after " +
+                                BootLoopDrains + " drains, the pump host has it from here";
+            }
+            catch (Exception ex)
+            {
+                BootLoopState = "stopped: " + ex.Message;
+                Plugin.Log?.LogWarning("the boot drain loop stopped early: " + ex.Message +
+                                       ". The control plane is back to what the pump host and " +
+                                       "GameManager.Update provide, which headless is nothing until " +
+                                       "the first scene load.");
+            }
         }
 
         /// <summary>
@@ -480,10 +610,12 @@ namespace TestRig
         ///     Creates the pump host if it is not there. Idempotent.
         ///
         ///     <para>
-        ///     Two jobs: its <c>Update</c> drains the queue at about 25 Hz from frame 0, which is
-        ///     the only thing covering the 80-90 s boot window, and it hosts the coroutine
-        ///     <c>/screenshot</c> needs. Created on BOTH hosts, because the boot problem is worse
-        ///     on the dedicated server, not absent from it.
+        ///     Two jobs: its <c>Update</c> drains the queue at about 25 Hz, and it hosts the
+        ///     coroutine <c>/screenshot</c> needs. Created on BOTH hosts, but it does NOT cover the
+        ///     same window on both: it exists from frame 0 on a client and only from frame 1834 on
+        ///     the dedicated server, because that is when the first scene load arrives there. The
+        ///     stretch before it is covered by <c>StartBootDrainLoop</c>, which is where the
+        ///     headless numbers are written down.
         ///     </para>
         ///
         ///     <para>
@@ -633,6 +765,8 @@ namespace TestRig
                 " hooks=[" + HookReport() + "]" +
                 " mainThreadDrains=" + MainThreadDrains +
                 " hostUpdateDrains=" + HostUpdateDrains +
+                " bootLoopDrains=" + BootLoopDrains +
+                " bootLoop=" + BootLoopState +
                 " scenesLoaded=" + ScenesLoaded +
                 " hookCalls=" + FramesSeen +
                 " itemsRun=" + ItemsRun +

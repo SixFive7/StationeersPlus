@@ -47,17 +47,18 @@ The obstacle was what runs the work the listener accepts.
 
    `UnityMainThreadDispatcher` is a game type, not one this plugin owns, so it survives the plugin component being destroyed. It is resolved reflectively, so a game update that renames it degrades to a reported-unavailable route and a 504 that names it, rather than a plugin that will not load.
 
-3. **The drain has three hooks, and it needs all three**, because no single one covers both boot and steady state:
+3. **The drain has four hooks, and it needs all four**, because no single one covers both boot and steady state:
 
    | Hook | Covers | Rate | Both builds? |
    |---|---|---|---|
-   | pump host `MonoBehaviour.Update` | **boot**, from frame 0 | ~25 Hz throughout | yes |
+   | UniTask player-loop boot loop | everything before the first scene load, which headless is **frames 0-1834** | per frame, then retires | yes |
+   | pump host `MonoBehaviour.Update` | **boot**, from the first scene load: frame 0 on a client, frame 1834 on the server | ~25 Hz throughout | yes |
    | `Assets.Scripts.GameManager.Update` postfix | steady state | ~24 Hz once `GameState.Running`, but **0.11-0.16/s before it** | yes |
    | `ImGuiManager.LateUpdate` postfix | the client splash window | per frame | client only (absent from the server assembly) |
 
-   `GameManager.Update` alone would leave the control plane effectively frozen for the whole 80-90 s boot, which is exactly the window a caller spends polling for readiness. The pump host covers it.
+   `GameManager.Update` alone would leave the control plane effectively frozen for the whole 80-90 s boot, which is exactly the window a caller spends polling for readiness. The pump host covers it on a client. It does not on the dedicated server, because the first `sceneLoaded` there is frame 1834, and the boot loop is what covers that; see "The pump host" below.
 
-The choice is logged at load and readable on `/ping` (`host`, `pumpStrategy`, `pumpReady`), `/instance` and `/status` (`host` block plus `driver.pumpStrategy`, `driver.pumpDrainReady`, `driver.pumpGameMarshalReady`, `driver.pumpHooks`, `driver.pumpNote`, `driver.mainThreadDrains`, `driver.hostUpdateDrains`, `driver.pumpHostCreatedAtFrame`, `driver.scenesLoaded`). Every 504 body names the strategy, both routes' readiness, and which hooks resolved.
+The choice is logged at load and readable on `/ping` (`host`, `pumpStrategy`, `pumpReady`), `/instance` and `/status` (`host` block plus `driver.pumpStrategy`, `driver.pumpDrainReady`, `driver.pumpGameMarshalReady`, `driver.pumpHooks`, `driver.pumpNote`, `driver.mainThreadDrains`, `driver.hostUpdateDrains`, `driver.pumpHostCreatedAtFrame`, `driver.pumpBootLoopDrains`, `driver.pumpBootLoopState`, `driver.scenesLoaded`). Every 504 body names the strategy, both routes' readiness, and which hooks resolved.
 
 **Scenario dispatch was deliberately NOT moved to the main thread.** Roughly 85 scenario bodies were written against the "runs on the simulation-tick worker" contract. Quietly marshalling them would change what they measure. `ElectricityTick` is kept as the **simulation-liveness signal** and the scenario pump, and it never drains.
 
@@ -68,6 +69,18 @@ A plugin's own `MonoBehaviour.Update` **never fires at all** on the dedicated se
 That is the real mechanism behind the repo lore that "`Update` does not reliably fire after world load". The loop does not stall; the object is destroyed before it ever ticks. Only a **replacement** object ticks, which is why every earlier account looked inconsistent.
 
 Static state is what survives, and that is what this plugin relies on: the listener is owned by a static, the Harmony patches persist, background threads persist, and so does a `SceneManager.sceneLoaded` subscription registered in `Awake`. So the pump host is created from **the first `sceneLoaded` callback**, at 282 ms and still at frame 0. Measured, it then survives indefinitely and misses nothing: Update 5867 at `Time.frameCount` 5867, no gap. Recreating at the later Base scene load instead puts the object at frame 1925 and loses everything before it. The handler stays subscribed so a later scene load re-creates the host if it ever dies again, and the two main-thread postfixes call the same idempotent creator as a backstop. Nothing creates it in `Awake`.
+
+### The first scene load is frame 0 on a client and frame 1834 on the dedicated server
+
+That difference was assumed away and is now measured. The server's own log line says it: `pump host created at frame 1834 (scene load 1)`. Headless there is no splash and no menu scene, so the first scene load is the mod-content load, and 1834 frames pass before it with **no log output at all** between "ready on http://127.0.0.1:27750/" and the pump-host line.
+
+Nothing else was covering that window either, and the plugin's own code proves it: the `GameManager.Update` postfix calls the same idempotent `EnsurePumpHost()`, and the host was still logged as created from "scene load 1", so that postfix had fired **zero** times before frame 1834. `UnityMainThreadDispatcher` cannot help, because it drains from `ManagerUpdate` whose sole caller is that same `GameManager.Update`, and `ImGuiManager.LateUpdate` does not exist in the server assembly. So every `Main(...)`-wrapped route queued work that nothing would run and answered 504 after its 20 s budget, for the whole first ~1834 frames of every headless boot.
+
+Nothing in the launcher noticed, which is why this went unmeasured: the server half's `wait` uses process liveness and an InspectorPlus request-file probe rather than the HTTP plane, and `call --target server` refuses outright today. The cost was paid only by an agent hand-driving `127.0.0.1:27750` during a boot.
+
+**The fix is a UniTask player-loop drain**, running from load until the pump host exists and then retiring. UniTask is the only mechanism alive that early headless, because nothing in the game assembly is running yet and there is therefore no Harmony hook to take: `Cysharp.Threading.Tasks.PlayerLoopHelper.Init` carries `[RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterAssembliesLoaded)]`, so its player-loop subsystems are installed before any scene and before this plugin's `Awake`, and they are engine state rather than a scene object, which puts them in the same surviving category as the Harmony patches and the `sceneLoaded` subscription. Both installs ship `UniTask.dll`.
+
+It is not privileged: it calls the same `Drain` as every other hook, and that still refuses to execute anything off the captured main thread, so a timing that resumed elsewhere would show up as `offThreadPumpsRefused` climbing rather than as Unity work on a worker. `/status.driver` reports `pumpBootLoopDrains` and `pumpBootLoopState` so the next real run can confirm or refute it, and a failure to start leaves behaviour exactly as it was.
 
 ### Do not build on `FixedUpdate`
 
@@ -169,6 +182,18 @@ The same DLL in both `install/BepInEx/plugins/` and `data/mods/Local_TestRig/` m
 - **`config-set` / `/config/set`.** Same operation, and the two had drifted on a default: the server's poller defaulted `save=false`, the client's route defaulted `save=true`. **`save=true` wins, on both.** A write that is not persisted disappears on the next reload, producing a test that passed once and cannot be reproduced, and the failure is silent because the in-memory value was correct for the whole run. It also matches what a human editing the same entry through the StationeersLaunchPad panel gets. The old argument for `false` (persisting leaks test state into the next start) is real but already handled: both config trees are tier-3 rig state that the session reset restores. Pass `save=false` explicitly for the in-memory-only behaviour.
 
 The poller's `mode=list` is **narrowed**: it now reports `/status.connectedClients` and points at `/inventory?player=<name>` for hands, rather than carrying a third implementation of a read the control plane already has.
+
+## The roster: two sources, and the host is only in one
+
+`/status.connectedClients` is the server-side answer to "did the joiner actually arrive", and the first real end-to-end run showed it empty on a listen host with a joiner demonstrably in world. Two separate faults, both here:
+
+**1. The host is never in `NetworkBase.Clients`.** That list has exactly one writer, `NetworkBase.AddClient`, called only from `NetworkServer.VerifyConnection`, so it holds JOINERS. A listen host's own record is built by `NetworkServer.PopulateHostClient` and parked on `NetworkManager.HostClient` instead. The game unions the two everywhere it shows a roster: `NetworkManager.LogClientRosterToConsole` walks `Clients` then appends `HostClient`, and `NetworkManager.SerialisePlayerList` writes `HostClient` first under the guard `Client.Find(HostClient.ClientId) == null` and then every entry in `Clients`. This plugin now does the same, and skips a `HostClient` whose `ClientId` is 0, which is the game's own "not a real player" rule from `Client.DeserialiseClient` and is what a dedicated server has. The union makes the roster reconcile with `playersInGame`, which is `Clients.Count + (IsBatchMode ? 0 : 1)`.
+
+**2. `connectionId` took the whole response down.** `Client.connectionId` is a `long` RakNet connection id, and the values are enormous: 189151461494586169 and 1044835390751713754 in one measured join. Emitted as a raw JSON number it does not fit the launcher's `ConnectedClient.ConnectionId`, which is `int?`, so `System.Text.Json` threw on the **whole** `/status` payload, `RigWire.Deserialize` returned null by design, and the launcher's roster poll concluded nothing had arrived. That is what produced three attempts of `roster did not grow (0 then 0)` against a host whose own console showed the client verified, served, ready and holding the session. The number is now emitted only when it round-trips `Int32`, with the exact value beside it as `connectionIdString`.
+
+The proper fix for the second one is on the launcher side: `ConnectedClient.ConnectionId` should be a `string`, exactly as `clientId` already is and for the reason its own doc comment gives. That belongs to whoever owns `TestRig/src/`, and until it lands the plugin degrades one field rather than the whole endpoint.
+
+Two smaller things went with them. The roster loop is indexed rather than `foreach`, because a `List<T>` enumerator throws "collection was modified" if a joiner is added or removed mid-read and the old `catch` turned that into `[]`, which reads as "nobody is connected". And when the read does fail, `/status` now carries `connectedClientsError` beside the empty array, so the two cases stop looking alike.
 
 ## Fixed on the way through
 
