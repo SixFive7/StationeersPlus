@@ -47,6 +47,7 @@ The surface lists which verbs are gated and which are free, and a mutating verb 
 - **Busy** means a player is connected to the running dedicated server, or any client instance process is alive. A busy rig keeps its heartbeat alive by itself, below the ceiling only. An **untracked** game process (claimed by no pid file) is reported but is not busy: no rig action can stop it, so kill it by pid.
 - **Stop instances before releasing.** A running instance holds the whole rig with no timer to save you. `unlock` refuses outright while a listen host is live; `--force` overrides that one refusal.
 - **`--force` is not `--break-lock`.** `--force` overrides a refusal inside your own session and never touches a lock. `--break-lock` takes a live lock off another session and is **human-gated: only on the user's explicit say-so**.
+- **A `lock` that FAILED can still have taken the rig.** The lock file is written first and the state reset runs on top of it, so a reset that fails leaves you holding a real reservation on a rig that is not fit to test on. The refusal names the owner id; `unlock --as <id>` is still required, and skipping it strands the rig for every other agent. The playtest harness now releases on that path itself.
 - **After any idle gap, re-check ownership first:** `testrig status --as <id>`. If another session holds it, stop, tell the user what took it, and re-acquire only on their go-ahead.
 
 Full rules, the lock file's fields, the queueing and hand-off cases: `TestRig/MANUAL.md`, "The session lock".

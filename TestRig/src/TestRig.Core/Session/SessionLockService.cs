@@ -535,7 +535,17 @@ public sealed class SessionLockService
             catch (Exception ex) when (ex is RigRefusalException or InvalidOperationException or IOException)
             {
                 _output.Line(OutputLevel.Warning, LockMessages.ResetFailed(attempt.Owner, options.Tool));
-                throw;
+
+                // Rethrown WITH the owner id, never bare. The lock file was written inside the
+                // critical section above, so the reservation is real and this caller owns it;
+                // the failure that reaches here says only that the rig is not fit to test on.
+                // A bare rethrow makes those two indistinguishable, and the caller that cannot
+                // tell them apart leaks the rig to every other agent.
+                throw new RigSessionStartException(
+                    attempt.Owner,
+                    $"The rig state reset FAILED and the rig is NOT safe to test on, but the session lock IS held "
+                    + $"by owner {attempt.Owner} and has to be released: {ex.Message}",
+                    ex);
             }
         }
         else if (dirty.Dirty && !options.KeepState)

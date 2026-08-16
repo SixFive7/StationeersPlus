@@ -76,7 +76,7 @@ public sealed class RigComposition : IDisposable
         State = new SessionStateStore(fs, clock, paths, SharedState);
         Baseline = new BaselineStore(fs, clock, paths, Surface, output, launcher);
         Planner = new ResetPlanner(fs, clock, paths, Surface, Baseline, Worlds, Marker, Busy, State);
-        Reset = new ResetExecutor(fs, clock, output, Planner, Marker, State);
+        Reset = new ResetExecutor(fs, clock, sleeper, output, Planner, Marker, State);
         Lock = new SessionLockService(
             fs, clock, sleeper, mutex, output, paths, Busy, Marker, launcher, Reset, mintOwnerId: null, State);
 

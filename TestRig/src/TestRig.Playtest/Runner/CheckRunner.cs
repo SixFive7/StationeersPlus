@@ -4,6 +4,7 @@ using System.Text.Json.Nodes;
 using TestRig.Playtest.Evidence;
 using TestRig.Playtest.Flakes;
 using TestRig.Playtest.Model;
+using TestRig.Playtest.Seams;
 
 namespace TestRig.Playtest.Runner;
 
@@ -79,6 +80,14 @@ public sealed record CheckResult(
 ///     check, since the reset is between sessions by design and two checks under one lock
 ///     would get none. It costs the reset time, and it risks another agent taking the rig
 ///     between checks, which is reported as inconclusive and never as a failure.
+///     </para>
+///     <para>
+///     <b>Every path that took the lock releases it, the failures included.</b> Acquisition is
+///     two steps: the lock file is written, and then the between-session state reset runs on
+///     top of it. Only the first is atomic, so an acquisition that FAILS can still have
+///     reserved the rig, and the two branches that reject a grant have to release before they
+///     throw. They used to throw from outside the try/finally that owns the release, which on
+///     2026-08-16 left a live suite's rig locked by an owner nothing could name.
 ///     </para>
 ///     <para>
 ///     <b>Teardown is guaranteed and it is by name.</b> Instances are stopped one at a time,
@@ -194,33 +203,75 @@ public sealed class CheckRunner
 
         if (!grant.Success)
         {
+            // A FAILED acquisition can still have RESERVED the rig, and that is not a
+            // contradiction: the lock file is written inside the critical section and the
+            // between-session state reset runs afterwards, under the reservation that write
+            // created. A reset that throws therefore leaves a real lock behind, owned by this
+            // check. Measured 2026-08-16 on a live suite: the reset hit a sharing violation on
+            // an instance's Unity log, this branch threw from OUTSIDE the try/finally that owns
+            // the release, and the rig stayed locked by owner 8dd76948 until a human cleared
+            // it, taking the two checks behind it with it.
+            var release = ReleaseALockNoSessionCanUse(context, grant, keepState);
+
             throw PlaytestSignal.Inconclusive(
-                $"The rig session lock could not be taken, so nothing was driven and nothing was measured about the mod. {grant.Message}",
+                $"The rig session lock could not be taken, so nothing was driven and nothing was measured about the mod. {grant.Message}{release.Sentence}",
                 Detectors.RigUnavailable,
-                PlaytestJson.Detail(new Dictionary<string, object?> { ["exit"] = grant.ExitCode, ["message"] = grant.Message }));
+                PlaytestJson.Detail(new Dictionary<string, object?>
+                {
+                    ["exit"] = grant.ExitCode,
+                    ["message"] = grant.Message,
+                    ["lockWasTaken"] = grant.NeedsRelease,
+                    ["owner"] = grant.Owner,
+                    ["released"] = release.Released,
+                    ["releaseExit"] = release.ExitCode,
+                }));
         }
 
         if (string.IsNullOrWhiteSpace(grant.Owner))
         {
+            // The one path that genuinely cannot clean up after itself: the rig IS reserved
+            // and no id came back, so there is nothing to release with. It costs the rest of
+            // the run, so it says exactly what to do rather than leaving that to be worked out
+            // from a leftover file.
+            const string note =
+                "the rig is LEFT LOCKED: the lock was granted with no owner id, so this check had nothing to release with";
+            context.TeardownNotes.Add(note);
+            _deps.Log?.Invoke("[Playtest] " + note);
+
             throw PlaytestSignal.Inconclusive(
-                "The lock was taken but the launcher reported no owner id, so nothing can be driven safely and nothing could be released afterwards. " +
-                "Check TestRig/session.lock by hand before running again.",
+                "The lock was taken but the launcher reported no owner id, so nothing can be driven safely and nothing " +
+                "here can release it. THE RIG IS LEFT LOCKED, and every check behind this one ends rig-unavailable " +
+                "until it is cleared:\n" +
+                "  1. testrig status            (prints the owner id of whatever holds the rig)\n" +
+                "  2. testrig stop --target all (a running instance holds the rig with no timer to save you)\n" +
+                "  3. testrig unlock --as <owner>\n" +
+                "Release it with unlock rather than deleting TestRig/session.lock, because the release is also what " +
+                "restores the rig. --break-lock is human-gated and is not the tool for this.",
                 Detectors.RigUnavailable,
-                PlaytestJson.Detail(new Dictionary<string, object?> { ["message"] = grant.Message }));
+                PlaytestJson.Detail(new Dictionary<string, object?>
+                {
+                    ["message"] = grant.Message,
+                    ["lockLeftHeld"] = true,
+                }));
         }
 
         context.Owner = grant.Owner;
-        _deps.Log?.Invoke($"[Playtest]   lock owner {grant.Owner}");
 
-        evidence?.Write(EvidenceKind.Root, "lock.txt", new StringBuilder()
-            .Append(CultureInfo.InvariantCulture, $"owner   : {grant.Owner}\n")
-            .Append(CultureInfo.InvariantCulture, $"purpose : {spec.Purpose}\n")
-            .Append(CultureInfo.InvariantCulture, $"ttl     : {spec.TtlMinutes} min\n")
-            .Append(CultureInfo.InvariantCulture, $"acquired: {context.Stamp()}\n")
-            .ToString());
-
+        // Everything from here is inside the try, so the release covers every path that
+        // follows the lock genuinely being ours, evidence writes included. There used to be
+        // four statements between the acquisition and the try, and any of them throwing
+        // stranded the rig exactly as the two branches above did.
         try
         {
+            _deps.Log?.Invoke($"[Playtest]   lock owner {grant.Owner}");
+
+            evidence?.Write(EvidenceKind.Root, "lock.txt", new StringBuilder()
+                .Append(CultureInfo.InvariantCulture, $"owner   : {grant.Owner}\n")
+                .Append(CultureInfo.InvariantCulture, $"purpose : {spec.Purpose}\n")
+                .Append(CultureInfo.InvariantCulture, $"ttl     : {spec.TtlMinutes} min\n")
+                .Append(CultureInfo.InvariantCulture, $"acquired: {context.Stamp()}\n")
+                .ToString());
+
             AssertInstancesAreProvisionedForThisMod(context);
             BringUp(context);
             context.AssertBinaryUnderTest();
@@ -246,6 +297,55 @@ public sealed class CheckRunner
                 .Append(CultureInfo.InvariantCulture, $"notes   : {string.Join(" | ", context.TeardownNotes)}\n")
                 .ToString(), append: true);
         }
+    }
+
+    /// <summary>
+    ///     Gives back a lock the rig took and then would not let this check use.
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///     <b>The release outcome is reported ALONGSIDE the reason, never instead of it.</b> A
+    ///     release also RESTORES, so it can fail for its own reasons, and a check whose message
+    ///     had been overwritten by "the restore failed" would have lost the one thing it knows:
+    ///     why nothing was measured about the mod. So this returns a sentence to append and
+    ///     never throws.
+    ///     </para>
+    ///     <para>
+    ///     A restore that fails during the release does not stop the release. That is Core's
+    ///     rule, not this one's: a failed restore leaves the rig marked dirty so the next
+    ///     acquisition tries again, because a hung session holding the rig on top of a mess is
+    ///     worse than a mess.
+    ///     </para>
+    /// </remarks>
+    private (bool Released, int ExitCode, string Sentence) ReleaseALockNoSessionCanUse(
+        PlaytestContext context, LockGrant grant, bool keepState)
+    {
+        if (!grant.NeedsRelease) return (false, 0, string.Empty);
+
+        var release = _deps.Launcher.ReleaseLock(grant.Owner, keepState);
+        context.RecordLauncher("unlock", $"-As {grant.Owner}", release);
+
+        if (release.Success)
+        {
+            var note = $"the lock this check had already taken (owner {grant.Owner}) was released after the acquisition failed";
+            context.TeardownNotes.Add(note);
+            _deps.Log?.Invoke("[Playtest] " + note);
+
+            return (true, release.ExitCode,
+                $" The lock this attempt had already taken (owner {grant.Owner}) was released, so the rig is free for "
+                + "the next check.");
+        }
+
+        var failure =
+            $"the rig is STILL LOCKED by owner {grant.Owner}: releasing it after a failed acquisition also failed "
+            + $"(exit {release.ExitCode}): {release.Message}";
+        context.TeardownNotes.Add(failure);
+        _deps.Log?.Invoke("[Playtest] " + failure);
+
+        return (false, release.ExitCode,
+            $" Reported alongside that, not instead of it: the rig is STILL LOCKED by owner {grant.Owner}, because "
+            + $"releasing the lock this attempt had already taken also failed (exit {release.ExitCode}): "
+            + $"{release.Message} Clear it before the next run with: testrig unlock --as {grant.Owner}.");
     }
 
     /// <summary>

@@ -52,7 +52,7 @@ public sealed class RigFixture
         SharedState = new SharedStateReader(Fs, Registry, Clock, Paths.SharedDataDir, Paths.PlayerPrefsKey);
         State = new SessionStateStore(Fs, Clock, Paths, SharedState);
         Planner = new ResetPlanner(Fs, Clock, Paths, Surface, Baseline, Worlds, Marker, Busy, State);
-        Executor = new ResetExecutor(Fs, Clock, Output, Planner, Marker, State);
+        Executor = new ResetExecutor(Fs, Clock, Sleeper, Output, Planner, Marker, State);
 
         Lock = new SessionLockService(
             Fs, Clock, Sleeper, Mutex, Output, Paths, Busy, Marker, Launcher,

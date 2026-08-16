@@ -89,6 +89,23 @@ public sealed record LockGrant(
 
     public static LockGrant Refused(string message, string stateResetReport = "", int exitCode = 1) =>
         new(false, string.Empty, stateResetReport, message, exitCode);
+
+    /// <summary>
+    ///     The rig WAS reserved, and then the session could not be started on it.
+    /// </summary>
+    /// <remarks>
+    ///     A failed acquisition is not the same thing as an untaken lock, and collapsing the
+    ///     two is what leaked the rig. Acquisition writes the lock file first and runs the
+    ///     between-session state reset afterwards; when that reset fails, the caller holds a
+    ///     real reservation under <paramref name="owner"/> and must give it back, even though
+    ///     nothing may be driven on top of it. <see cref="Success"/> stays false precisely
+    ///     because nothing may be driven.
+    /// </remarks>
+    public static LockGrant TakenWithoutASession(string owner, string message, string stateResetReport = "", int exitCode = 1) =>
+        new(false, owner, stateResetReport, message, exitCode);
+
+    /// <summary>The lock is on disk under <see cref="Owner"/> although the session never started.</summary>
+    public bool NeedsRelease => !Success && !string.IsNullOrWhiteSpace(Owner);
 }
 
 /// <summary>

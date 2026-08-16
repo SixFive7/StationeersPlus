@@ -195,6 +195,11 @@ internal sealed class ConflictBanner : IPlaytestCheck
             // ---- 5. Nothing may be announced while the player is at the menu.
             // The boot line above has already been printed by now, so counting
             // from here separates it from the six that must wait for a world.
+            //
+            // Is(0) over a Contains filter passes whether the literal is right or
+            // wrong, so this counts for nothing on its own. What makes it evidence is
+            // step 6: the same bannerLine, the same reader and the same window,
+            // asserted PRESENT six times. A drifted literal fails there.
             var seqMenu = Seq(ctx.Read("hostie", Reader.Console, "nextSeq", readerArgs: new ConsoleLogRequest { Limit = 1 }));
             ctx.Wait(15);
 

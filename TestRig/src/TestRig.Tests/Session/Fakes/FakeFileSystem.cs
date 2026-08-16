@@ -44,6 +44,21 @@ public sealed class FakeFileSystem : IFileSystem
     /// <summary>Exact paths whose delete throws.</summary>
     public Dictionary<string, string> DeleteFailures { get; } = new(StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>
+    /// Exact paths whose delete throws a SHARING VIOLATION the first N times, then succeeds.
+    /// </summary>
+    /// <remarks>
+    /// The state of a file whose owning process has exited while Windows has not yet released
+    /// its handles, which is the reset's real race and could not be produced here at all
+    /// before: <see cref="DeleteFailures"/> is permanent, so a test written with it can only
+    /// ever prove the terminal case. The exception carries the real HRESULT
+    /// (0x80070020) so the classification under test is the classification that runs.
+    /// </remarks>
+    public Dictionary<string, int> TransientDeleteFailures { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>How many times a delete was attempted, per path, including the failures.</summary>
+    public Dictionary<string, int> DeleteAttempts { get; } = new(StringComparer.OrdinalIgnoreCase);
+
     /// <summary>Paths written through the durable path, so a test can prove the marker used it.</summary>
     public List<string> DurableWrites { get; } = [];
 
@@ -184,15 +199,36 @@ public sealed class FakeFileSystem : IFileSystem
     public void DeleteFile(string path)
     {
         var key = Key(path);
+        DeleteAttempts[key] = DeleteAttempts.TryGetValue(key, out var seen) ? seen + 1 : 1;
         if (DeleteFailures.TryGetValue(key, out var message)) throw new IOException(message);
+        ThrowIfStillHeldOpen(key);
         _files.Remove(key);
         BinaryVersions.Remove(key);
+    }
+
+    /// <summary>
+    /// The real thing a just-exited process leaves behind: ERROR_SHARING_VIOLATION as an
+    /// IOException carrying HRESULT 0x80070020, for the number of attempts the test scripted.
+    /// </summary>
+    /// <remarks>
+    /// The message is the runtime's own stripped resource key rather than the English
+    /// sentence, because that is what the AOT binary prints (<c>UseSystemResourceKeys</c>) and
+    /// what the operator on 2026-08-16 actually saw.
+    /// </remarks>
+    private void ThrowIfStillHeldOpen(string key)
+    {
+        if (!TransientDeleteFailures.TryGetValue(key, out var remaining) || remaining <= 0) return;
+
+        TransientDeleteFailures[key] = remaining - 1;
+        throw new IOException($"IO_SharingViolation_File, {key}") { HResult = unchecked((int)0x80070020) };
     }
 
     public void DeleteDirectory(string path, bool recursive)
     {
         var key = Key(path);
+        DeleteAttempts[key] = DeleteAttempts.TryGetValue(key, out var seen) ? seen + 1 : 1;
         if (DeleteFailures.TryGetValue(key, out var message)) throw new IOException(message);
+        ThrowIfStillHeldOpen(key);
         if (!_dirs.ContainsKey(key)) throw new DirectoryNotFoundException($"No such directory: {path}");
 
         var prefix = key + Path.DirectorySeparatorChar;

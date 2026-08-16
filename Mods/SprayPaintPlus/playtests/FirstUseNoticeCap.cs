@@ -162,6 +162,10 @@ internal sealed class FirstUseNoticeCap : IPlaytestCheck
             ctx.Act("hostie", Endpoints.PlayerUse, new PlayerUseRequest { TargetId = spawned[3] });
             ctx.Wait(2);
 
+            // Is(0) over a Contains filter passes whether the literal is right or
+            // wrong. This one is evidence because the two assertions above already
+            // required the full notice, which carries this substring, to appear three
+            // times on this same reader: a drifted literal fails there first.
             ctx.AssertValue("hostie", Reader.Console, ValueMatcher.Is(0),
                 because: "the fourth stroke at the same function must print nothing at all; the substring here is deliberately looser than the counted one, so a notice that reappeared under different wording is still caught",
                 select: "count",

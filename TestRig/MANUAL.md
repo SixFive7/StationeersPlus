@@ -64,7 +64,7 @@ Twenty-two verbs you can type, plus `host-mode`, which is internal: the detached
 | `snapshot [--out-file <f>]` | free | refused (it has no registry row to key one on; use `call --path /status`) | `/status` from every named instance in one document |
 | `update-game` | needs | SteamCMD app 600760, then mirror the client's `BepInEx/` tree and overlay the StationeersLaunchPad server zip | re-link each instance tree from the developer's install (a `create --force` per instance) |
 | `update-mods [--from-modconfig <p>]` | needs | mirror the developer's enabled mod set into `data/mods/`, bake `install/modconfig.xml` | re-seed each instance's `userdata/mods/` and its own `modconfig.xml` |
-| `deploy <ModName> [--configuration]` | needs | released mods to `install/BepInEx/plugins/<X>/`, dev-plugins to `data/mods/Local_<X>/` | to `userdata/mods/Local_<X>/` with an `About/` mirror and a `<Local>` entry. Refuses a mod the instance is not provisioned to test; with no `--mod` it deploys that instance's own under-test set |
+| `deploy <ModName> [--configuration]` | needs | released mods to `install/BepInEx/plugins/<X>/`, dev-plugins to `data/mods/Local_<X>/` | to `userdata/mods/Local_<X>/` with an `About/` mirror and a `<Local>` entry, EXCEPT the control plane, which takes `BepInEx/plugins/<X>/`. Refuses a mod the instance is not provisioned to test; with no `--mod` it deploys that instance's own under-test set |
 | `create --target <name>` | needs | refused | build or rebuild ONE instance tree. `--under-test <Mod>[,<Mod>]` records what it exists to test |
 | `remove --target <name>` | needs | refused | delete the tree and the instance's save root |
 | `start` | needs | must enter a world in the same call: `--load <SaveName> --map <Map>` or `--new <Map>`, and `--new` is validated against the install's world catalogue before anything launches | boots to the MENU and no further; entering a world is a separate `call` |
@@ -242,7 +242,7 @@ testrig create --target client1 --as <id>
 testrig unlock --as <id>
 ```
 
-The control-plane plugin is deployed into an instance at `create` time, so a new plugin build needs `create --force` per instance, not a `deploy`.
+The control-plane plugin is deployed into an instance at `create` time, so a fresh instance never comes up without one. Picking up a NEW plugin build is `testrig deploy TestRig --target clients --as <id>`, which rewrites `BepInEx/plugins/TestRig/` in place; `create --force` also does it, along with re-linking the whole tree.
 
 ### Host a world from a driven client, with a joiner
 
@@ -402,9 +402,9 @@ Attestation derives from a check's own location through `[CallerFilePath]`: the 
 
 **Version coupling.** The server's `BepInEx/` tree, including StationeersLaunchPad and its siblings (LaunchPadBooster, StationeersMods.Interface, StationeersMods.Shared, NetworkBufferFix), must match the client's exactly, or the join handshake rejects clients with a version mismatch. `update-game` re-syncs it and overlays the StationeersLaunchPad server zip, which carries `RG.ImGui.dll` that the client install does not have.
 
-**In-process probes.** `ScenarioRunner` (`TestRig/DedicatedServer/dev-plugins/ScenarioRunner/`) is the deployed probe plugin today. Use it when a snapshot is the wrong shape: state evolution across many ticks, or stimulating a method rather than reading one. It runs from a Harmony postfix on `ElectricityManager.ElectricityTick`, which is a **ThreadPool worker** and only fires while the simulation is running. Pick a scenario in `install/BepInEx/config/net.scenariorunner.cfg`, then grep `install/BepInEx/LogOutput.log` for `[ScenarioRunner]` (not `data/server.log`, which carries Unity output). Its catalogue and authoring guide: that folder's `README.md`.
+**In-process probes.** The merged plugin (`TestRig/dev-plugins/TestRig/`) carries them, and it is what the server runs: `data/mods/Local_TestRig/`, with `BepInEx/plugins/ScenarioRunner/` swept out by the deploy. Use a probe when a snapshot is the wrong shape: state evolution across many ticks, or stimulating a method rather than reading one. A probe runs from a Harmony postfix on `ElectricityManager.ElectricityTick`, which is a **ThreadPool worker** and only fires while the simulation is running, so a parked world sees none of them.
 
-Its replacement is built and not yet deployed: `TestRig/dev-plugins/TestRig/` merges `ScenarioRunner` and `ClientDriver` into one plugin that loads into both halves, so a scenario becomes invocable over HTTP (`GET /scenarios`, `POST /scenario/run|arm|disarm`) instead of armed through a config value and read out of a log. See "Dev-plugins" below.
+Drive one over HTTP (`GET /scenarios`, `POST /scenario/run|arm|disarm`, catalogued below) rather than arming it through a config value: `POST /scenario/run` returns the lines the probe wrote with the answer, so the caller never picks a log file. When you do want the log, the probe lines are still prefixed `[ScenarioRunner]` and they land in `install/BepInEx/LogOutput.log`, **not** in `data/server.log`, which carries Unity output. That grep target is the one thing here that has not changed with the merge, and it was confirmed on hardware again this week. The config fallback is `install/BepInEx/config/net.sixfive7.testrig.cfg` (the predecessor's `net.scenariorunner.cfg` is still recognised by the reset). Catalogue and authoring guide: `TestRig/dev-plugins/TestRig/README.md`.
 
 **Offline save editing** is `tools/save-edit/`: read a save ZIP, mutate `world.xml`, write a new ZIP, with the game not running. Use it for persisted state (fields on existing Things, cloning a Thing to a position, adding or dropping network ids) and an in-process probe for anything that depends on a simulation tick or on adjacency-driven registration. Always work on a copy inside `data/saves/`.
 
@@ -414,7 +414,7 @@ There is no clean verb. Wiping binaries is "delete `install/`, then `update-game
 
 ## The client half
 
-`TestRig/ClientRig/` holds `dev-plugins/ClientDriver/` (the control plane inside each instance), `data/rig.json` (the registry, one entry per instance), `data/<instance>/` (manifest, provision stamp, `setting.xml`, save root, logs, pid file) and `instances/<instance>/` (the hard-linked game tree, which normally lives on the install's volume instead).
+`TestRig/ClientRig/` holds `data/rig.json` (the registry, one entry per instance), `data/<instance>/` (manifest, provision stamp, `setting.xml`, save root, logs, pid file) and `instances/<instance>/` (the hard-linked game tree, which normally lives on the install's volume instead). The control plane inside each instance is the merged plugin, at `instances/<instance>/BepInEx/plugins/TestRig/`; its source is `TestRig/dev-plugins/TestRig/` and the superseded `dev-plugins/ClientDriver/` beside this folder is a fallback, not what runs.
 
 **What `create` builds.** `rocketstation_Data`, `MonoBleedingEdge` and the engine binaries are NTFS hard links: 1,053 of them on game 0.2.6428.27798, sharing about 6.9 GB. That count is a function of the install's file list and moves with every game update, so treat "about a thousand" as the durable figure and read the create summary for the real one. `app.info`, `doorstop_config.ini`, `Fixing The Controls modifiers.ini` and the whole `BepInEx/` tree are real copies, because a mod writes to them and a hard link would reach back into the developer's install. The control-plane plugin lands in `BepInEx/plugins/`. Local mods are copied into the instance's own save root with `modconfig.xml` repointed and `SavePathOverride` set (`--no-seed-mods` skips the mod seed, never the redirect). `imgui.ini` and `output_log.txt` are not carried.
 
@@ -466,7 +466,7 @@ The registry entry is written **before** the save-path redirect is attempted, an
 
 The in-process control plane is a loopback `TcpListener` speaking minimal HTTP/1.1. Every body field can also be a query parameter, so anything is reachable from a browser or `curl`. **A query parameter is the reliable way to send a Windows path**: it is percent-decoded by the HTTP layer and never goes through the JSON string reader. `GET /help` prints this list at runtime and is the authority.
 
-Today the deployed plugin is `ClientDriver` (client instances only) with 64 endpoints. The merged `TestRig` plugin carries all 64 across, adds `/scenarios`, `/scenario/run`, `/scenario/arm` and `/scenario/disarm`, and loads into the dedicated server as well; there, an endpoint that needs something a headless process does not have refuses with **409** carrying `needs`, `because` and `instead` rather than a bare 404 or an empty object. The refused set is listed in `TestRig/dev-plugins/TestRig/README.md`.
+The deployed plugin is the merged `TestRig` one, on **both** halves, with 68 endpoints: `ClientDriver`'s 64 plus `/scenarios`, `/scenario/run`, `/scenario/arm` and `/scenario/disarm`. On the dedicated server an endpoint that needs something a headless process does not have refuses with **409** carrying `needs`, `because` and `instead` rather than a bare 404 or an empty object. The refused set is listed in `TestRig/dev-plugins/TestRig/README.md`.
 
 ### Instance and state
 
@@ -576,7 +576,7 @@ The `/status` fields a multiplayer test reads:
 
 The five bold rows are what make a per-Thing instance field, and a DLC owner versus non-owner test, reachable without an InspectorPlus round trip. Two of the Spray Paint Plus checks run on the DLC routes.
 
-### Scenarios (merged plugin only)
+### Scenarios
 
 | Endpoint | Notes |
 |---|---|
@@ -626,7 +626,7 @@ The restore runs at both ends of a session (see `TestRig/CLAUDE.md`) and on dema
 | Half | Reset | Kept |
 |---|---|---|
 | Client, per instance | `data/<n>/setting.xml` (it carries `StartLocalHost`), the Unity logs, `imgui.ini`, a STALE `game.pid`, the instance's `BepInEx/config` (re-copied from the source install, then `SavePathOverride` re-applied), `LogOutput.log*`, `BepInEx/cache/`, `BepInEx/inspector/requests/` and `snapshots/`, loose files at the top of `userdata/saves/`, and any world under `userdata/saves/` THIS session created | `data/rig.json`, `instance.json`, `provision.stamp`, `userdata/mods/` and `modconfig.xml`, the deployed control plugin, the hard links, and **every instance world that predates the session** |
-| Dedicated server | the probe plugin's armed `Scenario` value (blanked, the rest of the file untouched), `install/BepInEx/scenariorunner/requests/` and `give/`, `install/BepInEx/inspector/requests/` and `snapshots/`, `data/setting.xml`, stale `server.pid` / `host.pid` / `control.cmd`, and any `data/saves/` world THIS session created | every world that predates the session, `data/mods/`, `install/modconfig.xml`, the deployed plugin DLLs, every other `install/BepInEx/config/*.cfg` |
+| Dedicated server | the armed `Scenario` value in every config a rig plugin writes (`net.sixfive7.testrig.cfg` and the predecessor's `net.scenariorunner.cfg`; blanked, the rest of the file untouched), `install/BepInEx/scenariorunner/requests/` and `give/`, `install/BepInEx/inspector/requests/` and `snapshots/`, `data/setting.xml`, stale `server.pid` / `host.pid` / `control.cmd`, and any `data/saves/` world THIS session created | every world that predates the session, `data/mods/`, `install/modconfig.xml`, the deployed plugin DLLs, every other `install/BepInEx/config/*.cfg` |
 
 **Client-instance worlds are session-scoped, not wiped.** They used to be deleted wholesale, on the reasoning that a client has no worlds worth keeping. A listen host writes real worlds there, so a host's world was destroyed by the next restore while the identically-tiered server world beside it was protected. Both halves now follow the same rule: a world is deleted if and only if the session marker recorded a world set and this world is not in it.
 
@@ -660,9 +660,9 @@ A dev-plugin is a BepInEx plugin that exists only to drive or observe the rig. I
 
 | Path | What it is | State |
 |---|---|---|
-| `TestRig/dev-plugins/TestRig/` | the merged plugin: one assembly, both halves, `ClientDriver`'s 64 endpoints plus the four scenario routes | built, **not deployed** |
-| `TestRig/ClientRig/dev-plugins/ClientDriver/` | the control plane inside a game client | deployed today |
-| `TestRig/DedicatedServer/dev-plugins/ScenarioRunner/` | in-process probes on the dedicated server | deployed today |
+| `TestRig/dev-plugins/TestRig/` | the merged plugin: one assembly, both halves, `ClientDriver`'s 64 endpoints plus the four scenario routes | **deployed on both halves** |
+| `TestRig/ClientRig/dev-plugins/ClientDriver/` | the control plane inside a game client, before the merge | superseded; source retained as a fallback |
+| `TestRig/DedicatedServer/dev-plugins/ScenarioRunner/` | in-process probes on the dedicated server, before the merge | superseded; source retained as a fallback |
 
 All three follow the same layout, so a fourth slots in with nothing to rename:
 
@@ -675,6 +675,8 @@ All three follow the same layout, so a fourth slots in with nothing to rename:
         ... source ...
 ```
 
-Build with `dotnet build <path>/<Name>.sln -c Release`. A server-half plugin then goes out with `testrig deploy <Name> --target server --as <id>`; a client-half plugin is copied at instance-create time, so picking up a new build is `create --force` per instance rather than a deploy.
+Build with `dotnet build <path>/<Name>.sln -c Release`. It then goes out with `testrig deploy <Name> --target server --as <id>` or `--target clients`; on a client the control plane takes the Chainloader path (`BepInEx/plugins/<Name>/`) rather than the StationeersLaunchPad one, which is what lets an existing instance move onto a new build without rebuilding its tree. `create` deploys it too, so a fresh instance never comes up without one, and `create --force` is still the way to pick up a new build along with a tree rebuild.
 
-**Nothing deploys the merged plugin yet.** The deploy resolver does not know `TestRig/dev-plugins/`, and the client half still names `ClientDriver` explicitly. Do not delete either replaced tree until parity has been proven on real hardware. Details, the measured pump design and the endpoints it refuses on the dedicated server: `TestRig/dev-plugins/TestRig/README.md`.
+**Which plugin a deploy resolves to is decided by the build, never by a name in the rig.** `ModBuilds` searches `TestRig/dev-plugins/` as well as either half's own, the merged plugin wins whenever its build exists, and naming a predecessor explicitly still deploys that predecessor, so the command cannot quietly install something other than what it says.
+
+**Deploying any one of the three sweeps the other two out of BOTH load paths**, on both halves (`ControlPlugins.Superseded`, driven by name and derived from one list, so it works in either direction). This is not tidiness: they are different plugins with different GUIDs, so two of them load, `Awake` runs twice, every Harmony patch registers twice, and the client pair binds the same control port twice. The merged plugin's own duplicate refusal cannot see it, because that check recognises a second copy of ITSELF by GUID. A freshly created instance arrives carrying the developer's own `BepInEx/plugins/ClientDriver/`, so the sweep fires on the ordinary path rather than an exotic one. Details, the measured pump design and the endpoints it refuses on the dedicated server: `TestRig/dev-plugins/TestRig/README.md`.

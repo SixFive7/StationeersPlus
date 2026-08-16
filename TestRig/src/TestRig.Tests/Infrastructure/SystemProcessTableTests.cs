@@ -124,6 +124,14 @@ public sealed class SystemProcessTableTests
         using var child = StartLongRunningChild();
         var pid = child.Id;
 
+        // Read WHILE it is alive, and keep the string. Process.ProcessName is populated
+        // lazily from the process object, and asking for it after the exit throws
+        // InvalidOperationException out of EnsureState often enough to have failed one full
+        // suite run in three here. That is the test flaking, not the seam: nothing this test
+        // is about depends on when the name is read, and a suite that goes red at random is
+        // the fastest way to teach a reader to ignore it.
+        var image = child.ProcessName;
+
         Assert.NotNull(_table.TryGet(pid));
         Assert.True(_table.IsRunning(pid));
 
@@ -134,7 +142,7 @@ public sealed class SystemProcessTableTests
         Assert.True(child.HasExited);
         Assert.Null(_table.TryGet(pid));
         Assert.False(_table.IsRunning(pid));
-        Assert.DoesNotContain(_table.FindByImage(child.ProcessName), p => p.Pid == pid);
+        Assert.DoesNotContain(_table.FindByImage(image), p => p.Pid == pid);
     }
 
     [Fact]

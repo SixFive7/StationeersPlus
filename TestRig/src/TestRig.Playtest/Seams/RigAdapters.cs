@@ -138,6 +138,14 @@ public sealed class CoreRigLauncher : IRigLauncher
 
             return LockGrant.Granted(result.Owner, _recorder.End());
         }
+        catch (RigSessionStartException ex)
+        {
+            // The lock IS taken: the reservation is written before the state reset runs, and
+            // it is the reset that failed. Reported with its owner id, so the caller can give
+            // the rig back rather than stranding it (the reset failed here on a live suite and
+            // three checks were lost to a lock nothing could release).
+            return LockGrant.TakenWithoutASession(ex.Owner, ex.Message, _recorder.End(), RigExitCodes.For(ex.Kind));
+        }
         catch (RigRefusalException ex)
         {
             return LockGrant.Refused(ex.Message, _recorder.End(), RigExitCodes.For(ex.Kind));

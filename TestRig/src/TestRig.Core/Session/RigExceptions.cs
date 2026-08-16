@@ -32,10 +32,23 @@ public enum RigRefusalKind
 }
 
 /// <summary>A refusal, carrying the kind so a caller does not have to read the sentence.</summary>
-public sealed class RigRefusalException : Exception
+/// <remarks>
+/// Not sealed, for exactly one subclass: <see cref="RigSessionStartException"/>. Every catch
+/// in the rig and in the CLI is written against this type, and the acquisition failure that
+/// subclass describes is a refusal in every way that matters to them, so widening the
+/// hierarchy is what keeps a caller that only knows about refusals behaving as it did.
+/// </remarks>
+public class RigRefusalException : Exception
 {
     public RigRefusalException(RigRefusalKind kind, string message, Refusal? refusal = null)
         : base(message)
+    {
+        Kind = kind;
+        Refusal = refusal;
+    }
+
+    public RigRefusalException(RigRefusalKind kind, string message, Exception? inner, Refusal? refusal = null)
+        : base(message, inner)
     {
         Kind = kind;
         Refusal = refusal;
@@ -45,4 +58,37 @@ public sealed class RigRefusalException : Exception
 
     /// <summary>The teaching form (what, why, what works instead), when there is one.</summary>
     public Refusal? Refusal { get; }
+}
+
+/// <summary>
+/// The lock was TAKEN, and then the session could not be started on top of it.
+/// </summary>
+/// <remarks>
+/// <para>
+/// Acquisition is two steps and only the first one is atomic: the lock file is written inside
+/// the critical section, and the between-session state reset runs afterwards, outside it,
+/// under the reservation that write created. So a reset that throws leaves a REAL lock on
+/// disk owned by a caller that just saw an exception.
+/// </para>
+/// <para>
+/// <b>The owner id is the whole point of the type.</b> Without it the failure is
+/// indistinguishable from "the rig was never yours", and a caller that holds a typed result
+/// rather than the console cannot recover the id from anywhere: the playtest harness took the
+/// lock, was told only that the acquisition was refused, and left the rig held by an id it
+/// never saw. Measured 2026-08-16 on a live suite: owner 8dd76948, three checks lost to
+/// rig-unavailable behind it, cleared by hand.
+/// </para>
+/// </remarks>
+public sealed class RigSessionStartException : RigRefusalException
+{
+    public RigSessionStartException(string owner, string message, Exception inner)
+        : base(
+            inner is RigRefusalException refusal ? refusal.Kind : RigRefusalKind.Broken,
+            message,
+            inner,
+            (inner as RigRefusalException)?.Refusal) =>
+        Owner = owner;
+
+    /// <summary>The session id the lock file carries. Release with it; it is a real reservation.</summary>
+    public string Owner { get; }
 }

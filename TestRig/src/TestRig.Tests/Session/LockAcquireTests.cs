@@ -469,12 +469,62 @@ public sealed class LockAcquireTests
             rig.Fs, rig.Clock, rig.Sleeper, rig.Mutex, rig.Output, rig.Paths, rig.Busy, rig.Marker, rig.Launcher,
             restore, rig.MintOwnerId);
 
-        await Assert.ThrowsAsync<RigRefusalException>(() => service.AcquireAsync(rig.Acquire()));
+        await Assert.ThrowsAsync<RigSessionStartException>(() => service.AcquireAsync(rig.Acquire()));
 
         Assert.NotNull(rig.Output.ValueOf("owner"));
         Assert.True(rig.Output.Warned("The rig state reset FAILED"));
         Assert.True(rig.Output.Warned("You DO hold the lock"));
         Assert.True(rig.LockFileExists());
+    }
+
+    [Fact]
+    public async Task AFailingRestoreThrowsTheOWNERIdAndNotJustAMessage()
+    {
+        // The console line above is not enough on its own, and this is the difference that
+        // cost a live suite three checks: a caller holding a typed result rather than a
+        // terminal could not recover the id from anywhere, so it reported "the lock could not
+        // be taken" while a real reservation sat on disk with nobody able to name it.
+        var rig = new RigFixture(wireRestore: false);
+        var restore = new FakeRestore { Throws = new RigRefusalException(RigRefusalKind.Broken, "half reset") };
+        var service = new SessionLockService(
+            rig.Fs, rig.Clock, rig.Sleeper, rig.Mutex, rig.Output, rig.Paths, rig.Busy, rig.Marker, rig.Launcher,
+            restore, rig.MintOwnerId);
+
+        var ex = await Assert.ThrowsAsync<RigSessionStartException>(() => service.AcquireAsync(rig.Acquire()));
+
+        // The id in the exception is the id in the lock file, so releasing with it works.
+        Assert.Equal(rig.ReadLockFile()!.GetOrEmpty(LockFields.Owner), ex.Owner);
+        Assert.Contains(ex.Owner, ex.Message, StringComparison.Ordinal);
+        Assert.Contains("half reset", ex.Message, StringComparison.Ordinal);
+
+        // Still a refusal to every caller that only knows about refusals, and still the same
+        // exit code, so widening the type changed nothing for the CLI.
+        Assert.IsAssignableFrom<RigRefusalException>(ex);
+        Assert.Equal(RigRefusalKind.Broken, ex.Kind);
+        Assert.Equal(RigExitCodes.Failed, RigExitCodes.For(ex.Kind));
+
+        // And it really is releasable with what came back.
+        Assert.Equal(ReleaseStatus.Released, service.Release(ex.Owner).Status);
+        Assert.False(rig.LockFileExists());
+    }
+
+    [Fact]
+    public async Task AnIoFailureInTheRestoreCarriesTheOwnerToo()
+    {
+        // The reset throws RigRefusalException for a failed ACTION and IOException for a
+        // failure underneath one. Both leave the same real lock behind, so both have to carry
+        // the id; only the first one did while the type was chosen by the thrower.
+        var rig = new RigFixture(wireRestore: false);
+        var restore = new FakeRestore { Throws = new IOException("IO_SharingViolation_File, unity-20260816-020316.log") };
+        var service = new SessionLockService(
+            rig.Fs, rig.Clock, rig.Sleeper, rig.Mutex, rig.Output, rig.Paths, rig.Busy, rig.Marker, rig.Launcher,
+            restore, rig.MintOwnerId);
+
+        var ex = await Assert.ThrowsAsync<RigSessionStartException>(() => service.AcquireAsync(rig.Acquire()));
+
+        Assert.Equal(rig.ReadLockFile()!.GetOrEmpty(LockFields.Owner), ex.Owner);
+        Assert.Equal(RigRefusalKind.Broken, ex.Kind);
+        Assert.Contains("unity-20260816-020316.log", ex.Message, StringComparison.Ordinal);
     }
 
     [Fact]

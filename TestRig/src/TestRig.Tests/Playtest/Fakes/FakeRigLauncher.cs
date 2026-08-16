@@ -22,6 +22,19 @@ public sealed class FakeRigLauncher : IRigLauncher
 
     public bool LockSucceeds { get; set; } = true;
 
+    /// <summary>
+    ///     The acquisition takes the lock and THEN fails, which is what a failed state reset
+    ///     does.
+    /// </summary>
+    /// <remarks>
+    ///     Not the same state as <see cref="LockSucceeds"/> being false, and collapsing the two
+    ///     is what leaked the rig: the lock file is written inside the critical section and the
+    ///     reset runs afterwards under that reservation, so this failure leaves a REAL lock
+    ///     behind owned by <see cref="Owner"/>. A fake that could only refuse could not
+    ///     represent it, so no test could catch the leak.
+    /// </remarks>
+    public bool LockTakenThenResetFails { get; set; }
+
     public string LockMessage { get; set; } = "another session holds the rig";
 
     public string StateResetReport { get; set; } = "rig state: clean\nnothing to restore";
@@ -47,6 +60,12 @@ public sealed class FakeRigLauncher : IRigLauncher
         // keep-state is recorded rather than ignored: it is the only way to hand a staged rig
         // to the next check, and forwarding it was missing entirely (PLAYTEST-247).
         Calls.Add($"lock {purpose} ttl={ttlMinutes} wait={waitSeconds}{(keepState ? " -KeepState" : string.Empty)}");
+
+        if (LockTakenThenResetFails)
+        {
+            return LockGrant.TakenWithoutASession(Owner, LockMessage, StateResetReport);
+        }
+
         return LockSucceeds
             ? LockGrant.Granted(Owner, StateResetReport)
             : LockGrant.Refused(LockMessage, StateResetReport);

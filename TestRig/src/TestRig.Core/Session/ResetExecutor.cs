@@ -28,15 +28,23 @@ public sealed record ResetOptions
 /// Runs a restore plan.
 /// </summary>
 /// <remarks>
+/// <para>
 /// Execution continues past a failing action and only throws at the end, deliberately: a
 /// plan whose fifth action fails still runs actions six through twenty, and the throw
 /// names the half-reset instance while the rig stays marked dirty. Collect, then throw;
 /// never fail fast.
+/// </para>
+/// <para>
+/// An action that failed on an IO error is swept again before it counts as a failure. See
+/// <see cref="TransientRetryDelaysMs"/> for the race that makes this necessary and for why
+/// the budget is per RUN rather than per action.
+/// </para>
 /// </remarks>
 public sealed class ResetExecutor : IRigRestore
 {
     private readonly IFileSystem _fs;
     private readonly IClock _clock;
+    private readonly ISleeper _sleeper;
     private readonly IOutput _output;
     private readonly ResetPlanner _planner;
     private readonly DirtyMarker _marker;
@@ -45,6 +53,7 @@ public sealed class ResetExecutor : IRigRestore
     public ResetExecutor(
         IFileSystem fs,
         IClock clock,
+        ISleeper sleeper,
         IOutput output,
         ResetPlanner planner,
         DirtyMarker marker,
@@ -52,11 +61,49 @@ public sealed class ResetExecutor : IRigRestore
     {
         _fs = fs;
         _clock = clock;
+        _sleeper = sleeper;
         _output = output;
         _planner = planner;
         _marker = marker;
         _state = state;
     }
+
+    /// <summary>
+    /// How long the run waits between sweeps over the actions that hit an IO error.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>Windows releases a process's file handles asynchronously after it exits.</b> "The
+    /// process object is gone" does not mean "its files are closed", so the reset at the top of
+    /// a session routinely runs while the instance the PREVIOUS check stopped is still letting
+    /// go of its Unity log. Measured 2026-08-16: the reset failed on
+    /// <c>&lt;instance&gt;\logs\unity-*.log</c> with a sharing violation, which ended that
+    /// check and, through a lock leak that has since been fixed, the two behind it. A
+    /// transient, self-healing condition was being treated as terminal.
+    /// </para>
+    /// <para>
+    /// <b>The refusal it does not weaken.</b> Refusing to test on a half-reset rig is correct
+    /// and is unchanged: an action that is still failing when the budget runs out is a failure,
+    /// the run throws, the marker stays set, and nothing is silently skipped. A file the reset
+    /// could not clear is exactly how a stale log poisons a later assertion, so the only thing
+    /// bought here is time for a handle to close.
+    /// </para>
+    /// <para>
+    /// <b>Per RUN, not per action, and that is the point of sweeping rather than looping in
+    /// place.</b> Each pass retries every action still failing, so twenty held files cost the
+    /// same wall clock as one: 7.75 s of added delay at worst, whatever the plan looks like.
+    /// A per-action retry with this budget would be minutes on a plan that is genuinely stuck.
+    /// The other actions running in between are free time for the handle as well.
+    /// </para>
+    /// <para>
+    /// This sits on top of <c>SystemFileSystem.DeleteFile</c>'s own ten attempts, which is a
+    /// 275 ms budget deliberately tuned for a virus scanner or the search indexer holding a
+    /// file for a few milliseconds. Raising THAT to seconds would slow every failing delete in
+    /// the rig and would still be per file. Two budgets, two causes, and the fast one stays
+    /// fast.
+    /// </para>
+    /// </remarks>
+    public static readonly IReadOnlyList<int> TransientRetryDelaysMs = [250, 500, 1000, 2000, 4000];
 
     /// <inheritdoc/>
     public ResetRun Restore(bool keepState, string reason) =>
@@ -143,23 +190,7 @@ public sealed class ResetExecutor : IRigRestore
             return new ResetRun(false, string.Empty, true, false, [], [], plan);
         }
 
-        var performed = new List<ResetAction>();
-        var failures = new List<string>();
-
-        foreach (var action in plan.Actions)
-        {
-            try
-            {
-                // The action that goes into the summary is the one Perform hands back, not the
-                // one the plan carried (RESET-183). An action that warned and did nothing is
-                // relabelled, so the printed outcome cannot claim a write that did not happen.
-                performed.Add(Perform(action));
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or RigRefusalException or InvalidOperationException)
-            {
-                failures.Add($"{action.Who} : {action.Label} failed ({action.Kind} {action.Path}): {ex.Message}");
-            }
-        }
+        var (performed, failures) = PerformWithRetries(plan);
 
         WriteOutcome(plan, performed, options.Reason);
 
@@ -190,6 +221,131 @@ public sealed class ResetExecutor : IRigRestore
         }
 
         return new ResetRun(false, string.Empty, false, false, performed, failures, plan);
+    }
+
+    /// <summary>
+    /// Runs every action, sweeping the ones that hit an IO error again before giving up.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Only an IO-shaped failure is swept. A <see cref="RigRefusalException"/> or an
+    /// <see cref="InvalidOperationException"/> is a decision the rig has already made (a
+    /// setting that vanished between the plan and the execute, a redirect that cannot be
+    /// re-applied after a config copy), and no amount of waiting changes it, so those fail on
+    /// the first pass exactly as they always did.
+    /// </para>
+    /// <para>
+    /// Every action here is idempotent, which is what makes a re-run safe: a delete checks for
+    /// the file first, a contents-delete re-enumerates what is left, and a copy overwrites. An
+    /// action that half-succeeded and then failed picks up from what is actually on disk.
+    /// </para>
+    /// </remarks>
+    private (List<ResetAction> Performed, List<string> Failures) PerformWithRetries(ResetPlan plan)
+    {
+        var performed = new List<ResetAction>();
+        var failures = new List<string>();
+        var pending = new List<ResetAction>(plan.Actions);
+        var sweep = 0;
+        var recovered = 0;
+
+        while (true)
+        {
+            var held = new List<(ResetAction Action, Exception Error)>();
+            var failedBefore = failures.Count;
+
+            foreach (var action in pending)
+            {
+                try
+                {
+                    // The action that goes into the summary is the one Perform hands back, not
+                    // the one the plan carried (RESET-183). An action that warned and did
+                    // nothing is relabelled, so the printed outcome cannot claim a write that
+                    // did not happen.
+                    performed.Add(Perform(action));
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    held.Add((action, ex));
+                }
+                catch (Exception ex) when (ex is RigRefusalException or InvalidOperationException)
+                {
+                    failures.Add(Describe(action, ex, sweep));
+                }
+            }
+
+            if (sweep > 0) recovered += pending.Count - held.Count - (failures.Count - failedBefore);
+
+            if (held.Count == 0)
+            {
+                if (recovered > 0)
+                {
+                    _output.Line(OutputLevel.Warning,
+                        $"[Reset] {recovered} action(s) cleared on retry sweep {sweep} of "
+                        + $"{TransientRetryDelaysMs.Count}: something was still holding those files open, and let go. "
+                        + "The reset is complete and nothing was skipped, but a handle outliving the process that "
+                        + "owned it is worth knowing about.");
+                }
+                break;
+            }
+
+            if (sweep >= TransientRetryDelaysMs.Count)
+            {
+                foreach (var (action, error) in held) failures.Add(Describe(action, error, sweep));
+                break;
+            }
+
+            var delay = TransientRetryDelaysMs[sweep];
+            _output.Line(OutputLevel.Info,
+                $"[Reset] {held.Count} action(s) could not be performed because something still holds the file open; "
+                + $"retrying in {delay} ms (sweep {sweep + 1} of {TransientRetryDelaysMs.Count}). Windows releases a "
+                + "process's handles after it exits, so a just-stopped instance is the usual cause.");
+
+            _sleeper.DelayAsync(TimeSpan.FromMilliseconds(delay)).GetAwaiter().GetResult();
+            sweep++;
+            pending = [.. held.Select(static h => h.Action)];
+        }
+
+        return (performed, failures);
+    }
+
+    /// <summary>One failure line, naming what was tried, how often, and what it looked like.</summary>
+    /// <remarks>
+    /// The sharing-violation hint is not decoration. This binary publishes with
+    /// <c>UseSystemResourceKeys</c>, so the runtime's own message for a held file arrives as
+    /// the bare resource key <c>IO_SharingViolation_File, &lt;path&gt;</c>, which teaches a
+    /// reader nothing at all.
+    /// </remarks>
+    private static string Describe(ResetAction action, Exception error, int sweep)
+    {
+        var attempts = sweep == 0
+            ? string.Empty
+            : $" after {sweep + 1} attempts over {TransientRetryDelaysMs.Take(sweep).Sum()} ms";
+
+        var hint = IsFileHeldOpen(error)
+            ? " Another process still has the file open; it was not this reset's to close."
+            : string.Empty;
+
+        return $"{action.Who} : {action.Label} failed{attempts} ({action.Kind} {action.Path}): {error.Message}{hint}";
+    }
+
+    /// <summary>ERROR_SHARING_VIOLATION (32) or ERROR_LOCK_VIOLATION (33), as an HRESULT.</summary>
+    /// <remarks>
+    /// Read from <see cref="Exception.HResult"/> rather than from the message, because the
+    /// message is a stripped resource key in the shipped binary and is localised in any build
+    /// that keeps its resources. The text probe behind it is a fallback for a wrapped
+    /// exception that lost the code, never the primary test.
+    /// </remarks>
+    public static bool IsFileHeldOpen(Exception? error)
+    {
+        if (error is null) return false;
+
+        const int sharingViolation = unchecked((int)0x80070020);
+        const int lockViolation = unchecked((int)0x80070021);
+
+        if (error.HResult == sharingViolation || error.HResult == lockViolation) return true;
+
+        return error.Message.Contains("IO_SharingViolation", StringComparison.OrdinalIgnoreCase)
+               || error.Message.Contains("being used by another process", StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>Performs one action. Every path here is a delete site or a write site.</summary>

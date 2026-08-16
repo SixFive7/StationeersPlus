@@ -468,3 +468,50 @@ with each other and with the OS. Two members exist because they answer different
 it cannot fully describe, while `IsRunning` needs only `HasExited` and therefore keeps
 answering for a process that is unwinding. A teardown polls the second, because polling the
 first would end the wait on the very answer that started the problem.
+
+## An exited process keeps its files open, and the reset believed that too
+
+The sibling of the section above, and the same shape in the other direction: the process
+object being gone does not mean the process's FILES are closed. Windows releases handles
+asynchronously as a process is torn down, so an instance that has genuinely exited can hold
+its Unity log open for a while afterwards, and the state reset at the top of the next session
+is exactly what runs into it.
+
+Measured 2026-08-16 on a live playtest suite. The reset failed deleting
+`<instance>\logs\unity-20260816-020316.log` with a sharing violation, on a handle belonging to
+the instance the PREVIOUS check had stopped. The reset was correct to refuse (a half-reset rig
+must not be tested on), and the condition was transient and self-healing, which is the whole
+defect: a race was being treated as terminal.
+
+Two things came out of it, and they are separate bugs that happened to arrive together.
+
+**The retry is per RUN, not per action.** The executor sweeps the actions that failed with an
+IO error and retries all of them together, 250, 500, 1000, 2000 and 4000 ms apart, so twenty
+held files cost the same wall clock as one: 7.75 s at worst, whatever the plan looks like. A
+per-action budget of that size would be minutes on a plan that is genuinely stuck, and a reset
+that looks like a hang is its own failure. Only IO-shaped failures are swept; a
+`RigRefusalException` is a decision the rig has already made (a setting that vanished between
+the plan and the execute, a redirect that cannot be re-applied) and no amount of waiting
+changes it. This sits on top of `SystemFileSystem.DeleteFile`'s own ten attempts, which is a
+275 ms budget tuned for a virus scanner: two budgets, two causes, and the fast one stays fast.
+What did not change is the refusal. An action still failing when the budget runs out is a
+failure, the run throws, the marker stays set, and nothing is skipped silently.
+
+**A sharing violation is recognised by its HRESULT, and it has to be.** `TestRig.Cli`
+publishes with `UseSystemResourceKeys`, which strips the runtime's message table, so the
+exception a held file produces reads `IO_SharingViolation_File, <path>` rather than the
+English sentence. That is what an operator sees from the shipped binary and it teaches
+nothing, so the classifier reads `HResult` (0x80070020 sharing, 0x80070021 lock) and the
+failure line appends a plain explanation. Do not classify this from message text; the text is
+a resource key here and localised anywhere else.
+
+**And the lock leaked behind it.** The playtest harness took the lock, the reset failed, and
+the branch that reported it threw from outside the try/finally that owns the release, so the
+rig stayed locked by an owner id the harness had never been given: `LockGrant.Refused` carries
+no owner, and the acquisition's own exception did not either. Acquisition is two steps and only
+the first is atomic (the lock file is written inside the critical section, the reset runs after
+it), so "the acquisition failed" and "the rig is not reserved" are different statements. They
+have their own type now, `RigSessionStartException`, carrying the owner id; the harness
+releases on that path and reports the release outcome alongside the reason rather than instead
+of it. One sharing violation cost that run three checks: the one that hit it, and the two
+behind it that found the rig locked.

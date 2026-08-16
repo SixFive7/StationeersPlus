@@ -178,6 +178,75 @@ public sealed class TeardownTests
     }
 
     [Fact]
+    public void AnAcquisitionThatTookTheLockAndThenFailedStillReleasesIt()
+    {
+        // The leak, as a test. Acquisition writes the lock file and THEN runs the
+        // between-session state reset, so a reset that throws leaves a real reservation
+        // behind. This branch used to throw from outside the try/finally that owns the
+        // release: measured 2026-08-16, a suite reached check 6, the reset hit a sharing
+        // violation on an instance's Unity log, and the rig stayed locked by owner 8dd76948
+        // until a human cleared it, taking checks 7 and 8 with it.
+        var fixture = Rig();
+        fixture.Launcher.Owner = "8dd76948";
+        fixture.Launcher.LockTakenThenResetFails = true;
+        fixture.Launcher.LockMessage = "the rig state reset failed on 1 action(s)";
+
+        var result = Run(fixture);
+
+        Assert.Contains("unlock 8dd76948", fixture.Launcher.Calls);
+        Assert.Equal(CheckOutcome.Inconclusive, result.Outcome);
+        Assert.Equal(Detectors.RigUnavailable, result.Detector);
+
+        // Nothing was driven on a rig that is not fit to test on. The refusal is preserved;
+        // only the leak is fixed.
+        Assert.DoesNotContain(fixture.Launcher.Calls, c => c.StartsWith("start ", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void AReleaseAfterAFailedAcquisitionNeverMasksWhyTheCheckWasInconclusive()
+    {
+        // A release also RESTORES, so it has its own ways to fail. Reporting that INSTEAD of
+        // the acquisition failure would throw away the only thing the check knows: why nothing
+        // was measured about the mod.
+        var fixture = Rig();
+        fixture.Launcher.Owner = "8dd76948";
+        fixture.Launcher.LockTakenThenResetFails = true;
+        fixture.Launcher.LockMessage = "IO_SharingViolation_File, hostie\\logs\\unity-20260816-020316.log";
+        fixture.Launcher.ReleaseSucceeds = false;
+
+        var result = Run(fixture);
+
+        Assert.Equal(CheckOutcome.Inconclusive, result.Outcome);
+        Assert.Equal(Detectors.RigUnavailable, result.Detector);
+
+        // Both, in that order: the reason first, the release outcome after it.
+        Assert.Contains("unity-20260816-020316.log", result.Message, StringComparison.Ordinal);
+        Assert.Contains("STILL LOCKED by owner 8dd76948", result.Message, StringComparison.Ordinal);
+        Assert.Contains("testrig unlock --as 8dd76948", result.Message, StringComparison.Ordinal);
+        Assert.True(
+            result.Message.IndexOf("unity-20260816-020316.log", StringComparison.Ordinal)
+            < result.Message.IndexOf("STILL LOCKED", StringComparison.Ordinal));
+
+        Assert.Contains(result.TeardownNotes, n => n.Contains("STILL LOCKED by owner 8dd76948", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void AnAcquisitionThatNeverTookTheLockReleasesNothing()
+    {
+        // The other half of the same rule. A refusal from another session's live lock has no
+        // owner id of ours, and unlocking on that path would be an attempt to release somebody
+        // else's reservation.
+        var fixture = Rig();
+        fixture.Launcher.LockSucceeds = false;
+
+        var result = Run(fixture);
+
+        Assert.DoesNotContain(fixture.Launcher.Calls, c => c.StartsWith("unlock", StringComparison.Ordinal));
+        Assert.Equal(CheckOutcome.Inconclusive, result.Outcome);
+        Assert.DoesNotContain("STILL LOCKED", result.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void ALockGrantedWithoutAnOwnerIsUnusableAndSaysSo()
     {
         // The PowerShell harness recovered the owner id with a regex over launcher prose, and
@@ -192,6 +261,15 @@ public sealed class TeardownTests
         Assert.Equal(CheckOutcome.Inconclusive, result.Outcome);
         Assert.Equal(Detectors.RigUnavailable, result.Detector);
         Assert.Contains("no owner id", result.Message, StringComparison.Ordinal);
+
+        // The one path that genuinely cannot clean up after itself, so it has to say so and
+        // name the way out rather than leaving an operator to work it out from a stray file.
+        // It must not try to unlock with the empty id it was handed either.
+        Assert.Contains("LEFT LOCKED", result.Message, StringComparison.Ordinal);
+        Assert.Contains("testrig status", result.Message, StringComparison.Ordinal);
+        Assert.Contains("testrig unlock --as <owner>", result.Message, StringComparison.Ordinal);
+        Assert.Contains(result.TeardownNotes, n => n.Contains("LEFT LOCKED", StringComparison.Ordinal));
+        Assert.DoesNotContain(fixture.Launcher.Calls, c => c.StartsWith("unlock", StringComparison.Ordinal));
     }
 
     [Fact]

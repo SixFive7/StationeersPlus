@@ -113,6 +113,8 @@ than as the ordinary not-deployed case.
 
 The engine reads the owner id from the rig's structured output rather than by scraping a sentence, and it records the exit code a lock attempt produced. Those two together are why a refusal no retry could fix is no longer indistinguishable from a rig that was momentarily busy: exit 4 is another session's lock, 6 is a busy rig, 3 is a refusal.
 
+**A FAILED acquisition can still have taken the lock, and it releases it.** Acquisition writes the lock file and then runs the state reset on top of it, so a reset that fails leaves a real reservation behind. That case is now reported as its own thing (owner id and all) and released before the check throws; the outcome of that release is appended to the inconclusive message rather than replacing it, because a release also restores and a restore that failed must not hide why nothing was measured. The one case that still cannot clean up after itself is a grant with no owner id at all, and it says so in capitals and names the three commands that clear it. Measured 2026-08-16: without this a suite lost checks 6, 7 and 8 to one sharing violation and a lock nobody could name.
+
 **Teardown is guaranteed and it is by name.** The runner stops the instances it started, one at a time, joiners first and hosts last. It never runs a rig-wide stop: that reaches every instance on the machine including another session's live test. A stop that fails does not skip the release, because an instance left up holds the rig but a lock left held blocks every other agent too. Both are recorded.
 
 ## Evidence, and the flake taxonomy

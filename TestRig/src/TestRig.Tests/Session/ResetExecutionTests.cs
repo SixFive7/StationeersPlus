@@ -552,6 +552,124 @@ public sealed class ResetExecutionTests
         Assert.False(rig.Fs.FileExists(imgui));
     }
 
+    // ---- the just-exited process race --------------------------------------
+
+    [Fact]
+    public void AFileAJustExitedProcessStillHoldsIsRetriedRatherThanFailingTheWholeReset()
+    {
+        // Windows releases a process's file handles asynchronously after it exits, so the
+        // reset at the top of a session routinely runs while the instance the PREVIOUS check
+        // stopped is still letting go of its Unity log. Measured 2026-08-16: the reset failed
+        // on unity-20260816-020316.log with a sharing violation and ended the check. The
+        // condition is transient and self-healing; treating it as terminal was the defect.
+        var rig = Provisioned();
+        var log = Path.Combine(rig.Paths.InstanceDataDir("c1"), "logs", "unity-20260816-020316.log");
+        rig.Fs.AddFile(log, "unity output");
+        rig.Fs.TransientDeleteFailures[Path.GetFullPath(log)] = 2;
+        rig.Marker.Write("abc12345", "p", "Start");
+
+        var run = rig.Executor.Run(null, new ResetOptions());
+
+        Assert.Empty(run.Failures);
+        Assert.False(rig.Fs.FileExists(log));
+        Assert.Equal(3, rig.Fs.DeleteAttempts[Path.GetFullPath(log)]);
+        Assert.False(rig.MarkerExists());
+
+        // Never silent: a handle outliving its process is worth a line even when it clears.
+        Assert.True(rig.Output.Warned("cleared on retry sweep"));
+    }
+
+    [Fact]
+    public void AHeldFileThatNeverClearsIsStillAFailureAndTheRunStillThrows()
+    {
+        // The refusal is the correct behaviour and is not what was being fixed: a rig that is
+        // half reset must not be tested on, and a file the reset could not clear is exactly
+        // how a stale log poisons a later assertion. Only the transient case changed.
+        var rig = Provisioned();
+        var log = Path.Combine(rig.Paths.InstanceDataDir("c1"), "logs", "unity-20260816-020316.log");
+        rig.Fs.AddFile(log, "unity output");
+        rig.Fs.TransientDeleteFailures[Path.GetFullPath(log)] = 999;
+        rig.Marker.Write("abc12345", "p", "Start");
+
+        var ex = Assert.Throws<RigRefusalException>(() => rig.Executor.Run(null, new ResetOptions()));
+
+        Assert.Contains("HALF RESET", ex.Message, StringComparison.Ordinal);
+        Assert.Contains("unity-20260816-020316.log", ex.Message, StringComparison.Ordinal);
+        Assert.True(rig.Fs.FileExists(log));
+        Assert.True(rig.MarkerExists());
+
+        // It says how hard it tried, and it translates the runtime's stripped resource key,
+        // which is all an operator gets from the AOT binary.
+        Assert.Contains("after 6 attempts", ex.Message, StringComparison.Ordinal);
+        Assert.Contains("still has the file open", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void TheRetryBudgetIsPerRunSoTwentyHeldFilesCostWhatOneDoes()
+    {
+        // A per-action budget would be minutes on a plan that is genuinely stuck, and a reset
+        // that looks like a hang is its own failure. Sweeping the failures instead means the
+        // wall clock is a property of the budget, not of how much is broken.
+        var rig = Provisioned();
+        var data = rig.Paths.InstanceDataDir("c1");
+        foreach (var leaf in new[] { "imgui.ini", "setting.xml" })
+        {
+            var path = Path.Combine(data, leaf);
+            rig.Fs.AddFile(path, "held");
+            rig.Fs.TransientDeleteFailures[Path.GetFullPath(path)] = 999;
+        }
+
+        Assert.Throws<RigRefusalException>(() => rig.Executor.Run(null, new ResetOptions()));
+
+        // Asserted rather than assumed: an empty budget would make every count below zero and
+        // this test would then pass while the retry did not exist at all.
+        Assert.NotEmpty(ResetExecutor.TransientRetryDelaysMs);
+        Assert.Equal(ResetExecutor.TransientRetryDelaysMs.Count, rig.Sleeper.Delays.Count);
+        Assert.Equal(
+            [.. ResetExecutor.TransientRetryDelaysMs.Select(ms => TimeSpan.FromMilliseconds(ms))],
+            rig.Sleeper.Delays);
+
+        // Both are reported. A sweep that quietly dropped one would be the silent skip the
+        // whole refusal exists to prevent.
+        Assert.Equal(2, rig.Fs.DeleteAttempts.Count(a =>
+            a.Value == ResetExecutor.TransientRetryDelaysMs.Count + 1));
+    }
+
+    [Fact]
+    public void ARefusalIsNeverRetriedBecauseNoAmountOfWaitingChangesIt()
+    {
+        // A decision the rig has already made is not a race. Retrying it would spend the whole
+        // budget to arrive at the same answer, on the path that reports an instance with no
+        // save redirect.
+        var rig = Provisioned();
+        var bep = Path.Combine(RigFixture.InstancesRoot, "c1", "BepInEx");
+        rig.Fs.DeleteFile(Path.Combine(bep, "config", SavePathOverride.ConfigLeaf));
+        rig.Fs.DeleteFile(Path.Combine(RigFixture.SourceInstall, "BepInEx", "config", SavePathOverride.ConfigLeaf));
+
+        Assert.Throws<RigRefusalException>(() => rig.Executor.Run(null, new ResetOptions()));
+
+        Assert.Empty(rig.Sleeper.Delays);
+    }
+
+    [Theory]
+    // What the AOT binary actually prints: UseSystemResourceKeys strips the sentence and
+    // leaves the resource key, which is what the 2026-08-16 run reported.
+    [InlineData("IO_SharingViolation_File, C:\\rig\\unity.log", 0, true)]
+    [InlineData("The process cannot access the file because it is being used by another process.", 0, true)]
+    // The HRESULT is the primary test, so a message in any language still classifies.
+    [InlineData("etwas ganz anderes", unchecked((int)0x80070020), true)]
+    [InlineData("etwas ganz anderes", unchecked((int)0x80070021), true)]
+    // And an ordinary IO failure is not this.
+    [InlineData("The directory is not empty.", 0, false)]
+    public void AHeldFileIsRecognisedByItsHresultRatherThanByAnEnglishSentence(
+        string message, int hresult, bool expected)
+    {
+        var error = new IOException(message);
+        if (hresult != 0) error.HResult = hresult;
+
+        Assert.Equal(expected, ResetExecutor.IsFileHeldOpen(error));
+    }
+
     [Fact]
     public void TheResetStampMovesForwardOnlyOnAPerformingRun()
     {

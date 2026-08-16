@@ -78,6 +78,13 @@ internal sealed class HostOwnClientHalfMustNotLeak : IPlaytestCheck
         ArgumentNullException.ThrowIfNull(ctx);
 
         const string guid = ModGuid;
+
+        // The exact sentence WarningNotifier.WarnBlocked builds for this function.
+        // Declared once because it is asserted twice, in opposite directions: absent
+        // when the host's own half is the blocker, present when the server's is. Two
+        // copies could drift apart, and the negative one drifting is invisible.
+        const string notice = "Glow Paint is turned off on this server, so it had no effect.";
+
         var spawned = new List<long>();
 
         try
@@ -250,10 +257,14 @@ internal sealed class HostOwnClientHalfMustNotLeak : IPlaytestCheck
 
             // ---- 6. And the other half: the host's own gun stays inert, and the
             // host is not lectured about a setting it chose itself.
-            ctx.Act("hostie", Endpoints.InventoryArm, new InventoryArmRequest
+            var hostArm = ctx.Act("hostie", Endpoints.InventoryArm, new InventoryArmRequest
             {
                 Prefab = "ItemSprayGun", Hand = "activeHand", Replace = true, TimeoutMs = 30000,
             });
+
+            // Kept for the positive control in step 7, which has to read this gun's
+            // OnOff before it can believe a notice it did or did not see.
+            var hostGun = hostArm.As<InventoryArmResponse>()?.ReferenceId ?? 0;
             ctx.Wait(3);
             ctx.Act("hostie", Endpoints.InputKey, new InputKeyRequest { Key = "SecondaryAction", Mode = "tap", Frames = 3 });
             ctx.Wait(2);
@@ -266,9 +277,68 @@ internal sealed class HostOwnClientHalfMustNotLeak : IPlaytestCheck
                 readerArgs: new ThingRequest { RefIds = Id(control), Fields = "EmissionColor.r" });
 
             ctx.AssertValue("hostie", Reader.Console, ValueMatcher.Is(0),
-                because: "the blocked-function notice speaks only when the SERVER half is the blocker; here the host own half is, so telling the host that the server refused would be both wrong and confusing",
+                because: $"the blocked-function notice speaks only when the SERVER half is the blocker; here the host own half is, so telling the host that the server refused would be both wrong and confusing. The literal '{notice}' is proved live below, on this same console and through this same filter, so this silence cannot be the silence of a literal nobody prints any more",
                 select: "count",
-                readerArgs: new ConsoleLogRequest { Since = seq0, Source = "console", Contains = "Glow Paint is turned off", Limit = 200 });
+                readerArgs: new ConsoleLogRequest { Since = seq0, Source = "console", Contains = notice, Limit = 200 });
+
+            // ---- 7. The positive control for the silence above.
+            //
+            // Is(0) over a Contains filter passes when the literal is right AND when
+            // it is wrong, so on its own it certifies nothing: let the mod's wording
+            // drift by one word and the assertion goes on passing while testing
+            // nothing at all. It is the same shape as the defect that cost this
+            // project a session, one grade worse: an Is(1) on a literal that matched
+            // nothing at least failed loudly, where an Is(0) fails silently.
+            //
+            // So the literal is proved live here, in this check, with the same reader
+            // and the same filter. Flip the SERVER half off and put the host's own
+            // half back ON: now the server is the blocker, the acting player is the
+            // host, and SettingBlockedNotice.NotifyBlocked routes to this very console
+            // through its LocalHuman branch. A drifted literal fails THIS assertion,
+            // which is what makes the silence above mean something.
+            foreach (var pair in new[]
+            {
+                ("Server - Glow Paint", "false"),
+                ("Client - Glow Paint", "true"),
+            })
+            {
+                ctx.Act("hostie", Endpoints.ConfigSet, new ConfigSetRequest
+                {
+                    Guid = guid, Section = pair.Item1, Key = "Glow Paint", Value = pair.Item2, Save = false,
+                });
+            }
+
+            ctx.AssertValue("hostie", Reader.Config, ValueMatcher.Is(false),
+                because: "the control only proves anything if the SERVER half is what refuses the next stroke; with it still on the stroke would simply be allowed and the missing notice would be correct",
+                select: "value", of: "Server - Glow Paint/Glow Paint",
+                readerArgs: new ConfigRequest { Guid = guid });
+
+            // The host's own half has to be back ON and REPORTED before the stroke:
+            // WarningNotifier stays quiet for a player whose own preference bit is
+            // clear, which is the rule the assertion above rests on. The bit travels
+            // in PaintModifierMessage from InventoryManager.NormalMode while a gun is
+            // in the active hand, so this wait is the message, not padding.
+            ctx.Wait(3);
+
+            var hostGunOn = ctx.Read("hostie", Reader.Thing, "value", $"{Id(hostGun)}/OnOff",
+                new ThingRequest { RefIds = Id(hostGun), Fields = "OnOff" });
+
+            if (hostGunOn.Text != "True")
+            {
+                ctx.SetInconclusive(
+                    $"the host's own spray gun reads OnOff={hostGunOn.Text}, so the stroke below would request the state the control cable is already in. GlowPaintPatches only notifies when currentlyGlowing != wantGlowing, so the notice would not fire and the control would prove nothing about the literal.",
+                    "tool-not-toggled");
+            }
+
+            var seq1 = Seq(ctx.Read("hostie", Reader.Console, "nextSeq", readerArgs: new ConsoleLogRequest { Limit = 1 }));
+
+            ctx.Act("hostie", Endpoints.PlayerUse, new PlayerUseRequest { TargetId = control });
+            ctx.Wait(3);
+
+            ctx.AssertValue("hostie", Reader.Console, ValueMatcher.Is(1),
+                because: $"one stroke at a function the SERVER refuses prints exactly one notice (WarningNotifier.MaxNoticesPerFunction is 3 and none of this check's budget has been spent, which the assertion above just established). Zero here means the mod no longer prints '{notice}' in those words, which would also mean the silence asserted above was measuring a literal that matches nothing",
+                select: "count",
+                readerArgs: new ConsoleLogRequest { Since = seq1, Source = "console", Contains = notice, Limit = 200 });
         }
         finally
         {
@@ -277,10 +347,17 @@ internal sealed class HostOwnClientHalfMustNotLeak : IPlaytestCheck
                 Quietly(() => ctx.Act("hostie", Endpoints.ConsoleExec, new ConsoleExecRequest { Command = $"thing delete {Id(id)}" }, noRetry: true));
             }
 
-            Quietly(() => ctx.Act("hostie", Endpoints.ConfigSet, new ConfigSetRequest
+            // Both halves, because step 7 turns the SERVER one off and an instance
+            // that outlives this check must not hand the next one a server that
+            // silently refuses glow paint. save=false throughout, so nothing here
+            // reaches the instance's .cfg either way.
+            foreach (var section in new[] { "Client - Glow Paint", "Server - Glow Paint" })
             {
-                Guid = ModGuid, Section = "Client - Glow Paint", Key = "Glow Paint", Value = "true", Save = false,
-            }, noRetry: true));
+                Quietly(() => ctx.Act("hostie", Endpoints.ConfigSet, new ConfigSetRequest
+                {
+                    Guid = ModGuid, Section = section, Key = "Glow Paint", Value = "true", Save = false,
+                }, noRetry: true));
+            }
         }
     }
 }

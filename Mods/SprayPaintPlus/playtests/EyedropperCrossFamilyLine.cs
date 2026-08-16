@@ -69,6 +69,26 @@ internal sealed class EyedropperCrossFamilyLine : IPlaytestCheck
         const string guid = ModGuid;
         const int metallic = 12;          // ColorObsidian, the first Metallic Paints swatch
         const string familyLine = "limited to one paint family";
+
+        // The console line as the mod actually renders it. PlayerMessage puts the
+        // display name in front of the message, and the message OPENS with
+        // "Color cycling is ", so the prefix and the rule text are NOT adjacent:
+        //
+        //   [Spray Paint Plus] Color cycling is limited to one paint family here: ...
+        //
+        // /console/log's `contains` is one substring test, so pinning the prefix AND
+        // the rule text in a single filter means spelling out the words between them.
+        // This was `$"[Spray Paint Plus] {familyLine}"`, which is not a substring of
+        // any line the mod has ever printed. The count therefore read 0 against a mod
+        // that was printing correctly on both streams, and the check reported `fail`,
+        // which is the one outcome that accuses the mod. Measured on 0.2.6428.27798:
+        // one click produced exactly one console line and one BepInEx line; the
+        // check's own filter matched 0 of them and this one matched 1.
+        //
+        // The BepInEx side deliberately keeps the bare `familyLine`: that stream is
+        // prefixed with the CODE name by BepInEx itself ("[SprayPaintPlus] "), so the
+        // two sources cannot share a prefixed literal.
+        const string consoleLine = "[Spray Paint Plus] Color cycling is " + familyLine;
         long target = 0;
         var cursorSet = false;
 
@@ -165,7 +185,7 @@ internal sealed class EyedropperCrossFamilyLine : IPlaytestCheck
             ctx.AssertValue("hostie", Reader.Console, ValueMatcher.Is(1),
                 because: "a deliberate right-click at a colour the rule refuses must be answered, once, with the display-name prefix the shared PlayerMessage helper supplies; silence in reply to a deliberate action reads as the mod being broken",
                 select: "count",
-                readerArgs: new ConsoleLogRequest { Since = seq0, Source = "console", Contains = $"[Spray Paint Plus] {familyLine}", Limit = 200 });
+                readerArgs: new ConsoleLogRequest { Since = seq0, Source = "console", Contains = consoleLine, Limit = 200 });
 
             ctx.AssertValue("hostie", Reader.Console, ValueMatcher.AtLeast(1),
                 because: "the migration onto PlayerMessage put this line in the BepInEx log as well as the console, which is what makes it survive in a bug report; before the migration it existed only on screen",
@@ -180,7 +200,7 @@ internal sealed class EyedropperCrossFamilyLine : IPlaytestCheck
             ctx.AssertValue("hostie", Reader.Console, ValueMatcher.Is(2),
                 because: "the family rule answers a deliberate action every single time and is exempt from the three-per-session cap that bounds the blocked-function notices; a second click answered with silence would be the caller getting nothing back from a rule that is still enforcing",
                 select: "count",
-                readerArgs: new ConsoleLogRequest { Since = seq0, Source = "console", Contains = $"[Spray Paint Plus] {familyLine}", Limit = 200 });
+                readerArgs: new ConsoleLogRequest { Since = seq0, Source = "console", Contains = consoleLine, Limit = 200 });
 
             // ---- 8. The rule is a restriction, not a paint: the can must not
             // have taken the colour it was refused.

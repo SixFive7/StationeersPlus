@@ -178,8 +178,27 @@ internal sealed class EffectiveSettingsLogLine : IPlaytestCheck
             select: "count",
             readerArgs: new ConsoleLogRequest { Since = seq0, Source = "console", Contains = "Effective settings", Limit = 500 });
 
+        // WHERE THIS LITERAL IS PROVED LIVE, AND WHY IT IS NOT PROVED HERE.
+        // Is(0) over a Contains filter passes whether the literal is right or wrong,
+        // so a count of zero is only evidence when something else establishes that
+        // the mod still prints those words. The two assertions above are
+        // self-guarding: "Effective settings" is a prefix of supportLine, which the
+        // Is(1) immediately before them requires to appear in the log.
+        //
+        // This one is guarded by a SIBLING check instead. "the join summary lists
+        // every blocked function once" (JoinSummary.cs) arranges the opposite server
+        // and asserts Is(1) on "[Spray Paint Plus] This server does not allow" from
+        // the same instance, the same reader and the same source, so a drift in the
+        // wording fails there, loudly, on any run of the suite.
+        //
+        // The residual risk is named rather than fixed: running this check alone
+        // (--only) would not catch a drifted literal, and neither would deleting
+        // JoinSummary. Proving it here instead would mean flipping a server half off,
+        // bouncing the joiner through a second full disconnect and rejoin, and
+        // arriving at exactly the arrangement JoinSummary exists to test, which is a
+        // minute of bring-up spent duplicating a check that already runs.
         ctx.AssertValue("joiner", Reader.Console, ValueMatcher.Is(0),
-            because: "this server refuses nothing the joiner asked for, so OnJoinPayloadReceived must return without printing; a summary listing nothing, or listing a function that is not actually blocked, is noise a player cannot act on",
+            because: "this server refuses nothing the joiner asked for, so OnJoinPayloadReceived must return without printing; a summary listing nothing, or listing a function that is not actually blocked, is noise a player cannot act on. The literal is proved live by the JoinSummary check, which asserts it PRESENT on this same reader with a server that does refuse something",
             select: "count",
             readerArgs: new ConsoleLogRequest { Since = seq0, Source = "console", Contains = "This server does not allow", Limit = 500 });
     }
